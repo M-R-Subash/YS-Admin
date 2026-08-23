@@ -1,5 +1,0 @@
-(globalThis["TURBOPACK_CHUNK_LISTS"] || (globalThis["TURBOPACK_CHUNK_LISTS"] = [])).push({
-    script: typeof document === "object" ? document.currentScript : undefined,
-    chunks: ["static/chunks/[root-of-the-server]__04kpziu._.css","static/chunks/src_0_40tvq._.js","static/chunks/node_modules_@base-ui_react_internals_1xep4x9._.js","static/chunks/node_modules_@base-ui_react_utils_1rurv5p._.js","static/chunks/node_modules_@base-ui_react_floating-ui-react_1h8u_ip._.js","static/chunks/node_modules_@base-ui_react_menu_0w4x-wc._.js","static/chunks/node_modules_@base-ui_react_toast_1mcoxzg._.js","static/chunks/node_modules_@base-ui_react_0wh3b1s._.js","static/chunks/node_modules_tailwind-merge_dist_bundle-mjs_mjs_0q79z23._.js","static/chunks/node_modules_140dg91._.js","static/chunks/src_0ufv4cz._.js","static/chunks/node_modules_@tanstack_table-core_build_lib_index_mjs_1fcylyt._.js","static/chunks/node_modules_next_1c72fmn._.js","static/chunks/node_modules_zod_v4_06yv92s._.js","static/chunks/node_modules_0kxk1h1._.js"],
-    source: "entry"
-});
