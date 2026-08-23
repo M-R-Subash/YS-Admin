@@ -542,16 +542,8 @@
     top: calc(var(--spacing) * 3.5);
   }
 
-  .top-16 {
-    top: calc(var(--spacing) * 16);
-  }
-
   .top-\[50\%\] {
     top: 50%;
-  }
-
-  .top-\[159px\] {
-    top: 159px;
   }
 
   .right-0 {
@@ -931,10 +923,6 @@
     height: calc(var(--spacing) * 80);
   }
 
-  .h-\[50vh\] {
-    height: 50vh;
-  }
-
   .h-\[85vh\] {
     height: 85vh;
   }
@@ -945,10 +933,6 @@
 
   .h-\[300px\] {
     height: 300px;
-  }
-
-  .h-\[calc\(100vh-159px\)\] {
-    height: calc(100vh - 159px);
   }
 
   .h-auto {
@@ -997,10 +981,6 @@
 
   .min-h-\[50vh\] {
     min-height: 50vh;
-  }
-
-  .min-h-\[calc\(100vh-12rem\)\] {
-    min-height: calc(100vh - 12rem);
   }
 
   .min-h-full {
@@ -2780,20 +2760,8 @@
     color: var(--accent-foreground);
   }
 
-  .group-has-data-\[collapsible\=icon\]\/sidebar-wrapper\:top-12:is(:where(.group\/sidebar-wrapper):has([data-collapsible="icon"]) *) {
-    top: calc(var(--spacing) * 12);
-  }
-
-  .group-has-data-\[collapsible\=icon\]\/sidebar-wrapper\:top-\[143px\]:is(:where(.group\/sidebar-wrapper):has([data-collapsible="icon"]) *) {
-    top: 143px;
-  }
-
   .group-has-data-\[collapsible\=icon\]\/sidebar-wrapper\:h-12:is(:where(.group\/sidebar-wrapper):has([data-collapsible="icon"]) *) {
     height: calc(var(--spacing) * 12);
-  }
-
-  .group-has-data-\[collapsible\=icon\]\/sidebar-wrapper\:h-\[calc\(100vh-143px\)\]:is(:where(.group\/sidebar-wrapper):has([data-collapsible="icon"]) *) {
-    height: calc(100vh - 143px);
   }
 
   .group-has-data-\[sidebar\=menu-action\]\/menu-item\:pr-8:is(:where(.group\/menu-item):has([data-sidebar="menu-action"]) *) {
@@ -4209,6 +4177,10 @@
     }
   }
 
+  .dark\:bg-white:is(.dark *) {
+    background-color: var(--color-white);
+  }
+
   .dark\:bg-white\/2:is(.dark *) {
     background-color: #ffffff05;
   }
@@ -4255,6 +4227,10 @@
 
   .dark\:bg-zinc-900:is(.dark *) {
     background-color: var(--color-zinc-900);
+  }
+
+  .dark\:text-black:is(.dark *) {
+    color: var(--color-black);
   }
 
   .dark\:after\:mix-blend-lighten:is(.dark *):after {
