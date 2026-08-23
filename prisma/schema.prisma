@@ -1,0 +1,53 @@
+// Prisma Schema for Zoro CMS
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Page {
+  id        String   @id @default(cuid())
+  title     String
+  slug      String   @unique
+  status    String   @default("draft")
+  isTrashed Boolean  @default(false)
+  content   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  seo       SeoMeta?
+}
+
+model SeoMeta {
+  id            String   @id @default(cuid())
+  metaTitle     String?
+  metaDesc      String?
+  focusKeyword  String?
+  ogImage       String?
+  ogTitle       String?
+  ogDesc        String?
+  canonicalUrl  String?
+  structuredData Json?
+  noIndex       Boolean  @default(false)
+  
+  pageId        String?  @unique
+  page          Page?    @relation(fields: [pageId], references: [id], onDelete: Cascade)
+}
+
+model Header {
+  id        String   @id @default("global") 
+  content   Json     
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Footer {
+  id        String   @id @default("global") 
+  content   Json     
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
