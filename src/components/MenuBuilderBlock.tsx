@@ -42,7 +42,7 @@ const SortableItem = ({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    transform: CSS.Translate.toString(transform),
     transition,
     zIndex: isDragging ? 10 : 1,
   };
@@ -271,7 +271,7 @@ export function MenuBuilderBlock({ control, name }: MenuBuilderBlockProps) {
       <div className="pt-2">
         <button
           type="button"
-          onClick={() => append({ label: "", url: { url: "", newTab: false, noFollow: false }, subItems: [] })}
+          onClick={() => append({ id: crypto.randomUUID(), label: "", url: { url: "", newTab: false, noFollow: false }, subItems: [] })}
           disabled={fields.length >= 6}
           className="flex w-full items-center justify-center gap-2 rounded-md border-2 border-dashed border-border p-4 text-sm font-semibold text-foreground hover:border-primary hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
