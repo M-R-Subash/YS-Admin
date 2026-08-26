@@ -7,8 +7,14 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  const adminEmail = "admin@ys.com";
-  
+  const adminEmail = process.env.ADMIN_SEED_EMAIL;
+  const adminPassword = process.env.ADMIN_SEED_PASSWORD;
+
+  if (!adminEmail || !adminPassword) {
+    console.error("ADMIN_SEED_EMAIL and ADMIN_SEED_PASSWORD must be set in the environment variables");
+    process.exit(1);
+  }
+
   // Check if admin already exists
   const existingAdmin = await prisma.user.findUnique({
     where: { email: adminEmail },
@@ -21,7 +27,7 @@ async function main() {
 
   // Hash password with 12 salt rounds
   const saltRounds = 12;
-  const hashedPassword = await bcrypt.hash("admin123", saltRounds);
+  const hashedPassword = await bcrypt.hash(adminPassword, saltRounds);
 
   // Create Master Admin
   const adminUser = await prisma.user.create({
