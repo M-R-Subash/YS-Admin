@@ -64,12 +64,16 @@ export function ImageUploadBlock({ value, onChange }: ImageUploadBlockProps) {
   const handleUpload = async (file: File) => {
     if (!file) return;
     setIsUploading(true);
+    
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME as string;
+    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET as string;
+
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "default_preset");
+    formData.append("upload_preset", uploadPreset);
 
     try {
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`, {
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
         method: "POST",
         body: formData,
       });
@@ -80,10 +84,10 @@ export function ImageUploadBlock({ value, onChange }: ImageUploadBlockProps) {
         setActiveTab("media");
         setSelectedMedia(data);
       } else {
-        console.error("Cloudinary upload failed", data);
+        throw new Error(data.error?.message || "Cloudinary upload failed");
       }
-    } catch (err) {
-      console.error("Error uploading image:", err);
+    } catch (err: any) {
+      console.error("Error uploading image:", err.message || err);
     } finally {
       setIsUploading(false);
     }

@@ -310,11 +310,7 @@ export const getWebpagesColumns = (onDataChange: () => void): ColumnDef<Page>[] 
       );
     },
   },
-  {
-    id: "template",
-    header: "Template",
-    cell: () => <div className="text-muted-foreground">Default</div>,
-  },
+
   {
     id: "seoStatus",
     header: "SEO Status",
@@ -342,8 +338,11 @@ export const getWebpagesColumns = (onDataChange: () => void): ColumnDef<Page>[] 
   },
   {
     id: "author",
-    header: "Author",
-    cell: () => <div className="text-muted-foreground">Admin</div>,
+    header: "Last Edited By",
+    cell: ({ row }) => {
+      const page = row.original as any;
+      return <div className="text-muted-foreground">{page.author?.name || "Default - Admin"}</div>;
+    },
   },
   {
     accessorKey: "createdAt",

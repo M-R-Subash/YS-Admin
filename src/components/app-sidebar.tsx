@@ -5,6 +5,7 @@ import { FileTextIcon, UsersIcon, PenToolIcon, ImageIcon, LayoutDashboardIcon, W
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
+import { useSession } from "next-auth/react"
 import {
   Sidebar,
   SidebarContent,
@@ -35,7 +36,7 @@ const data = {
     },
     {
       title: "Users",
-      url: "#",
+      url: "/users",
       icon: <UsersIcon />,
     },
     {
@@ -58,6 +59,17 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { state } = useSidebar()
+  const { data: session } = useSession()
+  
+  const filteredNavMain = React.useMemo(() => {
+    return data.navMain.filter((item) => {
+      if (item.title === "Users") {
+        return session?.user?.role === "ADMIN"
+      }
+      return true
+    })
+  }, [session])
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -82,10 +94,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </Link>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={filteredNavMain} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={{
+          name: session?.user?.name || "User",
+          email: session?.user?.email || "",
+          avatar: session?.user?.image || "",
+        }} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

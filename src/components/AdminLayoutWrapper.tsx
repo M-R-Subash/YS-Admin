@@ -7,7 +7,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 export function AdminLayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  if (pathname?.startsWith("/editor") || pathname?.startsWith("/header") || pathname?.startsWith("/footer")) {
+  if (pathname?.startsWith("/editor") || pathname?.startsWith("/header") || pathname?.startsWith("/footer") || pathname === "/login") {
     return <>{children}</>;
   }
 
