@@ -396,7 +396,7 @@ export default function EditorPage({
           <div className="w-full h-full bg-white shadow-xl rounded-xl overflow-hidden ring-1 ring-border">
             <iframe
               ref={iframeRef}
-              src={page.slug === "/" ? `${process.env.NEXT_PUBLIC_FRONTEND_URL || "http://localhost:3001"}/?preview=true` : `${process.env.NEXT_PUBLIC_FRONTEND_URL || "http://localhost:3001"}${page.slug}?preview=true`}
+              src={page.slug === "/" ? `${process.env.NEXT_PUBLIC_FRONTEND_URL}/?preview=true` : `${process.env.NEXT_PUBLIC_FRONTEND_URL}${page.slug}?preview=true`}
               className="w-full h-full border-0"
               onLoad={handleIframeLoad}
             />

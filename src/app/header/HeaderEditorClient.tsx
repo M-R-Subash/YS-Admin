@@ -126,7 +126,7 @@ export default function HeaderEditorClient({ initialData }: { initialData: any }
           <div className="w-full h-full bg-white shadow-xl rounded-xl overflow-hidden ring-1 ring-border relative">
             <iframe
               ref={iframeRef}
-              src={`${process.env.NEXT_PUBLIC_FRONTEND_URL || "http://localhost:3001"}/?editor=header`}
+              src={`${process.env.NEXT_PUBLIC_FRONTEND_URL}/?editor=header`}
               className="w-full h-full border-0"
               title="Main Site Preview"
               onLoad={(e) => {
