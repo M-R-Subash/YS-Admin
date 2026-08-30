@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
+import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import { Underline } from "@tiptap/extension-underline";
 import { Link } from "@tiptap/extension-link";
@@ -29,9 +30,18 @@ import {
   Table as TableIcon,
   ImagePlus,
   Check,
-  Loader2
+  Loader2,
+  Trash2,
+  ArrowUpToLine,
+  ArrowDownToLine,
+  ArrowLeftToLine,
+  ArrowRightToLine
 } from "lucide-react";
 import { ImageUploadBlock } from "@/components/ImageUploadBlock";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 interface BlogEditorProps {
   initialContent?: any;
@@ -59,6 +69,11 @@ export default function BlogEditor({
   const [linkUrl, setLinkUrl] = useState("");
   const [linkOpenInNewTab, setLinkOpenInNewTab] = useState(true);
   const [linkNoFollow, setLinkNoFollow] = useState(true);
+
+  // Table popover state
+  const [showTablePopover, setShowTablePopover] = useState(false);
+  const [tableRows, setTableRows] = useState(3);
+  const [tableCols, setTableCols] = useState(3);
 
   useEffect(() => {
     setIsMounted(true);
@@ -91,7 +106,7 @@ export default function BlogEditor({
     },
     editorProps: {
       attributes: {
-        class: "prose prose-sm sm:prose lg:prose-lg !max-w-full w-full focus:outline-none min-h-[400px] p-4",
+        class: "prose prose-sm sm:prose lg:prose-lg !max-w-full w-full focus:outline-none min-h-[400px] p-4 [&_table]:border-collapse [&_table]:w-full [&_td]:border [&_td]:border-border [&_th]:border [&_th]:border-border [&_td]:p-2 [&_th]:p-2 [&_th]:bg-muted/50",
       },
       handlePaste: (view, event) => {
         const items = Array.from(event.clipboardData?.items || []);
@@ -325,16 +340,65 @@ export default function BlogEditor({
 
         {/* Tables Group */}
         <div className="flex items-center gap-1 pl-2">
-          <ToolbarButton
-            onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
-            icon={<TableIcon className="w-4 h-4" />}
-          />
+          <Popover open={showTablePopover} onOpenChange={setShowTablePopover}>
+            <PopoverTrigger
+              className="p-2 rounded transition flex items-center justify-center w-8 h-8 bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground"
+              title="Insert Table"
+            >
+              <TableIcon className="w-4 h-4" />
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-4" align="end" sideOffset={8}>
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm leading-none">Insert Table</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="rows">Rows</Label>
+                    <Input id="rows" type="number" min={1} max={20} value={tableRows} onChange={(e) => setTableRows(Number(e.target.value))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="cols">Columns</Label>
+                    <Input id="cols" type="number" min={1} max={20} value={tableCols} onChange={(e) => setTableCols(Number(e.target.value))} />
+                  </div>
+                </div>
+                <Button 
+                  className="w-full" 
+                  size="sm" 
+                  onClick={() => {
+                    editor.chain().focus().insertTable({ rows: tableRows, cols: tableCols, withHeaderRow: true }).run();
+                    setShowTablePopover(false);
+                  }}
+                >
+                  Insert Table
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
       {/* Editor Content Area */}
-      <div className="w-full overflow-x-auto">
+      <div className="w-full overflow-x-auto relative">
         <EditorContent editor={editor} className="min-w-[300px]" />
+        
+        {/* Table Bubble Menu */}
+        {editor && (
+          <BubbleMenu 
+            editor={editor} 
+            shouldShow={({ editor }) => editor.isActive('table')}
+          >
+            <div className="flex items-center gap-1 p-1 bg-card border border-border shadow-md rounded-md z-50">
+              <ToolbarButton onClick={() => editor.chain().focus().addRowBefore().run()} icon={<ArrowUpToLine className="w-4 h-4" />} title="Add Row Before" />
+              <ToolbarButton onClick={() => editor.chain().focus().addRowAfter().run()} icon={<ArrowDownToLine className="w-4 h-4" />} title="Add Row After" />
+              <ToolbarButton onClick={() => editor.chain().focus().deleteRow().run()} icon={<Trash2 className="w-4 h-4 text-red-500" />} title="Delete Row" />
+              <div className="w-px h-4 bg-border mx-1"></div>
+              <ToolbarButton onClick={() => editor.chain().focus().addColumnBefore().run()} icon={<ArrowLeftToLine className="w-4 h-4" />} title="Add Column Before" />
+              <ToolbarButton onClick={() => editor.chain().focus().addColumnAfter().run()} icon={<ArrowRightToLine className="w-4 h-4" />} title="Add Column After" />
+              <ToolbarButton onClick={() => editor.chain().focus().deleteColumn().run()} icon={<Trash2 className="w-4 h-4 text-red-500" />} title="Delete Column" />
+              <div className="w-px h-4 bg-border mx-1"></div>
+              <ToolbarButton onClick={() => editor.chain().focus().deleteTable().run()} icon={<Trash2 className="w-4 h-4 text-red-500" />} title="Delete Table" />
+            </div>
+          </BubbleMenu>
+        )}
       </div>
 
     </div>
@@ -342,11 +406,12 @@ export default function BlogEditor({
 }
 
 // Sub-component for Toolbar Buttons
-function ToolbarButton({ onClick, isActive, icon }: { onClick: () => void; isActive?: boolean; icon: React.ReactNode }) {
+function ToolbarButton({ onClick, isActive, icon, title }: { onClick: () => void; isActive?: boolean; icon: React.ReactNode; title?: string }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      title={title}
       className={`p-2 rounded transition flex items-center justify-center w-8 h-8 ${
         isActive
           ? "bg-primary text-primary-foreground"
