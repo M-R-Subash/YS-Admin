@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label";
 interface ImageUploadBlockProps {
   value: { url?: string; alt?: string; title?: string } | string | undefined;
   onChange: (value: { url: string; alt?: string; title?: string } | undefined) => void;
+  customTrigger?: (onClick: () => void) => React.ReactNode;
 }
 
-export function ImageUploadBlock({ value, onChange }: ImageUploadBlockProps) {
+export function ImageUploadBlock({ value, onChange, customTrigger }: ImageUploadBlockProps) {
   // Normalize value to an object if it's a string from legacy data
   const normalizedValue = typeof value === "string" ? { url: value } : value;
   
@@ -102,8 +103,10 @@ export function ImageUploadBlock({ value, onChange }: ImageUploadBlockProps) {
 
   return (
     <div className="relative w-full">
-      {/* Inline Block Preview */}
-      {normalizedValue?.url ? (
+      {customTrigger ? customTrigger(() => setIsMediaModalOpen(true)) : (
+        <>
+          {/* Inline Block Preview */}
+          {normalizedValue?.url ? (
         <div className="relative group w-full h-40 rounded-sm overflow-hidden border border-border bg-black/5 flex items-center justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -141,9 +144,11 @@ export function ImageUploadBlock({ value, onChange }: ImageUploadBlockProps) {
           onClick={() => setIsMediaModalOpen(true)}
           className="w-full h-40 border-2 border-dashed border-border hover:border-black hover:bg-black/5 transition-colors rounded-sm flex flex-col items-center justify-center cursor-pointer gap-2 group"
         >
-          <ImageIcon className="w-6 h-6 text-black/40 group-hover:text-black transition-colors" />
-          <span className="text-sm font-bold text-black/30 group-hover:text-black transition-colors">Select or Upload Image</span>
-        </div>
+            <ImageIcon className="w-6 h-6 text-black/40 group-hover:text-black transition-colors" />
+            <span className="text-sm font-bold text-black/30 group-hover:text-black transition-colors">Select or Upload Image</span>
+          </div>
+          )}
+        </>
       )}
 
       {/* Main Media Library Modal */}

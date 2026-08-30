@@ -28,10 +28,10 @@ import {
   Image as ImageIcon,
   Table as TableIcon,
   ImagePlus,
-  Trash,
   Check,
   Loader2
 } from "lucide-react";
+import { ImageUploadBlock } from "@/components/ImageUploadBlock";
 
 interface BlogEditorProps {
   initialContent?: any;
@@ -52,6 +52,7 @@ export default function BlogEditor({
   onChange,
 }: BlogEditorProps) {
   const [isMounted, setIsMounted] = useState(false);
+  const [, setRenderTrigger] = useState(0);
   
   // Link popover state
   const [showLinkPopover, setShowLinkPopover] = useState(false);
@@ -84,6 +85,9 @@ export default function BlogEditor({
     content: initialContent || "",
     onUpdate: ({ editor }) => {
       onChange(editor.getJSON());
+    },
+    onTransaction: () => {
+      setRenderTrigger((prev) => prev + 1);
     },
     editorProps: {
       attributes: {
@@ -299,10 +303,24 @@ export default function BlogEditor({
             )}
           </div>
 
-          <label className="flex items-center justify-center w-8 h-8 rounded hover:bg-accent cursor-pointer transition text-muted-foreground hover:text-foreground">
-            <ImageIcon className="w-4 h-4" />
-            <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-          </label>
+          <ImageUploadBlock
+            value={undefined}
+            onChange={(val) => {
+              if (val?.url) {
+                editor.chain().focus().setImage({ src: val.url }).run();
+              }
+            }}
+            customTrigger={(onClick) => (
+              <button
+                type="button"
+                onClick={onClick}
+                className="flex items-center justify-center w-8 h-8 rounded hover:bg-accent cursor-pointer transition text-muted-foreground hover:text-foreground"
+                title="Insert Image"
+              >
+                <ImageIcon className="w-4 h-4" />
+              </button>
+            )}
+          />
         </div>
 
         {/* Tables Group */}
