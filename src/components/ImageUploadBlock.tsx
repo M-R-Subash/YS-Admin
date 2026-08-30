@@ -1,7 +1,6 @@
 "use client";
 
 import { Image as ImageIcon, Trash2, Pencil, UploadCloud, Loader2, X} from "lucide-react";
-import Image from "next/image";
 import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -106,11 +105,11 @@ export function ImageUploadBlock({ value, onChange }: ImageUploadBlockProps) {
       {/* Inline Block Preview */}
       {normalizedValue?.url ? (
         <div className="relative group w-full h-40 rounded-sm overflow-hidden border border-border bg-black/5 flex items-center justify-center">
-          <Image
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src={normalizedValue.url}
             alt={normalizedValue.alt || "Preview"}
-            fill
-            className="object-contain"
+            className="w-full h-full object-contain absolute inset-0"
           />
           
           <div 
@@ -243,11 +242,11 @@ export function ImageUploadBlock({ value, onChange }: ImageUploadBlockProps) {
                           onClick={() => setSelectedMedia(item)}
                           className={`relative aspect-video cursor-pointer border-2 rounded-md overflow-hidden bg-gray-200 transition-all ${selectedMedia?.public_id === item.public_id ? 'border-black shadow-md shadow-black/20 scale-[0.98]' : 'border-transparent hover:border-black/30 hover:shadow-sm'}`}
                         >
-                          <Image
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
                             src={item.secure_url}
                             alt={item.public_id}
-                            fill
-                            className="object-contain"
+                            className="w-full h-full object-contain absolute inset-0"
                           />
                         </div>
                       ))}
@@ -294,7 +293,8 @@ export function ImageUploadBlock({ value, onChange }: ImageUploadBlockProps) {
                     </div>
                     
                     <div className="w-full aspect-square relative bg-gray-200 border border-border rounded-md overflow-hidden mb-4">
-                      <Image src={selectedMedia.secure_url} alt="Selected" fill className="object-contain" />
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={selectedMedia.secure_url} alt="Selected" className="w-full h-full object-contain absolute inset-0" />
                     </div>
                     
                     <div className="flex flex-col gap-3 text-sm text-foreground/80 mb-6">
@@ -356,7 +356,8 @@ export function ImageUploadBlock({ value, onChange }: ImageUploadBlockProps) {
           <div className="grid gap-4 py-4">
             {normalizedValue?.url && (
               <div className="relative w-full h-72 rounded-sm overflow-hidden bg-black/5 border border-border">
-                <Image src={normalizedValue.url} alt="Preview" fill className="object-contain" />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={normalizedValue.url} alt="Preview" className="w-full h-full object-contain absolute inset-0" />
               </div>
             )}
             <div className="flex flex-col gap-2">

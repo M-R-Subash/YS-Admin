@@ -26,3 +26,9 @@ export const seoQuickEditSchema = z.object({
 });
 
 export type SeoQuickEditFormData = z.infer<typeof seoQuickEditSchema>;
+
+export const blogSeoQuickEditSchema = seoQuickEditSchema.extend({
+  allowComments: z.boolean().default(true),
+});
+
+export type BlogSeoQuickEditFormData = z.infer<typeof blogSeoQuickEditSchema>;

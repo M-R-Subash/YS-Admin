@@ -31,7 +31,7 @@ const data = {
     },
     {
       title: "Blogs",
-      url: "#",
+      url: "/blogs",
       icon: <PenToolIcon />,
     },
     {
