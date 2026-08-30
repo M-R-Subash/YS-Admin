@@ -21,13 +21,13 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (!user || !user.password) {
-          throw new Error("User not found");
+          throw new Error("Incorrect email or password");
         }
 
         const isValid = await bcrypt.compare(credentials.password, user.password);
 
         if (!isValid) {
-          throw new Error("Invalid password");
+          throw new Error("Incorrect email or password");
         }
 
         // Update last login
@@ -58,6 +58,7 @@ export const authOptions: NextAuthOptions = {
       if (trigger === "update" && session) {
         if (session.name) token.name = session.name;
         if (session.image) token.picture = session.image;
+        if (session.role) token.role = session.role;
       }
       return token;
     },
