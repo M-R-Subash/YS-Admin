@@ -6,6 +6,7 @@ import { MoreHorizontal, MessageSquare, ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
 import { BlogQuickEditModal } from "@/components/admin/BlogQuickEditModal";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -122,7 +123,7 @@ export const ActionCell = ({ blog, onDataChange }: { blog: any, onDataChange: ()
                   Edit (Builder)
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setSeoOpen(true)}>
-                  Quick Edit (SEO & Config)
+                  Quick Edit
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => window.open(`/blog/${blog.slug}`, '_blank')}>
                   View Live
@@ -291,7 +292,14 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
               Img
             </div>
           )}
-          <span className="truncate max-w-[200px] block">{blog.title}</span>
+          <Tooltip>
+            <TooltipTrigger className="truncate max-w-[200px] block cursor-default text-left">
+              {blog.title}
+            </TooltipTrigger>
+            <TooltipContent className="max-w-[400px]">
+              <p>{blog.title}</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
       );
     },
@@ -349,7 +357,7 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
       return (
         <div className="flex flex-wrap gap-1">
           {categories.slice(0, 2).map((cat, i) => (
-            <span key={i} className="px-2 py-0.5 bg-secondary text-secondary-foreground text-[10px] uppercase font-bold tracking-wide rounded-full">
+            <span key={i} className="px-2 py-0.5 bg-secondary text-secondary-foreground text-[10px] uppercase font-bold tracking-wide rounded-sm">
               {cat}
             </span>
           ))}
@@ -388,7 +396,16 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
     cell: ({ row }) => {
       const publishedAt = row.getValue("publishedAt") as string | null;
       if (!publishedAt) return <span className="text-muted-foreground italic text-xs">Not published</span>;
-      return <div className="text-muted-foreground">{formatDate(publishedAt)}</div>;
+      return <div className="text-muted-foreground text-xs">{formatDate(publishedAt)}</div>;
+    },
+  },
+  {
+    accessorKey: "updatedAt",
+    header: "Last Updated",
+    cell: ({ row }) => {
+      const updatedAt = row.getValue("updatedAt") as string | null;
+      if (!updatedAt) return <span className="text-muted-foreground italic text-xs">Unknown</span>;
+      return <div className="text-muted-foreground text-xs">{formatDate(updatedAt)}</div>;
     },
   },
   {

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { blogSeoQuickEditSchema } from "@/lib/schemas/seo-validation";
+import { blogQuickEditSchema } from "@/lib/schemas/seo-validation";
 
 export async function PUT(
   req: Request,
@@ -11,7 +11,7 @@ export async function PUT(
     const body = await req.json();
     
     // Validate request body
-    const validatedData = blogSeoQuickEditSchema.parse(body);
+    const validatedData = blogQuickEditSchema.parse(body);
     
     const {
       title,
@@ -19,20 +19,14 @@ export async function PUT(
       metaTitle,
       metaDesc,
       focusKeyword,
-      ogImage,
-      ogTitle,
-      ogDesc,
       canonicalUrl,
-      structuredData,
       noIndex,
-      allowComments
+      allowComments,
+      authorId,
+      authorName,
+      authorRole,
+      authorDescription,
     } = validatedData;
-    
-    // Convert structuredData string to JSON if present
-    let parsedStructuredData = null;
-    if (structuredData) {
-      parsedStructuredData = JSON.parse(structuredData);
-    }
     
     // Update the blog and upsert SEO data
     const updatedBlog = await prisma.blog.update({
@@ -41,35 +35,44 @@ export async function PUT(
         title,
         slug,
         allowComments,
+        // Update the blog's authorId if provided
+        ...(authorId !== undefined && { authorId: authorId || null }),
         seo: {
           upsert: {
             create: {
               metaTitle,
               metaDesc,
               focusKeyword,
-              ogImage,
-              ogTitle,
-              ogDesc,
               canonicalUrl,
-              structuredData: parsedStructuredData as any,
-              noIndex
+              noIndex,
+              authorName,
+              authorRole,
+              authorDescription,
             },
             update: {
               metaTitle,
               metaDesc,
               focusKeyword,
-              ogImage,
-              ogTitle,
-              ogDesc,
               canonicalUrl,
-              structuredData: parsedStructuredData as any,
-              noIndex
+              noIndex,
+              authorName,
+              authorRole,
+              authorDescription,
             }
           }
         }
       },
       include: {
-        seo: true
+        seo: true,
+        author: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            authorRole: true,
+            profilePicture: true,
+          }
+        }
       }
     });
     
@@ -83,6 +86,9 @@ export async function PUT(
       return new NextResponse("That slug is already taken.", { status: 400 });
     }
     
-    return new NextResponse("Internal Error", { status: 500 });
+    return NextResponse.json(
+      { error: "Internal Error", details: String(error) },
+      { status: 500 }
+    );
   }
 }

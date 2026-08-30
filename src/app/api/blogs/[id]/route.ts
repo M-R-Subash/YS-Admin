@@ -9,6 +9,7 @@ export async function GET(
   const { id } = await params;
   const blog = await prisma.blog.findUnique({
     where: { id },
+    include: { seo: true },
   });
 
   if (!blog) {
@@ -25,7 +26,7 @@ export async function PUT(
 ) {
   const { id } = await params;
   const body = await request.json();
-  let { title, slug, content, status, isTrashed, featuredImage, allowComments, tags, categories } = body;
+  let { title, slug, content, status, isTrashed, featuredImage, allowComments, tags, categories, excerpt, metaTitle, metaDesc, focusKeyword } = body;
 
   if (isTrashed === true) {
     status = "draft";
@@ -36,6 +37,24 @@ export async function PUT(
   } else if (status === "draft") {
     body.publishedAt = null; // optional: unset if moving to draft
   }
+
+  // Handle SEO data if any SEO field is provided
+  const seoData = (metaTitle !== undefined || metaDesc !== undefined || focusKeyword !== undefined) 
+    ? {
+        upsert: {
+          create: {
+            metaTitle: metaTitle || "",
+            metaDesc: metaDesc || "",
+            focusKeyword: focusKeyword || "",
+          },
+          update: {
+            ...(metaTitle !== undefined && { metaTitle }),
+            ...(metaDesc !== undefined && { metaDesc }),
+            ...(focusKeyword !== undefined && { focusKeyword }),
+          }
+        }
+      }
+    : undefined;
 
   const blog = await prisma.blog.update({
     where: { id },
@@ -49,8 +68,11 @@ export async function PUT(
       ...(allowComments !== undefined && { allowComments }),
       ...(tags !== undefined && { tags }),
       ...(categories !== undefined && { categories }),
+      ...(excerpt !== undefined && { excerpt }),
+      ...(seoData && { seo: seoData }),
       ...(body.publishedAt !== undefined && { publishedAt: body.publishedAt }),
     },
+    include: { seo: true }
   });
 
   return NextResponse.json(blog);

@@ -24,6 +24,10 @@ export default function EditBlogPage() {
   const [slug, setSlug] = useState("");
   const [tags, setTags] = useState("");
   const [categories, setCategories] = useState("");
+  const [excerpt, setExcerpt] = useState("");
+  const [metaTitle, setMetaTitle] = useState("");
+  const [metaDesc, setMetaDesc] = useState("");
+  const [focusKeyword, setFocusKeyword] = useState("");
   const [allowComments, setAllowComments] = useState(true);
   const [status, setStatus] = useState<"draft" | "published">("draft");
 
@@ -45,6 +49,10 @@ export default function EditBlogPage() {
         setStatus(data.status || "draft");
         setContent(data.content);
         setFeaturedImage(data.featuredImage || null);
+        setExcerpt(data.excerpt || "");
+        setMetaTitle(data.seo?.metaTitle || "");
+        setMetaDesc(data.seo?.metaDesc || "");
+        setFocusKeyword(data.seo?.focusKeyword || "");
       } catch (err) {
         toast.add({ title: "Error", description: "Could not load blog.", type: "error" });
         router.push("/blogs");
@@ -58,7 +66,7 @@ export default function EditBlogPage() {
   }, [id, router]);
 
   // Auto-generate slug from title
-  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const newTitle = e.target.value;
     setTitle(newTitle);
     setSlug(
@@ -95,6 +103,10 @@ export default function EditBlogPage() {
           status: publishStatus,
           tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
           categories: categories.split(",").map((c) => c.trim()).filter(Boolean),
+          excerpt,
+          metaTitle,
+          metaDesc,
+          focusKeyword,
         }),
       });
 
@@ -147,23 +159,11 @@ export default function EditBlogPage() {
       </header>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto w-full relative">
-        <div className="max-w-full mx-auto p-6 md:p-8 lg:p-10 w-full flex flex-col lg:flex-row gap-8">
+      <div className="flex-1 overflow-hidden w-full relative">
+        <div className="max-w-full mx-auto p-4 md:p-6 w-full h-full flex flex-col lg:flex-row gap-6">
           
           {/* Main Editor Column */}
-          <div className="flex-1 space-y-6">
-          <div className="bg-card border border-border p-6 rounded-xl space-y-4">
-            <div>
-              <Label htmlFor="title" className="text-lg">Title</Label>
-              <Input
-                id="title"
-                value={title}
-                onChange={handleTitleChange}
-                placeholder="The Future of Next.js..."
-                className="mt-2 text-lg font-semibold h-12"
-              />
-            </div>
-          </div>
+          <div className="flex-1 h-full min-h-[500px] flex flex-col overflow-hidden">
 
           {isLoading ? (
             <div className="h-[400px] bg-card border rounded-xl animate-pulse flex items-center justify-center">
@@ -178,19 +178,27 @@ export default function EditBlogPage() {
         </div>
 
         {/* Sidebar Settings Column */}
-        <div className="w-full lg:w-[360px] shrink-0 space-y-6 lg:sticky lg:top-8 lg:self-start pb-32">
+        <div className="w-full lg:w-[400px] shrink-0 h-full overflow-y-auto pb-8 pr-2 custom-scrollbar">
           <div className="bg-card border border-border p-6 rounded-xl space-y-6">
             
             <div>
-              <Label className="block mb-2">Featured Image</Label>
-              <ImageUploadBlock 
-                value={featuredImage || undefined}
-                onChange={(val) => setFeaturedImage(val?.url || null)}
+              <Label htmlFor="title" className="text-sm font-bold text-foreground">Blog Title</Label>
+              <textarea
+                id="title"
+                value={title}
+                onChange={(e) => {
+                  handleTitleChange(e);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = e.target.scrollHeight + 'px';
+                }}
+                placeholder="The Future of Next.js..."
+                className="mt-2 w-full resize-none overflow-hidden rounded-md border border-input bg-transparent px-3 py-2 text-lg font-semibold shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                rows={2}
               />
             </div>
-            
+
             <div className="border-t border-border pt-6">
-              <Label htmlFor="slug">URL Slug</Label>
+              <Label htmlFor="slug" className="text-sm font-bold text-foreground">URL Slug</Label>
               <Input
                 id="slug"
                 value={slug}
@@ -204,7 +212,26 @@ export default function EditBlogPage() {
             </div>
 
             <div className="border-t border-border pt-6">
-              <Label htmlFor="categories">Categories</Label>
+              <Label className="block mb-2 text-sm font-bold text-foreground">Featured Image</Label>
+              <ImageUploadBlock 
+                value={featuredImage || undefined}
+                onChange={(val) => setFeaturedImage(val?.url || null)}
+              />
+            </div>
+
+            <div className="border-t border-border pt-6">
+              <Label htmlFor="excerpt" className="text-sm font-bold text-foreground">Excerpt</Label>
+              <textarea
+                id="excerpt"
+                className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-2"
+                value={excerpt}
+                onChange={(e) => setExcerpt(e.target.value)}
+                placeholder="A brief summary of the blog..."
+              />
+            </div>
+
+            <div className="border-t border-border pt-6">
+              <Label htmlFor="categories" className="text-sm font-bold text-foreground">Categories</Label>
               <Input
                 id="categories"
                 value={categories}
@@ -216,7 +243,7 @@ export default function EditBlogPage() {
             </div>
 
             <div className="border-t border-border pt-6">
-              <Label htmlFor="tags">Tags</Label>
+              <Label htmlFor="tags" className="text-sm font-bold text-foreground">Tags</Label>
               <Input
                 id="tags"
                 value={tags}
@@ -227,9 +254,46 @@ export default function EditBlogPage() {
               <p className="text-xs text-muted-foreground mt-2">Comma separated</p>
             </div>
 
+            <div className="border-t border-border pt-6 space-y-4">
+              <h3 className="font-bold text-sm tracking-tight text-foreground">SEO & Meta</h3>
+              
+              <div>
+                <Label htmlFor="metaTitle">Meta Title</Label>
+                <Input
+                  id="metaTitle"
+                  value={metaTitle}
+                  onChange={(e) => setMetaTitle(e.target.value)}
+                  placeholder="SEO Title (50-60 chars)"
+                  className="mt-2"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="metaDesc">Meta Description</Label>
+                <textarea
+                  id="metaDesc"
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-2"
+                  value={metaDesc}
+                  onChange={(e) => setMetaDesc(e.target.value)}
+                  placeholder="SEO Description (150-160 chars)"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="focusKeyword">Focus Keyword</Label>
+                <Input
+                  id="focusKeyword"
+                  value={focusKeyword}
+                  onChange={(e) => setFocusKeyword(e.target.value)}
+                  placeholder="e.g. Next.js tutorial"
+                  className="mt-2"
+                />
+              </div>
+            </div>
+
             <div className="border-t border-border pt-6 flex items-center justify-between">
               <div>
-                <Label htmlFor="allowComments">Allow Comments</Label>
+                <Label htmlFor="allowComments" className="text-sm font-bold text-foreground">Allow Comments</Label>
                 <p className="text-xs text-muted-foreground mt-1">Enable user comments on this post</p>
               </div>
               <Switch

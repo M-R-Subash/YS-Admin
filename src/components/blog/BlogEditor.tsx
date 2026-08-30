@@ -62,7 +62,6 @@ export default function BlogEditor({
   onChange,
 }: BlogEditorProps) {
   const [isMounted, setIsMounted] = useState(false);
-  const [, setRenderTrigger] = useState(0);
   
   // Link popover state
   const [showLinkPopover, setShowLinkPopover] = useState(false);
@@ -101,12 +100,9 @@ export default function BlogEditor({
     onUpdate: ({ editor }) => {
       onChange(editor.getJSON());
     },
-    onTransaction: () => {
-      setRenderTrigger((prev) => prev + 1);
-    },
     editorProps: {
       attributes: {
-        class: "prose prose-sm sm:prose lg:prose-lg !max-w-full w-full focus:outline-none min-h-[400px] p-4 [&_table]:border-collapse [&_table]:w-full [&_td]:border [&_td]:border-border [&_th]:border [&_th]:border-border [&_td]:p-2 [&_th]:p-2 [&_th]:bg-muted/50",
+        class: "prose prose-sm sm:prose lg:prose-lg !max-w-full w-full focus:outline-none min-h-full p-4 pb-32 [&_table]:border-collapse [&_table]:w-full [&_td]:border [&_td]:border-border [&_th]:border [&_th]:border-border [&_td]:p-2 [&_th]:p-2 [&_th]:bg-muted/50",
       },
       handlePaste: (view, event) => {
         const items = Array.from(event.clipboardData?.items || []);
@@ -150,7 +146,7 @@ export default function BlogEditor({
         return false;
       }
     },
-  });
+  }, []);
 
   if (!isMounted || !editor) {
     return <div className="h-[400px] bg-card border rounded-xl animate-pulse"></div>;
@@ -186,10 +182,10 @@ export default function BlogEditor({
   };
 
   return (
-    <div className="flex flex-col gap-4 border border-border rounded-xl bg-card">
+    <div className="flex flex-col h-full border border-border rounded-xl bg-card overflow-hidden">
       
       {/* Editor Toolbar */}
-      <div className="sticky top-0 z-40 flex flex-wrap items-center gap-1 p-2 bg-card border-b border-border shadow-sm rounded-t-xl">
+      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-1 p-2 bg-card border-b border-border shadow-sm shrink-0">
         
         {/* Formatting Group */}
         <div className="flex items-center gap-1 pr-2 border-r border-border">
@@ -377,8 +373,8 @@ export default function BlogEditor({
       </div>
 
       {/* Editor Content Area */}
-      <div className="w-full overflow-x-auto relative">
-        <EditorContent editor={editor} className="min-w-[300px]" />
+      <div className="w-full flex-1 overflow-y-auto relative custom-scrollbar">
+        <EditorContent editor={editor} className="min-w-[300px] h-full" />
         
         {/* Table Bubble Menu */}
         {editor && (

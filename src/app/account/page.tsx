@@ -6,6 +6,7 @@ import { Camera, Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import Image from "next/image";
 import { User as UserIcon } from "lucide-react";
@@ -23,9 +24,12 @@ export default function AccountPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [profilePicture, setProfilePicture] = useState("");
+  const [description, setDescription] = useState("");
+  const [authorRole, setAuthorRole] = useState("");
   
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [initialValues, setInitialValues] = useState({ name: "", profilePicture: "", description: "", authorRole: "" });
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -34,12 +38,27 @@ export default function AccountPage() {
       setName(session.user.name || "");
       setEmail(session.user.email || "");
       setProfilePicture(session.user.image || "");
+      
+      // Fetch full profile data including description and authorRole
+      fetch("/api/account")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data) {
+            setDescription(data.description || "");
+            setAuthorRole(data.authorRole || "");
+            setInitialValues({
+              name: data.name || "",
+              profilePicture: data.profilePicture || "",
+              description: data.description || "",
+              authorRole: data.authorRole || "",
+            });
+          }
+        })
+        .catch(() => {});
     }
   }, [session]);
 
-  const initialName = session?.user?.name || "";
-  const initialProfilePicture = session?.user?.image || "";
-  const hasChanges = name !== initialName || profilePicture !== initialProfilePicture;
+  const hasChanges = name !== initialValues.name || profilePicture !== initialValues.profilePicture || description !== initialValues.description || authorRole !== initialValues.authorRole;
 
   const handleUpload = async (file: File) => {
     if (!file) return;
@@ -88,7 +107,7 @@ export default function AccountPage() {
       const res = await fetch("/api/account", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, profilePicture }),
+        body: JSON.stringify({ name, profilePicture, description, authorRole }),
       });
 
       if (!res.ok) throw new Error("Failed to update account");
@@ -98,6 +117,8 @@ export default function AccountPage() {
         name,
         image: profilePicture,
       });
+
+      setInitialValues({ name, profilePicture, description, authorRole });
 
       toast.add({
         title: "Success",
@@ -222,6 +243,38 @@ export default function AccountPage() {
               />
               <p className="text-xs text-muted-foreground mt-1">
                 Your email is used for authentication and cannot be changed here.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="authorRole" className="text-sm font-semibold">
+                Author Role / Title
+              </Label>
+              <Input
+                id="authorRole"
+                value={authorRole}
+                onChange={(e) => setAuthorRole(e.target.value)}
+                className="h-12 text-base max-w-md"
+                placeholder="e.g. SEO Specialist, Content Writer"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Shown below your name on blog posts.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description" className="text-sm font-semibold">
+                Author Bio
+              </Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="text-base max-w-md min-h-24 resize-y"
+                placeholder="Write a short bio about yourself..."
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Displayed in the author section on your blog posts.
               </p>
             </div>
 

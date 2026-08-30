@@ -20,6 +20,7 @@ model User {
   password       String    
   name           String?
   description    String?
+  authorRole     String?
   profilePicture String?
   role           Role      @default(EDITOR)
   
@@ -60,6 +61,8 @@ model SeoMeta {
   structuredData Json?
   noIndex       Boolean  @default(false)
   authorName    String?
+  authorRole    String?
+  authorDescription String?
   
   pageId        String?  @unique
   page          Page?    @relation(fields: [pageId], references: [id], onDelete: Cascade)
@@ -91,6 +94,7 @@ model Blog {
   status        String    @default("draft")
   isTrashed     Boolean   @default(false)
   content       Json
+  excerpt       String?
   readingTime   Int?     
   tags          String[] 
   categories    String[] 
