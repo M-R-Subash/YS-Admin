@@ -259,15 +259,15 @@ function calculateSeoStatus(seo: any) {
     return { label: "Bad", variant: "destructive" };
   }
 
-  if (coreCount === 2 || coreCount === 3) {
-    return { label: "Medium", variant: "warning" };
-  }
-
   const titleLen = seo.metaTitle?.length || 0;
   const descLen = seo.metaDesc?.length || 0;
 
   if (titleLen >= 40 && titleLen <= 60 && descLen >= 120 && descLen <= 160) {
     return { label: "Good", variant: "success" };
+  }
+
+  if (coreCount >= 2) {
+    return { label: "Medium", variant: "warning" };
   }
 
   return { label: "Needs Improvement", variant: "default" };

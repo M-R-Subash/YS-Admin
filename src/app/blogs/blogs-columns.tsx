@@ -125,7 +125,10 @@ export const ActionCell = ({ blog, onDataChange }: { blog: any, onDataChange: ()
                 <DropdownMenuItem onClick={() => setSeoOpen(true)}>
                   Quick Edit
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => window.open(`/blog/${blog.slug}`, '_blank')}>
+                <DropdownMenuItem onClick={() => {
+                  const siteUrl = process.env.NEXT_PUBLIC_MAIN_SITE_URL || "http://localhost:3001";
+                  window.open(`${siteUrl}/blogs/${blog.slug}`, '_blank');
+                }}>
                   View Live
                 </DropdownMenuItem>
               </DropdownMenuGroup>
@@ -253,25 +256,27 @@ export const ActionCell = ({ blog, onDataChange }: { blog: any, onDataChange: ()
   );
 };
 
-function calculateSeoStatus(seo: any) {
+function calculateSeoStatus(seo: any, fallbackImage?: string) {
   if (!seo) return { label: "Bad", variant: "destructive" };
 
-  const coreFields = [seo.metaTitle, seo.metaDesc, seo.focusKeyword, seo.ogImage].filter(Boolean);
+  const image = seo.ogImage || fallbackImage;
+  const coreFields = [seo.metaTitle, seo.metaDesc, seo.focusKeyword, image].filter(Boolean);
   const coreCount = coreFields.length;
 
   if (coreCount <= 1) {
     return { label: "Bad", variant: "destructive" };
   }
 
-  if (coreCount === 2 || coreCount === 3) {
-    return { label: "Medium", variant: "warning" };
-  }
-
   const titleLen = seo.metaTitle?.length || 0;
   const descLen = seo.metaDesc?.length || 0;
 
+  // If Meta Title and Meta Description fall within optimal character ranges, mark as Good
   if (titleLen >= 40 && titleLen <= 60 && descLen >= 120 && descLen <= 160) {
     return { label: "Good", variant: "success" };
+  }
+
+  if (coreCount >= 2) {
+    return { label: "Medium", variant: "warning" };
   }
 
   return { label: "Needs Improvement", variant: "default" };
@@ -327,7 +332,7 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
     header: "SEO Status",
     cell: ({ row }) => {
       const blog = row.original as any;
-      const status = calculateSeoStatus(blog.seo);
+      const status = calculateSeoStatus(blog.seo, blog.featuredImage);
       
       let badgeClasses = "text-xs px-2.5 py-1 rounded-sm font-semibold border";
       if (status.variant === "destructive") {

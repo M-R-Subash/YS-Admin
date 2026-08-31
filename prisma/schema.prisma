@@ -30,7 +30,6 @@ model User {
 
   pages          Page[]    @relation("PageAuthor")
   blogs          Blog[]    @relation("BlogAuthor")
-  comments       Comment[]
 }
 
 model Page {
@@ -115,11 +114,8 @@ model Comment {
   content     String
   isApproved  Boolean  @default(false)
   
-  guestName   String?
-  guestEmail  String?
-  
-  authorId    String?
-  author      User?    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  name        String
+  email       String
   
   blogId      String
   blog        Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)

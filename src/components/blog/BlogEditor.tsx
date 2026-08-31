@@ -102,7 +102,7 @@ export default function BlogEditor({
     },
     editorProps: {
       attributes: {
-        class: "prose prose-sm sm:prose lg:prose-lg !max-w-full w-full focus:outline-none min-h-full p-4 pb-32 [&_table]:border-collapse [&_table]:w-full [&_td]:border [&_td]:border-border [&_th]:border [&_th]:border-border [&_td]:p-2 [&_th]:p-2 [&_th]:bg-muted/50",
+        class: "prose prose-sm sm:prose !max-w-full w-full focus:outline-none min-h-full p-4 pb-32 [&_p]:my-2 [&_p]:leading-relaxed [&_table]:border-collapse [&_table]:w-full [&_td]:border [&_td]:border-border [&_th]:border [&_th]:border-border [&_td]:p-2 [&_th]:p-2 [&_th]:bg-muted/50 text-sm sm:text-base",
       },
       handlePaste: (view, event) => {
         const items = Array.from(event.clipboardData?.items || []);
