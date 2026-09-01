@@ -12,6 +12,8 @@ import { homepageUiSchema } from "@/lib/schemas/homepage/homepage-ui-schema";
 import { homepageSchema } from "@/lib/schemas/homepage/homepage-validation";
 import { careersUiSchema } from "@/lib/schemas/careers/careers-ui-schema";
 import { careersSchema } from "@/lib/schemas/careers/careers-validation";
+import { contactUiSchema } from "@/lib/schemas/contact/contact-ui-schema";
+import { contactSchema } from "@/lib/schemas/contact/contact-validation";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const SCHEMA_REGISTRY: Record<string, any> = {
@@ -24,8 +26,14 @@ const SCHEMA_REGISTRY: Record<string, any> = {
     schema: careersSchema,
     uiSchema: careersUiSchema,
     previewType: "PREVIEW_UPDATE_CAREERS",
+  },
+  "/contact": {
+    schema: contactSchema,
+    uiSchema: contactUiSchema,
+    previewType: "PREVIEW_UPDATE_CONTACT",
   }
 };
+
 
 const SECTION_DEFINITIONS: any[] = [];
 
