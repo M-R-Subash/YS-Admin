@@ -17,26 +17,32 @@ export async function PATCH(
     const body = await request.json();
 
     const dataToUpdate: any = {};
-    if (typeof body.isRead === "boolean") dataToUpdate.isRead = body.isRead;
-    if (typeof body.isTrashed === "boolean") dataToUpdate.isTrashed = body.isTrashed;
-
-    if (Object.keys(dataToUpdate).length === 0) {
-      return NextResponse.json(
-        { message: "No valid fields provided to update" },
-        { status: 400 }
-      );
+    if (typeof body.isApproved === "boolean") {
+      dataToUpdate.isApproved = body.isApproved;
+    }
+    if (typeof body.isTrashed === "boolean") {
+      dataToUpdate.isTrashed = body.isTrashed;
     }
 
-    const updated = await prisma.formSubmission.update({
+    const updated = await prisma.comment.update({
       where: { id },
       data: dataToUpdate,
+      include: {
+        blog: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+          },
+        },
+      },
     });
 
-    return NextResponse.json({ submission: updated });
+    return NextResponse.json({ comment: updated });
   } catch (error) {
-    console.error("Update form submission error:", error);
+    console.error("Update comment error:", error);
     return NextResponse.json(
-      { message: "Failed to update submission" },
+      { message: "Failed to update comment" },
       { status: 500 }
     );
   }
@@ -54,15 +60,16 @@ export async function DELETE(
 
     const { id } = await params;
 
-    await prisma.formSubmission.delete({
+    // Permanently delete comment
+    await prisma.comment.delete({
       where: { id },
     });
 
-    return NextResponse.json({ message: "Submission deleted successfully" });
+    return NextResponse.json({ message: "Comment permanently deleted" });
   } catch (error) {
-    console.error("Delete form submission error:", error);
+    console.error("Delete comment error:", error);
     return NextResponse.json(
-      { message: "Failed to delete submission" },
+      { message: "Failed to delete comment" },
       { status: 500 }
     );
   }

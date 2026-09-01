@@ -2,12 +2,11 @@
 
 import { useState } from "react";
 import { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, MessageSquare, ExternalLink } from "lucide-react";
+import { MoreHorizontal, MessageSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
 import { BlogQuickEditModal } from "@/components/admin/BlogQuickEditModal";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -18,16 +17,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { TrashConfirmationModal, TrashActionType } from "@/components/ui/trash-confirmation-modal";
+import { useTrashManager } from "@/hooks/useTrashManager";
 
 function formatDate(dateStr: string) {
   if (!dateStr) return "N/A";
@@ -39,78 +30,66 @@ function formatDate(dateStr: string) {
 }
 
 // Action Component
-export const ActionCell = ({ blog, onDataChange }: { blog: any, onDataChange: () => void }) => {
+export const ActionCell = ({ blog, onDataChange }: { blog: any; onDataChange: () => void }) => {
   const router = useRouter();
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [trashOpen, setTrashOpen] = useState(false);
-  const [draftOpen, setDraftOpen] = useState(false);
-  const [publishOpen, setPublishOpen] = useState(false);
   const [seoOpen, setSeoOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isTrashing, setIsTrashing] = useState(false);
-  const [isRestoring, setIsRestoring] = useState(false);
-  const [isDrafting, setIsDrafting] = useState(false);
-  const [isPublishing, setIsPublishing] = useState(false);
 
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    await fetch(`/api/blogs/${blog.id}`, { method: "DELETE" });
-    toast.add({ title: "Blog permanently deleted", type: "success" });
-    setDeleteOpen(false);
-    onDataChange(); 
-  };
-
-  const handleTrash = async () => {
-    setIsTrashing(true);
-    await fetch(`/api/blogs/${blog.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isTrashed: true, status: "draft" })
+  const { modal, loading, openTrashModal, closeModal, handleConfirm } =
+    useTrashManager({
+      itemType: "blog post",
+      onSuccess: async () => {
+        onDataChange();
+      },
     });
-    toast.add({ title: "Blog moved to trash", type: "success" });
-    setTrashOpen(false);
-    onDataChange(); 
-  };
 
-  const handleRestore = async () => {
-    setIsRestoring(true);
-    await fetch(`/api/blogs/${blog.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isTrashed: false, status: "draft" })
+  const onModalConfirm = () => {
+    handleConfirm(async (type, item, id) => {
+      if (type === "trash") {
+        const res = await fetch(`/api/blogs/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isTrashed: true, status: "draft" }),
+        });
+        if (!res.ok) throw new Error();
+        toast.add({ title: "Blog moved to trash", type: "success" });
+      } else if (type === "restore") {
+        const res = await fetch(`/api/blogs/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isTrashed: false, status: "draft" }),
+        });
+        if (!res.ok) throw new Error();
+        toast.add({ title: "Blog restored as draft", type: "success" });
+      } else if (type === "delete") {
+        const res = await fetch(`/api/blogs/${id}`, { method: "DELETE" });
+        if (!res.ok) throw new Error();
+        toast.add({ title: "Blog permanently deleted", type: "success" });
+      } else if (type === "unapprove") {
+        // Draft
+        const res = await fetch(`/api/blogs/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "draft" }),
+        });
+        if (!res.ok) throw new Error();
+        toast.add({ title: "Blog set to draft", type: "success" });
+      } else if (type === "approve") {
+        // Publish
+        const res = await fetch(`/api/blogs/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "published" }),
+        });
+        if (!res.ok) throw new Error();
+        toast.add({ title: "Blog published successfully", type: "success" });
+      }
     });
-    toast.add({ title: "Blog restored as draft", type: "success" });
-    onDataChange(); 
-  };
-
-  const handleDraft = async () => {
-    setIsDrafting(true);
-    await fetch(`/api/blogs/${blog.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "draft" })
-    });
-    toast.add({ title: "Blog set to draft", type: "success" });
-    setDraftOpen(false);
-    onDataChange(); 
-  };
-
-  const handlePublish = async () => {
-    setIsPublishing(true);
-    await fetch(`/api/blogs/${blog.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "published" })
-    });
-    toast.add({ title: "Blog published successfully", type: "success" });
-    setPublishOpen(false);
-    onDataChange(); 
   };
 
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger render={<Button variant="ghost" className="h-8 w-8 p-0" />}>
+        <DropdownMenuTrigger render={<Button variant="ghost" className="h-8 w-8 p-0 cursor-pointer" />}>
           <span className="sr-only">Open menu</span>
           <MoreHorizontal className="h-4 w-4" />
         </DropdownMenuTrigger>
@@ -135,15 +114,15 @@ export const ActionCell = ({ blog, onDataChange }: { blog: any, onDataChange: ()
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 {blog.status === "published" ? (
-                  <DropdownMenuItem onClick={() => setDraftOpen(true)}>
+                  <DropdownMenuItem onClick={() => openTrashModal("unapprove", blog, blog.id, blog.title)}>
                     Move to Draft
                   </DropdownMenuItem>
                 ) : (
-                  <DropdownMenuItem onClick={() => setPublishOpen(true)}>
+                  <DropdownMenuItem onClick={() => openTrashModal("approve", blog, blog.id, blog.title)}>
                     Set as Published
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem onClick={() => setTrashOpen(true)} className="text-red-500 focus:text-red-500 focus:bg-red-50">
+                <DropdownMenuItem onClick={() => openTrashModal("trash", blog, blog.id, blog.title)} className="text-red-500 focus:text-red-500 focus:bg-red-50">
                   Move to Trash
                 </DropdownMenuItem>
               </DropdownMenuGroup>
@@ -152,13 +131,13 @@ export const ActionCell = ({ blog, onDataChange }: { blog: any, onDataChange: ()
             <>
               <DropdownMenuGroup>
                 <DropdownMenuLabel>Trash Actions</DropdownMenuLabel>
-                <DropdownMenuItem onClick={handleRestore} disabled={isRestoring}>
-                  {isRestoring ? "Restoring..." : "Restore"}
+                <DropdownMenuItem onClick={() => openTrashModal("restore", blog, blog.id, blog.title)}>
+                  Restore
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => setDeleteOpen(true)} className="text-red-500 focus:text-red-500 focus:bg-red-50">
+                <DropdownMenuItem onClick={() => openTrashModal("delete", blog, blog.id, blog.title)} className="text-red-500 focus:text-red-500 focus:bg-red-50">
                   Permanently Delete
                 </DropdownMenuItem>
               </DropdownMenuGroup>
@@ -167,81 +146,16 @@ export const ActionCell = ({ blog, onDataChange }: { blog: any, onDataChange: ()
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Trash Modal */}
-      <AlertDialog open={trashOpen} onOpenChange={setTrashOpen}>
-        <AlertDialogContent className="bg-card">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Move to Trash?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will unpublish the blog and move it to the trash. You can restore it later if needed.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isTrashing} className="h-auto px-5 py-2.5">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={(e) => { e.preventDefault(); handleTrash(); }} disabled={isTrashing} className="h-auto px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white">
-              {isTrashing ? "Moving..." : "Move to Trash"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Publish Modal */}
-      <AlertDialog open={publishOpen} onOpenChange={setPublishOpen}>
-        <AlertDialogContent className="bg-card">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Set as Published?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will immediately publish this blog post and make it visible on the live website.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isPublishing} className="h-auto px-5 py-2.5">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={(e) => { e.preventDefault(); handlePublish(); }} disabled={isPublishing} className="h-auto px-5 py-2.5 bg-black hover:bg-black/90 text-white">
-              {isPublishing ? "Publishing..." : "Publish Post"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Draft Modal */}
-      <AlertDialog open={draftOpen} onOpenChange={setDraftOpen}>
-        <AlertDialogContent className="bg-card">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Move to Draft?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will immediately unpublish the blog post from the live website and move it to your drafts.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDrafting} className="h-auto px-5 py-2.5">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={(e) => { e.preventDefault(); handleDraft(); }} disabled={isDrafting} className="h-auto px-5 py-2.5 bg-black hover:bg-black/90 text-white">
-              {isDrafting ? "Moving..." : "Move to Draft"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Delete Modal */}
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent className="max-w-2xl bg-card p-8">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-2xl font-bold">Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription className="text-base text-muted-foreground mt-3">
-              This action cannot be undone. This will permanently delete this blog post from the database.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-6 gap-3">
-            <AlertDialogCancel disabled={isDeleting} className="px-6 py-3 text-base">Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={(e) => { e.preventDefault(); handleDelete(); }} 
-              disabled={isDeleting}
-              className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 text-base"
-            >
-              {isDeleting ? "Deleting..." : "Permanent Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Centralized Confirmation Modal */}
+      <TrashConfirmationModal
+        open={modal.isOpen}
+        onOpenChange={(open) => !open && closeModal()}
+        type={modal.type}
+        itemName={modal.targetName}
+        itemType="blog post"
+        loading={loading}
+        onConfirm={onModalConfirm}
+      />
 
       {seoOpen && (
         <BlogQuickEditModal
@@ -270,7 +184,6 @@ function calculateSeoStatus(seo: any, fallbackImage?: string) {
   const titleLen = seo.metaTitle?.length || 0;
   const descLen = seo.metaDesc?.length || 0;
 
-  // If Meta Title and Meta Description fall within optimal character ranges, mark as Good
   if (titleLen >= 40 && titleLen <= 60 && descLen >= 120 && descLen <= 160) {
     return { label: "Good", variant: "success" };
   }

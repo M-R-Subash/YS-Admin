@@ -15,6 +15,7 @@ import { careersSchema } from "@/lib/schemas/careers/careers-validation";
 import { contactUiSchema } from "@/lib/schemas/contact/contact-ui-schema";
 import { contactSchema } from "@/lib/schemas/contact/contact-validation";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ScreenLoader } from "@/components/ui/screen-loader";
 
 const SCHEMA_REGISTRY: Record<string, any> = {
   "/": {
@@ -217,9 +218,10 @@ export default function EditorPage({
 
   if (!page) {
     return (
-      <div className="flex items-center justify-center h-screen bg-background text-muted text-sm font-medium">
-        Loading editor...
-      </div>
+      <ScreenLoader
+        text="Loading Page Builder..."
+        subtitle="Fetching page schema, blocks, and live preview..."
+      />
     );
   }
 

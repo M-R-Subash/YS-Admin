@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { FileTextIcon, UsersIcon, PenToolIcon, ImageIcon, LayoutDashboardIcon, WavesHorizontalIcon, Bell } from "lucide-react"
+import { FileTextIcon, UsersIcon, PenToolIcon, ImageIcon, LayoutDashboardIcon, WavesHorizontalIcon, Bell, MessageSquare } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
@@ -29,6 +29,11 @@ const navItems = [
     icon: <PenToolIcon />,
   },
   {
+    title: "Comments",
+    url: "/comments",
+    icon: <MessageSquare />,
+  },
+  {
     title: "Users",
     url: "/users",
     icon: <UsersIcon />,
@@ -53,22 +58,31 @@ const navItems = [
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { state } = useSidebar()
   const { data: session } = useSession()
-  const [unreadCount, setUnreadCount] = React.useState<number>(0)
+  const [unreadSubmissionsCount, setUnreadSubmissionsCount] = React.useState<number>(0)
+  const [unapprovedCommentsCount, setUnapprovedCommentsCount] = React.useState<number>(0)
 
   React.useEffect(() => {
-    async function fetchUnreadCount() {
+    async function fetchCounts() {
       try {
-        const res = await fetch("/api/forms/submissions?filter=unread", { cache: "no-store" });
-        if (res.ok) {
-          const data = await res.json();
-          setUnreadCount(data.unreadCount || 0);
+        const [subRes, comRes] = await Promise.all([
+          fetch("/api/forms/submissions?filter=unread", { cache: "no-store" }),
+          fetch("/api/comments?filter=pending", { cache: "no-store" }),
+        ]);
+
+        if (subRes.ok) {
+          const data = await subRes.json();
+          setUnreadSubmissionsCount(data.unreadCount || 0);
+        }
+        if (comRes.ok) {
+          const data = await comRes.json();
+          setUnapprovedCommentsCount(data.unapprovedCount || 0);
         }
       } catch (err) {
-        console.error("Failed to fetch unread submissions count", err);
+        console.error("Failed to fetch sidebar counts", err);
       }
     }
-    fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, 30000); // Polling every 30s
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 30000); // Polling every 30s
     return () => clearInterval(interval);
   }, []);
 
@@ -82,11 +96,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       })
       .map((item) => {
         if (item.title === "Notifications") {
-          return { ...item, badge: unreadCount }
+          return { ...item, badge: unreadSubmissionsCount }
+        }
+        if (item.title === "Comments") {
+          return { ...item, badge: unapprovedCommentsCount }
         }
         return item
       })
-  }, [session, unreadCount])
+  }, [session, unreadSubmissionsCount, unapprovedCommentsCount])
 
   return (
     <Sidebar collapsible="icon" {...props}>

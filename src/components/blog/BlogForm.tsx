@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/toast";
 import { ArrowLeft, Loader2, Save, Send } from "lucide-react";
 import Link from "next/link";
+import { ScreenLoader } from "@/components/ui/screen-loader";
 
 interface BlogFormProps {
   blogId?: string;
@@ -245,9 +246,10 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           {/* Main Editor Column */}
           <div className="flex-1 h-full min-h-[500px] flex flex-col overflow-hidden space-y-4">
             {isLoading ? (
-              <div className="h-full bg-card border rounded-xl animate-pulse flex items-center justify-center">
-                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-              </div>
+              <ScreenLoader
+                text="Loading Blog Post..."
+                subtitle="Fetching article content and SEO settings..."
+              />
             ) : (
               <>
                 <div className="bg-card border border-border p-4 rounded-xl shrink-0">

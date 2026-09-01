@@ -17,6 +17,10 @@ import {
   Inbox,
   Tag,
   RefreshCw,
+  Copy,
+  Check,
+  Undo2,
+  AlertTriangle,
 } from "lucide-react";
 import {
   Breadcrumb,
@@ -39,6 +43,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { TrashConfirmationModal } from "@/components/ui/trash-confirmation-modal";
+import { useTrashManager } from "@/hooks/useTrashManager";
 
 interface FormSubmission {
   id: string;
@@ -48,19 +54,72 @@ interface FormSubmission {
   ipAddress: string | null;
   userAgent: string | null;
   isRead: boolean;
+  isTrashed: boolean;
   createdAt: string;
+}
+
+type ModalType = "trash" | "restore" | "delete";
+
+interface ModalState {
+  isOpen: boolean;
+  type: ModalType | null;
+  targetSubmission: FormSubmission | null;
+}
+
+// Reusable Copy to Clipboard Icon Button
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    toast.add({ title: `Copied ${label} to clipboard`, type: "success" });
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            onClick={handleCopy}
+            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer inline-flex items-center justify-center shrink-0"
+          />
+        }
+      >
+        {copied ? (
+          <Check className="w-3.5 h-3.5 text-emerald-600" />
+        ) : (
+          <Copy className="w-3.5 h-3.5" />
+        )}
+      </TooltipTrigger>
+      <TooltipContent side="top">Copy {label}</TooltipContent>
+    </Tooltip>
+  );
 }
 
 export default function NotificationsPage() {
   const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [trashedCount, setTrashedCount] = useState(0);
 
   const [selectedSubmission, setSelectedSubmission] =
     useState<FormSubmission | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
+  const [filter, setFilter] = useState<"all" | "unread" | "read" | "trashed">("all");
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchSubmissions(true);
+    setTimeout(() => setIsRefreshing(false), 600);
+  };
 
   useEffect(() => {
     fetchSubmissions();
@@ -78,13 +137,13 @@ export default function NotificationsPage() {
       setSubmissions(data.submissions || []);
       setTotalCount(data.totalCount || 0);
       setUnreadCount(data.unreadCount || 0);
+      setTrashedCount(data.trashedCount || 0);
 
-      // Keep active selection if it exists in new list
       if (selectedSubmission) {
         const found = (data.submissions || []).find(
           (s: FormSubmission) => s.id === selectedSubmission.id
         );
-        if (found) setSelectedSubmission(found);
+        setSelectedSubmission(found || null);
       }
     } catch (err) {
       console.error("Error fetching form submissions:", err);
@@ -98,8 +157,7 @@ export default function NotificationsPage() {
   const handleSelectSubmission = async (submission: FormSubmission) => {
     setSelectedSubmission(submission);
 
-    if (!submission.isRead) {
-      // Optimistic update
+    if (!submission.isRead && !submission.isTrashed) {
       setSubmissions((prev) =>
         prev.map((item) =>
           item.id === submission.id ? { ...item, isRead: true } : item
@@ -124,7 +182,6 @@ export default function NotificationsPage() {
   const toggleReadStatus = async (submission: FormSubmission) => {
     const newStatus = !submission.isRead;
 
-    // Optimistic update
     setSubmissions((prev) =>
       prev.map((item) =>
         item.id === submission.id ? { ...item, isRead: newStatus } : item
@@ -152,27 +209,18 @@ export default function NotificationsPage() {
     }
   };
 
-  // Delete submission
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this submission?")) return;
-
-    setSubmissions((prev) => prev.filter((item) => item.id !== id));
-    if (selectedSubmission?.id === id) {
-      setSelectedSubmission(null);
-    }
-
-    try {
-      const res = await fetch(`/api/forms/submissions/${id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error();
-      toast.add({ title: "Submission deleted", type: "success" });
-      fetchSubmissions(true);
-    } catch (err) {
-      toast.add({ title: "Failed to delete submission", type: "error" });
-      fetchSubmissions(true);
-    }
-  };
+  // Centralized Trash Manager Hook
+  const { modal, loading: trashLoading, openTrashModal, closeModal, handleConfirm } =
+    useTrashManager<FormSubmission>({
+      itemType: "submission",
+      getApiEndpoint: (id) => `/api/forms/submissions/${id}`,
+      onSuccess: async () => {
+        if (selectedSubmission && modal.targetId === selectedSubmission.id) {
+          setSelectedSubmission(null);
+        }
+        await fetchSubmissions(true);
+      },
+    });
 
   // Helper to extract sender name
   const getSenderName = (payload: any) => {
@@ -190,6 +238,20 @@ export default function NotificationsPage() {
     return key
       .replace(/([A-Z])/g, " $1")
       .replace(/^./, (str) => str.toUpperCase());
+  };
+
+  // Check if key is Name, Email, or Phone for selective copy button display
+  const isCopyableField = (key: string) => {
+    const k = key.toLowerCase();
+    return (
+      k === "name" ||
+      k === "firstname" ||
+      k === "lastname" ||
+      k === "email" ||
+      k === "phone" ||
+      k === "phonenumber" ||
+      k === "mobile"
+    );
   };
 
   // Filter submissions by search query
@@ -221,7 +283,7 @@ export default function NotificationsPage() {
               <BreadcrumbList>
                 <BreadcrumbItem>
                   <BreadcrumbPage className="font-bold flex items-center gap-2 text-foreground">
-                    <Bell className="w-4 h-4 text-black" />
+                    <Bell className="w-4 h-4 text-black dark:text-white" />
                     <span>Form Submissions & Notifications</span>
                   </BreadcrumbPage>
                 </BreadcrumbItem>
@@ -235,13 +297,13 @@ export default function NotificationsPage() {
               <TooltipTrigger
                 render={
                   <button
-                    onClick={() => fetchSubmissions()}
+                    onClick={handleRefresh}
                     className="p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                   />
                 }
               >
                 <RefreshCw
-                  className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
+                  className={`w-4 h-4 ${isRefreshing || loading ? "animate-spin" : ""}`}
                 />
               </TooltipTrigger>
               <TooltipContent side="bottom">Refresh Submissions</TooltipContent>
@@ -255,8 +317,14 @@ export default function NotificationsPage() {
             </Badge>
 
             {unreadCount > 0 && (
-              <Badge className="text-xs bg-black text-white px-3 py-1 font-bold">
+              <Badge className="text-xs bg-black text-white dark:bg-white dark:text-black px-3 py-1 font-bold">
                 {unreadCount} Unread
+              </Badge>
+            )}
+
+            {trashedCount > 0 && (
+              <Badge variant="outline" className="text-xs border-red-300 text-red-600 dark:text-red-400 px-3 py-1 font-bold">
+                {trashedCount} Trashed
               </Badge>
             )}
           </div>
@@ -267,9 +335,9 @@ export default function NotificationsPage() {
           <ResizablePanelGroup orientation="horizontal" className="h-full">
             {/* ================= LEFT PANE: SUBMISSIONS LIST ================= */}
             <ResizablePanel
-              defaultSize="35"
-              minSize="25"
-              maxSize="50"
+              defaultSize="24"
+              minSize="24"
+              maxSize="45"
               className="border-r border-border bg-card/50 flex flex-col"
             >
               {/* Search & Filter Header */}
@@ -317,6 +385,16 @@ export default function NotificationsPage() {
                   >
                     Read
                   </button>
+                  <button
+                    onClick={() => setFilter("trashed")}
+                    className={`flex-1 py-1.5 text-xs font-semibold cursor-pointer rounded-xs transition-all ${
+                      filter === "trashed"
+                        ? "bg-red-600 text-white shadow-sm"
+                        : "bg-background border border-border text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Trash ({trashedCount})
+                  </button>
                 </div>
               </div>
 
@@ -335,6 +413,8 @@ export default function NotificationsPage() {
                     <p className="text-xs text-muted-foreground max-w-xs mx-auto">
                       {searchQuery
                         ? "Try a different search term"
+                        : filter === "trashed"
+                        ? "Trash is currently empty."
                         : "No form submissions recorded yet."}
                     </p>
                   </div>
@@ -365,7 +445,7 @@ export default function NotificationsPage() {
                         {/* Top Row: Unread Dot + Form Badge + Time */}
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
-                            {!item.isRead && (
+                            {!item.isRead && !item.isTrashed && (
                               <Tooltip>
                                 <TooltipTrigger
                                   render={
@@ -392,7 +472,7 @@ export default function NotificationsPage() {
                         {/* Sender Name */}
                         <h4
                           className={`text-sm tracking-tight truncate ${
-                            !item.isRead
+                            !item.isRead && !item.isTrashed
                               ? "font-bold text-foreground"
                               : "font-semibold text-foreground/80"
                           }`}
@@ -427,7 +507,7 @@ export default function NotificationsPage() {
                         <div className="flex items-center gap-2">
                           <Badge
                             variant="secondary"
-                            className="text-xs font-bold bg-black text-white px-2.5 py-0.5"
+                            className="text-xs font-bold bg-black text-white dark:bg-white dark:text-black px-2.5 py-0.5"
                           >
                             {selectedSubmission.formName}
                           </Badge>
@@ -447,9 +527,18 @@ export default function NotificationsPage() {
                             </Tooltip>
                           )}
                         </div>
-                        <h2 className="text-2xl font-extrabold text-foreground tracking-tight pt-1">
-                          {getSenderName(selectedSubmission.payload)}
-                        </h2>
+
+                        {/* Sender Name with Copy Button */}
+                        <div className="flex items-center gap-2 pt-1">
+                          <h2 className="text-2xl font-extrabold text-foreground tracking-tight">
+                            {getSenderName(selectedSubmission.payload)}
+                          </h2>
+                          <CopyButton
+                            text={getSenderName(selectedSubmission.payload)}
+                            label="Sender Name"
+                          />
+                        </div>
+
                         <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
                           <Calendar className="w-3.5 h-3.5" />
                           <span>
@@ -469,7 +558,7 @@ export default function NotificationsPage() {
                               render={
                                 <a
                                   href={`mailto:${selectedSubmission.payload.email}`}
-                                  className="px-3 py-2 rounded-lg bg-black hover:bg-black/90 text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                                  className="px-3 py-2 rounded-lg bg-black hover:bg-black/90 text-white dark:bg-white dark:text-black text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
                                 />
                               }
                             >
@@ -501,47 +590,107 @@ export default function NotificationsPage() {
                           </Tooltip>
                         )}
 
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <button
-                                onClick={() =>
-                                  toggleReadStatus(selectedSubmission)
-                                }
-                                className="p-2 rounded-lg border border-border bg-background hover:bg-muted text-foreground transition-all cursor-pointer"
-                              />
-                            }
-                          >
-                            {selectedSubmission.isRead ? (
-                              <Circle className="w-4 h-4 text-blue-600" />
-                            ) : (
-                              <CheckCircle className="w-4 h-4 text-emerald-600" />
-                            )}
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom">
-                            {selectedSubmission.isRead
-                              ? "Mark as unread"
-                              : "Mark as read"}
-                          </TooltipContent>
-                        </Tooltip>
+                        {!selectedSubmission.isTrashed && (
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <button
+                                  onClick={() =>
+                                    toggleReadStatus(selectedSubmission)
+                                  }
+                                  className="p-2 rounded-lg border border-border bg-background hover:bg-muted text-foreground transition-all cursor-pointer"
+                                />
+                              }
+                            >
+                              {selectedSubmission.isRead ? (
+                                <Circle className="w-4 h-4 text-blue-600" />
+                              ) : (
+                                <CheckCircle className="w-4 h-4 text-emerald-600" />
+                              )}
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">
+                              {selectedSubmission.isRead
+                                ? "Mark as unread"
+                                : "Mark as read"}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
 
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <button
-                                onClick={() =>
-                                  handleDelete(selectedSubmission.id)
+                        {/* Trash & Restore Controls */}
+                        {selectedSubmission.isTrashed ? (
+                          <>
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <button
+                                    onClick={() =>
+                                      openTrashModal(
+                                        "restore",
+                                        selectedSubmission,
+                                        selectedSubmission.id,
+                                        getSenderName(selectedSubmission.payload)
+                                      )
+                                    }
+                                    className="p-2 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-all cursor-pointer flex items-center gap-1 text-xs font-bold"
+                                  />
                                 }
-                                className="p-2 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 transition-all cursor-pointer"
-                              />
-                            }
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom">
-                            Delete submission
-                          </TooltipContent>
-                        </Tooltip>
+                              >
+                                <Undo2 className="w-4 h-4" />
+                                <span>Restore</span>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom">
+                                Restore submission from trash
+                              </TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <button
+                                    onClick={() =>
+                                      openTrashModal(
+                                        "delete",
+                                        selectedSubmission,
+                                        selectedSubmission.id,
+                                        getSenderName(selectedSubmission.payload)
+                                      )
+                                    }
+                                    className="p-2 rounded-lg border border-red-300 bg-red-50 hover:bg-red-100 text-red-600 transition-all cursor-pointer flex items-center gap-1 text-xs font-bold"
+                                  />
+                                }
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                <span>Delete Permanently</span>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom">
+                                Permanently delete submission
+                              </TooltipContent>
+                            </Tooltip>
+                          </>
+                        ) : (
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <button
+                                  onClick={() =>
+                                    openTrashModal(
+                                      "trash",
+                                      selectedSubmission,
+                                      selectedSubmission.id,
+                                      getSenderName(selectedSubmission.payload)
+                                    )
+                                  }
+                                  className="p-2 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 transition-all cursor-pointer"
+                                />
+                              }
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">
+                              Move submission to trash
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -565,15 +714,26 @@ export default function NotificationsPage() {
                                 ? JSON.stringify(value)
                                 : String(value);
 
+                            const formattedLabel = formatKeyName(key);
+                            const copyable = isCopyableField(key);
+
                             return (
                               <div
                                 key={key}
-                                className="p-4 rounded-xl border border-border bg-card space-y-1"
+                                className="p-4 rounded-xl border border-border bg-card space-y-1 relative group"
                               >
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                                  {formatKeyName(key)}
-                                </span>
-                                <p className="text-sm font-semibold text-foreground break-words">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    {formattedLabel}
+                                  </span>
+                                  {copyable && stringValue && (
+                                    <CopyButton
+                                      text={stringValue}
+                                      label={formattedLabel}
+                                    />
+                                  )}
+                                </div>
+                                <p className="text-sm font-semibold text-foreground break-words pt-0.5">
                                   {stringValue || "—"}
                                 </p>
                               </div>
@@ -585,11 +745,17 @@ export default function NotificationsPage() {
                       {/* Message Block if present */}
                       {selectedSubmission.payload?.message && (
                         <div className="space-y-2 pt-2">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                            <MessageSquare className="w-3.5 h-3.5" />
-                            <span>Message / Project Scope</span>
-                          </span>
-                          <div className="p-5 rounded-2xl border border-border bg-card text-foreground text-sm font-medium leading-relaxed whitespace-pre-wrap shadow-inner">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                              <MessageSquare className="w-3.5 h-3.5" />
+                              <span>Message / Project Scope</span>
+                            </span>
+                            <CopyButton
+                              text={selectedSubmission.payload.message}
+                              label="Message"
+                            />
+                          </div>
+                          <div className="p-5 rounded-2xl border border-border bg-card text-foreground text-sm font-medium leading-relaxed whitespace-pre-wrap shadow-xs">
                             {selectedSubmission.payload.message}
                           </div>
                         </div>
@@ -646,6 +812,17 @@ export default function NotificationsPage() {
           </ResizablePanelGroup>
         </div>
       </div>
+
+      {/* Centralized Trash Confirmation Modal */}
+      <TrashConfirmationModal
+        open={modal.isOpen}
+        onOpenChange={(open) => !open && closeModal()}
+        type={modal.type}
+        itemName={modal.targetName}
+        itemType="submission"
+        loading={trashLoading}
+        onConfirm={() => handleConfirm()}
+      />
     </TooltipProvider>
   );
 }

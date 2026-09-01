@@ -20,10 +20,15 @@ export async function GET(request: Request) {
 
     const whereClause: any = {};
 
-    if (filter === "unread") {
-      whereClause.isRead = false;
-    } else if (filter === "read") {
-      whereClause.isRead = true;
+    if (filter === "trashed") {
+      whereClause.isTrashed = true;
+    } else {
+      whereClause.isTrashed = false;
+      if (filter === "unread") {
+        whereClause.isRead = false;
+      } else if (filter === "read") {
+        whereClause.isRead = true;
+      }
     }
 
     if (search.trim() !== "") {
@@ -33,19 +38,21 @@ export async function GET(request: Request) {
       ];
     }
 
-    const [submissions, totalCount, unreadCount] = await Promise.all([
+    const [submissions, totalCount, unreadCount, trashedCount] = await Promise.all([
       prisma.formSubmission.findMany({
         where: whereClause,
         orderBy: { createdAt: "desc" },
       }),
-      prisma.formSubmission.count(),
-      prisma.formSubmission.count({ where: { isRead: false } }),
+      prisma.formSubmission.count({ where: { isTrashed: false } }),
+      prisma.formSubmission.count({ where: { isTrashed: false, isRead: false } }),
+      prisma.formSubmission.count({ where: { isTrashed: true } }),
     ]);
 
     return NextResponse.json({
       submissions,
       totalCount,
       unreadCount,
+      trashedCount,
     });
   } catch (error) {
     console.error("Fetch form submissions error:", error);
