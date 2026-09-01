@@ -17,58 +17,76 @@ import {
 
 import Link from "next/link"
 
-const data = {
-  user: {
-    name: "Zoro Admin",
-    email: "admin@zoro.cms",
-    avatar: "/avatars/shadcn.jpg",
+const navItems = [
+  {
+    title: "Pages",
+    url: "/webpages",
+    icon: <FileTextIcon />,
   },
-  navMain: [
-    {
-      title: "Pages",
-      url: "/webpages",
-      icon: <FileTextIcon />,
-    },
-    {
-      title: "Blogs",
-      url: "/blogs",
-      icon: <PenToolIcon />,
-    },
-    {
-      title: "Users",
-      url: "/users",
-      icon: <UsersIcon />,
-    },
-    {
-      title: "Media",
-      url: "/media",
-      icon: <ImageIcon />,
-    },
-    {
-      title: "Redirection",
-      url: "/redirections",
-      icon: <WavesHorizontalIcon   />,
-    },
-    {
-      title: "Notifications",
-      url: "/notifications",
-      icon: <Bell   />,
-    },
-  ],
-}
+  {
+    title: "Blogs",
+    url: "/blogs",
+    icon: <PenToolIcon />,
+  },
+  {
+    title: "Users",
+    url: "/users",
+    icon: <UsersIcon />,
+  },
+  {
+    title: "Media",
+    url: "/media",
+    icon: <ImageIcon />,
+  },
+  {
+    title: "Redirection",
+    url: "/redirections",
+    icon: <WavesHorizontalIcon />,
+  },
+  {
+    title: "Notifications",
+    url: "/notifications",
+    icon: <Bell />,
+  },
+]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { state } = useSidebar()
   const { data: session } = useSession()
-  
-  const filteredNavMain = React.useMemo(() => {
-    return data.navMain.filter((item) => {
-      if (item.title === "Users") {
-        return session?.user?.role === "ADMIN"
+  const [unreadCount, setUnreadCount] = React.useState<number>(0)
+
+  React.useEffect(() => {
+    async function fetchUnreadCount() {
+      try {
+        const res = await fetch("/api/forms/submissions?filter=unread", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          setUnreadCount(data.unreadCount || 0);
+        }
+      } catch (err) {
+        console.error("Failed to fetch unread submissions count", err);
       }
-      return true
-    })
-  }, [session])
+    }
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 30000); // Polling every 30s
+    return () => clearInterval(interval);
+  }, []);
+
+  const filteredNavMain = React.useMemo(() => {
+    return navItems
+      .filter((item) => {
+        if (item.title === "Users") {
+          return session?.user?.role === "ADMIN"
+        }
+        return true
+      })
+      .map((item) => {
+        if (item.title === "Notifications") {
+          return { ...item, badge: unreadCount }
+        }
+        return item
+      })
+  }, [session, unreadCount])
 
   return (
     <Sidebar collapsible="icon" {...props}>

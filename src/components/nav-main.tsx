@@ -27,6 +27,7 @@ export function NavMain({
     url: string
     icon?: React.ReactNode
     isActive?: boolean
+    badge?: number | string
     items?: {
       title: string
       url: string
@@ -39,8 +40,9 @@ export function NavMain({
     <SidebarGroup>
       <SidebarGroupLabel>Platform</SidebarGroupLabel>
       <SidebarMenu>
-        {items.map((item) => (
-          item.items && item.items.length > 0 ? (
+        {items.map((item) => {
+          const isItemActive = pathname === item.url;
+          return item.items && item.items.length > 0 ? (
             <Collapsible
               key={item.title}
               defaultOpen={item.isActive}
@@ -68,13 +70,24 @@ export function NavMain({
             </Collapsible>
           ) : (
             <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton tooltip={item.title} isActive={pathname === item.url} render={<Link href={item.url} />}>
+              <SidebarMenuButton tooltip={item.title} isActive={isItemActive} render={<Link href={item.url} />}>
                 {item.icon}
-                <span>{item.title}</span>
+                <span className="flex-1">{item.title}</span>
+                {item.badge !== undefined && Number(item.badge) > 0 && (
+                  <span
+                    className={`ml-auto px-1.5 py-0.5 text-[10px] font-bold rounded-xs transition-colors shrink-0 ${
+                      isItemActive
+                        ? "bg-white text-black dark:bg-black dark:text-white shadow-xs"
+                        : "bg-black text-white dark:bg-white dark:text-black"
+                    }`}
+                  >
+                    {item.badge}
+                  </span>
+                )}
               </SidebarMenuButton>
             </SidebarMenuItem>
-          )
-        ))}
+          );
+        })}
       </SidebarMenu>
     </SidebarGroup>
   )
