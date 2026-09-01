@@ -415,7 +415,7 @@ export default function CommentsPage() {
                   placeholder="Filter blog titles..."
                   value={blogSearchQuery}
                   onChange={(e) => setBlogSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 bg-background border border-border rounded-lg text-xs font-medium text-foreground focus:outline-none focus:border-accent transition-colors"
+                  className="w-full pl-8 pr-3 py-1.5 bg-background border border-border rounded-sm text-xs font-medium text-foreground focus:outline-none focus:border-accent transition-colors"
                 />
               </div>
             </div>
@@ -425,14 +425,14 @@ export default function CommentsPage() {
               {/* All Blogs Master Pill */}
               <button
                 onClick={() => setSelectedBlogId("all")}
-                className={`w-full text-left p-3 rounded-xl transition-all flex items-center justify-between cursor-pointer border ${
+                className={`w-full text-left p-3 rounded-sm transition-all flex items-center justify-between cursor-pointer border ${
                   selectedBlogId === "all"
                     ? "bg-black text-white dark:bg-white dark:text-black border-black dark:border-white shadow-xs font-bold"
                     : "bg-background/60 hover:bg-muted border-border/60 text-foreground"
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  <div className={`w-8 h-8 rounded-sm flex items-center justify-center shrink-0 ${
                     selectedBlogId === "all"
                       ? "bg-white/20 text-white dark:bg-black/20 dark:text-black"
                       : "bg-muted text-muted-foreground"
@@ -477,7 +477,7 @@ export default function CommentsPage() {
                     <button
                       key={b.id}
                       onClick={() => setSelectedBlogId(b.id)}
-                      className={`w-full text-left p-3 rounded-xl transition-all flex items-center justify-between cursor-pointer border ${
+                      className={`w-full text-left p-3 rounded-sm transition-all flex items-center justify-between cursor-pointer border ${
                         isSelected
                           ? "bg-black text-white dark:bg-white dark:text-black border-black dark:border-white shadow-xs font-bold"
                           : "bg-background/40 hover:bg-muted border-border/50 text-foreground"
@@ -485,7 +485,7 @@ export default function CommentsPage() {
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div
-                          className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                          className={`w-8 h-8 rounded-sm flex items-center justify-center shrink-0 ${
                             isSelected
                               ? "bg-white/20 text-white dark:bg-black/20 dark:text-black"
                               : "bg-muted text-muted-foreground"
@@ -655,7 +655,7 @@ export default function CommentsPage() {
                   return (
                     <div
                       key={comment.id}
-                      className={`bg-card border rounded-2xl p-5 shadow-xs transition-all space-y-4 relative ${
+                      className={`bg-card border rounded-sm p-5 shadow-xs transition-all space-y-4 relative ${
                         comment.isTrashed
                           ? "border-red-200 dark:border-red-900/40 bg-red-50/10 dark:bg-red-950/10"
                           : !comment.isApproved
@@ -741,7 +741,7 @@ export default function CommentsPage() {
                               return (
                                 <div
                                   key={reply.id}
-                                  className={`ml-4 sm:ml-8 p-4 rounded-xl border border-border/80 space-y-2 relative ${
+                                  className={`ml-4 sm:ml-8 p-4 rounded-sm border border-border/80 space-y-2 relative ${
                                     isAdminReply
                                       ? "bg-muted/40 border-l-4 border-l-black dark:border-l-white"
                                       : "bg-background"
@@ -797,7 +797,7 @@ export default function CommentsPage() {
 
                       {/* Inline Reply Form */}
                       {replyingToId === comment.id && (
-                        <div className="p-4 rounded-xl border border-border bg-muted/30 space-y-3">
+                        <div className="p-4 rounded-sm border border-border bg-muted/30 space-y-3">
                           <div className="flex items-center justify-between text-xs font-bold text-foreground">
                             <span className="flex items-center gap-1.5">
                               <Reply className="w-3.5 h-3.5" />
@@ -819,14 +819,14 @@ export default function CommentsPage() {
                             placeholder="Type your official response..."
                             value={replyText}
                             onChange={(e) => setReplyText(e.target.value)}
-                            className="w-full p-3 bg-background border border-border rounded-xl text-xs font-medium focus:outline-none focus:border-accent transition-colors"
+                            className="w-full p-3 bg-background border border-border rounded-sm text-xs font-medium focus:outline-none focus:border-accent transition-colors"
                           />
 
                           <div className="flex justify-end">
                             <button
                               onClick={() => openConfirmModal("reply", comment)}
                               disabled={!replyText.trim()}
-                              className="px-4 py-2 bg-black hover:bg-black/90 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                              className="px-4 py-2 bg-black hover:bg-black/90 text-white text-xs font-bold rounded-sm flex items-center gap-1.5 transition-all cursor-pointer shadow-xs disabled:opacity-50"
                             >
                               <Send className="w-3.5 h-3.5" />
                               <span>Publish Reply</span>
@@ -845,7 +845,7 @@ export default function CommentsPage() {
                                 render={
                                   <button
                                     onClick={() => openConfirmModal("restore", comment)}
-                                    className="px-3 py-1.5 rounded-lg border border-border bg-background hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                                    className="px-3 py-1.5 rounded-sm border border-border bg-background hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
                                   />
                                 }
                               >
@@ -863,7 +863,7 @@ export default function CommentsPage() {
                                 render={
                                   <button
                                     onClick={() => openConfirmModal("delete", comment)}
-                                    className="px-3 py-1.5 rounded-lg border border-red-200 bg-red-600 hover:bg-red-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                                    className="px-3 py-1.5 rounded-sm border border-red-200 bg-red-600 hover:bg-red-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
                                   />
                                 }
                               >
@@ -888,7 +888,7 @@ export default function CommentsPage() {
                                         comment
                                       )
                                     }
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                                    className={`px-3 py-1.5 rounded-sm text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
                                       comment.isApproved
                                         ? "bg-background border-border text-foreground hover:bg-muted"
                                         : "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-xs"
@@ -926,7 +926,7 @@ export default function CommentsPage() {
                                       );
                                       setReplyText("");
                                     }}
-                                    className="px-3 py-1.5 rounded-lg border border-border bg-background hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                                    className="px-3 py-1.5 rounded-sm border border-border bg-background hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
                                   />
                                 }
                               >
@@ -944,7 +944,7 @@ export default function CommentsPage() {
                                 render={
                                   <button
                                     onClick={() => openConfirmModal("trash", comment)}
-                                    className="p-1.5 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 transition-all cursor-pointer"
+                                    className="p-1.5 rounded-sm border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 transition-all cursor-pointer"
                                   />
                                 }
                               >

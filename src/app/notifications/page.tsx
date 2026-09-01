@@ -720,7 +720,7 @@ export default function NotificationsPage() {
                             return (
                               <div
                                 key={key}
-                                className="p-4 rounded-xl border border-border bg-card space-y-1 relative group"
+                                className="p-4 rounded-sm border border-border bg-card space-y-1 relative group"
                               >
                                 <div className="flex items-center justify-between gap-2">
                                   <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -755,7 +755,7 @@ export default function NotificationsPage() {
                               label="Message"
                             />
                           </div>
-                          <div className="p-5 rounded-2xl border border-border bg-card text-foreground text-sm font-medium leading-relaxed whitespace-pre-wrap shadow-xs">
+                          <div className="p-5 rounded-sm border border-border bg-card text-foreground text-sm font-medium leading-relaxed whitespace-pre-wrap shadow-xs">
                             {selectedSubmission.payload.message}
                           </div>
                         </div>
@@ -770,7 +770,7 @@ export default function NotificationsPage() {
                       </h3>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="p-4 rounded-xl border border-border bg-muted/30 space-y-1">
+                        <div className="p-4 rounded-sm border border-border bg-muted/30 space-y-1">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                             IP Address
                           </span>
@@ -779,8 +779,7 @@ export default function NotificationsPage() {
                               "Unknown / localhost"}
                           </p>
                         </div>
-
-                        <div className="p-4 rounded-xl border border-border bg-muted/30 space-y-1">
+                        <div className="p-4 rounded-sm border border-border bg-muted/30 space-y-1">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                             User Agent / Browser
                           </span>
