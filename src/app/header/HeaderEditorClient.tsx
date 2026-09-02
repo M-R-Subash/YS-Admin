@@ -11,6 +11,8 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/componen
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
+import { toast } from "@/components/ui/toast";
+
 export default function HeaderEditorClient({ initialData }: { initialData: any }) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
@@ -19,7 +21,7 @@ export default function HeaderEditorClient({ initialData }: { initialData: any }
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const { control, handleSubmit, watch, formState: { isDirty } } = useForm({
+  const { control, handleSubmit, watch, reset, formState: { isDirty } } = useForm({
     resolver: zodResolver(headerZodSchema as any),
     defaultValues: initialData,
   });
@@ -42,9 +44,11 @@ export default function HeaderEditorClient({ initialData }: { initialData: any }
     setIsSaving(false);
     if (result.success) {
       setSaved(true);
+      reset(data);
+      toast.add({ title: "Header published successfully", type: "success" });
       setTimeout(() => setSaved(false), 2500);
     } else {
-      alert("Failed to save header.");
+      toast.add({ title: "Failed to save header", type: "error" });
     }
   };
 
@@ -73,9 +77,6 @@ export default function HeaderEditorClient({ initialData }: { initialData: any }
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-success font-semibold mr-1 animate-pulse">
-            {saved && "✓ Saved to DB"}
-          </span>
           <button
             onClick={handleSubmit(onSubmit)}
             disabled={isSaving || !isDirty}

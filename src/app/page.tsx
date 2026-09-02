@@ -1,9 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { FileTextIcon, PenToolIcon, CheckCircleIcon, FileIcon, ExternalLink } from "lucide-react";
+import {
+  PenToolIcon,
+  CheckCircleIcon,
+  ExternalLink,
+  Bell,
+  MessageSquare,
+  LineChart,
+  Search,
+  Server,
+  Mail,
+} from "lucide-react";
 
 import { Page } from "@/types";
 import {
@@ -18,11 +27,41 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { DataTable } from "@/components/ui/data-table";
 import { getWebpagesColumns } from "@/app/webpages/webpages-columns";
 
+const QUICK_LINKS = [
+  {
+    title: "Google Analytics",
+    subtitle: "Traffic & Performance",
+    url: "https://analytics.google.com",
+    icon: LineChart,
+  },
+  {
+    title: "Search Console",
+    subtitle: "Indexing & SEO Status",
+    url: "https://search.google.com/search-console",
+    icon: Search,
+  },
+  {
+    title: "Hostinger Panel",
+    subtitle: "Hosting & Server",
+    url: "https://hpanel.hostinger.com",
+    icon: Server,
+  },
+  {
+    title: "Gmail Inbox",
+    subtitle: "Leads & Email Client",
+    url: "https://mail.google.com",
+    icon: Mail,
+  },
+];
+
 export default function DashboardPage() {
   const [pages, setPages] = useState<Page[]>([]);
   const [blogsCount, setBlogsCount] = useState<number>(0);
+  const [commentsCount, setCommentsCount] = useState<number>(0);
+  const [unapprovedComments, setUnapprovedComments] = useState<number>(0);
+  const [notificationsCount, setNotificationsCount] = useState<number>(0);
+  const [unreadNotifications, setUnreadNotifications] = useState<number>(0);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
 
   useEffect(() => {
     fetchDashboardData();
@@ -31,16 +70,33 @@ export default function DashboardPage() {
   async function fetchDashboardData() {
     try {
       setLoading(true);
-      const [pagesRes, blogsRes] = await Promise.all([
-        fetch("/api/pages"),
-        fetch("/api/blogs"),
-      ]);
+      const [pagesRes, blogsRes, commentsRes, submissionsRes] =
+        await Promise.all([
+          fetch("/api/pages"),
+          fetch("/api/blogs"),
+          fetch("/api/comments?filter=all"),
+          fetch("/api/forms/submissions?filter=all"),
+        ]);
 
       const pagesData = await pagesRes.json();
       const blogsData = await blogsRes.json();
+      const commentsData = await commentsRes.json();
+      const submissionsData = await submissionsRes.json();
 
       setPages(Array.isArray(pagesData) ? pagesData : []);
       setBlogsCount(Array.isArray(blogsData) ? blogsData.length : 0);
+
+      if (commentsData && typeof commentsData.totalCount === "number") {
+        setCommentsCount(commentsData.totalCount);
+        setUnapprovedComments(commentsData.unapprovedCount || 0);
+      } else if (Array.isArray(commentsData?.comments)) {
+        setCommentsCount(commentsData.comments.length);
+      }
+
+      if (submissionsData && typeof submissionsData.totalCount === "number") {
+        setNotificationsCount(submissionsData.totalCount);
+        setUnreadNotifications(submissionsData.unreadCount || 0);
+      }
     } catch (err) {
       console.error("Failed to fetch dashboard data:", err);
     } finally {
@@ -48,14 +104,7 @@ export default function DashboardPage() {
     }
   }
 
-  async function deletePage(id: string) {
-    if (!confirm("Are you sure you want to delete this page?")) return;
-    await fetch(`/api/pages/${id}`, { method: "DELETE" });
-    fetchDashboardData();
-  }
-
   const publishedCount = pages.filter((p) => p.status === "published").length;
-  const draftCount = pages.filter((p) => p.status === "draft").length;
 
   return (
     <>
@@ -86,79 +135,153 @@ export default function DashboardPage() {
         </a>
       </header>
 
-      <div className="flex flex-1 flex-col gap-6 p-6">
+      <div className="flex flex-1 flex-col gap-8 p-6">
+        {/* Quick Links Block */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
+              Quick Launch & External Tools
+            </h2>
+          </div>
+          <div className="grid auto-rows-min gap-4 md:grid-cols-4">
+            {QUICK_LINKS.map((item) => {
+              const Icon = item.icon;
+              return (
+                <a
+                  key={item.title}
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-sm bg-card border border-border p-4 shadow-xs transition-all hover:border-primary/50 hover:shadow-sm cursor-pointer group flex flex-col justify-between"
+                >
+                  <div className="flex items-center justify-between pb-3">
+                    <div className="p-2 rounded-sm bg-muted/60 group-hover:bg-primary/10 transition-colors">
+                      <Icon className="size-4 text-foreground group-hover:text-primary transition-colors" />
+                    </div>
+                    <ExternalLink className="size-3.5 text-muted-foreground group-hover:text-primary transition-colors opacity-70 group-hover:opacity-100" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
+                      {item.title}
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">
+                      {item.subtitle}
+                    </p>
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Metrics Grid */}
-        <div className="grid auto-rows-min gap-4 md:grid-cols-4">
-          <Link
-            href="/webpages"
-            className="rounded-sm bg-card border p-4 shadow-sm flex flex-col justify-center transition-all hover:border-primary hover:shadow-md cursor-pointer group"
-          >
-            <div className="flex items-center justify-between pb-2">
-              <p className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">
-                Total Pages
-              </p>
-              <FileTextIcon className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
-            </div>
-            <div className="text-3xl font-bold">{loading ? "..." : pages.length}</div>
-          </Link>
+        <div className="space-y-3">
+          <h2 className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
+            Platform Metrics
+          </h2>
+          <div className="grid auto-rows-min gap-4 md:grid-cols-4">
+            {/* Total Notifications Card */}
+            <Link
+              href="/notifications"
+              className="rounded-sm bg-card border border-border p-4 shadow-xs transition-all hover:border-primary hover:shadow-md cursor-pointer group flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between pb-2">
+                <p className="text-sm font-semibold text-muted-foreground group-hover:text-primary transition-colors">
+                  Total Notifications
+                </p>
+                <div className="relative">
+                  <Bell className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                  {unreadNotifications > 0 && (
+                    <span className="absolute -top-1 -right-1 size-2 rounded-full bg-blue-600 animate-pulse" />
+                  )}
+                </div>
+              </div>
+              <div className="flex items-baseline justify-between pt-1">
+                <div className="text-3xl font-extrabold text-foreground">
+                  {loading ? "..." : notificationsCount}
+                </div>
+                {unreadNotifications > 0 && (
+                  <span className="text-[11px] font-bold text-blue-600 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-xs border border-blue-200 dark:border-blue-800">
+                    {unreadNotifications} unread
+                  </span>
+                )}
+              </div>
+            </Link>
 
-          <Link
-            href="/webpages"
-            className="rounded-sm bg-card border p-4 shadow-sm flex flex-col justify-center transition-all hover:border-primary hover:shadow-md cursor-pointer group"
-          >
-            <div className="flex items-center justify-between pb-2">
-              <p className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">
-                Published Pages
-              </p>
-              <CheckCircleIcon className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
-            </div>
-            <div className="text-3xl font-bold text-foreground">
-              {loading ? "..." : publishedCount}
-            </div>
-          </Link>
+            {/* Published Pages Card */}
+            <Link
+              href="/webpages"
+              className="rounded-sm bg-card border border-border p-4 shadow-xs transition-all hover:border-primary hover:shadow-md cursor-pointer group flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between pb-2">
+                <p className="text-sm font-semibold text-muted-foreground group-hover:text-primary transition-colors">
+                  Published Pages
+                </p>
+                <CheckCircleIcon className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
+              </div>
+              <div className="text-3xl font-extrabold text-foreground pt-1">
+                {loading ? "..." : publishedCount}
+              </div>
+            </Link>
 
-          <Link
-            href="/webpages"
-            className="rounded-sm bg-card border p-4 shadow-sm flex flex-col justify-center transition-all hover:border-primary hover:shadow-md cursor-pointer group"
-          >
-            <div className="flex items-center justify-between pb-2">
-              <p className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">
-                Draft Pages
-              </p>
-              <FileIcon className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
-            </div>
-            <div className="text-3xl font-bold text-muted-foreground">
-              {loading ? "..." : draftCount}
-            </div>
-          </Link>
+            {/* Total Comments Card */}
+            <Link
+              href="/comments"
+              className="rounded-sm bg-card border border-border p-4 shadow-xs transition-all hover:border-primary hover:shadow-md cursor-pointer group flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between pb-2">
+                <p className="text-sm font-semibold text-muted-foreground group-hover:text-primary transition-colors">
+                  Total Comments
+                </p>
+                <MessageSquare className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
+              </div>
+              <div className="flex items-baseline justify-between pt-1">
+                <div className="text-3xl font-extrabold text-foreground">
+                  {loading ? "..." : commentsCount}
+                </div>
+                {unapprovedComments > 0 && (
+                  <span className="text-[11px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-xs border border-amber-200 dark:border-amber-800">
+                    {unapprovedComments} pending
+                  </span>
+                )}
+              </div>
+            </Link>
 
-          <Link
-            href="/blogs"
-            className="rounded-sm bg-card border p-4 shadow-sm flex flex-col justify-center transition-all hover:border-primary hover:shadow-md cursor-pointer group"
-          >
-            <div className="flex items-center justify-between pb-2">
-              <p className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">
-                Total Blogs
-              </p>
-              <PenToolIcon className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
-            </div>
-            <div className="text-3xl font-bold text-foreground">
-              {loading ? "..." : blogsCount}
-            </div>
-          </Link>
+            {/* Total Blogs Card */}
+            <Link
+              href="/blogs"
+              className="rounded-sm bg-card border border-border p-4 shadow-xs transition-all hover:border-primary hover:shadow-md cursor-pointer group flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between pb-2">
+                <p className="text-sm font-semibold text-muted-foreground group-hover:text-primary transition-colors">
+                  Total Blogs
+                </p>
+                <PenToolIcon className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
+              </div>
+              <div className="text-3xl font-extrabold text-foreground pt-1">
+                {loading ? "..." : blogsCount}
+              </div>
+            </Link>
+          </div>
         </div>
 
         {/* Table Section */}
-        <div className="flex flex-1 flex-col rounded-xl bg-card border shadow-xs p-4">
+        <div className="flex flex-1 flex-col rounded-sm bg-card border border-border shadow-xs p-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Recent Webpages</h3>
-            <Link href="/webpages" className="text-sm font-medium text-primary hover:underline">
+            <h3 className="text-base font-bold">Recent Webpages</h3>
+            <Link
+              href="/webpages"
+              className="text-xs font-semibold text-primary hover:underline"
+            >
               View All
             </Link>
           </div>
 
-          <div className="rounded-md">
-            <DataTable columns={getWebpagesColumns(fetchDashboardData)} data={pages.slice(0, 10)} />
+          <div className="rounded-sm">
+            <DataTable
+              columns={getWebpagesColumns(fetchDashboardData)}
+              data={pages.slice(0, 10)}
+            />
           </div>
         </div>
       </div>

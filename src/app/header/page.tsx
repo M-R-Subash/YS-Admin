@@ -7,6 +7,7 @@ export default async function HeaderPage() {
   });
 
   const defaultData = {
+    logo: { url: "/logo.png", alt: "YS Innovations" },
     ctaButton: { label: "Get Started", url: "#contact" },
     navItems: [{ id: "1", label: "Home", url: "/" }],
   };

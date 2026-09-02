@@ -20,7 +20,7 @@ export default function FooterEditorClient({ initialData }: { initialData: any }
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const { control, handleSubmit, watch, formState: { isDirty } } = useForm({
+  const { control, handleSubmit, watch, reset, formState: { isDirty } } = useForm({
     resolver: zodResolver(footerZodSchema as any),
     defaultValues: initialData,
   });
@@ -43,6 +43,7 @@ export default function FooterEditorClient({ initialData }: { initialData: any }
     setIsSaving(false);
     if (result.success) {
       setSaved(true);
+      reset(data);
       toast.add({ title: "Footer published successfully", type: "success" });
       setTimeout(() => setSaved(false), 2500);
     } else {
@@ -75,9 +76,6 @@ export default function FooterEditorClient({ initialData }: { initialData: any }
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-success font-semibold mr-1 animate-pulse">
-            {saved && "✓ Saved to DB"}
-          </span>
           <button
             onClick={handleSubmit(onSubmit)}
             disabled={isSaving || !isDirty}

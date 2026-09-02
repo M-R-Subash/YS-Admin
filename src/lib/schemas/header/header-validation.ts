@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { buttonTextSchema, urlZodSchema, FieldSchema } from "@/lib/schemas/global-schema";
+import { buttonTextSchema, urlZodSchema, imageSchema, FieldSchema } from "@/lib/schemas/global-schema";
 
 export const headerZodSchema = z.object({
+  logo: imageSchema,
   ctaButton: urlZodSchema,
   navItems: z.array(
     z.object({
@@ -19,6 +20,12 @@ export const headerZodSchema = z.object({
 
 
 export const headerSchema: FieldSchema[] = [
+  {
+    name: "logo",
+    label: "Header Brand Logo",
+    type: "image",
+    description: "Upload or select a custom brand logo for the header navbar.",
+  },
   {
     name: "ctaButton",
     label: "Call to Action Button",
