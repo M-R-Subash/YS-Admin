@@ -1,4 +1,4 @@
-// Prisma Schema for Zoro CMS
+// Prisma Schema for YS CMS
 
 generator client {
   provider = "prisma-client"

@@ -27,7 +27,7 @@ export default function FooterEditorClient({ initialData }: { initialData: any }
 
   const formData = watch();
 
-  // Live preview postMessage to main.zoro
+  // Live preview postMessage to main site
   useEffect(() => {
     if (iframeRef.current?.contentWindow) {
       iframeRef.current.contentWindow.postMessage(
