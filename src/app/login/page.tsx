@@ -41,7 +41,7 @@ export default function LoginPage() {
           description: "Successfully authenticated. Redirecting to dashboard...",
           type: "success",
         });
-        router.push("/webpages");
+        router.push("/");
         router.refresh();
       }
     } catch (error) {
