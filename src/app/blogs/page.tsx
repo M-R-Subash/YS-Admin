@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, PenTool, Plus } from "lucide-react";
+import { Search, PenTool, Plus, ExternalLink } from "lucide-react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -72,8 +72,8 @@ export default function BlogsPage() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 bg-background flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 border-b">
-        <div className="flex items-center gap-2 px-4">
+      <header className="sticky top-0 z-30 bg-background flex h-16 shrink-0 items-center justify-between px-4 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 border-b">
+        <div className="flex items-center gap-2">
           <SidebarTrigger className="-ml-1" />
           <Separator
             orientation="vertical"
@@ -87,6 +87,16 @@ export default function BlogsPage() {
             </BreadcrumbList>
           </Breadcrumb>
         </div>
+
+        <a
+          href={`${process.env.NEXT_PUBLIC_FRONTEND_URL}/blogs?nocache=${Date.now()}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold text-foreground bg-card hover:bg-accent border border-border rounded-sm transition-all shadow-xs cursor-pointer"
+        >
+          <span>View Blogs</span>
+          <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
+        </a>
       </header>
 
       {/* Main Content */}

@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
-import { ChevronLeft, ChevronDown } from "lucide-react";
+import { ChevronLeft, ChevronDown, ExternalLink } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import type { Section, PageData } from "@/types";
 import SchemaEditor from "@/components/admin/SchemaEditor";
@@ -14,6 +14,8 @@ import { careersUiSchema } from "@/lib/schemas/careers/careers-ui-schema";
 import { careersSchema } from "@/lib/schemas/careers/careers-validation";
 import { contactUiSchema } from "@/lib/schemas/contact/contact-ui-schema";
 import { contactSchema } from "@/lib/schemas/contact/contact-validation";
+import { servicesUiSchema } from "@/lib/schemas/services/services-ui-schema";
+import { servicesSchema } from "@/lib/schemas/services/services-validation";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ScreenLoader } from "@/components/ui/screen-loader";
 
@@ -32,8 +34,31 @@ const SCHEMA_REGISTRY: Record<string, any> = {
     schema: contactSchema,
     uiSchema: contactUiSchema,
     previewType: "PREVIEW_UPDATE_CONTACT",
-  }
+  },
+  "/services/digital-marketing": {
+    schema: servicesSchema,
+    uiSchema: servicesUiSchema,
+    previewType: "PREVIEW_UPDATE_DIGITAL_MARKETING",
+  },
 };
+
+function getSchemaConfig(slug: string | undefined) {
+  if (!slug) return null;
+  if (SCHEMA_REGISTRY[slug]) return SCHEMA_REGISTRY[slug];
+  if (
+    slug.startsWith("/services/") ||
+    slug === "/digital-marketing" ||
+    slug === "/app-development" ||
+    !["/", "/careers", "/contact"].includes(slug)
+  ) {
+    return {
+      schema: servicesSchema,
+      uiSchema: servicesUiSchema,
+      previewType: "PREVIEW_UPDATE_PAGE",
+    };
+  }
+  return null;
+}
 
 
 const SECTION_DEFINITIONS: any[] = [];
@@ -82,7 +107,7 @@ export default function EditorPage({
       .then((res) => res.json())
       .then((data) => {
         setPage(data);
-        if (SCHEMA_REGISTRY[data.slug]) {
+        if (getSchemaConfig(data.slug)) {
           setSchemaData(data.content);
         } else {
           reset({ content: data.content || [] });
@@ -90,7 +115,7 @@ export default function EditorPage({
       });
   }, [pageId, reset]);
 
-  const isDirty = (page && SCHEMA_REGISTRY[page.slug])
+  const isDirty = (page && getSchemaConfig(page.slug))
     ? JSON.stringify(schemaData) !== JSON.stringify(page?.content)
     : formIsDirty;
 
@@ -133,7 +158,8 @@ export default function EditorPage({
     if (!page) return;
     
     let isValid = true;
-    if (page.slug && SCHEMA_REGISTRY[page.slug]) {
+    const schemaConfig = getSchemaConfig(page.slug);
+    if (page.slug && schemaConfig) {
       if (schemaEditorRef.current) {
         isValid = await schemaEditorRef.current.validate();
       }
@@ -147,7 +173,7 @@ export default function EditorPage({
 
     setSaving(true);
     
-    const contentPayload = (page.slug && SCHEMA_REGISTRY[page.slug]) ? schemaData : getValues("content");
+    const contentPayload = (page.slug && schemaConfig) ? schemaData : getValues("content");
     const payloadBody = { status, content: contentPayload };
 
     await fetch(`/api/pages/${page.id}`, {
@@ -156,7 +182,7 @@ export default function EditorPage({
       body: JSON.stringify(payloadBody),
     });
     setPage({ ...page, status, content: contentPayload });
-    if (!(page.slug && SCHEMA_REGISTRY[page.slug])) {
+    if (!(page.slug && schemaConfig)) {
       reset({ content: contentPayload });
     }
     setSaving(false);
@@ -198,10 +224,11 @@ export default function EditorPage({
 
   // Send initial data when iframe loads
   function handleIframeLoad() {
-    if (page && SCHEMA_REGISTRY[page.slug]) {
+    const schemaConfig = getSchemaConfig(page?.slug);
+    if (page && schemaConfig) {
       if (schemaData) {
         iframeRef.current?.contentWindow?.postMessage(
-          { type: SCHEMA_REGISTRY[page.slug].previewType, content: schemaData },
+          { type: schemaConfig.previewType, content: schemaData },
           "*"
         );
       }
@@ -252,14 +279,22 @@ export default function EditorPage({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-success font-semibold mr-1 animate-pulse">
-            {saved && "✓ Saved to DB"}
-          </span>
+          <a
+            href={`${process.env.NEXT_PUBLIC_FRONTEND_URL}${
+              page.slug === "/" ? "" : page.slug.startsWith("/") ? page.slug : `/${page.slug}`
+            }?nocache=${Date.now()}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-black bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 rounded-sm transition-all shadow-xs"
+          >
+            <span>View Page</span>
+            <ExternalLink className="w-3.5 h-3.5 text-zinc-700" />
+          </a>
 
           <button
             onClick={handlePublish}
             disabled={saving || (!isDirty && page.status === "published")}
-            className={`px-4 py-4 text-xs font-bold rounded-sm shadow-md transition-all hover:scale-[1.02] ${
+            className={`px-4 py-2 text-xs font-bold rounded-sm shadow-md transition-all hover:scale-[1.02] ${
               saving || (!isDirty && page.status === "published")
                 ? "bg-black/40 text-white/70 cursor-not-allowed opacity-60 hover:scale-100 shadow-none" 
                 : "bg-black hover:bg-black/90 text-white cursor-pointer"
@@ -279,18 +314,20 @@ export default function EditorPage({
           maxSize="60"
           className="overflow-y-auto border-r border-border bg-black/3 dark:bg-white/3 flex flex-col"
         >
-          {page.slug && SCHEMA_REGISTRY[page.slug] ? (
-            <SchemaEditor 
-              ref={schemaEditorRef}
-              initialData={page.content} 
-              iframeRef={iframeRef} 
-              onDataChange={setSchemaData}
-              uiSchema={SCHEMA_REGISTRY[page.slug].uiSchema}
-              zodSchema={SCHEMA_REGISTRY[page.slug].schema}
-              previewEventType={SCHEMA_REGISTRY[page.slug].previewType}
-              title={page.title}
-            />
-          ) : (
+          {(() => {
+            const schemaConfig = getSchemaConfig(page.slug);
+            return page.slug && schemaConfig ? (
+              <SchemaEditor 
+                ref={schemaEditorRef}
+                initialData={page.content} 
+                iframeRef={iframeRef} 
+                onDataChange={setSchemaData}
+                uiSchema={schemaConfig.uiSchema}
+                zodSchema={schemaConfig.schema}
+                previewEventType={schemaConfig.previewType}
+                title={page.title}
+              />
+            ) : (
             <form
               onSubmit={(e) => e.preventDefault()}
               className="p-5 flex-1 space-y-5"
@@ -392,7 +429,8 @@ export default function EditorPage({
               );
             })}
             </form>
-          )}
+          );
+        })()}
         </ResizablePanel>
 
         {/* Resizer Handle */}

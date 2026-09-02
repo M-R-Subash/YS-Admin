@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Search, Menu, FileText } from "lucide-react";
+import { Search, Menu, FileText, ExternalLink } from "lucide-react";
 import { Page } from "@/types";
 import {
   Breadcrumb,
@@ -78,8 +78,8 @@ export default function WebpagesPage() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 bg-background flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 border-b">
-        <div className="flex items-center gap-2 px-4">
+      <header className="sticky top-0 z-30 bg-background flex h-16 shrink-0 items-center justify-between px-4 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 border-b">
+        <div className="flex items-center gap-2">
           <SidebarTrigger className="-ml-1" />
           <Separator
             orientation="vertical"
@@ -93,9 +93,18 @@ export default function WebpagesPage() {
             </BreadcrumbList>
           </Breadcrumb>
         </div>
+
+        <a
+          href={`${process.env.NEXT_PUBLIC_FRONTEND_URL}?nocache=${Date.now()}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold text-foreground bg-card hover:bg-accent border border-border rounded-sm transition-all shadow-xs cursor-pointer"
+        >
+          <span>View Site</span>
+          <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
+        </a>
       </header>
 
-      {/* Main Content */}
       <div className="flex flex-1 flex-col gap-6 p-6">
         {/* Global Header & Footer Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

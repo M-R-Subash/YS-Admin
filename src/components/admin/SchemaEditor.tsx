@@ -185,10 +185,10 @@ const SchemaEditor = forwardRef(function SchemaEditor(
         onSubmit={(e) => e.preventDefault()}
         className="flex flex-col h-full bg-transparent overflow-hidden"
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border/60 bg-black/3 dark:bg-white/3 backdrop-blur z-10 shrink-0">
-          <span className="text-xs font-bold text-black uppercase tracking-wider">
+        <div className="flex items-center justify-end px-5 py-4 border-b border-border/60 bg-black/3 dark:bg-white/3 backdrop-blur z-10 shrink-0">
+          {/* <span className="text-xs font-bold text-black uppercase tracking-wider">
             {title ? `${title} Page Editor` : "Page Editor"}
-          </span>
+          </span> */}
           <div className="flex items-center gap-2">
             <button
               type="button"
