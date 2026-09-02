@@ -100,9 +100,12 @@ export default function EditorPage({
     params.then((p) => setPageId(p.id));
   }, [params]);
 
+  const [editorReady, setEditorReady] = useState(false);
+
   // Fetch page data and reset form
   useEffect(() => {
     if (!pageId) return;
+    setEditorReady(false);
     fetch(`/api/pages/${pageId}`)
       .then((res) => res.json())
       .then((data) => {
@@ -112,6 +115,9 @@ export default function EditorPage({
         } else {
           reset({ content: data.content || [] });
         }
+        setTimeout(() => {
+          setEditorReady(true);
+        }, 150);
       });
   }, [pageId, reset]);
 
@@ -222,8 +228,11 @@ export default function EditorPage({
     setCollapsedSections({});
   };
 
+  const [iframeLoading, setIframeLoading] = useState(true);
+
   // Send initial data when iframe loads
   function handleIframeLoad() {
+    setIframeLoading(false);
     const schemaConfig = getSchemaConfig(page?.slug);
     if (page && schemaConfig) {
       if (schemaData) {
@@ -243,9 +252,10 @@ export default function EditorPage({
     }
   }
 
-  if (!page) {
+  if (!page || !editorReady) {
     return (
       <ScreenLoader
+        delayMs={0}
         text="Loading Page Builder..."
         subtitle="Fetching page schema, blocks, and live preview..."
       />
@@ -439,12 +449,20 @@ export default function EditorPage({
         {/* Right: Preview iframe */}
         <ResizablePanel 
           defaultSize="75"
-          className="overflow-hidden bg-black/6 dark:bg-white/6 relative flex items-center justify-center p-4"
+          className="overflow-hidden bg-zinc-950 relative flex items-center justify-center p-4"
         >
-          <div className="w-full h-full bg-white shadow-xl rounded-xl overflow-hidden ring-1 ring-border">
+          <div className="w-full h-full bg-zinc-900 shadow-xl rounded-xl overflow-hidden ring-1 ring-border relative">
+            {iframeLoading && (
+              <div className="absolute inset-0 bg-[#050505] z-20 flex flex-col items-center justify-center gap-3">
+                <div className="w-8 h-8 rounded-full border-2 border-[#F5A817] border-t-transparent animate-spin" />
+                <span className="text-xs font-semibold text-zinc-400">Loading Live Preview...</span>
+              </div>
+            )}
             <iframe
               ref={iframeRef}
-              src={page.slug === "/" ? `${process.env.NEXT_PUBLIC_FRONTEND_URL}/?preview=true` : `${process.env.NEXT_PUBLIC_FRONTEND_URL}${page.slug}?preview=true`}
+              src={`${process.env.NEXT_PUBLIC_FRONTEND_URL}${
+                page.slug === "/" ? "" : page.slug.startsWith("/") ? page.slug : `/${page.slug}`
+              }?preview=true`}
               className="w-full h-full border-0"
               onLoad={handleIframeLoad}
             />

@@ -28,12 +28,12 @@ export function ScreenLoader({
   }, [delayMs]);
 
   if (!visible) {
-    return <div className="fixed inset-0 z-[9999] bg-zinc-950" />;
+    return null;
   }
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-zinc-950 text-white transition-all duration-300">
-      <div className="flex flex-col items-center space-y-5 p-8 rounded-3xl bg-zinc-900 border border-zinc-800 shadow-2xl max-w-sm text-center">
+    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-md text-white transition-all duration-300">
+      <div className="flex flex-col items-center space-y-5 p-8 rounded-3xl bg-zinc-900/90 border border-zinc-800/80 shadow-2xl max-w-sm text-center backdrop-blur-xl">
         {/* Animated Brand Icon Ring */}
         <div className="relative flex items-center justify-center">
           <div className="w-16 h-16 rounded-2xl bg-white text-black flex items-center justify-center shadow-lg">
