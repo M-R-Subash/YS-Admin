@@ -13,7 +13,15 @@ export async function GET(req: Request) {
 
     const blogs = await prisma.blog.findMany({
       include: { 
-        author: true,
+        author: {
+          select: {
+            id: true,
+            name: true,
+            profilePicture: true,
+            authorRole: true,
+            description: true,
+          },
+        },
         seo: true,
         _count: {
           select: { comments: true }
