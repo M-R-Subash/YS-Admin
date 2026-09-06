@@ -3,7 +3,7 @@
 import { useState } from "react";
 import useSWR, { mutate as globalMutate } from "swr";
 import Link from "next/link";
-import { Search, PenTool, Plus, ExternalLink } from "lucide-react";
+import { Search, PenTool, Plus, ExternalLink, BookOpen, CheckCircle2, FileEdit, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Breadcrumb,
@@ -24,10 +24,7 @@ export default function BlogsPage() {
     "all" | "published" | "draft" | "trash"
   >("all");
 
-  const endpoint =
-    statusFilter === "trash" ? "/api/blogs?status=trash" : "/api/blogs";
-
-  const { data, isLoading, mutate } = useSWR<any[]>(endpoint);
+  const { data, isLoading, mutate } = useSWR<any[]>("/api/blogs");
   const blogs = Array.isArray(data) ? data : [];
   const loading = isLoading && !data;
 
@@ -45,12 +42,14 @@ export default function BlogsPage() {
     }
   });
 
+  const totalCount = blogs.filter((b) => !b.isTrashed).length;
   const publishedCount = blogs.filter(
     (b) => !b.isTrashed && b.status === "published",
   ).length;
   const draftCount = blogs.filter(
     (b) => !b.isTrashed && b.status === "draft",
   ).length;
+  const trashedCount = blogs.filter((b) => b.isTrashed).length;
 
   return (
     <>
@@ -84,6 +83,144 @@ export default function BlogsPage() {
       {/* Main Content */}
       <div className="flex flex-1 flex-col gap-6 p-6">
         
+        {/* 4 Status Metric Filter Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {loading ? (
+            <>
+              <Skeleton className="h-[96px] w-full rounded-sm" />
+              <Skeleton className="h-[96px] w-full rounded-sm" />
+              <Skeleton className="h-[96px] w-full rounded-sm" />
+              <Skeleton className="h-[96px] w-full rounded-sm" />
+            </>
+          ) : (
+            <>
+              {/* Total Card */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setStatusFilter("all")}
+                className={`rounded-sm border p-4 shadow-xs transition-all cursor-pointer flex flex-col justify-between select-none ${
+                  statusFilter === "all"
+                    ? "bg-primary/5 border-primary ring-1 ring-primary shadow-sm"
+                    : "bg-card border-border hover:border-primary/40 hover:shadow-xs"
+                }`}
+              >
+                <div className="flex items-center justify-between pb-2">
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Total Blogs
+                  </p>
+                  <div className="p-1.5 rounded-sm bg-primary/10 text-primary">
+                    <BookOpen className="size-4" />
+                  </div>
+                </div>
+                <div className="flex items-baseline justify-between pt-1">
+                  <div className="text-2xl font-extrabold text-foreground">
+                    {totalCount}
+                  </div>
+                  {statusFilter === "all" && (
+                    <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-xs border border-primary/20">
+                      Active
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Published Card */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setStatusFilter("published")}
+                className={`rounded-sm border p-4 shadow-xs transition-all cursor-pointer flex flex-col justify-between select-none ${
+                  statusFilter === "published"
+                    ? "bg-emerald-500/5 border-emerald-500 ring-1 ring-emerald-500 shadow-sm"
+                    : "bg-card border-border hover:border-emerald-500/40 hover:shadow-xs"
+                }`}
+              >
+                <div className="flex items-center justify-between pb-2">
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Published
+                  </p>
+                  <div className="p-1.5 rounded-sm bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="size-4" />
+                  </div>
+                </div>
+                <div className="flex items-baseline justify-between pt-1">
+                  <div className="text-2xl font-extrabold text-foreground">
+                    {publishedCount}
+                  </div>
+                  {statusFilter === "published" && (
+                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-xs border border-emerald-500/20">
+                      Active
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Drafted Card */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setStatusFilter("draft")}
+                className={`rounded-sm border p-4 shadow-xs transition-all cursor-pointer flex flex-col justify-between select-none ${
+                  statusFilter === "draft"
+                    ? "bg-amber-500/5 border-amber-500 ring-1 ring-amber-500 shadow-sm"
+                    : "bg-card border-border hover:border-amber-500/40 hover:shadow-xs"
+                }`}
+              >
+                <div className="flex items-center justify-between pb-2">
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Drafted
+                  </p>
+                  <div className="p-1.5 rounded-sm bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    <FileEdit className="size-4" />
+                  </div>
+                </div>
+                <div className="flex items-baseline justify-between pt-1">
+                  <div className="text-2xl font-extrabold text-foreground">
+                    {draftCount}
+                  </div>
+                  {statusFilter === "draft" && (
+                    <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-xs border border-amber-500/20">
+                      Active
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Trashed Card */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setStatusFilter("trash")}
+                className={`rounded-sm border p-4 shadow-xs transition-all cursor-pointer flex flex-col justify-between select-none ${
+                  statusFilter === "trash"
+                    ? "bg-red-500/5 border-red-500 ring-1 ring-red-500 shadow-sm"
+                    : "bg-card border-border hover:border-red-500/40 hover:shadow-xs"
+                }`}
+              >
+                <div className="flex items-center justify-between pb-2">
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Trashed
+                  </p>
+                  <div className="p-1.5 rounded-sm bg-red-500/10 text-red-600 dark:text-red-400">
+                    <Trash2 className="size-4" />
+                  </div>
+                </div>
+                <div className="flex items-baseline justify-between pt-1">
+                  <div className="text-2xl font-extrabold text-foreground">
+                    {trashedCount}
+                  </div>
+                  {statusFilter === "trash" && (
+                    <span className="text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-0.5 rounded-xs border border-red-500/20">
+                      Active
+                    </span>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
         {/* Page Title & Filter Bar */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -91,7 +228,7 @@ export default function BlogsPage() {
               Blog Posts
             </h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Manage and organize your blog content ({blogs.length} total)
+              Manage and organize your blog content ({totalCount} total)
             </p>
           </div>
 
@@ -104,10 +241,14 @@ export default function BlogsPage() {
               &bull; Drafts:{" "}
               <span className="text-muted-foreground font-bold">
                 {draftCount}
+              </span>{" "}
+              &bull; Trashed:{" "}
+              <span className="text-red-500 font-bold">
+                {trashedCount}
               </span>
             </div>
             <Link href="/blogs/create">
-              <Button className="h-8 rounded-sm px-3 flex items-center gap-2 text-xs">
+              <Button className="h-8 rounded-sm px-3 flex items-center gap-2 text-xs cursor-pointer">
                 <Plus className="w-3.5 h-3.5" /> Create Post
               </Button>
             </Link>
@@ -135,17 +276,17 @@ export default function BlogsPage() {
           <div className="flex items-center gap-1.5 w-full sm:w-auto">
             <button
               onClick={() => setStatusFilter("all")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer ${
                 statusFilter === "all"
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground bg-background border border-border"
               }`}
             >
-              All ({blogs.filter(b => !b.isTrashed).length})
+              All ({totalCount})
             </button>
             <button
               onClick={() => setStatusFilter("published")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer ${
                 statusFilter === "published"
                   ? "bg-foreground text-background shadow-sm"
                   : "text-muted-foreground hover:text-foreground bg-background border border-border"
@@ -155,9 +296,9 @@ export default function BlogsPage() {
             </button>
             <button
               onClick={() => setStatusFilter("draft")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer ${
                 statusFilter === "draft"
-                  ? "bg-muted text-muted-foreground shadow-sm"
+                  ? "bg-muted text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground bg-background border border-border"
               }`}
             >
@@ -165,13 +306,13 @@ export default function BlogsPage() {
             </button>
             <button
               onClick={() => setStatusFilter("trash")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer ${
                 statusFilter === "trash"
-                  ? "bg-red-100 text-red-700 border-red-200 shadow-sm"
+                  ? "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400 border-red-200 dark:border-red-800 shadow-sm"
                   : "text-muted-foreground hover:text-red-500 bg-background border border-border"
               }`}
             >
-              Trash ({blogs.filter(b => b.isTrashed).length})
+              Trash ({trashedCount})
             </button>
           </div>
         </div>

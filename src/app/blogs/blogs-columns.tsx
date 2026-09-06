@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
-import { MoreHorizontal, MessageSquare } from "lucide-react";
+import { MoreHorizontal, MessageSquare, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
 import { BlogQuickEditModal } from "@/components/admin/BlogQuickEditModal";
@@ -199,7 +199,31 @@ function calculateSeoStatus(seo: any, fallbackImage?: string) {
 export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
   {
     accessorKey: "title",
-    header: "Title",
+    header: ({ column }) => {
+      const isSorted = column.getIsSorted();
+      return (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-3 h-8 px-2 font-bold hover:bg-muted/80 text-foreground cursor-pointer flex items-center gap-1.5"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          <span>Title</span>
+          {isSorted === "asc" ? (
+            <ArrowUp className="h-3.5 w-3.5 text-primary" />
+          ) : isSorted === "desc" ? (
+            <ArrowDown className="h-3.5 w-3.5 text-primary" />
+          ) : (
+            <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/60" />
+          )}
+        </Button>
+      );
+    },
+    sortingFn: (rowA, rowB, columnId) => {
+      const valA = (rowA.getValue(columnId) as string || "").toLowerCase();
+      const valB = (rowB.getValue(columnId) as string || "").toLowerCase();
+      return valA.localeCompare(valB);
+    },
     cell: ({ row }) => {
       const blog = row.original as any;
       return (
@@ -314,7 +338,31 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
   },
   {
     accessorKey: "publishedAt",
-    header: "Published Date",
+    header: ({ column }) => {
+      const isSorted = column.getIsSorted();
+      return (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-3 h-8 px-2 font-bold hover:bg-muted/80 text-foreground cursor-pointer flex items-center gap-1.5"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          <span>Published Date</span>
+          {isSorted === "asc" ? (
+            <ArrowUp className="h-3.5 w-3.5 text-primary" />
+          ) : isSorted === "desc" ? (
+            <ArrowDown className="h-3.5 w-3.5 text-primary" />
+          ) : (
+            <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/60" />
+          )}
+        </Button>
+      );
+    },
+    sortingFn: (rowA, rowB, columnId) => {
+      const timeA = rowA.getValue(columnId) ? new Date(rowA.getValue(columnId) as string).getTime() : 0;
+      const timeB = rowB.getValue(columnId) ? new Date(rowB.getValue(columnId) as string).getTime() : 0;
+      return timeA - timeB;
+    },
     cell: ({ row }) => {
       const publishedAt = row.getValue("publishedAt") as string | null;
       if (!publishedAt) return <span className="text-muted-foreground italic text-xs">Not published</span>;
@@ -323,7 +371,31 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
   },
   {
     accessorKey: "updatedAt",
-    header: "Last Updated",
+    header: ({ column }) => {
+      const isSorted = column.getIsSorted();
+      return (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-3 h-8 px-2 font-bold hover:bg-muted/80 text-foreground cursor-pointer flex items-center gap-1.5"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          <span>Last Updated</span>
+          {isSorted === "asc" ? (
+            <ArrowUp className="h-3.5 w-3.5 text-primary" />
+          ) : isSorted === "desc" ? (
+            <ArrowDown className="h-3.5 w-3.5 text-primary" />
+          ) : (
+            <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/60" />
+          )}
+        </Button>
+      );
+    },
+    sortingFn: (rowA, rowB, columnId) => {
+      const timeA = rowA.getValue(columnId) ? new Date(rowA.getValue(columnId) as string).getTime() : 0;
+      const timeB = rowB.getValue(columnId) ? new Date(rowB.getValue(columnId) as string).getTime() : 0;
+      return timeA - timeB;
+    },
     cell: ({ row }) => {
       const updatedAt = row.getValue("updatedAt") as string | null;
       if (!updatedAt) return <span className="text-muted-foreground italic text-xs">Unknown</span>;

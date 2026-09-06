@@ -6,13 +6,15 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const statusParam = searchParams.get("status");
 
-  let whereClause: any = { isTrashed: false };
+  let whereClause: any = {};
   if (statusParam === "trash") {
     whereClause = { isTrashed: true };
   } else if (statusParam === "published" || statusParam === "PUBLISHED") {
     whereClause = { isTrashed: false, status: "published" };
   } else if (statusParam === "draft" || statusParam === "DRAFT") {
     whereClause = { isTrashed: false, status: "draft" };
+  } else if (statusParam === "active") {
+    whereClause = { isTrashed: false };
   }
 
   const pages = await prisma.page.findMany({
