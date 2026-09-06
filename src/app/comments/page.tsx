@@ -78,16 +78,19 @@ interface ModalState {
   targetComment: CommentItem | null;
 }
 
+interface CommentsResponse {
+  comments?: CommentItem[];
+  totalCount?: number;
+  unapprovedCount?: number;
+  trashedCount?: number;
+  blogsSummary?: BlogSummary[];
+}
+
 function CommentsPageContent() {
   const searchParams = useSearchParams();
   const initialBlogId = searchParams.get("blogId") || "all";
 
-  const [comments, setComments] = useState<CommentItem[]>([]);
-  const [blogsSummary, setBlogsSummary] = useState<BlogSummary[]>([]);
   const [actionLoading, setActionLoading] = useState(false);
-  const [totalCount, setTotalCount] = useState(0);
-  const [unapprovedCount, setUnapprovedCount] = useState(0);
-  const [trashedCount, setTrashedCount] = useState(0);
 
   // Selected blog & filters
   const [selectedBlogId, setSelectedBlogId] = useState<string>(initialBlogId);
@@ -111,17 +114,13 @@ function CommentsPageContent() {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const endpoint = `/api/comments?filter=${filter}&blogId=${selectedBlogId}`;
-  const { data: commentsData, isLoading: isCommentsLoading, mutate } = useSWR(endpoint, {
-    onSuccess: (data: { comments?: CommentItem[]; totalCount?: number; unapprovedCount?: number; trashedCount?: number; blogsSummary?: BlogSummary[] }) => {
-      setComments(data.comments || []);
-      setTotalCount(data.totalCount || 0);
-      setUnapprovedCount(data.unapprovedCount || 0);
-      setTrashedCount(data.trashedCount || 0);
-      if (data.blogsSummary) {
-        setBlogsSummary(data.blogsSummary);
-      }
-    },
-  });
+  const { data: commentsData, isLoading: isCommentsLoading, mutate } = useSWR<CommentsResponse>(endpoint);
+
+  const comments = commentsData?.comments ?? [];
+  const blogsSummary = commentsData?.blogsSummary ?? [];
+  const totalCount = commentsData?.totalCount ?? 0;
+  const unapprovedCount = commentsData?.unapprovedCount ?? 0;
+  const trashedCount = commentsData?.trashedCount ?? 0;
 
   const loading = isCommentsLoading && !commentsData;
 
@@ -154,11 +153,22 @@ function CommentsPageContent() {
     try {
       if (type === "approve" || type === "unapprove") {
         const newStatus = type === "approve";
-        // Optimistic Update
-        setComments((prev) =>
-          prev.map((c) => (c.id === targetComment.id ? { ...c, isApproved: newStatus } : c))
+        // Optimistic Update directly in SWR cache
+        mutate(
+          (current) => {
+            if (!current) return current;
+            return {
+              ...current,
+              unapprovedCount: newStatus
+                ? Math.max(0, (current.unapprovedCount || 0) - 1)
+                : (current.unapprovedCount || 0) + 1,
+              comments: (current.comments || []).map((c) =>
+                c.id === targetComment.id ? { ...c, isApproved: newStatus } : c
+              ),
+            };
+          },
+          false
         );
-        setUnapprovedCount((prev) => (newStatus ? Math.max(0, prev - 1) : prev + 1));
 
         const res = await fetch(`/api/comments/${targetComment.id}`, {
           method: "PATCH",
@@ -171,12 +181,21 @@ function CommentsPageContent() {
           type: "success",
         });
       } else if (type === "trash") {
-        setComments((prev) => prev.filter((c) => c.id !== targetComment.id));
-        setTrashedCount((prev) => prev + 1);
-        if (!targetComment.isApproved) {
-          setUnapprovedCount((prev) => Math.max(0, prev - 1));
-        }
-        setTotalCount((prev) => Math.max(0, prev - 1));
+        mutate(
+          (current) => {
+            if (!current) return current;
+            return {
+              ...current,
+              totalCount: Math.max(0, (current.totalCount || 0) - 1),
+              trashedCount: (current.trashedCount || 0) + 1,
+              unapprovedCount: !targetComment.isApproved
+                ? Math.max(0, (current.unapprovedCount || 0) - 1)
+                : current.unapprovedCount,
+              comments: (current.comments || []).filter((c) => c.id !== targetComment.id),
+            };
+          },
+          false
+        );
 
         const res = await fetch(`/api/comments/${targetComment.id}`, {
           method: "PATCH",
@@ -186,12 +205,21 @@ function CommentsPageContent() {
         if (!res.ok) throw new Error();
         toast.add({ title: "Comment moved to Trash", type: "success" });
       } else if (type === "restore") {
-        setComments((prev) => prev.filter((c) => c.id !== targetComment.id));
-        setTrashedCount((prev) => Math.max(0, prev - 1));
-        setTotalCount((prev) => prev + 1);
-        if (!targetComment.isApproved) {
-          setUnapprovedCount((prev) => prev + 1);
-        }
+        mutate(
+          (current) => {
+            if (!current) return current;
+            return {
+              ...current,
+              totalCount: (current.totalCount || 0) + 1,
+              trashedCount: Math.max(0, (current.trashedCount || 0) - 1),
+              unapprovedCount: !targetComment.isApproved
+                ? (current.unapprovedCount || 0) + 1
+                : current.unapprovedCount,
+              comments: (current.comments || []).filter((c) => c.id !== targetComment.id),
+            };
+          },
+          false
+        );
 
         const res = await fetch(`/api/comments/${targetComment.id}`, {
           method: "PATCH",
@@ -201,8 +229,17 @@ function CommentsPageContent() {
         if (!res.ok) throw new Error();
         toast.add({ title: "Comment restored from Trash", type: "success" });
       } else if (type === "delete") {
-        setComments((prev) => prev.filter((c) => c.id !== targetComment.id));
-        setTrashedCount((prev) => Math.max(0, prev - 1));
+        mutate(
+          (current) => {
+            if (!current) return current;
+            return {
+              ...current,
+              trashedCount: Math.max(0, (current.trashedCount || 0) - 1),
+              comments: (current.comments || []).filter((c) => c.id !== targetComment.id),
+            };
+          },
+          false
+        );
 
         const res = await fetch(`/api/comments/${targetComment.id}`, {
           method: "DELETE",
@@ -225,7 +262,16 @@ function CommentsPageContent() {
         if (!res.ok) throw new Error("Failed to post reply");
 
         const data = await res.json();
-        setComments((prev) => [data.comment, ...prev]);
+        mutate(
+          (current) => {
+            if (!current) return current;
+            return {
+              ...current,
+              comments: [data.comment, ...(current.comments || [])],
+            };
+          },
+          false
+        );
         setReplyingToId(null);
         setReplyText("");
         toast.add({ title: "Admin reply published", type: "success" });

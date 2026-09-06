@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import useSWR, { mutate as globalMutate } from "swr";
 import { formatDistanceToNow, format } from "date-fns";
 import {
@@ -92,12 +92,14 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   );
 }
 
-export default function NotificationsPage() {
-  const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
-  const [trashedCount, setTrashedCount] = useState(0);
+interface SubmissionsResponse {
+  submissions?: FormSubmission[];
+  totalCount?: number;
+  unreadCount?: number;
+  trashedCount?: number;
+}
 
+export default function NotificationsPage() {
   const [selectedSubmission, setSelectedSubmission] =
     useState<FormSubmission | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -107,23 +109,23 @@ export default function NotificationsPage() {
 
   const endpoint = `/api/forms/submissions?filter=${filter}`;
   const { data: subData, isLoading: isSubLoading, mutate: mutateSubmissions } =
-    useSWR(endpoint, {
-      onSuccess: (data: { submissions?: FormSubmission[]; totalCount?: number; unreadCount?: number; trashedCount?: number }) => {
-        setSubmissions(data.submissions || []);
-        setTotalCount(data.totalCount || 0);
-        setUnreadCount(data.unreadCount || 0);
-        setTrashedCount(data.trashedCount || 0);
+    useSWR<SubmissionsResponse>(endpoint);
 
-        if (selectedSubmission) {
-          const found = (data.submissions || []).find(
-            (s: FormSubmission) => s.id === selectedSubmission.id
-          );
-          setSelectedSubmission(found || null);
-        }
-      },
-    });
+  const submissions = subData?.submissions ?? [];
+  const totalCount = subData?.totalCount ?? 0;
+  const unreadCount = subData?.unreadCount ?? 0;
+  const trashedCount = subData?.trashedCount ?? 0;
 
   const loading = isSubLoading && !subData;
+
+  useEffect(() => {
+    if (selectedSubmission && subData?.submissions) {
+      const found = subData.submissions.find((s) => s.id === selectedSubmission.id);
+      if (found && (found.isRead !== selectedSubmission.isRead || found.isTrashed !== selectedSubmission.isTrashed)) {
+        setSelectedSubmission(found);
+      }
+    }
+  }, [subData, selectedSubmission]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -136,12 +138,20 @@ export default function NotificationsPage() {
     setSelectedSubmission(submission);
 
     if (!submission.isRead && !submission.isTrashed) {
-      setSubmissions((prev) =>
-        prev.map((item) =>
-          item.id === submission.id ? { ...item, isRead: true } : item
-        )
+      // Optimistically update SWR cache
+      mutateSubmissions(
+        (current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            unreadCount: Math.max(0, (current.unreadCount || 0) - 1),
+            submissions: (current.submissions || []).map((item) =>
+              item.id === submission.id ? { ...item, isRead: true } : item
+            ),
+          };
+        },
+        false
       );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
       setSelectedSubmission({ ...submission, isRead: true });
 
       try {
@@ -154,6 +164,7 @@ export default function NotificationsPage() {
         globalMutate("/api/dashboard/stats");
       } catch (err) {
         console.error("Failed to auto mark submission as read:", err);
+        mutateSubmissions();
       }
     }
   };
@@ -162,12 +173,23 @@ export default function NotificationsPage() {
   const toggleReadStatus = async (submission: FormSubmission) => {
     const newStatus = !submission.isRead;
 
-    setSubmissions((prev) =>
-      prev.map((item) =>
-        item.id === submission.id ? { ...item, isRead: newStatus } : item
-      )
+    // Optimistically update SWR cache
+    mutateSubmissions(
+      (current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          unreadCount: newStatus
+            ? Math.max(0, (current.unreadCount || 0) - 1)
+            : (current.unreadCount || 0) + 1,
+          submissions: (current.submissions || []).map((item) =>
+            item.id === submission.id ? { ...item, isRead: newStatus } : item
+          ),
+        };
+      },
+      false
     );
-    setUnreadCount((prev) => (newStatus ? Math.max(0, prev - 1) : prev + 1));
+
     if (selectedSubmission?.id === submission.id) {
       setSelectedSubmission({ ...selectedSubmission, isRead: newStatus });
     }
