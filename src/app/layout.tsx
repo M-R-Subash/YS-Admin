@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
 import { AdminLayoutWrapper } from "@/components/AdminLayoutWrapper";
 import { Toaster } from "@/components/ui/toast";
@@ -11,11 +12,16 @@ export const metadata: Metadata = {
   description: "Content management dashboard",
 };
 
+const bricolage = Bricolage_Grotesque({
+  subsets: ["latin"],
+  variable: "--font-sans",
+});
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className="h-full antialiased"
+      className={`h-full antialiased ${bricolage.variable}`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
         <Providers>

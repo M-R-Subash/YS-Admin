@@ -52,6 +52,7 @@ export async function PUT(
       ...(status !== undefined && { status }),
       ...(content !== undefined && { content }),
       ...(isTrashed !== undefined && { isTrashed }),
+      authorId: session.user.id,
     },
   });
 

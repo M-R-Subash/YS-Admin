@@ -48,6 +48,7 @@ export async function GET() {
           createdAt: true,
           updatedAt: true,
           seo: true,
+          author: { select: { name: true } }
         },
         orderBy: { updatedAt: "desc" },
         take: 10,

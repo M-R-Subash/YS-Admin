@@ -34,6 +34,7 @@ export function mapDbToPageData(page: any): PageData {
     isTrashed: page.isTrashed,
     content: page.content || [],
     seo: page.seo,
+    author: page.author,
     createdAt: page.createdAt.toISOString(),
     updatedAt: page.updatedAt.toISOString(),
   };

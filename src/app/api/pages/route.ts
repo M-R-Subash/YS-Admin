@@ -26,6 +26,9 @@ export async function GET(request: Request) {
       createdAt: true,
       updatedAt: true,
       seo: true,
+      author: {
+        select: { name: true }
+      }
     },
     orderBy: { updatedAt: "desc" },
   });

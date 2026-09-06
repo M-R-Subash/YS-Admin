@@ -621,7 +621,7 @@ export default function RedirectionsPage() {
               <input
                 type="text"
                 disabled={!!editingId}
-                placeholder="/old-service-page"
+                placeholder="e.g. /old-path"
                 value={sourceUrl}
                 onChange={(e) => setSourceUrl(e.target.value)}
                 className="w-full px-3.5 py-2 text-xs font-mono bg-card border border-border rounded-sm focus:outline-none focus:border-accent disabled:opacity-60 disabled:cursor-not-allowed transition-all"
@@ -638,7 +638,7 @@ export default function RedirectionsPage() {
               </label>
               <input
                 type="text"
-                placeholder="/digital-marketing or https://external.com"
+                placeholder="e.g. /new-path or https://external.com"
                 value={destinationUrl}
                 onChange={(e) => setDestinationUrl(e.target.value)}
                 className="w-full px-3.5 py-2 text-xs font-mono bg-card border border-border rounded-sm focus:outline-none focus:border-accent transition-all"
@@ -660,7 +660,7 @@ export default function RedirectionsPage() {
                 <SelectTrigger className="w-full px-3.5 py-2 text-xs font-bold bg-card border border-border rounded-sm focus:outline-none focus:border-accent cursor-pointer">
                   <SelectValue placeholder="Select HTTP status" />
                 </SelectTrigger>
-                <SelectContent className="bg-popover border border-border rounded-sm shadow-md">
+                <SelectContent alignItemWithTrigger={false} sideOffset={4} className="bg-popover border border-border rounded-sm shadow-md">
                   <SelectItem value="301" className="text-xs font-semibold cursor-pointer">
                     301 - Permanent Redirect (SEO Link Equity Transferred)
                   </SelectItem>

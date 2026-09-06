@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ColumnDef } from "@tanstack/react-table";
+import Link from "next/link";
 import { MoreHorizontal, MessageSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
@@ -293,10 +294,13 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
       const blog = row.original as any;
       const count = blog._count?.comments || 0;
       return (
-        <div className="flex items-center gap-1.5 text-muted-foreground">
+        <Link 
+          href={`/comments?blogId=${blog.id}`}
+          className="flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
+        >
           <MessageSquare className="w-4 h-4" />
           <span className="text-xs font-semibold">{count}</span>
-        </div>
+        </Link>
       );
     }
   },

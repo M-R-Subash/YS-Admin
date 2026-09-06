@@ -49,7 +49,11 @@ export async function GET(req: Request) {
         },
         seo: true,
         _count: {
-          select: { comments: true }
+          select: { 
+            comments: {
+              where: { isTrashed: false, parentId: null }
+            }
+          }
         }
       },
       orderBy: { createdAt: "desc" },

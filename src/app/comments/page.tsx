@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import useSWR, { mutate as globalMutate } from "swr";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -77,7 +78,10 @@ interface ModalState {
   targetComment: CommentItem | null;
 }
 
-export default function CommentsPage() {
+function CommentsPageContent() {
+  const searchParams = useSearchParams();
+  const initialBlogId = searchParams.get("blogId") || "all";
+
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [blogsSummary, setBlogsSummary] = useState<BlogSummary[]>([]);
   const [actionLoading, setActionLoading] = useState(false);
@@ -86,7 +90,7 @@ export default function CommentsPage() {
   const [trashedCount, setTrashedCount] = useState(0);
 
   // Selected blog & filters
-  const [selectedBlogId, setSelectedBlogId] = useState<string>("all");
+  const [selectedBlogId, setSelectedBlogId] = useState<string>(initialBlogId);
   const [filter, setFilter] = useState<"all" | "pending" | "approved" | "trashed">("all");
   
   // Search queries
@@ -971,5 +975,13 @@ export default function CommentsPage() {
         onConfirm={handleModalConfirm}
       />
     </TooltipProvider>
+  );
+}
+
+export default function CommentsPage() {
+  return (
+    <Suspense fallback={null}>
+      <CommentsPageContent />
+    </Suspense>
   );
 }

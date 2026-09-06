@@ -15,6 +15,7 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { Skeleton } from "@/components/ui/skeleton"
 
 import Link from "next/link"
 
@@ -58,7 +59,7 @@ const navItems = [
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { state } = useSidebar()
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const { data: badges } = useSWR<{
     unreadSubmissions: number;
     pendingComments: number;
@@ -113,14 +114,34 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </Link>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={filteredNavMain} />
+        {status === "loading" ? (
+          <div className="p-4 space-y-4 mt-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-8 w-full rounded-sm" />
+            ))}
+          </div>
+        ) : (
+          <NavMain items={filteredNavMain} />
+        )}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={{
-          name: session?.user?.name || "User",
-          email: session?.user?.email || "",
-          avatar: session?.user?.image || "",
-        }} />
+        {status === "loading" ? (
+          <div className="p-2 flex items-center gap-2 w-full">
+            <Skeleton className="h-8 w-8 rounded-md shrink-0" />
+            {state !== "collapsed" && (
+              <div className="grid flex-1 gap-1.5">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-3 w-32" />
+              </div>
+            )}
+          </div>
+        ) : (
+          <NavUser user={{
+            name: session?.user?.name || "User",
+            email: session?.user?.email || "",
+            avatar: session?.user?.image || "",
+          }} />
+        )}
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

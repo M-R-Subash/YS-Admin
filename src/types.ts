@@ -12,6 +12,7 @@ export interface Page {
   isTrashed?: boolean;
   content?: any;
   seo?: any;
+  author?: { name?: string | null } | null;
   createdAt: string;
   updatedAt: string;
 }

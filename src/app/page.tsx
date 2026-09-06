@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import { DataTable } from "@/components/ui/data-table";
 import { getWebpagesColumns } from "@/app/webpages/webpages-columns";
@@ -140,6 +141,9 @@ export default function DashboardPage() {
           </h2>
           <div className="grid auto-rows-min gap-4 md:grid-cols-4">
             {/* Total Notifications Card */}
+            {isLoading && !data ? (
+              <Skeleton className="h-[104px] w-full rounded-sm" />
+            ) : (
             <Link
               href="/notifications"
               className="rounded-sm bg-card border border-border p-4 shadow-xs transition-all hover:border-primary hover:shadow-md cursor-pointer group flex flex-col justify-between"
@@ -157,11 +161,7 @@ export default function DashboardPage() {
               </div>
               <div className="flex items-baseline justify-between pt-1">
                 <div className="text-3xl font-extrabold text-foreground">
-                  {isLoading && !data ? (
-                    <span className="inline-block h-8 w-14 bg-muted animate-pulse rounded-sm" />
-                  ) : (
-                    notificationsCount
-                  )}
+                  {notificationsCount}
                 </div>
                 {unreadNotifications > 0 && (
                   <span className="text-[11px] font-bold text-blue-600 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-xs border border-blue-200 dark:border-blue-800">
@@ -170,8 +170,12 @@ export default function DashboardPage() {
                 )}
               </div>
             </Link>
+            )}
 
             {/* Published Pages Card */}
+            {isLoading && !data ? (
+              <Skeleton className="h-[104px] w-full rounded-sm" />
+            ) : (
             <Link
               href="/webpages"
               className="rounded-sm bg-card border border-border p-4 shadow-xs transition-all hover:border-primary hover:shadow-md cursor-pointer group flex flex-col justify-between"
@@ -183,15 +187,15 @@ export default function DashboardPage() {
                 <CheckCircleIcon className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
               </div>
               <div className="text-3xl font-extrabold text-foreground pt-1">
-                {isLoading && !data ? (
-                  <span className="inline-block h-8 w-14 bg-muted animate-pulse rounded-sm" />
-                ) : (
-                  publishedCount
-                )}
+                {publishedCount}
               </div>
             </Link>
+            )}
 
             {/* Total Comments Card */}
+            {isLoading && !data ? (
+              <Skeleton className="h-[104px] w-full rounded-sm" />
+            ) : (
             <Link
               href="/comments"
               className="rounded-sm bg-card border border-border p-4 shadow-xs transition-all hover:border-primary hover:shadow-md cursor-pointer group flex flex-col justify-between"
@@ -204,11 +208,7 @@ export default function DashboardPage() {
               </div>
               <div className="flex items-baseline justify-between pt-1">
                 <div className="text-3xl font-extrabold text-foreground">
-                  {isLoading && !data ? (
-                    <span className="inline-block h-8 w-14 bg-muted animate-pulse rounded-sm" />
-                  ) : (
-                    commentsCount
-                  )}
+                  {commentsCount}
                 </div>
                 {unapprovedComments > 0 && (
                   <span className="text-[11px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-xs border border-amber-200 dark:border-amber-800">
@@ -217,8 +217,12 @@ export default function DashboardPage() {
                 )}
               </div>
             </Link>
+            )}
 
             {/* Total Blogs Card */}
+            {isLoading && !data ? (
+              <Skeleton className="h-[104px] w-full rounded-sm" />
+            ) : (
             <Link
               href="/blogs"
               className="rounded-sm bg-card border border-border p-4 shadow-xs transition-all hover:border-primary hover:shadow-md cursor-pointer group flex flex-col justify-between"
@@ -230,13 +234,10 @@ export default function DashboardPage() {
                 <PenToolIcon className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
               </div>
               <div className="text-3xl font-extrabold text-foreground pt-1">
-                {isLoading && !data ? (
-                  <span className="inline-block h-8 w-14 bg-muted animate-pulse rounded-sm" />
-                ) : (
-                  blogsCount
-                )}
+                {blogsCount}
               </div>
             </Link>
+            )}
           </div>
         </div>
 
@@ -253,10 +254,19 @@ export default function DashboardPage() {
           </div>
 
           <div className="rounded-sm">
-            <DataTable
-              columns={getWebpagesColumns(() => mutate())}
-              data={pages.slice(0, 10)}
-            />
+            {isLoading && !data ? (
+              <div className="space-y-4">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+              </div>
+            ) : (
+              <DataTable
+                columns={getWebpagesColumns(() => mutate())}
+                data={pages.slice(0, 10)}
+              />
+            )}
           </div>
         </div>
       </div>
