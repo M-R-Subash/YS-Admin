@@ -2,9 +2,16 @@
 
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function saveFooterData(data: any) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return { success: false, error: "Unauthorized access" };
+    }
+
     await prisma.footer.upsert({
       where: { id: "global" },
       update: { content: data },

@@ -182,25 +182,41 @@ export default function EditorPage({
     const contentPayload = (page.slug && schemaConfig) ? schemaData : getValues("content");
     const payloadBody = { status, content: contentPayload };
 
-    await fetch(`/api/pages/${page.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payloadBody),
-    });
-    setPage({ ...page, status, content: contentPayload });
-    if (!(page.slug && schemaConfig)) {
-      reset({ content: contentPayload });
-    }
-    setSaving(false);
-    setSaved(true);
-    
-    if (status === "published") {
-      toast.add({ title: "Page published successfully", type: "success" });
-    } else {
-      toast.add({ title: "Page saved as draft", type: "success" });
-    }
+    try {
+      const res = await fetch(`/api/pages/${page.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payloadBody),
+      });
 
-    setTimeout(() => setSaved(false), 2000);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to save page");
+      }
+
+      setPage({ ...page, status, content: contentPayload });
+      if (!(page.slug && schemaConfig)) {
+        reset({ content: contentPayload });
+      }
+      setSaved(true);
+      
+      if (status === "published") {
+        toast.add({ title: "Page published successfully", type: "success" });
+      } else {
+        toast.add({ title: "Page saved as draft", type: "success" });
+      }
+
+      setTimeout(() => setSaved(false), 2000);
+    } catch (error: any) {
+      console.error("Save page error:", error);
+      toast.add({
+        title: "Save Failed",
+        description: error.message || "An unexpected error occurred while saving the page.",
+        type: "error",
+      });
+    } finally {
+      setSaving(false);
+    }
   }
 
   const handlePublish = () => savePage("published");

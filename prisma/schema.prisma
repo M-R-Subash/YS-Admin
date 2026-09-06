@@ -46,6 +46,8 @@ model Page {
 
   authorId  String?
   author    User?    @relation("PageAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([status, isTrashed])
 }
 
 model SeoMeta {
@@ -107,6 +109,8 @@ model Blog {
   author        User?     @relation("BlogAuthor", fields: [authorId], references: [id], onDelete: SetNull)
   
   comments      Comment[]
+
+  @@index([status, isTrashed, publishedAt])
 }
 
 model Comment {
@@ -127,6 +131,8 @@ model Comment {
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([blogId, isApproved, isTrashed])
 }
 
 model FormSubmission {
@@ -139,6 +145,8 @@ model FormSubmission {
   isRead      Boolean  @default(false)
   isTrashed   Boolean  @default(false)
   createdAt   DateTime @default(now())
+
+  @@index([isTrashed, isRead, createdAt])
 }
 
 model Redirection {

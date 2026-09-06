@@ -54,11 +54,10 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role;
         token.picture = user.image;
       }
-      // Handling useSession().update() calls from the client
+      // Handling useSession().update() calls from the client (safe fields only)
       if (trigger === "update" && session) {
         if (session.name) token.name = session.name;
         if (session.image) token.picture = session.image;
-        if (session.role) token.role = session.role;
       }
       return token;
     },

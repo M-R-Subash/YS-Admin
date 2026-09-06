@@ -157,6 +157,21 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     setIsSubmitting(true);
     setStatus(publishStatus);
 
+    const calculateReadingTime = (json: any): number => {
+      if (!json) return 1;
+      let text = "";
+      const extractText = (node: any) => {
+        if (!node) return;
+        if (node.text) text += " " + node.text;
+        if (Array.isArray(node.content)) {
+          node.content.forEach(extractText);
+        }
+      };
+      extractText(json);
+      const words = text.trim().split(/\s+/).filter(Boolean).length;
+      return Math.max(1, Math.ceil(words / 200));
+    };
+
     const payload = {
       title,
       slug,
@@ -170,7 +185,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       metaTitle,
       metaDesc,
       focusKeyword,
-      readingTime: Math.ceil(JSON.stringify(content).length / 1000),
+      readingTime: calculateReadingTime(content),
     };
 
     try {
