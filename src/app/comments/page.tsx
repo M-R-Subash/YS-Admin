@@ -347,9 +347,8 @@ export default function CommentsPage() {
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
-                  <BreadcrumbPage className="font-bold flex items-center gap-2 text-foreground">
-                    <MessageSquare className="w-4 h-4 text-black dark:text-white" />
-                    <span>Blog Comments Moderation</span>
+                  <BreadcrumbPage className="flex items-center gap-2 text-foreground">
+                    <span>Comments</span>
                   </BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>

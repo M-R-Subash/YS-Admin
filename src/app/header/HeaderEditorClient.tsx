@@ -117,7 +117,7 @@ export default function HeaderEditorClient({ initialData }: { initialData: any }
           </form>
         </ResizablePanel>
 
-        <ResizableHandle className="w-1.5 bg-transparent hover:bg-black transition-colors relative z-10" />
+        <ResizableHandle className="relative z-10" />
 
         {/* Right: Live Preview Iframe */}
         <ResizablePanel 

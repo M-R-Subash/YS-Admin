@@ -29,14 +29,14 @@ const ResizableHandle = ({
 }) => (
   <Separator
     className={cn(
-      "relative flex w-2 cursor-col-resize items-center justify-center bg-transparent hover:bg-black transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1",
+      "relative flex w-1.5 cursor-col-resize items-center justify-center bg-muted border-x border-border hover:bg-muted-foreground/25 active:bg-primary/20 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 data-[panel-group-direction=vertical]:h-1.5 data-[panel-group-direction=vertical]:w-full data-[panel-group-direction=vertical]:border-y data-[panel-group-direction=vertical]:border-x-0 data-[panel-group-direction=vertical]:cursor-row-resize",
       className
     )}
     {...props}
   >
     {withHandle && (
-      <div className="z-10 flex h-4 w-3 items-center justify-center rounded-sm border bg-border">
-        <GripVertical className="h-2.5 w-2.5" />
+      <div className="z-10 flex h-6 w-3.5 items-center justify-center rounded-xs border border-border bg-card hover:bg-accent transition-colors">
+        <GripVertical className="h-3 w-3 text-muted-foreground" />
       </div>
     )}
   </Separator>
