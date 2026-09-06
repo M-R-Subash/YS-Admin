@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { seoQuickEditSchema } from "@/lib/schemas/seo-validation";
+import { revalidateFrontendPath } from "@/lib/revalidate";
 
 export async function PUT(
   req: Request,
@@ -78,6 +79,10 @@ export async function PUT(
       }
     });
     
+    if (updatedPage.slug) {
+      revalidateFrontendPath(updatedPage.slug);
+    }
+
     return NextResponse.json({ success: true, page: updatedPage });
     
   } catch (error) {

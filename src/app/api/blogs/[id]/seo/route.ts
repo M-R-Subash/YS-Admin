@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { blogQuickEditSchema } from "@/lib/schemas/seo-validation";
+import { revalidateFrontendPath } from "@/lib/revalidate";
 
 export async function PUT(
   req: Request,
@@ -76,6 +77,11 @@ export async function PUT(
       }
     });
     
+    if (updatedBlog.slug) {
+      revalidateFrontendPath(`/blogs/${updatedBlog.slug}`);
+      revalidateFrontendPath("/blogs");
+    }
+
     return NextResponse.json({ success: true, blog: updatedBlog });
     
   } catch (error) {

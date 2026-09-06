@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { revalidateFrontendPath } from "@/lib/revalidate";
 
 export async function saveHeaderData(data: any) {
   try {
@@ -18,6 +19,7 @@ export async function saveHeaderData(data: any) {
       create: { id: "global", content: data },
     });
     revalidatePath("/header");
+    revalidateFrontendPath("/", "layout");
     return { success: true };
   } catch (error) {
     console.error("Failed to save header:", error);

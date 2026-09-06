@@ -1,7 +1,7 @@
 import { withAuth } from "next-auth/middleware";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 
-export default withAuth(
+const authHandler = withAuth(
   function middleware(req) {
     const token = req.nextauth.token;
     const isAuth = !!token;
@@ -29,6 +29,10 @@ export default withAuth(
     },
   }
 );
+
+export async function proxy(req: NextRequest, event: NextFetchEvent) {
+  return (authHandler as any)(req, event);
+}
 
 export const config = {
   matcher: [

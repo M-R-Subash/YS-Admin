@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma, { mapDbToPageData } from "@/lib/prisma";
+import { revalidateFrontendPath } from "@/lib/revalidate";
 
 // GET /api/pages/[id] — get a single page
 export async function GET(
@@ -54,6 +55,11 @@ export async function PUT(
     },
   });
 
+  // Revalidate frontend path asynchronously
+  if (page.slug) {
+    revalidateFrontendPath(page.slug);
+  }
+
   return NextResponse.json(mapDbToPageData(page));
 }
 
@@ -78,5 +84,10 @@ export async function DELETE(
   }
 
   await prisma.page.delete({ where: { id } });
+
+  if (page.slug) {
+    revalidateFrontendPath(page.slug);
+  }
+
   return NextResponse.json({ success: true });
 }

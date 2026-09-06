@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { revalidateFrontendPath } from "@/lib/revalidate";
 
 // GET /api/blogs/[id] — get a single blog
 export async function GET(
@@ -82,6 +83,12 @@ export async function PUT(
     include: { seo: true }
   });
 
+  // Revalidate blog listing and blog single page
+  revalidateFrontendPath("/blogs");
+  if (blog.slug) {
+    revalidateFrontendPath(`/blogs/${blog.slug}`);
+  }
+
   return NextResponse.json(blog);
 }
 
@@ -106,5 +113,11 @@ export async function DELETE(
   }
 
   await prisma.blog.delete({ where: { id } });
+
+  revalidateFrontendPath("/blogs");
+  if (blog.slug) {
+    revalidateFrontendPath(`/blogs/${blog.slug}`);
+  }
+
   return NextResponse.json({ success: true });
 }

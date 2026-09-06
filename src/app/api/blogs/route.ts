@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { revalidateFrontendPath } from "@/lib/revalidate";
 
 export async function GET(req: Request) {
   try {
@@ -93,6 +94,13 @@ export async function POST(req: Request) {
         authorId: session.user.id,
       },
     });
+
+    if (newBlog.status === "published") {
+      revalidateFrontendPath("/blogs");
+      if (newBlog.slug) {
+        revalidateFrontendPath(`/blogs/${newBlog.slug}`);
+      }
+    }
 
     return NextResponse.json(newBlog, { status: 201 });
   } catch (error: any) {
