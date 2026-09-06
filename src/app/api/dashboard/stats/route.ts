@@ -26,7 +26,7 @@ export async function GET() {
         where: { isTrashed: false },
       }),
       prisma.comment.count({
-        where: { isTrashed: false },
+        where: { isTrashed: false, parentId: null },
       }),
       prisma.comment.count({
         where: { isTrashed: false, isApproved: false },

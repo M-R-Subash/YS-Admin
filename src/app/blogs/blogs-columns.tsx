@@ -236,10 +236,10 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
             </div>
           )}
           <Tooltip>
-            <TooltipTrigger className="truncate max-w-[200px] block cursor-default text-left">
+            <TooltipTrigger className="truncate max-w-50 block cursor-default text-left">
               {blog.title}
             </TooltipTrigger>
-            <TooltipContent className="max-w-[400px]">
+            <TooltipContent className="max-w-100">
               <p>{blog.title}</p>
             </TooltipContent>
           </Tooltip>

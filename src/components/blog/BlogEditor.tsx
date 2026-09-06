@@ -196,30 +196,28 @@ export default function BlogEditor({
     };
     dom.addEventListener("click", preventLinkNavigation, true);
 
-    const handleUpdate = () => {
+    const handleSelectionUpdate = () => {
       setTick((t) => t + 1);
       if (editor.isActive("link")) {
         const attrs = editor.getAttributes("link");
         if (attrs.href) {
-          setLinkUrl(attrs.href);
-          setLinkOpenInNewTab(attrs.target === "_blank");
-          setLinkNoFollow(Boolean(attrs.rel?.includes("nofollow")));
+          setLinkUrl((prev) => (prev !== attrs.href ? attrs.href : prev));
+          setLinkOpenInNewTab((prev) => (prev !== (attrs.target === "_blank") ? attrs.target === "_blank" : prev));
+          setLinkNoFollow((prev) => (prev !== Boolean(attrs.rel?.includes("nofollow")) ? Boolean(attrs.rel?.includes("nofollow")) : prev));
         }
       }
     };
 
-    editor.on("transaction", handleUpdate);
-    editor.on("selectionUpdate", handleUpdate);
+    editor.on("selectionUpdate", handleSelectionUpdate);
 
     return () => {
       dom.removeEventListener("click", preventLinkNavigation, true);
-      editor.off("transaction", handleUpdate);
-      editor.off("selectionUpdate", handleUpdate);
+      editor.off("selectionUpdate", handleSelectionUpdate);
     };
   }, [editor]);
 
   if (!isMounted || !editor) {
-    return <div className="h-[400px] bg-card border rounded-xl animate-pulse"></div>;
+    return <div className="h-100 bg-card border rounded-xl animate-pulse"></div>;
   }
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -471,7 +469,7 @@ export default function BlogEditor({
 
       {/* Editor Content Area */}
       <div className="w-full flex-1 overflow-y-auto relative custom-scrollbar">
-        <EditorContent editor={editor} className="min-w-[300px] h-full" />
+        <EditorContent editor={editor} className="min-w-75 h-full" />
         
         {/* Link Bubble Menu */}
         {editor && (

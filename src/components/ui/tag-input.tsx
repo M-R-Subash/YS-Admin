@@ -70,7 +70,7 @@ export function TagInput({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center gap-1.5 min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-xs transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring",
+        "flex flex-wrap items-center gap-1.5 min-h-10 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-xs transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring",
         disabled && "opacity-50 cursor-not-allowed",
         className
       )}
@@ -111,7 +111,7 @@ export function TagInput({
         }}
         placeholder={value.length === 0 ? placeholder : "Add more..."}
         disabled={disabled}
-        className="flex-1 bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none min-w-[100px] h-6 py-0"
+        className="flex-1 bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none min-w-25 h-6 py-0"
       />
     </div>
   );

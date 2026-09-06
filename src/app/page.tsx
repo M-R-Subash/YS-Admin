@@ -142,7 +142,7 @@ export default function DashboardPage() {
           <div className="grid auto-rows-min gap-4 md:grid-cols-4">
             {/* Total Notifications Card */}
             {isLoading && !data ? (
-              <Skeleton className="h-[104px] w-full rounded-sm" />
+              <Skeleton className="h-26 w-full rounded-sm" />
             ) : (
             <Link
               href="/notifications"
@@ -174,7 +174,7 @@ export default function DashboardPage() {
 
             {/* Published Pages Card */}
             {isLoading && !data ? (
-              <Skeleton className="h-[104px] w-full rounded-sm" />
+              <Skeleton className="h-26 w-full rounded-sm" />
             ) : (
             <Link
               href="/webpages"
@@ -194,7 +194,7 @@ export default function DashboardPage() {
 
             {/* Total Comments Card */}
             {isLoading && !data ? (
-              <Skeleton className="h-[104px] w-full rounded-sm" />
+              <Skeleton className="h-26 w-full rounded-sm" />
             ) : (
             <Link
               href="/comments"
@@ -221,7 +221,7 @@ export default function DashboardPage() {
 
             {/* Total Blogs Card */}
             {isLoading && !data ? (
-              <Skeleton className="h-[104px] w-full rounded-sm" />
+              <Skeleton className="h-26 w-full rounded-sm" />
             ) : (
             <Link
               href="/blogs"

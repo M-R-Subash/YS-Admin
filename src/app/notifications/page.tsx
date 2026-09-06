@@ -718,7 +718,7 @@ export default function NotificationsPage() {
                                     />
                                   )}
                                 </div>
-                                <p className="text-sm font-semibold text-foreground break-words pt-0.5">
+                                <p className="text-sm font-semibold text-foreground wrap-break-word pt-0.5">
                                   {stringValue || "—"}
                                 </p>
                               </div>

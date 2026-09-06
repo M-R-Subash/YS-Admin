@@ -279,7 +279,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         <div className="max-w-full mx-auto p-4 md:p-6 w-full h-full flex flex-col lg:flex-row gap-6">
           
           {/* Main Editor Column */}
-          <div className="flex-1 h-full min-h-[500px] flex flex-col overflow-hidden">
+          <div className="flex-1 h-full min-h-125 flex flex-col overflow-hidden">
             {isLoading ? (
               <ScreenLoader
                 text="Loading Blog Post..."
@@ -296,7 +296,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           </div>
 
           {/* Sidebar Settings Column */}
-          <div className="w-full lg:w-[400px] shrink-0 h-full overflow-y-auto pb-8 pr-2 custom-scrollbar">
+          <div className="w-full lg:w-100 shrink-0 h-full overflow-y-auto pb-8 pr-2 custom-scrollbar">
             <div className="bg-card border border-border p-6 rounded-xl space-y-6">
               
               {/* Blog Title */}
@@ -367,7 +367,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                 <Label htmlFor="excerpt" className="text-sm font-bold text-foreground">Excerpt</Label>
                 <textarea
                   id="excerpt"
-                  className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-2"
+                  className="flex min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-2"
                   value={excerpt}
                   onChange={(e) => setExcerpt(e.target.value)}
                   placeholder="A brief summary of the blog..."
@@ -392,7 +392,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                   <Label htmlFor="metaDesc">Meta Description</Label>
                   <textarea
                     id="metaDesc"
-                    className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-2"
+                    className="flex min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-2"
                     value={metaDesc}
                     onChange={(e) => setMetaDesc(e.target.value)}
                     placeholder="SEO Description (150-160 chars)"

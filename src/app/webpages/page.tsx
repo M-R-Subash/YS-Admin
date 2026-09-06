@@ -137,10 +137,10 @@ export default function WebpagesPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {loading ? (
             <>
-              <Skeleton className="h-[96px] w-full rounded-sm" />
-              <Skeleton className="h-[96px] w-full rounded-sm" />
-              <Skeleton className="h-[96px] w-full rounded-sm" />
-              <Skeleton className="h-[96px] w-full rounded-sm" />
+              <Skeleton className="h-24 w-full rounded-sm" />
+              <Skeleton className="h-24 w-full rounded-sm" />
+              <Skeleton className="h-24 w-full rounded-sm" />
+              <Skeleton className="h-24 w-full rounded-sm" />
             </>
           ) : (
             <>
