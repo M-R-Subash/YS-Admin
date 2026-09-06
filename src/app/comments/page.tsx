@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import useSWR, { mutate as globalMutate } from "swr";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -38,7 +38,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { TrashConfirmationModal } from "@/components/ui/trash-confirmation-modal";
-import { useTrashManager } from "@/hooks/useTrashManager";
 
 interface BlogSummary {
   id: string;
@@ -109,7 +108,7 @@ export default function CommentsPage() {
 
   const endpoint = `/api/comments?filter=${filter}&blogId=${selectedBlogId}`;
   const { data: commentsData, isLoading: isCommentsLoading, mutate } = useSWR(endpoint, {
-    onSuccess: (data: any) => {
+    onSuccess: (data: { comments?: CommentItem[]; totalCount?: number; unapprovedCount?: number; trashedCount?: number; blogsSummary?: BlogSummary[] }) => {
       setComments(data.comments || []);
       setTotalCount(data.totalCount || 0);
       setUnapprovedCount(data.unapprovedCount || 0);
@@ -232,8 +231,8 @@ export default function CommentsPage() {
       globalMutate("/api/dashboard/stats");
       mutate();
       closeModal();
-    } catch (err) {
-      toast.add({ title: "Action failed", type: "error" });
+    } catch {
+      toast.add({ title: "Failed to update status", type: "error" });
       mutate();
     } finally {
       setActionLoading(false);

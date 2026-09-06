@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import useSWR, { mutate as globalMutate } from "swr";
 import { formatDistanceToNow, format } from "date-fns";
 import {
   Search,
-  Bell,
   Mail,
   Phone,
   CheckCircle,
@@ -21,7 +20,6 @@ import {
   Copy,
   Check,
   Undo2,
-  AlertTriangle,
 } from "lucide-react";
 import {
   Breadcrumb,
@@ -51,20 +49,13 @@ interface FormSubmission {
   id: string;
   formName: string;
   sourceUrl: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   payload: Record<string, any>;
   ipAddress: string | null;
   userAgent: string | null;
   isRead: boolean;
   isTrashed: boolean;
   createdAt: string;
-}
-
-type ModalType = "trash" | "restore" | "delete";
-
-interface ModalState {
-  isOpen: boolean;
-  type: ModalType | null;
-  targetSubmission: FormSubmission | null;
 }
 
 // Reusable Copy to Clipboard Icon Button
@@ -103,7 +94,6 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 
 export default function NotificationsPage() {
   const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
-  const [actionLoading, setActionLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [trashedCount, setTrashedCount] = useState(0);
@@ -118,7 +108,7 @@ export default function NotificationsPage() {
   const endpoint = `/api/forms/submissions?filter=${filter}`;
   const { data: subData, isLoading: isSubLoading, mutate: mutateSubmissions } =
     useSWR(endpoint, {
-      onSuccess: (data: any) => {
+      onSuccess: (data: { submissions?: FormSubmission[]; totalCount?: number; unreadCount?: number; trashedCount?: number }) => {
         setSubmissions(data.submissions || []);
         setTotalCount(data.totalCount || 0);
         setUnreadCount(data.unreadCount || 0);
@@ -196,7 +186,7 @@ export default function NotificationsPage() {
         title: newStatus ? "Marked as read" : "Marked as unread",
         type: "success",
       });
-    } catch (err) {
+    } catch {
       toast.add({ title: "Failed to update status", type: "error" });
       mutateSubmissions();
     }
@@ -218,13 +208,14 @@ export default function NotificationsPage() {
     });
 
   // Helper to extract sender name
-  const getSenderName = (payload: any) => {
+  const getSenderName = (payload: Record<string, unknown> | null | undefined) => {
     if (!payload) return "Anonymous Lead";
-    if (payload.name) return payload.name;
-    if (payload.firstName || payload.lastName) {
-      return `${payload.firstName || ""} ${payload.lastName || ""}`.trim();
+    const p = payload as Record<string, string | undefined>;
+    if (p.name) return p.name;
+    if (p.firstName || p.lastName) {
+      return `${p.firstName || ""} ${p.lastName || ""}`.trim();
     }
-    if (payload.email) return payload.email;
+    if (p.email) return p.email;
     return "Anonymous Lead";
   };
 

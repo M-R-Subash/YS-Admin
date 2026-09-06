@@ -1,22 +1,21 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { 
   ArrowRightLeft, 
   Plus, 
   ExternalLink, 
   Trash2, 
-  RotateCcw, 
   CheckCircle2, 
-  XCircle, 
   AlertCircle,
   MoreVertical,
   Link2,
   Search,
-  Filter,
   Check,
   Copy
 } from "lucide-react";
+import useSWR from "swr";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import {
   Dialog,
@@ -64,8 +63,9 @@ interface RedirectionItem {
 }
 
 export default function RedirectionsPage() {
-  const [redirections, setRedirections] = useState<RedirectionItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: redirectionsData, isLoading: loading, mutate } = useSWR("/api/redirection?status=all");
+  const redirections: RedirectionItem[] = redirectionsData || [];
+  
   const [activeTab, setActiveTab] = useState<"all" | "active" | "inactive" | "trashed">("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -82,7 +82,7 @@ export default function RedirectionsPage() {
   // Trash Manager Hook for confirmations
   const { modal: trashModal, loading: trashLoading, openTrashModal, closeModal: closeTrashModal, handleConfirm: handleTrashConfirm } = useTrashManager<RedirectionItem>({
     itemType: "Redirection Rule",
-    onSuccess: () => fetchRedirections(),
+    onSuccess: () => mutate(),
   });
 
   // Additional Confirmation State for Non-Trash Status Toggles
@@ -98,28 +98,7 @@ export default function RedirectionsPage() {
     loading: false,
   });
 
-  // Fetch redirections
-  const fetchRedirections = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("/api/redirection?status=all");
-      if (res.ok) {
-        const data = await res.json();
-        setRedirections(data);
-      } else {
-        toast.add({ title: "Failed to load redirections", type: "error" });
-      }
-    } catch (error) {
-      console.error(error);
-      toast.add({ title: "Error connecting to server", type: "error" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchRedirections();
-  }, []);
+  // Removed manual fetchRedirections
 
   // Stats
   const stats = useMemo(() => {
@@ -202,19 +181,17 @@ export default function RedirectionsPage() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to create redirect");
 
-        toast.add({ title: "Redirect created successfully", type: "success" });
+        toast.add({ title: "Redirection created successfully", type: "success" });
+        mutate();
+        setIsModalOpen(false);
       }
-
-      setIsModalOpen(false);
-      fetchRedirections();
-    } catch (err: any) {
-      setFormError(err.message || "An error occurred.");
+    } catch (error: unknown) {
+      setFormError((error as Error).message || "An unexpected error occurred");
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Trigger Status Toggle Confirmation Modal
   const openStatusConfirmModal = (item: RedirectionItem) => {
     const nextStatus = item.status === "active" ? "inactive" : "active";
     setStatusConfirmModal({
@@ -225,7 +202,6 @@ export default function RedirectionsPage() {
     });
   };
 
-  // Confirm Status Change Execution
   const handleConfirmStatusChange = async () => {
     const { item, nextStatus } = statusConfirmModal;
     if (!item || !nextStatus) return;
@@ -238,11 +214,8 @@ export default function RedirectionsPage() {
         body: JSON.stringify({ status: nextStatus }),
       });
       if (res.ok) {
-        toast.add({
-          title: `Redirect marked as ${nextStatus}`,
-          type: "success",
-        });
-        fetchRedirections();
+        toast.add({ title: `Status changed to ${statusConfirmModal.nextStatus}`, type: "success" });
+        mutate();
       } else {
         throw new Error("Failed to update status");
       }
@@ -306,7 +279,7 @@ export default function RedirectionsPage() {
         </div>
 
         <a
-          href={`${process.env.NEXT_PUBLIC_FRONTEND_URL}?nocache=${Date.now()}`}
+          href={`${process.env.NEXT_PUBLIC_FRONTEND_URL}`}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-2 text-[11px] font-semibold text-black hover:text-black/80 bg-black/5 hover:bg-black/10 px-3 py-1.5 rounded-sm transition-all border border-black/10 shadow-2xs cursor-pointer"
@@ -461,8 +434,11 @@ export default function RedirectionsPage() {
         {/* Data Table */}
         <div className="rounded-sm border border-border bg-card overflow-hidden shadow-xs">
           {loading ? (
-            <div className="p-12 text-center text-xs font-medium text-muted-foreground">
-              Loading redirection rules...
+            <div className="p-6 space-y-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
             </div>
           ) : filteredList.length === 0 ? (
             <div className="p-12 text-center space-y-3">

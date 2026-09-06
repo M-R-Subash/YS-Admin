@@ -4,6 +4,7 @@ import { useState } from "react";
 import useSWR, { mutate as globalMutate } from "swr";
 import Link from "next/link";
 import { Search, PenTool, Plus, ExternalLink } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -70,7 +71,7 @@ export default function BlogsPage() {
         </div>
 
         <a
-          href={`${process.env.NEXT_PUBLIC_FRONTEND_URL}/blogs?nocache=${Date.now()}`}
+          href={`${process.env.NEXT_PUBLIC_FRONTEND_URL}/blogs`}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold text-foreground bg-card hover:bg-accent border border-border rounded-sm transition-all shadow-xs cursor-pointer"
@@ -177,8 +178,11 @@ export default function BlogsPage() {
 
         {/* Blogs Table / Cards */}
         {loading ? (
-          <div className="p-12 text-center text-black text-sm bg-card border border-border rounded-2xl">
-            Fetching blogs from database...
+          <div className="rounded-md border bg-card p-4 space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
           </div>
         ) : filteredBlogs.length === 0 ? (
           <div className="text-center py-16 bg-card border border-border rounded-sm p-6">

@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
+import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import {
   AlertDialog,
@@ -31,8 +33,12 @@ import { AddUserModal } from "@/components/admin/AddUserModal";
 export default function UsersPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  const { data, isLoading, mutate } = useSWR(
+    status === "authenticated" && session?.user?.role === "ADMIN" ? "/api/users" : null
+  );
+  const users = data?.users || [];
+
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
@@ -44,30 +50,6 @@ export default function UsersPage() {
       router.push("/webpages");
     }
   }, [status, session, router]);
-
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("/api/users");
-      if (!res.ok) throw new Error("Failed to fetch users");
-      const data = await res.json();
-      setUsers(data.users);
-    } catch (error) {
-      toast.add({
-        title: "Error",
-        description: "Could not load users.",
-        type: "error",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (status === "authenticated" && session?.user?.role === "ADMIN") {
-      fetchUsers();
-    }
-  }, [status, session]);
 
   const handleDeleteConfirm = async () => {
     if (!deleteId) return;
@@ -87,11 +69,11 @@ export default function UsersPage() {
         description: "User has been removed.",
         type: "success",
       });
-      fetchUsers();
-    } catch (error: any) {
+      mutate();
+    } catch (error: unknown) {
       toast.add({
         title: "Error",
-        description: error.message || "Failed to delete user.",
+        description: (error as Error).message || "Failed to delete user.",
         type: "error",
       });
     } finally {
@@ -99,10 +81,22 @@ export default function UsersPage() {
     }
   };
 
-  if (status === "loading" || loading) {
+  if (status === "loading" || isLoading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-muted-foreground">Loading users...</p>
+      <div className="flex flex-1 flex-col gap-6 p-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <Skeleton className="h-8 w-48 mb-2" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <Skeleton className="h-11 w-32" />
+        </div>
+        <div className="rounded-md border bg-card p-4 space-y-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+        </div>
       </div>
     );
   }
@@ -155,7 +149,7 @@ export default function UsersPage() {
       <AddUserModal
         open={isAddModalOpen}
         onOpenChange={setIsAddModalOpen}
-        onSuccess={fetchUsers}
+        onSuccess={() => mutate()}
       />
 
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
