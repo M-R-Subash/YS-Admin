@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import BlogEditor from "@/components/blog/BlogEditor";
 import { ImageUploadBlock } from "@/components/ImageUploadBlock";
+import { TagInput } from "@/components/ui/tag-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,8 +31,8 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   // Form State
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
-  const [tags, setTags] = useState("");
-  const [categories, setCategories] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [excerpt, setExcerpt] = useState("");
   const [metaTitle, setMetaTitle] = useState("");
   const [metaDesc, setMetaDesc] = useState("");
@@ -53,10 +54,13 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         if (!res.ok) throw new Error("Failed to fetch blog");
         const data = await res.json();
 
+        const blogTags = Array.isArray(data.tags) ? data.tags : data.tags ? String(data.tags).split(",").map((s: string) => s.trim()).filter(Boolean) : [];
+        const blogCategories = Array.isArray(data.categories) ? data.categories : data.categories ? String(data.categories).split(",").map((s: string) => s.trim()).filter(Boolean) : [];
+
         setTitle(data.title || "");
         setSlug(data.slug || "");
-        setTags(data.tags ? data.tags.join(", ") : "");
-        setCategories(data.categories ? data.categories.join(", ") : "");
+        setTags(blogTags);
+        setCategories(blogCategories);
         setAllowComments(data.allowComments ?? true);
         setStatus(data.status || "draft");
         setContent(data.content);
@@ -70,8 +74,8 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         setInitialData({
           title: data.title || "",
           slug: data.slug || "",
-          tags: data.tags ? data.tags.join(", ") : "",
-          categories: data.categories ? data.categories.join(", ") : "",
+          tags: blogTags,
+          categories: blogCategories,
           allowComments: data.allowComments ?? true,
           status: data.status || "draft",
           content: data.content,
@@ -99,8 +103,8 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       return (
         title !== initialData.title ||
         slug !== initialData.slug ||
-        tags !== initialData.tags ||
-        categories !== initialData.categories ||
+        JSON.stringify(tags) !== JSON.stringify(initialData.tags || []) ||
+        JSON.stringify(categories) !== JSON.stringify(initialData.categories || []) ||
         allowComments !== initialData.allowComments ||
         featuredImage !== initialData.featuredImage ||
         excerpt !== initialData.excerpt ||
@@ -117,8 +121,8 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         (content && JSON.stringify(content) !== '""' && JSON.stringify(content) !== 'null') ||
         featuredImage !== null ||
         excerpt.trim() !== "" ||
-        tags.trim() !== "" ||
-        categories.trim() !== "" ||
+        tags.length > 0 ||
+        categories.length > 0 ||
         metaTitle.trim() !== "" ||
         metaDesc.trim() !== "" ||
         focusKeyword.trim() !== ""
@@ -179,8 +183,8 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       content,
       allowComments,
       status: publishStatus,
-      tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
-      categories: categories.split(",").map((c) => c.trim()).filter(Boolean),
+      tags: tags.map((t) => t.trim()).filter(Boolean),
+      categories: categories.map((c) => c.trim()).filter(Boolean),
       excerpt,
       metaTitle,
       metaDesc,
@@ -203,15 +207,31 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         throw new Error(data.message || "Failed to save blog");
       }
 
+      setStatus(publishStatus);
+      setInitialData({
+        title,
+        slug,
+        tags,
+        categories,
+        allowComments,
+        status: publishStatus,
+        content,
+        featuredImage,
+        excerpt,
+        metaTitle,
+        metaDesc,
+        focusKeyword,
+      });
+
       toast.add({
         title: "Success",
         description: `Blog ${publishStatus === "published" ? "published" : "saved as draft"} successfully.`,
         type: "success",
       });
       router.push("/blogs");
-      router.refresh();
     } catch (error: any) {
       toast.add({ title: "Error", description: error.message, type: "error" });
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -238,7 +258,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
             variant="outline"
             onClick={() => handleSave("draft")}
             disabled={isSubmitting || (isEditMode ? (!isDirtyOrFilled && status === "draft") : !isDirtyOrFilled)}
-            className="flex items-center gap-2 h-9 px-4 text-xs font-bold rounded-sm shadow-md transition-all hover:scale-[1.02] disabled:opacity-50"
+            className="flex items-center gap-2 h-9 px-4 text-xs font-bold rounded-sm shadow-md transition-all hover:scale-[1.02] disabled:opacity-50 cursor-pointer"
           >
             {isSubmitting && status === "draft" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save Draft
@@ -246,7 +266,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           <Button
             onClick={() => handleSave("published")}
             disabled={isSubmitting || (isEditMode ? (!isDirtyOrFilled && status === "published") : !isDirtyOrFilled)}
-            className="flex items-center gap-2 h-9 px-4 text-xs font-bold rounded-sm shadow-md transition-all hover:scale-[1.02] bg-black hover:bg-black/90 text-white disabled:opacity-50"
+            className="flex items-center gap-2 h-9 px-4 text-xs font-bold rounded-sm shadow-md transition-all hover:scale-[1.02] bg-black hover:bg-black/90 text-white disabled:opacity-50 cursor-pointer"
           >
             {isSubmitting && status === "published" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             Publish
@@ -259,37 +279,19 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         <div className="max-w-full mx-auto p-4 md:p-6 w-full h-full flex flex-col lg:flex-row gap-6">
           
           {/* Main Editor Column */}
-          <div className="flex-1 h-full min-h-[500px] flex flex-col overflow-hidden space-y-4">
+          <div className="flex-1 h-full min-h-[500px] flex flex-col overflow-hidden">
             {isLoading ? (
               <ScreenLoader
                 text="Loading Blog Post..."
                 subtitle="Fetching article content and SEO settings..."
               />
             ) : (
-              <>
-                <div className="bg-card border border-border p-4 rounded-xl shrink-0">
-                  <Label htmlFor="title" className="text-sm font-bold text-foreground">Blog Title</Label>
-                  <textarea
-                    id="title"
-                    value={title}
-                    onChange={(e) => {
-                      handleTitleChange(e);
-                      e.target.style.height = 'auto';
-                      e.target.style.height = e.target.scrollHeight + 'px';
-                    }}
-                    placeholder="The Future of Next.js..."
-                    className="mt-2 w-full resize-none overflow-hidden rounded-md border border-input bg-transparent px-3 py-2 text-lg font-semibold shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    rows={1}
-                  />
-                </div>
-
-                <div className="flex-1 overflow-hidden">
-                  <BlogEditor
-                    initialContent={content}
-                    onChange={setContent}
-                  />
-                </div>
-              </>
+              <div className="flex-1 overflow-hidden h-full">
+                <BlogEditor
+                  initialContent={content}
+                  onChange={setContent}
+                />
+              </div>
             )}
           </div>
 
@@ -297,7 +299,25 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           <div className="w-full lg:w-[400px] shrink-0 h-full overflow-y-auto pb-8 pr-2 custom-scrollbar">
             <div className="bg-card border border-border p-6 rounded-xl space-y-6">
               
+              {/* Blog Title */}
               <div>
+                <Label htmlFor="title" className="text-sm font-bold text-foreground">Blog Title</Label>
+                <textarea
+                  id="title"
+                  value={title}
+                  onChange={(e) => {
+                    handleTitleChange(e);
+                    e.target.style.height = 'auto';
+                    e.target.style.height = e.target.scrollHeight + 'px';
+                  }}
+                  placeholder="The Future of Next.js..."
+                  className="mt-2 w-full resize-none overflow-hidden rounded-md border border-input bg-transparent px-3 py-2 text-base font-semibold shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  rows={2}
+                />
+              </div>
+
+              {/* URL Slug */}
+              <div className="border-t border-border pt-6">
                 <Label htmlFor="slug" className="text-sm font-bold text-foreground">URL Slug</Label>
                 <Input
                   id="slug"
@@ -311,6 +331,29 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                 </p>
               </div>
 
+              {/* Categories */}
+              <div className="border-t border-border pt-6">
+                <Label htmlFor="categories" className="text-sm font-bold text-foreground mb-2 block">Categories</Label>
+                <TagInput
+                  value={categories}
+                  onChange={setCategories}
+                  placeholder="Add category (e.g. Technology)..."
+                />
+                <p className="text-[11px] text-muted-foreground mt-1.5">Press Enter or comma to add</p>
+              </div>
+
+              {/* Tags */}
+              <div className="border-t border-border pt-6">
+                <Label htmlFor="tags" className="text-sm font-bold text-foreground mb-2 block">Tags</Label>
+                <TagInput
+                  value={tags}
+                  onChange={setTags}
+                  placeholder="Add tag (e.g. react, nextjs)..."
+                />
+                <p className="text-[11px] text-muted-foreground mt-1.5">Press Enter or comma to add</p>
+              </div>
+
+              {/* Featured Image */}
               <div className="border-t border-border pt-6">
                 <Label className="block mb-2 text-sm font-bold text-foreground">Featured Image</Label>
                 <ImageUploadBlock 
@@ -319,39 +362,16 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                 />
               </div>
 
+              {/* Excerpt */}
               <div className="border-t border-border pt-6">
                 <Label htmlFor="excerpt" className="text-sm font-bold text-foreground">Excerpt</Label>
                 <textarea
                   id="excerpt"
-                  className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-2"
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-2"
                   value={excerpt}
                   onChange={(e) => setExcerpt(e.target.value)}
                   placeholder="A brief summary of the blog..."
                 />
-              </div>
-
-              <div className="border-t border-border pt-6">
-                <Label htmlFor="categories" className="text-sm font-bold text-foreground">Categories</Label>
-                <Input
-                  id="categories"
-                  value={categories}
-                  onChange={(e) => setCategories(e.target.value)}
-                  className="mt-2"
-                  placeholder="Technology, React"
-                />
-                <p className="text-xs text-muted-foreground mt-2">Comma separated</p>
-              </div>
-
-              <div className="border-t border-border pt-6">
-                <Label htmlFor="tags" className="text-sm font-bold text-foreground">Tags</Label>
-                <Input
-                  id="tags"
-                  value={tags}
-                  onChange={(e) => setTags(e.target.value)}
-                  className="mt-2"
-                  placeholder="nextjs, tips, 2024"
-                />
-                <p className="text-xs text-muted-foreground mt-2">Comma separated</p>
               </div>
 
               <div className="border-t border-border pt-6 space-y-4">
