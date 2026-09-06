@@ -8,12 +8,36 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
-    
-    // In Prisma, we don't have isTrashed field on Blog currently.
-    // If we need it, we should add it, but for now we'll just filter by status.
 
+    const whereClause: any = {};
+    if (status === "trash") {
+      whereClause.isTrashed = true;
+    } else if (status === "published") {
+      whereClause.status = "published";
+      whereClause.isTrashed = false;
+    } else if (status === "draft") {
+      whereClause.status = "draft";
+      whereClause.isTrashed = false;
+    }
+
+    // Exclude heavy TipTap rich-text `content` from list view for maximum speed & minimal payload
     const blogs = await prisma.blog.findMany({
-      include: { 
+      where: whereClause,
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        featuredImage: true,
+        allowComments: true,
+        status: true,
+        isTrashed: true,
+        excerpt: true,
+        readingTime: true,
+        tags: true,
+        categories: true,
+        publishedAt: true,
+        createdAt: true,
+        updatedAt: true,
         author: {
           select: {
             id: true,

@@ -63,27 +63,45 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   React.useEffect(() => {
     async function fetchCounts() {
-      try {
-        const [subRes, comRes] = await Promise.all([
-          fetch("/api/forms/submissions?filter=unread", { cache: "no-store" }),
-          fetch("/api/comments?filter=pending", { cache: "no-store" }),
-        ]);
+      // Don't poll if the tab is hidden
+      if (typeof document !== "undefined" && document.hidden) return;
 
-        if (subRes.ok) {
-          const data = await subRes.json();
-          setUnreadSubmissionsCount(data.unreadCount || 0);
-        }
-        if (comRes.ok) {
-          const data = await comRes.json();
-          setUnapprovedCommentsCount(data.unapprovedCount || 0);
+      try {
+        const res = await fetch("/api/badges", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          setUnreadSubmissionsCount(data.unreadSubmissions || 0);
+          setUnapprovedCommentsCount(data.pendingComments || 0);
         }
       } catch (err) {
         console.error("Failed to fetch sidebar counts", err);
       }
     }
+
     fetchCounts();
-    const interval = setInterval(fetchCounts, 30000); // Polling every 30s
-    return () => clearInterval(interval);
+
+    // Relaxed polling interval (60s)
+    const interval = setInterval(fetchCounts, 60000);
+
+    // Refresh immediately when tab becomes visible again
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchCounts();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Refresh immediately on admin action
+    const handleBadgeRefresh = () => {
+      fetchCounts();
+    };
+    window.addEventListener("admin:badge-refresh", handleBadgeRefresh);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("admin:badge-refresh", handleBadgeRefresh);
+    };
   }, []);
 
   const filteredNavMain = React.useMemo(() => {

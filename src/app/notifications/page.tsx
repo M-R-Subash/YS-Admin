@@ -172,6 +172,7 @@ export default function NotificationsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ isRead: true }),
         });
+        window.dispatchEvent(new Event("admin:badge-refresh"));
       } catch (err) {
         console.error("Failed to auto mark submission as read:", err);
       }
@@ -199,6 +200,7 @@ export default function NotificationsPage() {
         body: JSON.stringify({ isRead: newStatus }),
       });
       if (!res.ok) throw new Error();
+      window.dispatchEvent(new Event("admin:badge-refresh"));
       toast.add({
         title: newStatus ? "Marked as read" : "Marked as unread",
         type: "success",
@@ -219,6 +221,7 @@ export default function NotificationsPage() {
           setSelectedSubmission(null);
         }
         await fetchSubmissions(true);
+        window.dispatchEvent(new Event("admin:badge-refresh"));
       },
     });
 

@@ -56,6 +56,7 @@ const QUICK_LINKS = [
 
 export default function DashboardPage() {
   const [pages, setPages] = useState<Page[]>([]);
+  const [publishedPagesCount, setPublishedPagesCount] = useState<number>(0);
   const [blogsCount, setBlogsCount] = useState<number>(0);
   const [commentsCount, setCommentsCount] = useState<number>(0);
   const [unapprovedComments, setUnapprovedComments] = useState<number>(0);
@@ -70,33 +71,17 @@ export default function DashboardPage() {
   async function fetchDashboardData() {
     try {
       setLoading(true);
-      const [pagesRes, blogsRes, commentsRes, submissionsRes] =
-        await Promise.all([
-          fetch("/api/pages"),
-          fetch("/api/blogs"),
-          fetch("/api/comments?filter=all"),
-          fetch("/api/forms/submissions?filter=all"),
-        ]);
+      const res = await fetch("/api/dashboard/stats", { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to fetch dashboard stats");
+      const data = await res.json();
 
-      const pagesData = await pagesRes.json();
-      const blogsData = await blogsRes.json();
-      const commentsData = await commentsRes.json();
-      const submissionsData = await submissionsRes.json();
-
-      setPages(Array.isArray(pagesData) ? pagesData : []);
-      setBlogsCount(Array.isArray(blogsData) ? blogsData.length : 0);
-
-      if (commentsData && typeof commentsData.totalCount === "number") {
-        setCommentsCount(commentsData.totalCount);
-        setUnapprovedComments(commentsData.unapprovedCount || 0);
-      } else if (Array.isArray(commentsData?.comments)) {
-        setCommentsCount(commentsData.comments.length);
-      }
-
-      if (submissionsData && typeof submissionsData.totalCount === "number") {
-        setNotificationsCount(submissionsData.totalCount);
-        setUnreadNotifications(submissionsData.unreadCount || 0);
-      }
+      setPublishedPagesCount(data.publishedPagesCount || 0);
+      setBlogsCount(data.totalBlogsCount || 0);
+      setCommentsCount(data.totalCommentsCount || 0);
+      setUnapprovedComments(data.unapprovedCommentsCount || 0);
+      setNotificationsCount(data.totalSubmissionsCount || 0);
+      setUnreadNotifications(data.unreadSubmissionsCount || 0);
+      setPages(Array.isArray(data.recentPages) ? data.recentPages : []);
     } catch (err) {
       console.error("Failed to fetch dashboard data:", err);
     } finally {
@@ -104,7 +89,7 @@ export default function DashboardPage() {
     }
   }
 
-  const publishedCount = pages.filter((p) => p.status === "published").length;
+  const publishedCount = publishedPagesCount;
 
   return (
     <>

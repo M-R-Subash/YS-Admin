@@ -240,6 +240,7 @@ export default function CommentsPage() {
         toast.add({ title: "Admin reply published", type: "success" });
       }
 
+      window.dispatchEvent(new Event("admin:badge-refresh"));
       closeModal();
     } catch (err) {
       toast.add({ title: "Action failed", type: "error" });
