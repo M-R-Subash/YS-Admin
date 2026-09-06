@@ -462,7 +462,7 @@ export default function EditorPage({
               ref={iframeRef}
               src={`${process.env.NEXT_PUBLIC_FRONTEND_URL}${
                 page.slug === "/" ? "" : page.slug.startsWith("/") ? page.slug : `/${page.slug}`
-              }?preview=true`}
+              }?preview=true&secret=${process.env.NEXT_PUBLIC_PREVIEW_SECRET || ""}`}
               className="w-full h-full border-0"
               onLoad={handleIframeLoad}
             />
