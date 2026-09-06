@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import useSWR, { mutate as globalMutate } from "swr";
 import { formatDistanceToNow, format } from "date-fns";
 import {
   Search,
@@ -102,7 +103,6 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 
 export default function NotificationsPage() {
   const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
-  const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
@@ -115,43 +115,31 @@ export default function NotificationsPage() {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const endpoint = `/api/forms/submissions?filter=${filter}`;
+  const { data: subData, isLoading: isSubLoading, mutate: mutateSubmissions } =
+    useSWR(endpoint, {
+      onSuccess: (data: any) => {
+        setSubmissions(data.submissions || []);
+        setTotalCount(data.totalCount || 0);
+        setUnreadCount(data.unreadCount || 0);
+        setTrashedCount(data.trashedCount || 0);
+
+        if (selectedSubmission) {
+          const found = (data.submissions || []).find(
+            (s: FormSubmission) => s.id === selectedSubmission.id
+          );
+          setSelectedSubmission(found || null);
+        }
+      },
+    });
+
+  const loading = isSubLoading && !subData;
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await fetchSubmissions(true);
+    await mutateSubmissions();
     setTimeout(() => setIsRefreshing(false), 600);
   };
-
-  useEffect(() => {
-    fetchSubmissions();
-  }, [filter]);
-
-  async function fetchSubmissions(silent = false) {
-    try {
-      if (!silent) setLoading(true);
-      const res = await fetch(`/api/forms/submissions?filter=${filter}`, {
-        cache: "no-store",
-      });
-      if (!res.ok) throw new Error("Failed to load submissions");
-      const data = await res.json();
-
-      setSubmissions(data.submissions || []);
-      setTotalCount(data.totalCount || 0);
-      setUnreadCount(data.unreadCount || 0);
-      setTrashedCount(data.trashedCount || 0);
-
-      if (selectedSubmission) {
-        const found = (data.submissions || []).find(
-          (s: FormSubmission) => s.id === selectedSubmission.id
-        );
-        setSelectedSubmission(found || null);
-      }
-    } catch (err) {
-      console.error("Error fetching form submissions:", err);
-      toast.add({ title: "Failed to load notifications", type: "error" });
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }
 
   // Handle selecting a submission & Auto Mark-as-Read
   const handleSelectSubmission = async (submission: FormSubmission) => {
@@ -172,7 +160,8 @@ export default function NotificationsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ isRead: true }),
         });
-        window.dispatchEvent(new Event("admin:badge-refresh"));
+        globalMutate("/api/badges");
+        globalMutate("/api/dashboard/stats");
       } catch (err) {
         console.error("Failed to auto mark submission as read:", err);
       }
@@ -200,14 +189,16 @@ export default function NotificationsPage() {
         body: JSON.stringify({ isRead: newStatus }),
       });
       if (!res.ok) throw new Error();
-      window.dispatchEvent(new Event("admin:badge-refresh"));
+      globalMutate("/api/badges");
+      globalMutate("/api/dashboard/stats");
+      mutateSubmissions();
       toast.add({
         title: newStatus ? "Marked as read" : "Marked as unread",
         type: "success",
       });
     } catch (err) {
       toast.add({ title: "Failed to update status", type: "error" });
-      fetchSubmissions(true);
+      mutateSubmissions();
     }
   };
 
@@ -220,8 +211,9 @@ export default function NotificationsPage() {
         if (selectedSubmission && modal.targetId === selectedSubmission.id) {
           setSelectedSubmission(null);
         }
-        await fetchSubmissions(true);
-        window.dispatchEvent(new Event("admin:badge-refresh"));
+        await mutateSubmissions();
+        globalMutate("/api/badges");
+        globalMutate("/api/dashboard/stats");
       },
     });
 

@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import useSWR from "swr"
 import { FileTextIcon, UsersIcon, PenToolIcon, ImageIcon, LayoutDashboardIcon, WavesHorizontalIcon, Bell, MessageSquare } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -58,51 +59,16 @@ const navItems = [
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { state } = useSidebar()
   const { data: session } = useSession()
-  const [unreadSubmissionsCount, setUnreadSubmissionsCount] = React.useState<number>(0)
-  const [unapprovedCommentsCount, setUnapprovedCommentsCount] = React.useState<number>(0)
+  const { data: badges } = useSWR<{
+    unreadSubmissions: number;
+    pendingComments: number;
+  }>("/api/badges", {
+    refreshInterval: 60000,
+    revalidateOnFocus: true,
+  });
 
-  React.useEffect(() => {
-    async function fetchCounts() {
-      // Don't poll if the tab is hidden
-      if (typeof document !== "undefined" && document.hidden) return;
-
-      try {
-        const res = await fetch("/api/badges", { cache: "no-store" });
-        if (res.ok) {
-          const data = await res.json();
-          setUnreadSubmissionsCount(data.unreadSubmissions || 0);
-          setUnapprovedCommentsCount(data.pendingComments || 0);
-        }
-      } catch (err) {
-        console.error("Failed to fetch sidebar counts", err);
-      }
-    }
-
-    fetchCounts();
-
-    // Relaxed polling interval (60s)
-    const interval = setInterval(fetchCounts, 60000);
-
-    // Refresh immediately when tab becomes visible again
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        fetchCounts();
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    // Refresh immediately on admin action
-    const handleBadgeRefresh = () => {
-      fetchCounts();
-    };
-    window.addEventListener("admin:badge-refresh", handleBadgeRefresh);
-
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("admin:badge-refresh", handleBadgeRefresh);
-    };
-  }, []);
+  const unreadSubmissionsCount = badges?.unreadSubmissions || 0;
+  const unapprovedCommentsCount = badges?.pendingComments || 0;
 
   const filteredNavMain = React.useMemo(() => {
     return navItems

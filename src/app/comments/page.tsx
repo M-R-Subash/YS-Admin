@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import useSWR, { mutate as globalMutate } from "swr";
 import { formatDistanceToNow } from "date-fns";
 import {
   MessageSquare,
@@ -80,7 +81,6 @@ interface ModalState {
 export default function CommentsPage() {
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [blogsSummary, setBlogsSummary] = useState<BlogSummary[]>([]);
-  const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [unapprovedCount, setUnapprovedCount] = useState(0);
@@ -107,24 +107,9 @@ export default function CommentsPage() {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await fetchComments(true);
-    setTimeout(() => setIsRefreshing(false), 600);
-  };
-
-  useEffect(() => {
-    fetchComments();
-  }, [filter, selectedBlogId]);
-
-  async function fetchComments(silent = false) {
-    try {
-      if (!silent) setLoading(true);
-      const url = `/api/comments?filter=${filter}&blogId=${selectedBlogId}`;
-      const res = await fetch(url, { cache: "no-store" });
-      if (!res.ok) throw new Error("Failed to load comments");
-      const data = await res.json();
-
+  const endpoint = `/api/comments?filter=${filter}&blogId=${selectedBlogId}`;
+  const { data: commentsData, isLoading: isCommentsLoading, mutate } = useSWR(endpoint, {
+    onSuccess: (data: any) => {
       setComments(data.comments || []);
       setTotalCount(data.totalCount || 0);
       setUnapprovedCount(data.unapprovedCount || 0);
@@ -132,13 +117,16 @@ export default function CommentsPage() {
       if (data.blogsSummary) {
         setBlogsSummary(data.blogsSummary);
       }
-    } catch (err) {
-      console.error("Error fetching comments:", err);
-      toast.add({ title: "Failed to load comments", type: "error" });
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }
+    },
+  });
+
+  const loading = isCommentsLoading && !commentsData;
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await mutate();
+    setTimeout(() => setIsRefreshing(false), 600);
+  };
 
   // Open confirmation modal helper
   const openConfirmModal = (type: ModalActionType, comment: CommentItem) => {
@@ -240,11 +228,13 @@ export default function CommentsPage() {
         toast.add({ title: "Admin reply published", type: "success" });
       }
 
-      window.dispatchEvent(new Event("admin:badge-refresh"));
+      globalMutate("/api/badges");
+      globalMutate("/api/dashboard/stats");
+      mutate();
       closeModal();
     } catch (err) {
       toast.add({ title: "Action failed", type: "error" });
-      fetchComments(true);
+      mutate();
     } finally {
       setActionLoading(false);
     }

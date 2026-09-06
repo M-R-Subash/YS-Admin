@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import useSWR, { mutate as globalMutate } from "swr";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Search, Menu, FileText, ExternalLink } from "lucide-react";
@@ -18,34 +19,18 @@ import { DataTable } from "@/components/ui/data-table";
 import { getWebpagesColumns } from "./webpages-columns";
 
 export default function WebpagesPage() {
-  const [pages, setPages] = useState<Page[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<
     "all" | "published" | "draft" | "trash"
   >("all");
   const router = useRouter();
 
-  useEffect(() => {
-    fetchPages();
-  }, [statusFilter]);
+  const endpoint =
+    statusFilter === "trash" ? "/api/pages?status=trash" : "/api/pages";
 
-  async function fetchPages(silent = false) {
-    try {
-      if (!silent) setLoading(true);
-      const url =
-        statusFilter === "trash" ? "/api/pages?status=trash" : "/api/pages";
-      // Ensure we get fresh data by busting cache
-      const fetchUrl = `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}`;
-      const res = await fetch(fetchUrl, { cache: "no-store" });
-      const data = await res.json();
-      setPages(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error("Failed to fetch pages:", err);
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }
+  const { data, isLoading, mutate } = useSWR<Page[]>(endpoint);
+  const pages = Array.isArray(data) ? data : [];
+  const loading = isLoading && !data;
 
   function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleDateString("en-US", {
@@ -261,7 +246,13 @@ export default function WebpagesPage() {
             </p>
           </div>
         ) : (
-          <DataTable columns={getWebpagesColumns(() => fetchPages(true))} data={filteredPages} />
+          <DataTable
+            columns={getWebpagesColumns(() => {
+              mutate();
+              globalMutate("/api/dashboard/stats");
+            })}
+            data={filteredPages}
+          />
         )}
       </div>
     </>

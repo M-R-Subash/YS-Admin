@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import useSWR from "swr";
 import Link from "next/link";
 import {
   PenToolIcon,
@@ -55,41 +55,15 @@ const QUICK_LINKS = [
 ];
 
 export default function DashboardPage() {
-  const [pages, setPages] = useState<Page[]>([]);
-  const [publishedPagesCount, setPublishedPagesCount] = useState<number>(0);
-  const [blogsCount, setBlogsCount] = useState<number>(0);
-  const [commentsCount, setCommentsCount] = useState<number>(0);
-  const [unapprovedComments, setUnapprovedComments] = useState<number>(0);
-  const [notificationsCount, setNotificationsCount] = useState<number>(0);
-  const [unreadNotifications, setUnreadNotifications] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading, mutate } = useSWR("/api/dashboard/stats");
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  async function fetchDashboardData() {
-    try {
-      setLoading(true);
-      const res = await fetch("/api/dashboard/stats", { cache: "no-store" });
-      if (!res.ok) throw new Error("Failed to fetch dashboard stats");
-      const data = await res.json();
-
-      setPublishedPagesCount(data.publishedPagesCount || 0);
-      setBlogsCount(data.totalBlogsCount || 0);
-      setCommentsCount(data.totalCommentsCount || 0);
-      setUnapprovedComments(data.unapprovedCommentsCount || 0);
-      setNotificationsCount(data.totalSubmissionsCount || 0);
-      setUnreadNotifications(data.unreadSubmissionsCount || 0);
-      setPages(Array.isArray(data.recentPages) ? data.recentPages : []);
-    } catch (err) {
-      console.error("Failed to fetch dashboard data:", err);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const publishedCount = publishedPagesCount;
+  const publishedCount = data?.publishedPagesCount ?? 0;
+  const blogsCount = data?.totalBlogsCount ?? 0;
+  const commentsCount = data?.totalCommentsCount ?? 0;
+  const unapprovedComments = data?.unapprovedCommentsCount ?? 0;
+  const notificationsCount = data?.totalSubmissionsCount ?? 0;
+  const unreadNotifications = data?.unreadSubmissionsCount ?? 0;
+  const pages = (data?.recentPages as Page[]) || [];
 
   return (
     <>
@@ -183,7 +157,11 @@ export default function DashboardPage() {
               </div>
               <div className="flex items-baseline justify-between pt-1">
                 <div className="text-3xl font-extrabold text-foreground">
-                  {loading ? "..." : notificationsCount}
+                  {isLoading && !data ? (
+                    <span className="inline-block h-8 w-14 bg-muted animate-pulse rounded-sm" />
+                  ) : (
+                    notificationsCount
+                  )}
                 </div>
                 {unreadNotifications > 0 && (
                   <span className="text-[11px] font-bold text-blue-600 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-xs border border-blue-200 dark:border-blue-800">
@@ -205,7 +183,11 @@ export default function DashboardPage() {
                 <CheckCircleIcon className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
               </div>
               <div className="text-3xl font-extrabold text-foreground pt-1">
-                {loading ? "..." : publishedCount}
+                {isLoading && !data ? (
+                  <span className="inline-block h-8 w-14 bg-muted animate-pulse rounded-sm" />
+                ) : (
+                  publishedCount
+                )}
               </div>
             </Link>
 
@@ -222,7 +204,11 @@ export default function DashboardPage() {
               </div>
               <div className="flex items-baseline justify-between pt-1">
                 <div className="text-3xl font-extrabold text-foreground">
-                  {loading ? "..." : commentsCount}
+                  {isLoading && !data ? (
+                    <span className="inline-block h-8 w-14 bg-muted animate-pulse rounded-sm" />
+                  ) : (
+                    commentsCount
+                  )}
                 </div>
                 {unapprovedComments > 0 && (
                   <span className="text-[11px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-xs border border-amber-200 dark:border-amber-800">
@@ -244,7 +230,11 @@ export default function DashboardPage() {
                 <PenToolIcon className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
               </div>
               <div className="text-3xl font-extrabold text-foreground pt-1">
-                {loading ? "..." : blogsCount}
+                {isLoading && !data ? (
+                  <span className="inline-block h-8 w-14 bg-muted animate-pulse rounded-sm" />
+                ) : (
+                  blogsCount
+                )}
               </div>
             </Link>
           </div>
@@ -264,7 +254,7 @@ export default function DashboardPage() {
 
           <div className="rounded-sm">
             <DataTable
-              columns={getWebpagesColumns(fetchDashboardData)}
+              columns={getWebpagesColumns(() => mutate())}
               data={pages.slice(0, 10)}
             />
           </div>

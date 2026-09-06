@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import useSWR, { mutate as globalMutate } from "swr";
 import Link from "next/link";
 import { Search, PenTool, Plus, ExternalLink } from "lucide-react";
 import {
@@ -17,37 +18,17 @@ import { DataTable } from "@/components/ui/data-table";
 import { getBlogsColumns } from "./blogs-columns";
 
 export default function BlogsPage() {
-  const [blogs, setBlogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<
     "all" | "published" | "draft" | "trash"
   >("all");
 
-  useEffect(() => {
-    fetchBlogs();
-  }, [statusFilter]);
+  const endpoint =
+    statusFilter === "trash" ? "/api/blogs?status=trash" : "/api/blogs";
 
-  async function fetchBlogs(silent = false) {
-    try {
-      if (!silent) setLoading(true);
-      const url =
-        statusFilter === "trash" ? "/api/blogs?status=trash" : "/api/blogs";
-      // Ensure we get fresh data by busting cache
-      const fetchUrl = `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}`;
-      const res = await fetch(fetchUrl, { cache: "no-store" });
-      const data = await res.json();
-      
-      // If server returns blogs, we filter them locally for trash, or server could do it.
-      // Since our API currently doesn't filter isTrashed (we just added it), we will filter locally.
-      const allBlogs = Array.isArray(data) ? data : [];
-      setBlogs(allBlogs);
-    } catch (err) {
-      console.error("Failed to fetch blogs:", err);
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }
+  const { data, isLoading, mutate } = useSWR<any[]>(endpoint);
+  const blogs = Array.isArray(data) ? data : [];
+  const loading = isLoading && !data;
 
   // Filter blogs based on search, status, and isTrashed
   const filteredBlogs = blogs.filter((blog) => {
@@ -214,7 +195,13 @@ export default function BlogsPage() {
             </p>
           </div>
         ) : (
-          <DataTable columns={getBlogsColumns(() => fetchBlogs(true))} data={filteredBlogs} />
+          <DataTable
+            columns={getBlogsColumns(() => {
+              mutate();
+              globalMutate("/api/dashboard/stats");
+            })}
+            data={filteredBlogs}
+          />
         )}
       </div>
     </>
