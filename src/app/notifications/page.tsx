@@ -30,6 +30,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -408,8 +409,23 @@ export default function NotificationsPage() {
               {/* Scrollable Submissions List */}
               <div className="flex-1 overflow-y-auto divide-y divide-border/60">
                 {loading && submissions.length === 0 ? (
-                  <div className="p-8 text-center text-xs text-muted-foreground">
-                    Loading form submissions...
+                  <div className="divide-y divide-border/60">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div key={i} className="p-4 space-y-2.5 bg-card/20">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <Skeleton className="w-2 h-2 rounded-full" />
+                            <Skeleton className="h-4 w-20 rounded-xs" />
+                          </div>
+                          <Skeleton className="h-3 w-16" />
+                        </div>
+                        <Skeleton className="h-4 w-36" />
+                        <div className="space-y-1 pt-0.5">
+                          <Skeleton className="h-3 w-full" />
+                          <Skeleton className="h-3 w-3/4" />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : filteredSubmissions.length === 0 ? (
                   <div className="p-12 text-center space-y-3">
@@ -794,6 +810,52 @@ export default function NotificationsPage() {
                             {selectedSubmission.userAgent || "Unknown Browser"}
                           </p>
                         </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : loading ? (
+                /* Skeleton State for Detail View */
+                <div className="h-full flex flex-col overflow-hidden bg-background">
+                  {/* Detail View Header Skeleton */}
+                  <div className="p-6 border-b border-border bg-card space-y-4 shrink-0 shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Skeleton className="h-5 w-24 rounded-sm" />
+                          <Skeleton className="h-5 w-32 rounded-md" />
+                        </div>
+                        <Skeleton className="h-7 w-64 pt-1" />
+                        <Skeleton className="h-4 w-44" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-8 w-24 rounded-lg" />
+                        <Skeleton className="h-8 w-16 rounded-lg" />
+                        <Skeleton className="h-8 w-8 rounded-lg" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Detail View Body Skeleton */}
+                  <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-8">
+                    <div className="space-y-4">
+                      <Skeleton className="h-4 w-32" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Skeleton className="h-20 w-full rounded-sm" />
+                        <Skeleton className="h-20 w-full rounded-sm" />
+                        <Skeleton className="h-20 w-full rounded-sm" />
+                        <Skeleton className="h-20 w-full rounded-sm" />
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <Skeleton className="h-4 w-36" />
+                      <Skeleton className="h-28 w-full rounded-sm" />
+                    </div>
+                    <div className="pt-6 border-t border-border space-y-3">
+                      <Skeleton className="h-4 w-44" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Skeleton className="h-16 w-full rounded-sm" />
+                        <Skeleton className="h-16 w-full rounded-sm" />
                       </div>
                     </div>
                   </div>

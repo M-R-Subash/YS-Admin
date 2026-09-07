@@ -31,6 +31,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import {
   Tooltip,
@@ -505,7 +506,22 @@ function CommentsPageContent() {
               <Separator className="my-2" />
 
               {/* Individual Blog Items */}
-              {filteredBlogs.length === 0 ? (
+              {loading && blogsSummary.length === 0 ? (
+                <div className="space-y-1.5 p-1">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="p-3 rounded-sm border border-border/50 bg-card/30 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <Skeleton className="w-8 h-8 rounded-sm shrink-0" />
+                        <div className="space-y-1.5 flex-1">
+                          <Skeleton className="h-3.5 w-3/4" />
+                          <Skeleton className="h-2.5 w-16" />
+                        </div>
+                      </div>
+                      <Skeleton className="w-4 h-4 rounded-full ml-2 shrink-0" />
+                    </div>
+                  ))}
+                </div>
+              ) : filteredBlogs.length === 0 ? (
                 <div className="p-6 text-center text-xs text-muted-foreground">
                   No blogs match filter
                 </div>
@@ -665,8 +681,44 @@ function CommentsPageContent() {
 
             {/* Moderation Cards Feed */}
             {loading && comments.length === 0 ? (
-              <div className="p-12 text-center text-xs text-muted-foreground bg-card border rounded-2xl">
-                Fetching comments from database...
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="bg-card border border-border/70 rounded-sm p-5 shadow-xs space-y-4">
+                    {/* Header Skeleton: Author Avatar + Name + Context + Status Badge */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="w-9 h-9 rounded-full shrink-0" />
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <Skeleton className="h-4 w-28" />
+                            <Skeleton className="h-3 w-36" />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Skeleton className="h-3 w-16" />
+                            <Skeleton className="h-3 w-40" />
+                          </div>
+                        </div>
+                      </div>
+                      <Skeleton className="h-5 w-24 rounded-full shrink-0" />
+                    </div>
+
+                    <Separator />
+
+                    {/* Comment Content Skeleton */}
+                    <div className="space-y-2">
+                      <Skeleton className="h-3.5 w-full" />
+                      <Skeleton className="h-3.5 w-5/6" />
+                      <Skeleton className="h-3.5 w-2/3" />
+                    </div>
+
+                    {/* Actions Skeleton */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <Skeleton className="h-8 w-24 rounded-sm" />
+                      <Skeleton className="h-8 w-16 rounded-sm" />
+                      <Skeleton className="h-8 w-8 rounded-sm" />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : rootComments.length === 0 ? (
               <div className="p-16 text-center bg-card border rounded-2xl space-y-3">
