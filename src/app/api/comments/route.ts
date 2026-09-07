@@ -142,6 +142,7 @@ export async function POST(request: Request) {
         email: adminEmail,
         isApproved: true, // Admin replies are auto-approved
         isTrashed: false,
+        isAdmin: true,
       },
       include: {
         blog: {

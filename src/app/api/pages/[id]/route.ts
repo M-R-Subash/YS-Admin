@@ -76,6 +76,13 @@ export async function DELETE(
 
   const { id } = await params;
   
+  if (session.user.role !== "ADMIN") {
+    return NextResponse.json(
+      { error: "Forbidden: Only administrators can permanently delete website pages" },
+      { status: 403 }
+    );
+  }
+
   const page = await prisma.page.findUnique({ where: { id } });
   if (!page || !page.isTrashed) {
     return NextResponse.json(

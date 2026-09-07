@@ -29,11 +29,19 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        toast.add({
-          title: "Authentication Failed",
-          description: "Invalid email or password. Please check your credentials.",
-          type: "error",
-        });
+        if (result.error === "TooManyAttempts" || result.status === 429) {
+          toast.add({
+            title: "Too Many Attempts",
+            description: "Too many failed login attempts. Please try again after 5 minutes.",
+            type: "error",
+          });
+        } else {
+          toast.add({
+            title: "Authentication Failed",
+            description: "Invalid email or password. Please check your credentials.",
+            type: "error",
+          });
+        }
         setLoading(false);
       } else {
         toast.add({
@@ -46,8 +54,8 @@ export default function LoginPage() {
       }
     } catch (error) {
       toast.add({
-        title: "Connection Error",
-        description: "An unexpected error occurred. Please try again later.",
+        title: "Too Many Attempts",
+        description: "Too many login attempts detected. Please try again after 5 minutes.",
         type: "error",
       });
       setLoading(false);

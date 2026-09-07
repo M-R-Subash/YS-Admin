@@ -118,6 +118,7 @@ model Comment {
   content     String
   isApproved  Boolean  @default(false)
   isTrashed   Boolean  @default(false)
+  isAdmin     Boolean  @default(false)
   
   name        String
   email       String

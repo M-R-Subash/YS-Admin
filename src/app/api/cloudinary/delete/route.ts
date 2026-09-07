@@ -16,6 +16,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (session.user.role !== "ADMIN") {
+      return NextResponse.json(
+        { error: "Forbidden: Only administrators can delete media assets" },
+        { status: 403 }
+      );
+    }
+
     const { public_id } = await request.json();
     if (!public_id) {
       return NextResponse.json({ error: "Missing public_id" }, { status: 400 });

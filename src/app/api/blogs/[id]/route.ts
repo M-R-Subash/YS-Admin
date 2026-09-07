@@ -33,6 +33,19 @@ export async function PUT(
   }
 
   const { id } = await params;
+  const existingBlog = await prisma.blog.findUnique({ where: { id } });
+  if (!existingBlog) {
+    return NextResponse.json({ error: "Blog not found" }, { status: 404 });
+  }
+
+  // Object-level RBAC: Admins can edit all blogs; Editors can only edit their own
+  if (session.user.role !== "ADMIN" && existingBlog.authorId && existingBlog.authorId !== session.user.id) {
+    return NextResponse.json(
+      { error: "Forbidden: You can only edit blog posts you authored" },
+      { status: 403 }
+    );
+  }
+
   const body = await request.json();
   let { title, slug, content, status, isTrashed, featuredImage, allowComments, tags, categories, excerpt, metaTitle, metaDesc, focusKeyword } = body;
 
@@ -105,7 +118,19 @@ export async function DELETE(
   const { id } = await params;
   
   const blog = await prisma.blog.findUnique({ where: { id } });
-  if (!blog || !blog.isTrashed) {
+  if (!blog) {
+    return NextResponse.json({ error: "Blog not found" }, { status: 404 });
+  }
+
+  // Object-level RBAC: Admins can delete any blog; Editors can only delete their own
+  if (session.user.role !== "ADMIN" && blog.authorId && blog.authorId !== session.user.id) {
+    return NextResponse.json(
+      { error: "Forbidden: You can only delete blog posts you authored" },
+      { status: 403 }
+    );
+  }
+
+  if (!blog.isTrashed) {
     return NextResponse.json(
       { error: "Blog must be moved to trash before permanent deletion" },
       { status: 400 }

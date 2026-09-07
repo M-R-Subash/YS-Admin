@@ -60,8 +60,44 @@ export async function POST(request: Request) {
       );
     }
 
+    const cleanEmail = String(email).trim().toLowerCase();
+    const cleanPassword = String(password);
+    const cleanRole = String(role).toUpperCase();
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      return NextResponse.json(
+        { message: "Please provide a valid email address" },
+        { status: 400 }
+      );
+    }
+
+    // Validate password complexity: minimum 8 characters, at least one letter and one number
+    if (cleanPassword.length < 8) {
+      return NextResponse.json(
+        { message: "Password must be at least 8 characters long" },
+        { status: 400 }
+      );
+    }
+
+    if (!/[A-Za-z]/.test(cleanPassword) || !/[0-9]/.test(cleanPassword)) {
+      return NextResponse.json(
+        { message: "Password must contain both letters and numbers" },
+        { status: 400 }
+      );
+    }
+
+    // Validate role
+    if (cleanRole !== "ADMIN" && cleanRole !== "EDITOR") {
+      return NextResponse.json(
+        { message: "Role must be either ADMIN or EDITOR" },
+        { status: 400 }
+      );
+    }
+
     const existingUser = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email: cleanEmail },
     });
 
     if (existingUser) {
