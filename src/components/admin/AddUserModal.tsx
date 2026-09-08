@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import {
   Dialog,
@@ -22,7 +21,6 @@ interface AddUserModalProps {
 }
 
 export function AddUserModal({ open, onOpenChange, onSuccess }: AddUserModalProps) {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 

@@ -1,7 +1,6 @@
   "use client";
 
   import { useEffect, useState } from "react";
-  import { useRouter } from "next/navigation";
   import { useForm, Controller, SubmitHandler } from "react-hook-form";
   import { zodResolver } from "@hookform/resolvers/zod";
   import {
@@ -35,7 +34,6 @@
     onSaved,
     initialData,
   }: SeoQuickEditModalProps) {
-    const router = useRouter();
     const [isSaving, setIsSaving] = useState(false);
 
     // Set default values based on initialData

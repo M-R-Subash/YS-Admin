@@ -17,7 +17,7 @@ export const seoQuickEditSchema = z.object({
     try {
       JSON.parse(val);
       return true;
-    } catch (e) {
+    } catch {
       return false;
     }
   }, "Must be valid JSON"),

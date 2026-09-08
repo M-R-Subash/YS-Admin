@@ -12,13 +12,13 @@ interface TrashModalState<T = any> {
   targetName: string;
 }
 
-interface UseTrashManagerOptions<T = any> {
+interface UseTrashManagerOptions {
   itemType?: string;
   onSuccess?: () => void | Promise<void>;
   getApiEndpoint?: (id: string, actionType: TrashActionType) => string;
 }
 
-export function useTrashManager<T = any>(options: UseTrashManagerOptions<T> = {}) {
+export function useTrashManager<T = any>(options: UseTrashManagerOptions = {}) {
   const { itemType = "item", onSuccess, getApiEndpoint } = options;
 
   const [modal, setModal] = useState<TrashModalState<T>>({

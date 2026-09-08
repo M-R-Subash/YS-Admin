@@ -15,7 +15,6 @@ import { toast } from "@/components/ui/toast";
 export default function FooterEditorClient({ initialData }: { initialData: any }) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -42,10 +41,8 @@ export default function FooterEditorClient({ initialData }: { initialData: any }
     const result = await saveFooterData(data);
     setIsSaving(false);
     if (result.success) {
-      setSaved(true);
       reset(data);
       toast.add({ title: "Footer published successfully", type: "success" });
-      setTimeout(() => setSaved(false), 2500);
     } else {
       toast.add({ title: "Failed to save footer", type: "error" });
     }

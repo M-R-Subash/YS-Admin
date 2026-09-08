@@ -85,7 +85,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           metaDesc: data.seo?.metaDesc || "",
           focusKeyword: data.seo?.focusKeyword || "",
         });
-      } catch (err) {
+      } catch {
         toast.add({ title: "Error", description: "Could not load blog post.", type: "error" });
         router.push("/blogs");
       } finally {

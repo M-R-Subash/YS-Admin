@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -41,17 +40,14 @@ export function BlogQuickEditModal({
   onSaved,
   initialData,
 }: BlogQuickEditModalProps) {
-  const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   
   const [users, setUsers] = useState<any[]>([]);
-  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
   // Fetch users for the dropdown
   useEffect(() => {
     if (isOpen) {
-      setIsLoadingUsers(true);
       fetch("/api/users")
         .then((res) => res.json())
         .then((data) => {
@@ -59,8 +55,7 @@ export function BlogQuickEditModal({
             setUsers(data.users);
           }
         })
-        .catch((err) => console.error("Failed to load users:", err))
-        .finally(() => setIsLoadingUsers(false));
+        .catch((err) => console.error("Failed to load users:", err));
     }
   }, [isOpen]);
 

@@ -18,7 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { TrashConfirmationModal, TrashActionType } from "@/components/ui/trash-confirmation-modal";
+import { TrashConfirmationModal } from "@/components/ui/trash-confirmation-modal";
 import { useTrashManager } from "@/hooks/useTrashManager";
 
 function formatDate(dateStr: string) {

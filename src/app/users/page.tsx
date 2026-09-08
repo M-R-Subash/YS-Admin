@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { getUsersColumns, User } from "./users-columns";
+import { getUsersColumns } from "./users-columns";
 import { AddUserModal } from "@/components/admin/AddUserModal";
 
 export default function UsersPage() {

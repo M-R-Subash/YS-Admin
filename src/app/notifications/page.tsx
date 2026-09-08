@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import useSWR, { mutate as globalMutate } from "swr";
 import { formatDistanceToNow, format } from "date-fns";
 import {
@@ -50,7 +50,6 @@ interface FormSubmission {
   id: string;
   formName: string;
   sourceUrl: string | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   payload: Record<string, any>;
   ipAddress: string | null;
   userAgent: string | null;

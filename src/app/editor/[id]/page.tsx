@@ -71,7 +71,6 @@ export default function EditorPage({
   const [pageId, setPageId] = useState<string>("");
   const [page, setPage] = useState<PageData | null>(null);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [schemaData, setSchemaData] = useState<any>(null);
@@ -198,15 +197,11 @@ export default function EditorPage({
       if (!(page.slug && schemaConfig)) {
         reset({ content: contentPayload });
       }
-      setSaved(true);
-      
       if (status === "published") {
         toast.add({ title: "Page published successfully", type: "success" });
       } else {
         toast.add({ title: "Page saved as draft", type: "success" });
       }
-
-      setTimeout(() => setSaved(false), 2000);
     } catch (error: any) {
       console.error("Save page error:", error);
       toast.add({
@@ -220,7 +215,6 @@ export default function EditorPage({
   }
 
   const handlePublish = () => savePage("published");
-  const handleSaveDraft = () => savePage("draft");
 
   // Toggle individual section collapse state
   const toggleSection = (id: string) => {

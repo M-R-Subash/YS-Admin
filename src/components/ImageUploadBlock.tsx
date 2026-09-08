@@ -111,7 +111,6 @@ export function ImageUploadBlock({ value, onChange, customTrigger }: ImageUpload
           {/* Inline Block Preview */}
           {normalizedValue?.url ? (
         <div className="relative group w-full h-40 rounded-sm overflow-hidden border border-border bg-black/5 flex items-center justify-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={normalizedValue.url}
             alt={normalizedValue.alt || "Preview"}
@@ -250,7 +249,6 @@ export function ImageUploadBlock({ value, onChange, customTrigger }: ImageUpload
                           onClick={() => setSelectedMedia(item)}
                           className={`relative aspect-video cursor-pointer border-2 rounded-md overflow-hidden bg-gray-200 transition-all ${selectedMedia?.public_id === item.public_id ? 'border-black shadow-md shadow-black/20 scale-[0.98]' : 'border-transparent hover:border-black/30 hover:shadow-sm'}`}
                         >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={item.secure_url}
                             alt={item.public_id}
@@ -301,7 +299,6 @@ export function ImageUploadBlock({ value, onChange, customTrigger }: ImageUpload
                     </div>
                     
                     <div className="w-full aspect-square relative bg-gray-200 border border-border rounded-md overflow-hidden mb-4">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={selectedMedia.secure_url} alt="Selected" className="w-full h-full object-contain absolute inset-0" />
                     </div>
                     
@@ -364,7 +361,6 @@ export function ImageUploadBlock({ value, onChange, customTrigger }: ImageUpload
           <div className="grid gap-4 py-4">
             {normalizedValue?.url && (
               <div className="relative w-full h-72 rounded-sm overflow-hidden bg-black/5 border border-border">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={normalizedValue.url} alt="Preview" className="w-full h-full object-contain absolute inset-0" />
               </div>
             )}

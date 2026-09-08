@@ -124,7 +124,7 @@ export default function AccountPage() {
         description: "Your profile has been updated.",
         type: "success",
       });
-    } catch (error) {
+    } catch {
       toast.add({
         title: "Error",
         description: "Failed to save profile changes.",

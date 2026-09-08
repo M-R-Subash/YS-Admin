@@ -52,7 +52,7 @@ export default function LoginPage() {
         router.push("/");
         router.refresh();
       }
-    } catch (error) {
+    } catch {
       toast.add({
         title: "Too Many Attempts",
         description: "Too many login attempts detected. Please try again after 5 minutes.",

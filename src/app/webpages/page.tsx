@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import useSWR, { mutate as globalMutate } from "swr";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Search, Menu, FileText, ExternalLink, Globe, CheckCircle2, FileEdit, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,7 +23,6 @@ export default function WebpagesPage() {
   const [statusFilter, setStatusFilter] = useState<
     "all" | "published" | "draft" | "trash"
   >("all");
-  const router = useRouter();
 
   const { data, isLoading, mutate } = useSWR<Page[]>("/api/pages");
   const pages = Array.isArray(data) ? data : [];

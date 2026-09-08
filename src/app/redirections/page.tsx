@@ -64,7 +64,7 @@ interface RedirectionItem {
 
 export default function RedirectionsPage() {
   const { data: redirectionsData, isLoading: loading, mutate } = useSWR("/api/redirection?status=all");
-  const redirections: RedirectionItem[] = redirectionsData || [];
+  const redirections = useMemo<RedirectionItem[]>(() => redirectionsData || [], [redirectionsData]);
   
   const [activeTab, setActiveTab] = useState<"all" | "active" | "inactive" | "trashed">("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -219,7 +219,7 @@ export default function RedirectionsPage() {
       } else {
         throw new Error("Failed to update status");
       }
-    } catch (err) {
+    } catch {
       toast.add({ title: "Failed to update status", type: "error" });
     } finally {
       setStatusConfirmModal({ isOpen: false, item: null, nextStatus: null, loading: false });

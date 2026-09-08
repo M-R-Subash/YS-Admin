@@ -33,7 +33,6 @@ const SchemaEditor = forwardRef(function SchemaEditor(
     uiSchema,
     zodSchema,
     previewEventType,
-    title,
   }: SchemaEditorProps,
   ref,
 ) {
@@ -142,7 +141,7 @@ const SchemaEditor = forwardRef(function SchemaEditor(
       }
     });
     return () => subscription.unsubscribe();
-  }, [form.watch, sendToPreview, onDataChange]);
+  }, [form, sendToPreview, onDataChange]);
 
   const scrollToSection = useCallback(
     (sectionName: string) => {
