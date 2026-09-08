@@ -57,9 +57,12 @@ export function ImageUploadBlock({ value, onChange, customTrigger }: ImageUpload
 
   useEffect(() => {
     if (isMediaModalOpen && activeTab === "media" && mediaItems.length === 0) {
-      fetchMedia();
+      const timer = setTimeout(() => {
+        fetchMedia();
+      }, 0);
+      return () => clearTimeout(timer);
     }
-  }, [isMediaModalOpen, activeTab]);
+  }, [isMediaModalOpen, activeTab, mediaItems.length]);
 
   const handleUpload = async (file: File) => {
     if (!file) return;

@@ -74,11 +74,13 @@ const uploadToCloudinary = async (file: File): Promise<string> => {
   return data.secure_url;
 };
 
+const emptySubscribe = () => () => {};
+
 export default function BlogEditor({
   initialContent,
   onChange,
 }: BlogEditorProps) {
-  const [isMounted, setIsMounted] = useState(false);
+  const isMounted = React.useSyncExternalStore(emptySubscribe, () => true, () => false);
   
   // Link popover state
   const [showLinkPopover, setShowLinkPopover] = useState(false);
@@ -91,10 +93,6 @@ export default function BlogEditor({
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(3);
   const [, setTick] = useState(0);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   const editor = useEditor({
     extensions: [
@@ -220,12 +218,6 @@ export default function BlogEditor({
     return <div className="h-100 bg-card border rounded-xl animate-pulse"></div>;
   }
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const url = await uploadToCloudinary(e.target.files[0]);
-      editor.chain().focus().setImage({ src: url }).run();
-    }
-  };
 
   const addLink = () => {
     if (!linkUrl.trim()) {

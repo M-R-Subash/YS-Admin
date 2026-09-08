@@ -1,15 +1,25 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
 import { Home, ArrowLeft } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 
+const emptySubscribe = () => () => {};
+
 export default function NotFound() {
-  const [mounted, setMounted] = useState(false);
-  const [isDark, setIsDark] = useState(true);
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+  const isDark = useSyncExternalStore(
+    (onChange) => {
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      mediaQuery.addEventListener("change", onChange);
+      return () => mediaQuery.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia("(prefers-color-scheme: dark)").matches || document.documentElement.classList.contains("dark"),
+    () => true
+  );
   const [isPrankRevealed, setIsPrankRevealed] = useState(false);
   const [showLearnMore, setShowLearnMore] = useState(false);
   const [buttonWobble, setButtonWobble] = useState(false);
@@ -33,30 +43,9 @@ export default function NotFound() {
   }, []);
 
   useEffect(() => {
-    setMounted(true);
-
-    // Detect dark or light mode from OS/Browser
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const isDarkMode =
-      mediaQuery.matches || document.documentElement.classList.contains("dark");
-    setIsDark(isDarkMode);
-
-    // Ensure .dark class is on <html> so shadcn toast matches dark theme
-    const hadDarkClass = document.documentElement.classList.contains("dark");
-    if (isDarkMode) {
+    if (isDark) {
       document.documentElement.classList.add("dark");
     }
-
-    const handleThemeChange = (e: MediaQueryListEvent) => {
-      setIsDark(e.matches);
-      if (e.matches) {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
-    };
-
-    mediaQuery.addEventListener("change", handleThemeChange);
 
     // Automatic prank reveal after exactly 3.0 seconds
     const timer = setTimeout(() => {
@@ -64,13 +53,9 @@ export default function NotFound() {
     }, 3000);
 
     return () => {
-      mediaQuery.removeEventListener("change", handleThemeChange);
       clearTimeout(timer);
-      if (!hadDarkClass) {
-        document.documentElement.classList.remove("dark");
-      }
     };
-  }, [showPrankToast]);
+  }, [isDark, showPrankToast]);
 
   const handleReloadClick = (e: React.MouseEvent) => {
     if (!isPrankRevealed) {

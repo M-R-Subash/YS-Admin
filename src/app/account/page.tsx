@@ -35,20 +35,19 @@ export default function AccountPage() {
 
   useEffect(() => {
     if (session?.user) {
-      setName(session.user.name || "");
-      setEmail(session.user.email || "");
-      setProfilePicture(session.user.image || "");
-      
       // Fetch full profile data including description and authorRole
       fetch("/api/account")
         .then((res) => res.json())
         .then((data) => {
+          setName(session.user.name || data?.name || "");
+          setEmail(session.user.email || data?.email || "");
+          setProfilePicture(session.user.image || data?.profilePicture || "");
           if (data) {
             setDescription(data.description || "");
             setAuthorRole(data.authorRole || "");
             setInitialValues({
-              name: data.name || "",
-              profilePicture: data.profilePicture || "",
+              name: data.name || session.user.name || "",
+              profilePicture: data.profilePicture || session.user.image || "",
               description: data.description || "",
               authorRole: data.authorRole || "",
             });

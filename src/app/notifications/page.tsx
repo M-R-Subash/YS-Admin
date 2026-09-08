@@ -101,7 +101,7 @@ interface SubmissionsResponse {
 }
 
 export default function NotificationsPage() {
-  const [selectedSubmission, setSelectedSubmission] =
+  const [selectedSubmissionState, setSelectedSubmission] =
     useState<FormSubmission | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "unread" | "read" | "trashed">("all");
@@ -119,14 +119,10 @@ export default function NotificationsPage() {
 
   const loading = isSubLoading && !subData;
 
-  useEffect(() => {
-    if (selectedSubmission && subData?.submissions) {
-      const found = subData.submissions.find((s) => s.id === selectedSubmission.id);
-      if (found && (found.isRead !== selectedSubmission.isRead || found.isTrashed !== selectedSubmission.isTrashed)) {
-        setSelectedSubmission(found);
-      }
-    }
-  }, [subData, selectedSubmission]);
+  const selectedSubmission =
+    (selectedSubmissionState &&
+      subData?.submissions?.find((s) => s.id === selectedSubmissionState.id)) ||
+    selectedSubmissionState;
 
   const handleRefresh = async () => {
     setIsRefreshing(true);

@@ -41,7 +41,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const filter = searchParams.get("status"); // "active" | "inactive" | "trashed" | "all"
 
-    let whereClause: any = {};
+    const whereClause: any = {};
     if (filter && filter !== "all") {
       whereClause.status = filter;
     }

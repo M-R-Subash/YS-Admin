@@ -17,10 +17,7 @@ export function ScreenLoader({
   const [visible, setVisible] = useState(delayMs === 0);
 
   useEffect(() => {
-    if (delayMs === 0) {
-      setVisible(true);
-      return;
-    }
+    if (delayMs === 0) return;
     const timer = setTimeout(() => {
       setVisible(true);
     }, delayMs);

@@ -38,7 +38,8 @@ export async function PUT(
 
   const { id } = await params;
   const body = await request.json();
-  let { title, slug, content, status, isTrashed } = body;
+  const { title, slug, content, isTrashed } = body;
+  let { status } = body;
 
   if (isTrashed === true) {
     status = "draft";
