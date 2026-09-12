@@ -5,6 +5,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 import { MoreHorizontal, MessageSquare, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { toast } from "@/components/ui/toast";
 import { BlogQuickEditModal } from "@/components/admin/BlogQuickEditModal";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -33,6 +34,8 @@ function formatDate(dateStr: string) {
 // Action Component
 export const ActionCell = ({ blog, onDataChange }: { blog: any; onDataChange: () => void }) => {
   const router = useRouter();
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role === "ADMIN";
   const [seoOpen, setSeoOpen] = useState(false);
 
   const { modal, loading, openTrashModal, closeModal, handleConfirm } =
@@ -136,12 +139,16 @@ export const ActionCell = ({ blog, onDataChange }: { blog: any; onDataChange: ()
                   Restore
                 </DropdownMenuItem>
               </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => openTrashModal("delete", blog, blog.id, blog.title)} className="text-red-500 focus:text-red-500 focus:bg-red-50">
-                  Permanently Delete
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
+              {isAdmin && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem onClick={() => openTrashModal("delete", blog, blog.id, blog.title)} className="text-red-500 focus:text-red-500 focus:bg-red-50">
+                      Permanently Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </>
+              )}
             </>
           )}
         </DropdownMenuContent>

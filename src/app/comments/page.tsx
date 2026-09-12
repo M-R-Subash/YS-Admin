@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import useSWR, { mutate as globalMutate } from "swr";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -88,6 +89,18 @@ interface CommentsResponse {
 }
 
 function CommentsPageContent() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  // Security Check: Comments moderation is restricted to ADMIN only
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+    } else if (status === "authenticated" && session?.user?.role !== "ADMIN") {
+      router.push("/webpages");
+    }
+  }, [status, session, router]);
+
   const searchParams = useSearchParams();
   const initialBlogId = searchParams.get("blogId") || "all";
 
@@ -114,7 +127,8 @@ function CommentsPageContent() {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const endpoint = `/api/comments?filter=${filter}&blogId=${selectedBlogId}`;
+  const isAuthorized = status === "authenticated" && session?.user?.role === "ADMIN";
+  const endpoint = isAuthorized ? `/api/comments?filter=${filter}&blogId=${selectedBlogId}` : null;
   const { data: commentsData, isLoading: isCommentsLoading, mutate } = useSWR<CommentsResponse>(endpoint);
 
   const comments = commentsData?.comments ?? [];
@@ -372,6 +386,15 @@ function CommentsPageContent() {
   };
 
   const modalConfig = getModalConfig();
+
+  if (status === "loading" || (status === "authenticated" && session?.user?.role !== "ADMIN")) {
+    return (
+      <div className="flex flex-col gap-4 p-8">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
 
   return (
     <TooltipProvider>

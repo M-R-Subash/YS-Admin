@@ -10,13 +10,16 @@ export async function GET() {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const [unreadSubmissions, pendingComments] = await prisma.$transaction([
+    const isUserAdmin = session.user.role === "ADMIN";
+    const [unreadSubmissions, pendingComments] = await Promise.all([
       prisma.formSubmission.count({
         where: { isTrashed: false, isRead: false },
       }),
-      prisma.comment.count({
-        where: { isTrashed: false, isApproved: false },
-      }),
+      isUserAdmin
+        ? prisma.comment.count({
+            where: { isTrashed: false, isApproved: false },
+          })
+        : Promise.resolve(0),
     ]);
 
     return NextResponse.json({

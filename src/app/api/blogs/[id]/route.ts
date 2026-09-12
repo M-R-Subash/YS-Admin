@@ -38,13 +38,6 @@ export async function PUT(
     return NextResponse.json({ error: "Blog not found" }, { status: 404 });
   }
 
-  // Object-level RBAC: Admins can edit all blogs; Editors can only edit their own
-  if (session.user.role !== "ADMIN" && existingBlog.authorId && existingBlog.authorId !== session.user.id) {
-    return NextResponse.json(
-      { error: "Forbidden: You can only edit blog posts you authored" },
-      { status: 403 }
-    );
-  }
 
   const body = await request.json();
   const { title, slug, content, isTrashed, featuredImage, allowComments, tags, categories, excerpt, metaTitle, metaDesc, focusKeyword } = body;
@@ -123,10 +116,10 @@ export async function DELETE(
     return NextResponse.json({ error: "Blog not found" }, { status: 404 });
   }
 
-  // Object-level RBAC: Admins can delete any blog; Editors can only delete their own
-  if (session.user.role !== "ADMIN" && blog.authorId && blog.authorId !== session.user.id) {
+  // Role-level RBAC: Only Admins can permanently delete blog posts
+  if (session.user.role !== "ADMIN") {
     return NextResponse.json(
-      { error: "Forbidden: You can only delete blog posts you authored" },
+      { error: "Forbidden: Only administrators can permanently delete blog posts" },
       { status: 403 }
     );
   }

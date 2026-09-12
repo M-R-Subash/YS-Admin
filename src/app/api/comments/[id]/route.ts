@@ -12,6 +12,9 @@ export async function PATCH(
     if (!session) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
+    if (session.user.role !== "ADMIN") {
+      return NextResponse.json({ message: "Forbidden: Admin access required" }, { status: 403 });
+    }
 
     const { id } = await params;
     const body = await request.json();
@@ -56,6 +59,9 @@ export async function DELETE(
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+    if (session.user.role !== "ADMIN") {
+      return NextResponse.json({ message: "Forbidden: Admin access required" }, { status: 403 });
     }
 
     const { id } = await params;

@@ -74,7 +74,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const filteredNavMain = React.useMemo(() => {
     return navItems
       .filter((item) => {
-        if (item.title === "Users") {
+        if (item.title === "Users" || item.title === "Comments") {
           return session?.user?.role === "ADMIN"
         }
         return true

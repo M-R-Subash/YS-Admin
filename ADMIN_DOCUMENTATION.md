@@ -2,8 +2,8 @@
 
 > **System Version:** 2.4.0-Hardened  
 > **Environment:** Next.js 16 (App Router) / React 19 / Prisma 7 / PostgreSQL (Supabase) / NextAuth.js  
-> **Author:** Engineering Team  
-> **Classification:** Internal Engineering & Operational Documentation  
+> **Author:** Subash M.R  
+> **Classification:** Confidential — Proprietary Internal Engineering & Operational Architecture Manual  
 
 ---
 
@@ -11,22 +11,22 @@
 1. [System Overview & Architecture Topology](#1-system-overview--architecture-topology)
 2. [Role-Based Access Control (RBAC) Matrix](#2-role-based-access-control-rbac-matrix)
 3. [PART 1: Operational User Manual (Action-Driven UI & System Workflows)](#part-1-operational-user-manual)
-   - [Module 1: Authentication & Session Lifecycle](#module-1-authentication--session-lifecycle)
+   - [Module 1: Authentication & Next.js 16 Proxy Lifecycle](#module-1-authentication--nextjs-16-proxy-lifecycle)
    - [Module 2: Dashboard Overview & Telemetry](#module-2-dashboard-overview--telemetry)
-   - [Module 3: Webpages Management](#module-3-webpages-management)
-   - [Module 4: Live Visual Block Editor](#module-4-live-visual-block-editor)
-   - [Module 5: Blog Publishing Engine](#module-5-blog-publishing-engine)
+   - [Module 3: Webpages Management & SEO Engine (SEO Quick Edit Modal)](#module-3-webpages-management--seo-engine)
+   - [Module 4: Live Schema-Driven Page Editor](#module-4-live-schema-driven-page-editor)
+   - [Module 5: Blog Publishing Engine & Quick Edit Modal](#module-5-blog-publishing-engine--quick-edit-modal)
    - [Module 6: Comments & Discussions Moderation](#module-6-comments--discussions-moderation)
    - [Module 7: Global Header Navigation Manager](#module-7-global-header-navigation-manager)
    - [Module 8: Global Footer & Legal Manager](#module-8-global-footer--legal-manager)
    - [Module 9: Cloudinary Media Library](#module-9-cloudinary-media-library)
    - [Module 10: Staff & User Management](#module-10-staff--user-management)
-   - [Module 11: Notification Center](#module-11-notification-center)
+   - [Module 11: Customer Inquiries & Form Submissions Inbox](#module-11-customer-inquiries--form-submissions-inbox)
    - [Module 12: Redirects & Canonical Routing](#module-12-redirects--canonical-routing)
-   - [Module 13: "Aw, Snap!" Tab Crash Prank Screen](#module-13-aw-snap-tab-crash-prank-screen)
+   - [Module 13: Staff Profile & Account Settings](#module-13-staff-profile--account-settings)
 4. [PART 2: Deep-Dive Security & Hardening Architecture](#part-2-deep-dive-security--hardening-architecture)
    - [2.1 Cryptographic Password Storage (Bcrypt 12 Salt Rounds)](#21-cryptographic-password-storage-bcrypt-12-salt-rounds)
-   - [2.2 Brute-Force Defense & In-Memory Rate Limiting](#22-brute-force-defense--in-memory-rate-limiting)
+   - [2.2 Next.js 16 Proxy Architecture & Sliding-Window Rate Limiting](#22-nextjs-16-proxy-architecture--sliding-window-rate-limiting)
    - [2.3 Anti-Bot Honeypot Defense Architecture](#23-anti-bot-honeypot-defense-architecture)
    - [2.4 Identity Spoofing Mitigation (Authoritative Badging)](#24-identity-spoofing-mitigation-authoritative-badging)
    - [2.5 Object-Level Authorization & RBAC Enforcement](#25-object-level-authorization--rbac-enforcement)
@@ -82,31 +82,33 @@ The **YS Admin CMS** is a headless content and configuration engine powering the
 
 # 2. Role-Based Access Control (RBAC) Matrix
 
-The system enforces strict multi-tier role authorization. Privileges are verified at both the middleware layer (`proxy.ts`) and individual API route handlers.
+The system enforces strict multi-tier role authorization. Privileges are verified at both the modern Next.js 16 Proxy layer (`src/proxy.ts`, which supersedes legacy `middleware.ts`) and individual API route handlers.
 
 | Capability / Resource | `ADMIN` Role | `EDITOR` Role | Unauthenticated Visitor |
 | :--- | :---: | :---: | :---: |
-| **Access CMS Dashboard** | Granted | Granted | Redirected to `/login` |
-| **Create / Edit Own Blog Posts** | Granted | Granted | Denied (401) |
-| **Edit / Delete Other Authors' Blogs** | Granted | **Denied (403)** | Denied (401) |
-| **Create Web Pages** | Granted | Granted | Denied (401) |
-| **Delete Web Pages** | Granted | **Denied (403)** | Denied (401) |
+| **Access CMS Dashboard** | Granted | Granted | Denied (Redirect to `/login` / 401) |
+| **Edit Page Content & SEO Metadata** | Granted | Granted | Denied (401) |
+| **Move Pages / Blogs to Trash** | Granted | Granted (All blogs) | Denied (401) |
+| **Permanently Purge Trashed Pages** | Granted | **Denied (403)** | Denied (401) |
+| **Create & Edit All Blog Posts** | Granted | Granted (Universal) | Denied (401) |
+| **Permanently Purge Trashed Blogs** | Granted | **Denied (403)** | Denied (401) |
 | **Cloudinary Media Upload** | Granted | Granted | Denied (401) |
 | **Permanently Destroy Media** | Granted | **Denied (403)** | Denied (401) |
 | **Create Staff Users & Set Roles** | Granted | **Denied (403)** | Denied (401) |
-| **Moderate & Reply to Comments** | Granted (`isAdmin: true`) | Granted (`isAdmin: true`) | Public form only |
-| **Global Header / Footer Config** | Granted | Granted | Read-only public |
+| **Moderate & Reply to Comments** | Granted (`isAdmin: true`) | **Denied (Hidden from Sidebar)** | Denied (401) |
+| **Global Header / Footer Config** | Granted | Granted | Denied (401) |
+| **Manage Personal Account Profile** | Granted | Granted | Denied (401) |
 
 ---
 
 # PART 1: Operational User Manual
 ### (Action-Driven UI & System Workflows)
 
-This section documents every administrative capability in the exact format requested by engineering leads: **Action $\rightarrow$ UI Trigger $\rightarrow$ System Execution $\rightarrow$ Database Mutations $\rightarrow$ Cache Effects $\rightarrow$ Edge Case Failures.**
+This section documents every administrative capability in the exact format requested by engineering leads: **Action -> UI Trigger -> System Execution -> Database Mutations -> Cache Effects -> Edge Case Failures.**
 
 ---
 
-### Module 1: Authentication & Session Lifecycle
+### Module 1: Authentication & Next.js 16 Proxy Lifecycle
 * **Path:** `/login`
 * **Target Audience:** All staff members (`ADMIN` and `EDITOR`).
 
@@ -114,7 +116,7 @@ This section documents every administrative capability in the exact format reque
 * **Trigger:** User fills in Email + Password and clicks **"Sign In"**.
 * **UI Feedback:** Sign In button enters loading state (`spinner` active, inputs disabled).
 * **Under The Hood:**
-  1. Payload intercepted by `src/proxy.ts`. Rate limiter verifies IP has not exceeded 10 attempts in 5 minutes.
+  1. Payload intercepted by Next.js 16 Proxy (`src/proxy.ts`). Sliding-window rate limiter verifies client IP has not exceeded 10 attempts in 5 minutes.
   2. NextAuth `CredentialsProvider` queries PostgreSQL `User` table for matching normalized email.
   3. `bcrypt.compare(password, user.password)` validates password hash against 12-round salt.
   4. Upon success, `lastLogin` timestamp in database updates to `new Date()`.
@@ -128,9 +130,9 @@ This section documents every administrative capability in the exact format reque
   * *Rate Limit Triggered (10 fails in 5m):* Request returns `HTTP 429`. UI displays warning: *"Too many failed login attempts. Please try again after 5 minutes."*
 
 #### Action 1.2: Explicit Staff Logout
-* **Trigger:** User clicks Profile Avatar (bottom left) $\rightarrow$ **"Log out"**.
+* **Trigger:** User clicks Profile Avatar (bottom left) -> **"Log out"**.
 * **UI Feedback:** Immediate redirect to `/login` with clean query params.
-* **Under The Hood:** NextAuth invalidates the JWT session cookie in the browser. Subsequent page requests are intercepted by `proxy.ts` and redirected to `/login`.
+* **Under The Hood:** NextAuth invalidates the JWT session cookie in the browser. Subsequent page requests are intercepted by Next.js 16 Proxy (`src/proxy.ts`) and redirected to `/login`.
 
 ---
 
@@ -146,101 +148,152 @@ This section documents every administrative capability in the exact format reque
 
 ---
 
-### Module 3: Webpages Management
+### Module 3: Webpages Management & SEO Engine
 * **Path:** `/webpages`
 * **Target Audience:** Content Managers & Site Administrators.
 
-#### Action 3.1: Create New Page
-* **Trigger:** Click **"+ New Page"** $\rightarrow$ Enter Title (e.g. *"Services"*) $\rightarrow$ Slug automatically generates (`/services`) $\rightarrow$ Click **"Create"**.
-* **UI Feedback:** Modal closes, loading bar triggers, browser navigates to `/editor/[pageId]`.
-* **Database Mutation:**
-  ```sql
-  INSERT INTO "Page" ("id", "title", "slug", "content", "published", "createdAt", "updatedAt")
-  VALUES (cuid(), 'Services', 'services', '[]', false, NOW(), NOW());
-  ```
-* **Failure Modes:** If slug is duplicate, database throws unique constraint error (`P2002`). UI displays: *"A page with this URL slug already exists."*
+#### Action 3.1: Schema-Driven Webpage Catalog & Lifecycle Management
+* **Overview:** In accordance with the system's strict architectural directives, website pages are defined by developer code schemas (`homepage-ui-schema.ts`, `careers-ui-schema.ts`, `contact-ui-schema.ts`, `services-ui-schema.ts`). Content editors manage text payloads, media, SEO metadata, and publish statuses without altering raw layout structures.
+* **UI Controls:**
+  * **Global Header / Footer Quick Access:** Dedicated top cards directing to `/header` and `/footer`.
+  * **Live Site Shortcut:** "View Site" header button opening the frontend client (`main.ys`).
+  * **4 Status Metric Filter Tabs:** Interactively filters pages by **All** (`totalCount`), **Published** (`publishedCount`), **Drafts** (`draftCount`), and **Trash** (`trashedCount`).
+  * **Search Bar:** Real-time filtering by page title or URL slug.
 
-#### Action 3.2: Delete Page (Admin Only)
-* **Trigger:** Click `...` menu on page row $\rightarrow$ Click **"Delete"** $\rightarrow$ Confirm prompt.
-* **UI Feedback:** Row fades out with red delete notification.
+#### Action 3.2: SEO Quick Edit Modal (`SeoQuickEditModal.tsx`)
+* **Trigger:** Click `...` menu on any webpage row -> Click **"Edit SEO"**.
+* **UI Feedback:** Modal opens displaying comprehensive search optimization inputs:
+  * **Page Title & URL Slug:** Core route identity.
+  * **Search Engine Meta Title:** Input with live character count recommendation (recommended: 50–60 chars).
+  * **Search Engine Meta Description:** Textarea with live character counter (recommended: 150–160 chars).
+  * **Focus Keyword:** Primary keyword for target ranking.
+  * **OpenGraph Social Share Image:** Dropzone with direct client-side Cloudinary unsigned upload (`ImageUploadBlock`).
+  * **OpenGraph Title & Description:** Overrides for Facebook/LinkedIn/Twitter previews.
+  * **Canonical URL:** Custom canonical link tag to consolidate duplicate URL equity.
+  * **Structured Data (JSON-LD):** Raw JSON textarea with syntax error validation for Google rich snippets.
+  * **Search Engine Indexing Switch:** Toggle for `noIndex` (adds `noindex, nofollow` robots tag).
 * **Under The Hood:**
-  1. `DELETE /api/pages/[id]` checks `session.user.role === "ADMIN"`.
-  2. If `EDITOR` attempts this request, server returns `HTTP 403 Forbidden`.
-  3. Database deletes the page record.
-  4. Triggers ISR purge to remove cached static HTML from `main.ys`.
-* **Live Site Effect:** Visiting `main.ys/[slug]` immediately yields a `404 Not Found`.
-
----
-
-### Module 4: Live Visual Block Editor
-* **Path:** `/editor/[id]`
-* **Target Audience:** Designers & Content Editors.
-
-#### Action 4.1: Drag-and-Drop Block Reordering
-* **Trigger:** User grabs handle of a section block (e.g. Hero, Testimonials) and drags it above/below another section.
-* **UI Feedback:** `@dnd-kit` animates smooth layout shifts in real time. Live preview iframe re-renders order instantly.
-* **Under The Hood:** State maintains ordered array of block JSON objects. Does not touch database until **"Save"** is clicked.
-
-#### Action 4.2: Inline Rich-Text Editing (TipTap)
-* **Trigger:** User clicks inside heading or body paragraph to edit text or format bold/italic/links.
-* **UI Feedback:** TipTap floating bubble menu appears; iframe preview reflects changes live via `postMessage`.
-
-#### Action 4.3: Save & Publish Page
-* **Trigger:** Click **"Publish Changes"** in top navbar.
-* **UI Feedback:** Button changes to *"Publishing..."* with spinning loader $\rightarrow$ turns to green checkmark *"Published"*.
+  1. Validates form data against Zod schema `seoQuickEditSchema`.
+  2. Dispatches `PUT /api/webpages/[id]/seo`.
+  3. Server upserts the associated `SeoMeta` 1-to-1 record attached to the `Page`.
+  4. Triggers `revalidateFrontendPath(page.slug)` on `main.ys` to purge edge CDN caches.
 * **Database Mutation:**
   ```sql
-  UPDATE "Page" SET "content" = :blocksJson, "published" = true, "updatedAt" = NOW() WHERE "id" = :pageId;
+  INSERT INTO "SeoMeta" (
+    "id", "metaTitle", "metaDesc", "focusKeyword", "ogImage", 
+    "ogTitle", "ogDesc", "canonicalUrl", "structuredData", "noIndex", "pageId"
+  ) VALUES (
+    cuid(), :metaTitle, :metaDesc, :focusKeyword, :ogImage,
+    :ogTitle, :ogDesc, :canonicalUrl, :structuredDataJson, :noIndex, :pageId
+  )
+  ON CONFLICT ("pageId") DO UPDATE SET
+    "metaTitle" = :metaTitle,
+    "metaDesc" = :metaDesc,
+    "focusKeyword" = :focusKeyword,
+    "ogImage" = :ogImage,
+    "ogTitle" = :ogTitle,
+    "ogDesc" = :ogDesc,
+    "canonicalUrl" = :canonicalUrl,
+    "structuredData" = :structuredDataJson,
+    "noIndex" = :noIndex;
   ```
-* **Live Site Effect:** Sends authenticated HTTP POST to `main.ys/api/revalidate?secret=...&path=/[slug]`. Next.js purges CDN edge cache; public visitors immediately see new page version.
+* **Live Site Effect:** Search crawlers and social scrapers (WhatsApp, Twitter/X, Slack, Googlebot) immediately receive the refreshed OpenGraph image and JSON-LD schema without deploying code.
+
+#### Action 3.3: Two-Step Soft-Delete & Permanent Trash Purge
+* **Step 1 (Move to Trash):** Click `...` menu on page row -> Click **"Move to Trash"**.
+  * *Database Mutation:* Updates `"Page" SET "isTrashed" = true, "status" = 'draft'`.
+  * *UI Feedback:* Item moves from Active list to the "Trash" tab.
+* **Step 2 (Permanent Deletion — Admin Only):** Switch to "Trash" tab -> Click `...` -> Click **"Permanently Delete"** -> Confirm prompt.
+  * *Under The Hood:* `DELETE /api/pages/[id]` checks `session.user.role === "ADMIN"`.
+  * *Safety Assertion:* If an API request attempts to permanently delete an active page without it being trashed first (`!page.isTrashed`), the server rejects with `HTTP 400 Bad Request: Page must be moved to trash before permanent deletion`.
+  * *Database Mutation:* Deletes the page record (`DELETE FROM "Page" WHERE "id" = :id`).
+  * *Live Site Effect:** Sends ISR cache purge webhook to `main.ys`. Visiting `main.ys/[slug]` yields a clean `404 Not Found`.
 
 ---
 
-### Module 5: Blog Publishing Engine
+### Module 4: Live Schema-Driven Page Editor
+* **Path:** `/editor/[id]`
+* **Target Audience:** Content Editors & Administrators.
+
+#### Action 4.1: Schema-Driven Accordion Sections (`SchemaEditor.tsx`)
+* **Overview:** Instead of unconstrained visual dragging that risks breaking mobile layout responsiveness, the editor renders developer-approved structural schemas (`homepage-ui-schema.ts`, `careers-ui-schema.ts`, etc.) inside collapsible accordions.
+* **UI Feedback:** Sections (Hero, Features, Testimonials, CTA, FAQ) feature smooth expand/collapse toggles, "Expand All", and "Collapse All" controls.
+* **Input Fields:** Form controls automatically render typed inputs (text, textareas, image upload widgets with Cloudinary integration, array item repeaters) strictly matching the underlying page JSON schema.
+
+#### Action 4.2: Real-Time Debounced Live Preview Synchronization
+* **Trigger:** Editor types text or selects images inside any form field.
+* **Under The Hood:**
+  1. Form state subscribes to changes via React Hook Form `watch()`.
+  2. A 300ms debouncing hook (`sendToPreview`) transmits the updated section payload to the preview iframe using `postMessage`.
+  3. The iframe (`main.ys`) listens for `PREVIEW_UPDATE` messages and re-renders components instantly without triggering page reloads.
+
+#### Action 4.3: Save Draft & Publish Page
+* **Trigger:** Click **"Save Draft"** or **"Publish Changes"** in the top navbar.
+* **Validation Enforcement:** Before saving, `SchemaEditor` executes strict Zod schema validation (`schemaEditorRef.current.validate()`). If any required field or structure violates Zod rules, submission halts and the invalid input highlights with an error message.
+* **UI Feedback:** Button states update smoothly (`Publishing...` -> `Page published successfully`).
+* **Database Mutation:**
+  ```sql
+  UPDATE "Page" 
+  SET "content" = :jsonPayload, "status" = 'published', "updatedAt" = NOW() 
+  WHERE "id" = :pageId;
+  ```
+* **Live Site Effect:** Dispatches authenticated HTTP POST to `main.ys/api/revalidate`. Next.js on-demand ISR regenerates static HTML for that slug; public visitors immediately see the updated content.
+
+---
+
+### Module 5: Blog Publishing Engine & Quick Edit Modal
 * **Path:** `/blogs` & `/blogs/[id]`
-* **Target Audience:** Authors, Copywriters, and Admins.
+* **Target Audience:** Authors, Copywriters, and Administrators.
 
 #### Action 5.1: Create Draft Blog Post
-* **Trigger:** Click **"Create Post"** $\rightarrow$ Enter title, summary, select tags.
-* **Database Mutation:** New `Blog` record created with status `DRAFT` and `authorId = session.user.id`.
+* **Trigger:** Click **"Create Post"** -> Enter title, summary, select tags.
+* **Database Mutation:** New `Blog` record created with status `draft` and `authorId = session.user.id`.
 
 #### Action 5.2: Direct Cloudinary Unsigned Image Upload
 * **Trigger:** User drops featured image into upload box.
-* **UI Feedback:** Upload progress percentage bar (0% $\rightarrow$ 100%) renders inside the drop zone.
+* **UI Feedback:** Upload progress percentage bar (0% -> 100%) renders inside the drop zone.
 * **Under The Hood:**
   1. Browser bypasses Next.js server entirely and posts directly to Cloudinary API using `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET`.
   2. Cloudinary returns secure HTTPS CDN URL.
   3. Image URL saved in post state. Zero server memory or bandwidth consumed on CMS backend.
 
-#### Action 5.3: Publish Post
-* **Trigger:** Click **"Publish"** switch.
-* **Database Mutation:** Status becomes `PUBLISHED`, `publishedAt = NOW()`.
-* **Live Site Effect:** Calls `main.ys/api/revalidate?path=/blogs` (updating blog archive) and `/blogs/[slug]` (updating single article).
+#### Action 5.3: Rich-Text Article Authoring (TipTap Engine)
+* **Trigger:** Click into the body text area in `/blogs/[id]`.
+* **UI Feedback:** Full rich-text WYSIWYG capabilities powered by `@tiptap/react` and `@tiptap/starter-kit`. Includes floating bubble menu, headings, blockquotes, unordered/ordered lists, underline, inline links, embedded images, and data tables (`@tiptap/extension-table`).
 
-#### Action 5.4: Edit / Delete Ownership Restriction
-* **Trigger:** An `EDITOR` attempts to edit or delete a post authored by another staff member.
-* **Under The Hood:**
-  `src/app/api/blogs/[id]/route.ts` executes ownership check:
-  ```typescript
-  if (session.user.role !== "ADMIN" && blog.authorId !== session.user.id) {
-    return NextResponse.json({ error: "Forbidden: You can only modify your own posts" }, { status: 403 });
-  }
-  ```
-* **UI Feedback:** Access denied toast appears; editor form remains locked.
+#### Action 5.4: Publish & Draft Toggle
+* **Trigger:** Click **"Publish"** switch or button.
+* **Database Mutation:** Status becomes `published`, `publishedAt = NOW()`.
+* **Live Site Effect:** Calls `revalidateFrontendPath("/blogs")` (updating archive) and `revalidateFrontendPath("/blogs/[slug]")` (updating single article).
+
+#### Action 5.5: Blog Quick Edit Modal (`BlogQuickEditModal.tsx`)
+* **Trigger:** Click `...` menu on any blog row -> Click **"Quick Edit"**.
+* **UI Feedback:** Modal opens allowing instant metadata changes without loading the heavy TipTap editor:
+  * **Blog Title & URL Slug**
+  * **Author Attribution Select** (Admin can reassign post author)
+  * **Tags & Categories**
+  * **Allow Comments Switch**
+  * **Complete Search Engine SEO Metadata:** Meta Title, Meta Description, Focus Keyword, Canonical URL, and `noIndex` toggle.
+* **Under The Hood:** Dispatches `PUT /api/blogs/[id]/seo` validating against `blogQuickEditSchema` and upserting the associated `SeoMeta` record.
+
+#### Action 5.6: Universal Blog Editing & Admin-Only Permanent Trash Purge
+* **Universal Editing Access:** Content editors have full permissions to edit, update SEO metadata for, and publish or unpublish all blog posts across the platform regardless of who originally authored them.
+* **Two-Step Trash Lifecycle:** Blogs cannot be deleted directly while active. Any editor or admin can move any post to Draft or to Trash (`isTrashed: true`).
+* **Admin-Only Permanent Deletion:** Editors cannot permanently delete any blog post, even if they authored it. The permanent purge action is hidden from the editor UI, and backend API requests to `DELETE /api/blogs/[id]` strictly assert `session.user.role === "ADMIN"` (rejecting non-admin requests with `HTTP 403 Forbidden`).
 
 ---
 
 ### Module 6: Comments & Discussions Moderation
 * **Path:** `/comments`
-* **Target Audience:** Community Managers and Admins.
+* **Target Audience:** Administrators Only (Hidden from sidebar and UI for Editors; route and API access strictly enforce `session.user.role === "ADMIN"`).
 
-#### Action 6.1: Approve / Reject Comment
-* **Trigger:** Click green **"Approve"** checkmark or amber **"Hold"** icon on incoming comment.
-* **Database Mutation:** Updates `status` to `APPROVED` or `PENDING`.
-* **Live Site Effect:** Revalidates the specific blog post URL so visitors see approved comment immediately.
+#### Action 6.1: Approve / Reject / Trash Comment
+* **Trigger:** Click green **"Approve"** checkmark, amber **"Hold"** icon, or red **"Trash"** icon on incoming comment.
+* **Database Mutation:** Updates boolean columns `isApproved: true/false` or `isTrashed: true` via `PATCH /api/comments/[id]`.
+* **Live Site Effect:** Revalidates the specific blog post URL so visitors see approved comments immediately.
 
 #### Action 6.2: Post Official Staff Reply
-* **Trigger:** Click **"Reply"** on any comment $\rightarrow$ type response $\rightarrow$ Click **"Send Reply"**.
+* **Trigger:** Click **"Reply"** on any comment -> type response -> Click **"Send Reply"**.
 * **UI Feedback:** Reply is immediately appended to thread with an official golden **"YS Staff / Admin"** badge.
 * **Under The Hood:**
   Server forces `isAdmin: true` regardless of what client payload sends:
@@ -248,9 +301,12 @@ This section documents every administrative capability in the exact format reque
   await prisma.comment.create({
     data: {
       blogId,
-      name: session.user.name || "YS Team",
+      name: `${session.user.name || "YS Team"} (Admin)`,
+      email: session.user.email || "admin@ysinnovations.com",
       content: cleanContent,
-      isAdmin: true, // Authoritative assignment
+      isApproved: true, // Auto-approved
+      isTrashed: false,
+      isAdmin: true,    // Authoritative assignment
       parentId: commentId,
     }
   });
@@ -262,16 +318,20 @@ This section documents every administrative capability in the exact format reque
 * **Path:** `/header`
 * **Target Audience:** Administrators & Editors.
 
-#### Action 7.1: Update Navigation Items & Call-To-Action
-* **Trigger:** Add new navigation link (Label: *"Careers"*, URL: `/careers`, Target: `_self`) or update CTA button $\rightarrow$ Click **"Save Header"**.
+#### Action 7.1: Drag-and-Drop Menu Reordering (`@dnd-kit`)
+* **Trigger:** Grabbing the drag handle of any navigation link in `MenuBuilderBlock.tsx` and reordering links.
+* **UI Feedback:** Real-time smooth drag animation powered by `@dnd-kit/core`, `@dnd-kit/sortable`, and `@dnd-kit/utilities`.
+
+#### Action 7.2: Update Navigation Items & Call-To-Action
+* **Trigger:** Add new navigation link (Label: *"Careers"*, URL: `/careers`, Target: `_self`) or update CTA button -> Click **"Save Header"**.
 * **Database Mutation:**
-  Upserts into `Header` table (`id: "global"`):
+  Server Action `saveHeaderData` upserts into `Header` table (`id: "global"`):
   ```sql
   INSERT INTO "Header" ("id", "content", "updatedAt")
   VALUES ('global', :jsonPayload, NOW())
   ON CONFLICT ("id") DO UPDATE SET "content" = :jsonPayload, "updatedAt" = NOW();
   ```
-* **Live Site Effect:** Revalidates all root layout paths across `main.ys`. Every page displays the updated navigation bar instantly without requiring site redeployment.
+* **Live Site Effect:** Dispatches `revalidateFrontendPath("/", "layout")` across `main.ys`. Every page displays the updated navigation bar instantly without requiring site redeployment.
 
 ---
 
@@ -280,7 +340,7 @@ This section documents every administrative capability in the exact format reque
 * **Target Audience:** Administrators & Editors.
 
 #### Action 8.1: Update Footer Columns, Newsletter & Contact Info
-* **Trigger:** Modify address, email (`contact@ysinnovations.com`), social links, or policy links $\rightarrow$ Click **"Save Footer"**.
+* **Trigger:** Modify address, email (`contact@ysinnovations.com`), social links, or policy links -> Click **"Save Footer"**.
 * **Database Mutation:** Upserts into `Footer` table (`id: "global"`).
 * **Live Site Effect:** Global layout cache invalidation propagates updated footer instantly.
 
@@ -291,11 +351,11 @@ This section documents every administrative capability in the exact format reque
 * **Target Audience:** All staff (Browse/Upload); Admins (Delete).
 
 #### Action 9.1: Copy Image CDN URL
-* **Trigger:** Click on any uploaded asset card $\rightarrow$ click **"Copy URL"**.
+* **Trigger:** Click on any uploaded asset card -> click **"Copy URL"**.
 * **UI Feedback:** Toast confirms: *"URL copied to clipboard"*.
 
 #### Action 9.2: Permanent Media Destruction (Admin Only)
-* **Trigger:** Click trash icon on image $\rightarrow$ confirm in modal.
+* **Trigger:** Click trash icon on image -> confirm in modal.
 * **Under The Hood:**
   1. API checks `session.user.role === "ADMIN"`.
   2. Node.js backend calls Cloudinary SDK `cloudinary.v2.uploader.destroy(publicId)`.
@@ -309,10 +369,10 @@ This section documents every administrative capability in the exact format reque
 * **Target Audience:** Strictly `ADMIN` role.
 
 #### Action 10.1: Onboard New Staff Member
-* **Trigger:** Click **"+ Add User"** $\rightarrow$ Enter Name, Email, Password, Role (`ADMIN` or `EDITOR`) $\rightarrow$ Click **"Create Account"**.
+* **Trigger:** Click **"+ Add User"** -> Enter Name, Email, Password, Role (`ADMIN` or `EDITOR`) -> Click **"Create Account"**.
 * **UI Feedback:** Modal closes, new user card appears in list with green status dot.
 * **Under The Hood:**
-  1. Server validates password complexity: $\ge 8$ characters, must contain at least 1 letter and 1 number.
+  1. Server validates password complexity: >= 8 characters, must contain at least 1 letter and 1 number.
   2. Server generates a cryptographically secure salt with **12 rounds** using `bcryptjs`.
   3. Hashes plaintext password and saves new record.
 * **Failure Modes:**
@@ -321,42 +381,53 @@ This section documents every administrative capability in the exact format reque
 
 ---
 
-### Module 11: Notification Center
+### Module 11: Customer Inquiries & Form Submissions Inbox
 * **Path:** `/notifications`
-* **Target Audience:** All staff.
+* **Target Audience:** Support Team, Sales, and Administrators.
 
-#### Action 11.1: Read & Dismiss System Alerts
-* **Trigger:** Click notification bell or navigate to `/notifications` $\rightarrow$ Click **"Mark all as read"**.
-* **UI Feedback:** Unread red badge disappears from sidebar in real time; item styles shift from highlight to muted.
+#### Action 11.1: Lead Triage, Copy-to-Clipboard & Drawer Inspection
+* **Overview:** The notification center functions as the centralized intake repository for public inquiries submitted through `main.ys` landing pages and contact forms (`FormSubmission` model).
+* **UI Controls & Workflow:**
+  * **Interactive Filter Tabs:** Quickly filters submissions across **All** (`totalCount`), **Unread** (`unreadCount`), and **Trash** (`trashedCount`).
+  * **Real-time Search:** Filters records by visitor name, email, phone number, message text, or source page URL.
+  * **One-Click Clipboard Copying:** Instant copy buttons for contact email and phone numbers with animated confirmation toasts.
+  * **Detailed Inspection Drawer:** Selecting any inquiry opens a slide-over panel displaying raw message payloads, submission timestamp, client IP address, user-agent details, and the referring source URL.
+  * **Read State Toggling:** Toggle between unread (bold highlight with indicator dot) and read states.
+  * **Two-Step Trash Deletion:** Inquiries can be moved to Trash, restored, or permanently deleted.
 
 ---
 
 ### Module 12: Redirects & Canonical Routing
-* **Path:** `/redirections`
-* **Target Audience:** SEO Managers & Admins.
+* **Path:** `/redirections` (Alias: `/redirection`)
+* **Target Audience:** SEO Managers & Administrators.
 
-#### Action 12.1: Add 301 Permanent Redirect
-* **Trigger:** Enter Source URL (e.g. `/old-contact`) $\rightarrow$ Target URL (`/contact`) $\rightarrow$ Status code `301` $\rightarrow$ Click **"Add Redirect"**.
-* **Live Site Effect:** Next.js middleware in `main.ys` intercepts `/old-contact` and issues immediate `HTTP 301 Moved Permanently` to `/contact`, preserving SEO link equity.
+#### Action 12.1: Add 301 / 302 Permanent or Temporary Redirects
+* **Trigger:** Enter Source URL (e.g. `/old-contact`) -> Destination URL (`/contact`) -> Status code `301` or `302` -> Click **"Add Redirect"**.
+* **Loop & Chain Prevention Engine:**
+  * Validates URL formats using Zod schema `createRedirectionSchema`.
+  * **Self-Loop Blocker:** Rejects requests where `sourceUrl === destinationUrl`.
+  * **Circular Chain Blocker:** Prevents configuring a destination that is already active as a source, or a source that is already active as a destination (e.g. `/a -> /b -> /a`).
+* **Live Site Effect:** Modern Next.js 16 Proxy in `main.ys` (`src/proxy.ts`) intercepts incoming paths and executes immediate `HTTP 301 Moved Permanently` or `HTTP 302 Found`, preserving search rank equity.
 
 ---
 
-### Module 13: "Aw, Snap!" Tab Crash Prank Screen
-* **Path:** Any unmapped route (e.g. `/commentssfihsfi`)
-* **Target Audience:** Senior Engineers & Developers.
+### Module 13: Staff Profile & Account Settings
+* **Path:** `/account`
+* **Target Audience:** All authenticated staff members.
 
-#### Action 13.1: The Prank Illusion Flow
-* **Trigger:** User navigates to any URL slug that does not exist in the CMS.
-* **UI State 1 (Seconds 0.0 to 3.0):**
-  * Portal mounts directly to `document.body` with `z-[99999]`, covering sidebar and top header completely.
-  * Screen renders the exact Google Chrome "Aw, Snap!" crash screen (`Error code: SIGSEGV`) matching the user's OS dark/light theme with authentic pixel-art sad tab icon.
-  * Primary button says **"Reload"**.
-* **UI State 2 (Second 3.0 or when "Reload" is clicked):**
-  * A single, custom wide native shadcn toast (`480px` width) triggers at the bottom right.
-  * Toast title: *"You've Been Pranked! 😂"*
-  * Toast message: *"Chrome didn't crash and there are no memory leaks. You just navigated to an unmapped route in the CMS."*
-  * Toast is permanent (`timeout: 0`) and will not expire automatically.
-  * "Reload" button seamlessly morphs into **"Return to Dashboard"** and **"Go Back"** buttons.
+#### Action 13.1: Profile Customization
+* **Trigger:** Navigate to `/account` -> Update Display Name, Public Author Role, Bio Description, or upload Profile Picture -> Click **"Save Changes"**.
+* **Under The Hood:**
+  1. Profile picture uploads directly to Cloudinary CDN via `ImageUploadBlock`.
+  2. Dispatches `PUT /api/account` updating the `User` record for `session.user.id`.
+  3. Changes reflect across blog author cards and comment replies.
+
+#### Action 13.2: Secure Password Rotation
+* **Trigger:** In `/account`, enter Current Password, New Password (min 8 chars, letter + number), and Confirm Password -> Click **"Update Password"**.
+* **Under The Hood:**
+  1. Validates current password using `bcrypt.compare`.
+  2. Re-hashes the new password with **12 salt rounds** using `bcryptjs`.
+  3. Updates password hash in PostgreSQL.
 
 ---
 
@@ -378,20 +449,20 @@ const hashedPassword = await bcrypt.hash(password, 12);
 ```
 
 #### Why 12 Salt Rounds?
-* **Cost Factor:** Bcrypt uses an exponential cost function ($2^{cost}$). At 12 rounds, it performs $2^{12} = 4,096$ iterations.
+* **Cost Factor:** Bcrypt uses an exponential cost function (2^cost). At 12 rounds, it performs 2^12 = 4,096 iterations.
 * **Hardware Resistance:** 12 rounds takes approximately 250ms to 350ms of CPU compute per hash on modern server processors. 
 * **Attack Feasibility:** For a single user login, 300ms is imperceptible. But for an attacker attempting to crack a leaked hash, calculating 1 billion guesses would take over **9.5 years** on high-end hardware.
 * **Automatic Salting:** Bcrypt generates a cryptographically unique 128-bit salt for every password, neutralizing rainbow table attacks entirely.
 
 ---
 
-### 2.2 Brute-Force Defense & In-Memory Rate Limiting
+### 2.2 Next.js 16 Proxy Architecture & Sliding-Window Rate Limiting
 
 #### The Threat:
 Automated botnets executing dictionary attacks against `/api/auth/callback/credentials` to guess administrative passwords.
 
 #### The Implementation:
-Created an in-memory sliding-window rate limiter in [`admin.ys/src/lib/rate-limit.ts`](file:///home/zoro/projects/personal/admin.ys/src/lib/rate-limit.ts) and attached it directly to the Next.js middleware pipeline in [`src/proxy.ts`](file:///home/zoro/projects/personal/admin.ys/src/proxy.ts):
+In Next.js 16, the framework officially transitioned from legacy `middleware.ts` to the modern Node.js-based Proxy architecture (`src/proxy.ts` exporting `export async function proxy`). We attached an in-memory sliding-window rate limiter in [`admin.ys/src/lib/rate-limit.ts`](file:///home/zoro/projects/personal/admin.ys/src/lib/rate-limit.ts) directly to this proxy pipeline in [`src/proxy.ts`](file:///home/zoro/projects/personal/admin.ys/src/proxy.ts):
 
 ```typescript
 // Rate limit credential login attempts against brute-force attacks
@@ -495,9 +566,14 @@ if (session.user.role !== "ADMIN") {
   return NextResponse.json({ error: "Unauthorized: Only administrators can destroy media assets" }, { status: 403 });
 }
 
-// 3. Blog Author Ownership Guard
-if (session.user.role !== "ADMIN" && blog.authorId !== session.user.id) {
-  return NextResponse.json({ error: "Forbidden: You can only edit or delete your own blog posts" }, { status: 403 });
+// 3. Blog Permanent Deletion Guard (Admin Only)
+if (session.user.role !== "ADMIN") {
+  return NextResponse.json({ error: "Forbidden: Only administrators can permanently delete blog posts" }, { status: 403 });
+}
+
+// 4. Comments Access Guard (Admin Only)
+if (session.user.role !== "ADMIN") {
+  return NextResponse.json({ message: "Forbidden: Admin access required" }, { status: 403 });
 }
 ```
 
