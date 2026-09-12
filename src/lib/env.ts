@@ -11,7 +11,6 @@ const envSchema = z.object({
   NEXT_PUBLIC_CLOUDINARY_API_KEY: z.string().min(1, "NEXT_PUBLIC_CLOUDINARY_API_KEY is required"),
   CLOUDINARY_API_SECRET: z.string().min(1, "CLOUDINARY_API_SECRET is required"),
   PREVIEW_SECRET: z.string().min(1, "PREVIEW_SECRET is required"),
-  NEXT_PUBLIC_PREVIEW_SECRET: z.string().min(1, "NEXT_PUBLIC_PREVIEW_SECRET is required"),
   REVALIDATION_SECRET: z.string().min(1, "REVALIDATION_SECRET is required"),
 });
 
@@ -26,7 +25,6 @@ const _env = envSchema.safeParse({
   NEXT_PUBLIC_CLOUDINARY_API_KEY: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
   PREVIEW_SECRET: process.env.PREVIEW_SECRET,
-  NEXT_PUBLIC_PREVIEW_SECRET: process.env.NEXT_PUBLIC_PREVIEW_SECRET,
   REVALIDATION_SECRET: process.env.REVALIDATION_SECRET,
 });
 

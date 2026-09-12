@@ -23,7 +23,10 @@ export async function GET(
     return NextResponse.json({ error: "Page not found" }, { status: 404 });
   }
 
-  return NextResponse.json(mapDbToPageData(page));
+  return NextResponse.json({
+    ...mapDbToPageData(page),
+    previewSecret: process.env.PREVIEW_SECRET || "",
+  });
 }
 
 // PUT /api/pages/[id] — update a page

@@ -13,6 +13,7 @@ export interface Page {
   content?: any;
   seo?: any;
   author?: { name?: string | null } | null;
+  previewSecret?: string;
   createdAt: string;
   updatedAt: string;
 }

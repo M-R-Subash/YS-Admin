@@ -13,8 +13,7 @@ export async function revalidateFrontendPath(
 
   const secret =
     process.env.REVALIDATION_SECRET ||
-    process.env.PREVIEW_SECRET ||
-    process.env.NEXT_PUBLIC_PREVIEW_SECRET;
+    process.env.PREVIEW_SECRET;
 
   if (!secret) {
     console.warn(
