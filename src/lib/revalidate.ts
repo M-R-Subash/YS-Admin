@@ -8,8 +8,7 @@ export async function revalidateFrontendPath(
 ): Promise<boolean> {
   const frontendUrl =
     process.env.NEXT_PUBLIC_FRONTEND_URL ||
-    process.env.FRONTEND_URL ||
-    "http://localhost:3001";
+    process.env.FRONTEND_URL || "";
 
   const secret =
     process.env.REVALIDATION_SECRET ||

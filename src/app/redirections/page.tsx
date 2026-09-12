@@ -280,6 +280,11 @@ export default function RedirectionsPage() {
 
         <a
           href={`${process.env.NEXT_PUBLIC_FRONTEND_URL}`}
+          onClick={(e) => {
+            e.preventDefault();
+            const siteUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
+            window.open(`${siteUrl}?nocache=${Date.now()}`, "_blank");
+          }}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-2 text-[11px] font-semibold text-black hover:text-black/80 bg-black/5 hover:bg-black/10 px-3 py-1.5 rounded-sm transition-all border border-black/10 shadow-2xs cursor-pointer"

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ExternalLink, RotateCw, Undo2, Check, Cloud } from "lucide-react";
+import { ChevronLeft, ExternalLink, RotateCw, Check, Cloud } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import type { PageData } from "@/types";
 import SchemaEditor, { SchemaEditorRef } from "@/components/admin/SchemaEditor";
@@ -78,6 +78,10 @@ export default function EditorPage({
   const [schemaData, setSchemaData] = useState<any>(null);
   const [loadedPageId, setLoadedPageId] = useState<string | null>(null);
 
+  // Tracks the serialized content string that matches the DB/saved version
+  const [savedBaselineString, setSavedBaselineString] = useState<string>("");
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+
   // Operation states
   const [savingDraft, setSavingDraft] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -89,18 +93,11 @@ export default function EditorPage({
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
-  // Emergency LocalStorage backup state
-  const [localBackupFound, setLocalBackupFound] = useState<{
-    content: any;
-    timestamp: number;
-  } | null>(null);
-
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const schemaEditorRef = useRef<SchemaEditorRef>(null);
   const router = useRouter();
 
-  const targetOrigin =
-    process.env.NEXT_PUBLIC_FRONTEND_URL || "http://localhost:3001";
+  const targetOrigin = process.env.NEXT_PUBLIC_FRONTEND_URL || "";
 
   // Resolve page params promise
   useEffect(() => {
@@ -119,51 +116,58 @@ export default function EditorPage({
       .then((data: PageData) => {
         setPage(data);
         // Approach B: Load draftContent if available, otherwise live content
-        const initialContent = data.draftContent ?? data.content ?? {};
-        setSchemaData(initialContent);
-        setLoadedPageId(data.id);
+        let initialContent = data.draftContent ?? data.content ?? {};
 
-        // Check for 10s emergency local storage backup
+        // Seamless auto-load from emergency local backup if newer, without blocking prompts
         try {
           const rawLocal = localStorage.getItem(`emergency_draft_${pageId}`);
           if (rawLocal) {
             const parsed = JSON.parse(rawLocal);
             const dbTime = new Date(data.updatedAt).getTime();
-            // If local storage is newer than DB timestamp and differs from initial content
             if (
               parsed.timestamp &&
               parsed.timestamp > dbTime &&
-              JSON.stringify(parsed.content) !== JSON.stringify(initialContent)
+              parsed.content
             ) {
-              setLocalBackupFound(parsed);
-            } else if (
-              JSON.stringify(parsed.content) === JSON.stringify(initialContent)
-            ) {
-              localStorage.removeItem(`emergency_draft_${pageId}`);
+              initialContent = parsed.content;
             }
           }
         } catch (err) {
           console.warn("Could not check local storage backup", err);
         }
+
+        setSchemaData(initialContent);
+        setLoadedPageId(data.id);
+        setSavedBaselineString(JSON.stringify(initialContent));
+
+        if (data.draftContent) {
+          try {
+            const date = new Date(data.updatedAt);
+            setLastSavedAt(
+              date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            );
+          } catch {
+            // fallback
+          }
+        }
       })
       .catch((err) => {
         console.error("Error fetching page:", err);
         toast.add({
-          title: "Failed to load page",
-          description: err.message,
+          title: "Couldn't load this page",
+          description: "Something went wrong while opening the editor. Please refresh and try again.",
           type: "error",
         });
       });
   }, [pageId]);
 
-  // Calculate dirty states
-  // Has uncommitted changes compared to DB's latest version (draft or live)
-  const currentDbContent = page?.draftContent ?? page?.content;
+  // Calculate accurate dirty states
+  // isUnsavedChanges: user has typed new edits that haven't been saved to draft or published
   const isUnsavedChanges =
-    Boolean(page && schemaData) &&
-    JSON.stringify(schemaData) !== JSON.stringify(currentDbContent);
+    Boolean(page && schemaData && savedBaselineString) &&
+    JSON.stringify(schemaData) !== savedBaselineString;
 
-  // Content differs from live published content (needs publish)
+  // isDirtyFromLive: content differs from live published content (needs publish)
   const isDirtyFromLive =
     Boolean(page && schemaData) &&
     (JSON.stringify(schemaData) !== JSON.stringify(page?.content) ||
@@ -194,7 +198,7 @@ export default function EditorPage({
     return () => clearInterval(interval);
   }, [pageId, schemaData, page, isUnsavedChanges]);
 
-  // Prevent accidental tab close with unsaved changes
+  // Prevent accidental browser tab close with unsaved changes
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isUnsavedChanges) {
@@ -230,24 +234,42 @@ export default function EditorPage({
       const updatedPage: PageData = await res.json();
       setPage(updatedPage);
       setSchemaData(contentPayload);
+      setSavedBaselineString(JSON.stringify(contentPayload));
+      setLastSavedAt(
+        new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      );
       localStorage.removeItem(`emergency_draft_${page.id}`);
-      setLocalBackupFound(null);
+
+      // Re-send the saved content to the preview iframe so it stays in sync
+      const config = getSchemaConfig(page.slug);
+      if (config) {
+        iframeRef.current?.contentWindow?.postMessage(
+          { type: config.previewType, content: contentPayload },
+          targetOrigin,
+        );
+      }
 
       toast.add({
-        title: "Draft Saved",
-        description: "Saved draft to cloud. Live website remains unchanged.",
+        title: "Draft saved",
+        description: "Your changes are safely saved. The live website hasn't been updated yet.",
         type: "success",
       });
     } catch (error: any) {
       console.error("Save draft error:", error);
       toast.add({
-        title: "Save Draft Failed",
-        description: error.message || "An unexpected error occurred.",
+        title: "Couldn't save draft",
+        description: "Please check your connection and try again.",
         type: "error",
       });
     } finally {
       setSavingDraft(false);
     }
+  }
+
+  // Action 1B: Save Draft and immediately exit to Webpages
+  async function handleSaveDraftAndExit() {
+    await handleSaveDraft();
+    router.push("/webpages");
   }
 
   // Action 2: Publish Changes Live
@@ -259,8 +281,8 @@ export default function EditorPage({
       const isValid = await schemaEditorRef.current.validate();
       if (!isValid) {
         toast.add({
-          title: "Validation Error",
-          description: "Please fix the highlighted errors before publishing.",
+          title: "Some fields need attention",
+          description: "Please fix the highlighted fields before publishing.",
           type: "error",
         });
         return;
@@ -288,19 +310,20 @@ export default function EditorPage({
       const updatedPage: PageData = await res.json();
       setPage(updatedPage);
       setSchemaData(contentPayload);
+      setSavedBaselineString(JSON.stringify(contentPayload));
+      setLastSavedAt(null);
       localStorage.removeItem(`emergency_draft_${page.id}`);
-      setLocalBackupFound(null);
 
       toast.add({
-        title: "Page Published Live!",
-        description: "Content is now live on the public site and ISR cache updated.",
+        title: "Page is now live!",
+        description: "Your changes are published and visible on the website.",
         type: "success",
       });
     } catch (error: any) {
       console.error("Publish error:", error);
       toast.add({
-        title: "Publish Failed",
-        description: error.message || "An unexpected error occurred.",
+        title: "Couldn't publish",
+        description: "Something went wrong. Please try again in a moment.",
         type: "error",
       });
     } finally {
@@ -330,11 +353,12 @@ export default function EditorPage({
       const updatedPage: PageData = await res.json();
       setPage(updatedPage);
       localStorage.removeItem(`emergency_draft_${page.id}`);
-      setLocalBackupFound(null);
 
       // Revert editor schema data back to live published content
       const revertedContent = updatedPage.content || {};
       setSchemaData(revertedContent);
+      setSavedBaselineString(JSON.stringify(revertedContent));
+      setLastSavedAt(null);
       schemaEditorRef.current?.resetData(revertedContent);
 
       // Notify iframe preview of reverted content
@@ -348,15 +372,15 @@ export default function EditorPage({
 
       setShowDiscardConfirm(false);
       toast.add({
-        title: "Draft Discarded",
-        description: "Reverted editor to the live published content.",
+        title: "Draft discarded",
+        description: "The editor is back to the current live version.",
         type: "info",
       });
     } catch (error: any) {
       console.error("Discard draft error:", error);
       toast.add({
-        title: "Discard Failed",
-        description: error.message || "An unexpected error occurred.",
+        title: "Couldn't discard draft",
+        description: "Something went wrong. Please try again.",
         type: "error",
       });
     } finally {
@@ -379,16 +403,19 @@ export default function EditorPage({
     }
   }, []);
 
-  // Send initial data when iframe loads
+  // Send initial data when iframe loads (delay to let React mount inside iframe)
   function handleIframeLoad() {
     setIframeLoading(false);
     setReloadingIframe(false);
     const schemaConfig = getSchemaConfig(page?.slug);
     if (page && schemaConfig && schemaData) {
-      iframeRef.current?.contentWindow?.postMessage(
-        { type: schemaConfig.previewType, content: schemaData },
-        targetOrigin,
-      );
+      // Small delay ensures the iframe's React app has mounted its postMessage listener
+      setTimeout(() => {
+        iframeRef.current?.contentWindow?.postMessage(
+          { type: schemaConfig.previewType, content: schemaData },
+          targetOrigin,
+        );
+      }, 500);
     }
   }
 
@@ -406,60 +433,32 @@ export default function EditorPage({
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      {/* Emergency LocalStorage Backup Bar */}
-      {localBackupFound && (
-        <div className="bg-amber-500/10 border-b border-amber-500/30 px-6 py-2.5 flex items-center justify-between text-xs text-amber-950 dark:text-amber-200 shrink-0 z-20">
+      {/* Draft Info Banner — shown at very top when a cloud draft is active */}
+      {hasCloudDraft && (
+        <div className="flex items-center justify-between px-6 py-2.5 bg-amber-50 border-b border-amber-200 shrink-0">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-            <span>
-              <strong>Emergency Local Backup Found:</strong> You have uncommitted changes
-              from {new Date(localBackupFound.timestamp).toLocaleTimeString()}. Would you like to restore them?
-            </span>
+            <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+            <p className="text-xs font-semibold text-amber-900">
+              {lastSavedAt
+                ? `You're editing a saved draft from ${lastSavedAt}. Changes won't go live until you publish.`
+                : `You're editing a saved draft. Changes won't go live until you publish.`}
+            </p>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setSchemaData(localBackupFound.content);
-                schemaEditorRef.current?.resetData(localBackupFound.content);
-                if (schemaConfig) {
-                  iframeRef.current?.contentWindow?.postMessage(
-                    {
-                      type: schemaConfig.previewType,
-                      content: localBackupFound.content,
-                    },
-                    targetOrigin,
-                  );
-                }
-                setLocalBackupFound(null);
-                toast.add({
-                  title: "Local backup restored",
-                  description: "Editor updated from local snapshot.",
-                  type: "success",
-                });
-              }}
-              className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xs cursor-pointer shadow-xs transition-colors"
-            >
-              Restore Backup
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                localStorage.removeItem(`emergency_draft_${pageId}`);
-                setLocalBackupFound(null);
-                toast.add({ title: "Local backup dismissed", type: "info" });
-              }}
-              className="px-2.5 py-1 bg-transparent hover:bg-amber-500/20 text-amber-900 dark:text-amber-200 font-semibold rounded-xs cursor-pointer transition-colors"
-            >
-              Dismiss
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowDiscardConfirm(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-sm text-[11px] font-bold bg-amber-100 hover:bg-red-100 text-amber-900 hover:text-red-700 border border-amber-300 hover:border-red-300 transition-all cursor-pointer shrink-0 shadow-xs"
+            title="Discard draft and revert to live published version"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            Discard Draft
+          </button>
         </div>
       )}
 
       {/* Top Header Bar */}
       <header className="flex items-center justify-between px-6 py-3.5 border-b border-border bg-card shrink-0 shadow-sm z-10">
-        {/* Left: Back & Title */}
+        {/* Left: Back & Title & Draft Status Badge */}
         <div className="flex items-center gap-4">
           <button
             type="button"
@@ -476,23 +475,32 @@ export default function EditorPage({
             <ChevronLeft className="w-4.5 h-4.5" strokeWidth={2.5} />
           </button>
           <div>
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-3">
               <h1 className="text-sm font-bold text-black tracking-tight">
                 {page.title}
               </h1>
-              {/* Draft / Live Badges */}
+
+              {/* Status Badges */}
               {hasCloudDraft ? (
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-xs">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                  Unsaved Draft
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-xs">
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full bg-amber-500 ${
+                      isUnsavedChanges ? "animate-pulse" : ""
+                    }`}
+                  />
+                  {isUnsavedChanges
+                    ? "Unsaved Edits"
+                    : lastSavedAt
+                      ? `Draft · Saved ${lastSavedAt}`
+                      : "Draft Saved"}
                 </span>
               ) : page.status === "published" ? (
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-xs">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-xs">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  Live
+                  Live Published
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-zinc-100 text-zinc-700 border border-zinc-300 shadow-xs">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-zinc-100 text-zinc-700 border border-zinc-300 shadow-xs">
                   Draft
                 </span>
               )}
@@ -511,27 +519,19 @@ export default function EditorPage({
                 : page.slug.startsWith("/")
                   ? page.slug
                   : `/${page.slug}`
-            }?v=${encodeURIComponent(page.updatedAt || "")}`}
+            }`}
+            onClick={(e) => {
+              e.preventDefault();
+              const slug = page.slug === "/" ? "" : page.slug.startsWith("/") ? page.slug : `/${page.slug}`;
+              window.open(`${targetOrigin}${slug}?nocache=${Date.now()}`, "_blank");
+            }}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-zinc-700 hover:text-black bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 rounded-sm transition-all shadow-xs"
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-zinc-700 hover:text-black bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 rounded-sm transition-all shadow-xs cursor-pointer"
           >
             <span>View Live</span>
             <ExternalLink className="w-3.5 h-3.5 text-zinc-600" />
           </a>
-
-          {/* Discard Draft Button (Visible when cloud draft exists) */}
-          {hasCloudDraft && (
-            <button
-              type="button"
-              onClick={() => setShowDiscardConfirm(true)}
-              disabled={discarding || savingDraft || publishing}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-sm transition-all cursor-pointer disabled:opacity-50"
-            >
-              <Undo2 className="w-3.5 h-3.5" />
-              <span>{discarding ? "Discarding..." : "Discard Draft"}</span>
-            </button>
-          )}
 
           {/* Save Draft Button (Cloud DB) */}
           <button
@@ -552,9 +552,9 @@ export default function EditorPage({
           <button
             type="button"
             onClick={handlePublish}
-            disabled={publishing || savingDraft || (!isDirtyFromLive && !hasCloudDraft)}
+            disabled={publishing || savingDraft || (!isDirtyFromLive && !hasCloudDraft && !isUnsavedChanges)}
             className={`inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-sm shadow-sm transition-all ${
-              publishing || savingDraft || (!isDirtyFromLive && !hasCloudDraft)
+              publishing || savingDraft || (!isDirtyFromLive && !hasCloudDraft && !isUnsavedChanges)
                 ? "bg-black/40 text-white/70 cursor-not-allowed"
                 : "bg-black hover:bg-zinc-800 text-white cursor-pointer hover:scale-[1.01]"
             }`}
@@ -658,19 +658,26 @@ export default function EditorPage({
           <AlertDialogHeader>
             <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
             <AlertDialogDescription>
-              You have unsaved changes that have not been saved to draft or published.
-              Are you sure you want to exit?
+              You have modifications that haven&apos;t been saved to your draft yet.
+              What would you like to do before leaving?
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-2">
             <AlertDialogCancel onClick={() => setShowExitConfirm(false)}>
               Stay Here
             </AlertDialogCancel>
-            <AlertDialogAction
+            <button
+              type="button"
               onClick={() => router.push("/webpages")}
-              className="bg-black hover:bg-zinc-800 text-white"
+              className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold text-zinc-700 hover:text-black bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 rounded-md transition-all cursor-pointer"
             >
               Exit Without Saving
+            </button>
+            <AlertDialogAction
+              onClick={handleSaveDraftAndExit}
+              className="bg-black hover:bg-zinc-800 text-white"
+            >
+              Save Draft & Exit
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

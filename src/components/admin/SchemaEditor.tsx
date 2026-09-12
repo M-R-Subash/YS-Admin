@@ -134,8 +134,7 @@ const SchemaEditor = forwardRef<SchemaEditorRef, SchemaEditorProps>(
 
     const [highlightedSection, setHighlightedSection] = useState<string | null>(null);
 
-    const targetOrigin =
-      process.env.NEXT_PUBLIC_FRONTEND_URL || "http://localhost:3001";
+    const targetOrigin = process.env.NEXT_PUBLIC_FRONTEND_URL || "";
 
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
     const onDataChangeDebounceRef = useRef<ReturnType<typeof setTimeout>>(null);

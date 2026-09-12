@@ -72,6 +72,11 @@ export default function WebpagesPage() {
 
         <a
           href={`${process.env.NEXT_PUBLIC_FRONTEND_URL}`}
+          onClick={(e) => {
+            e.preventDefault();
+            const siteUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
+            window.open(`${siteUrl}?nocache=${Date.now()}`, "_blank");
+          }}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold text-foreground bg-card hover:bg-accent border border-border rounded-sm transition-all shadow-xs cursor-pointer"

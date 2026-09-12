@@ -109,8 +109,9 @@ export const ActionCell = ({ blog, onDataChange }: { blog: any; onDataChange: ()
                   Quick Edit
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => {
-                  const siteUrl = process.env.NEXT_PUBLIC_MAIN_SITE_URL || "http://localhost:3001";
-                  window.open(`${siteUrl}/blogs/${blog.slug}`, '_blank');
+                  const siteUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
+                  const cleanSlug = blog.slug?.startsWith("/") ? blog.slug.slice(1) : (blog.slug || "");
+                  window.open(`${siteUrl}/blogs/${cleanSlug}?nocache=${Date.now()}`, '_blank');
                 }}>
                   View Live
                 </DropdownMenuItem>
