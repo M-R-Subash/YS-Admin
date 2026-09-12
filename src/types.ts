@@ -11,6 +11,7 @@ export interface Page {
   status: string;
   isTrashed?: boolean;
   content?: any;
+  draftContent?: any;
   seo?: any;
   author?: { name?: string | null } | null;
   previewSecret?: string;

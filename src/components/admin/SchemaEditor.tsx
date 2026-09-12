@@ -25,81 +25,33 @@ interface SchemaEditorProps {
   title?: string;
 }
 
-const SchemaEditor = forwardRef(function SchemaEditor(
-  {
-    initialData,
-    iframeRef,
-    onDataChange,
-    uiSchema,
-    zodSchema,
-    previewEventType,
-  }: SchemaEditorProps,
-  ref,
-) {
-  const SECTION_KEYS = uiSchema.map((s) => s.name);
+export interface SchemaEditorRef {
+  validate: () => Promise<boolean>;
+  getData: () => any;
+  resetData: (newData: any) => void;
+}
 
-  const form = useForm<any>({
-    resolver: zodResolver(zodSchema as any),
-    defaultValues: initialData || {},
-  });
+const SchemaEditor = forwardRef<SchemaEditorRef, SchemaEditorProps>(
+  function SchemaEditor(
+    {
+      initialData,
+      iframeRef,
+      onDataChange,
+      uiSchema,
+      zodSchema,
+      previewEventType,
+    }: SchemaEditorProps,
+    ref,
+  ) {
+    const SECTION_KEYS = uiSchema.map((s) => s.name);
 
-  useImperativeHandle(ref, () => ({
-    validate: async () => {
-      const isValid = await form.trigger();
-      if (!isValid) {
-        const errors = form.formState.errors;
-        const firstErrorKey = Object.keys(errors)[0];
+    const form = useForm<any>({
+      resolver: zodResolver(zodSchema as any),
+      defaultValues: initialData || {},
+    });
 
-        let targetAccordion = "";
-        for (const section of uiSchema) {
-          if (
-            section.name === firstErrorKey ||
-            section.fields?.some((f) => f.name === firstErrorKey)
-          ) {
-            targetAccordion = section.name;
-            break;
-          }
-        }
-
-        if (targetAccordion) {
-          setOpenSections((prev) => ({ ...prev, [targetAccordion]: true }));
-
-          setTimeout(() => {
-            const getFirstErrorPath = (obj: any, currentPath = ""): string => {
-              for (const key in obj) {
-                const newPath = currentPath ? `${currentPath}.${key}` : key;
-                if (obj[key]?.message) return newPath;
-                if (obj[key] && typeof obj[key] === "object") {
-                  const deep = getFirstErrorPath(obj[key], newPath);
-                  if (deep) return deep;
-                }
-              }
-              return "";
-            };
-            const deepPath = getFirstErrorPath(errors);
-            if (deepPath) {
-              form.setFocus(deepPath as any);
-              const el = document.querySelector(`[name="${deepPath}"]`);
-              if (el) {
-                el.scrollIntoView({ behavior: "smooth", block: "center" });
-              }
-            }
-          }, 300);
-        }
-      }
-      return isValid;
-    },
-  }));
-
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    [SECTION_KEYS[0]]: true,
-  });
-
-  useEffect(() => {
-    if (initialData) {
-      // Auto-migrate corrupted comma-separated highlights into the 4 fixed inputs
-      const dataToLoad = JSON.parse(JSON.stringify(initialData));
-
+    const normalizeHighlights = (data: any) => {
+      const dataToLoad = JSON.parse(JSON.stringify(data || {}));
       if (
         dataToLoad.hero &&
         typeof dataToLoad.hero.highlights === "string" &&
@@ -113,45 +65,168 @@ const SchemaEditor = forwardRef(function SchemaEditor(
         dataToLoad.hero.highlight3 = parts[2] || "";
         dataToLoad.hero.highlight4 = parts[3] || "";
       }
+      return dataToLoad;
+    };
 
-      form.reset(dataToLoad);
-    }
-  }, [initialData, form]);
+    useImperativeHandle(ref, () => ({
+      validate: async () => {
+        const isValid = await form.trigger();
+        if (!isValid) {
+          const errors = form.formState.errors;
+          const firstErrorKey = Object.keys(errors)[0];
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+          let targetAccordion = "";
+          for (const section of uiSchema) {
+            if (
+              section.name === firstErrorKey ||
+              section.fields?.some((f) => f.name === firstErrorKey)
+            ) {
+              targetAccordion = section.name;
+              break;
+            }
+          }
 
-  const sendToPreview = useCallback(
-    (data: any) => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => {
-        iframeRef.current?.contentWindow?.postMessage(
-          { type: previewEventType, content: data },
-          "*",
-        );
-      }, 300);
-    },
-    [iframeRef, previewEventType],
-  );
+          if (targetAccordion) {
+            setOpenSections((prev) => ({ ...prev, [targetAccordion]: true }));
 
-  useEffect(() => {
-    const subscription = form.watch((value) => {
-      sendToPreview(value);
-      if (onDataChange) {
-        onDataChange(value);
-      }
+            setTimeout(() => {
+              const getFirstErrorPath = (obj: any, currentPath = ""): string => {
+                for (const key in obj) {
+                  const newPath = currentPath ? `${currentPath}.${key}` : key;
+                  if (obj[key]?.message) return newPath;
+                  if (obj[key] && typeof obj[key] === "object") {
+                    const deep = getFirstErrorPath(obj[key], newPath);
+                    if (deep) return deep;
+                  }
+                }
+                return "";
+              };
+              const deepPath = getFirstErrorPath(errors);
+              if (deepPath) {
+                form.setFocus(deepPath as any);
+                const el = document.querySelector(`[name="${deepPath}"]`);
+                if (el) {
+                  el.scrollIntoView({ behavior: "smooth", block: "center" });
+                }
+              }
+            }, 300);
+          }
+        }
+        return isValid;
+      },
+      getData: () => form.getValues(),
+      resetData: (newData: any) => {
+        form.reset(normalizeHighlights(newData));
+      },
+    }));
+
+    const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+      [SECTION_KEYS[0]]: true,
     });
-    return () => subscription.unsubscribe();
-  }, [form, sendToPreview, onDataChange]);
+
+    const isInitializedRef = useRef(false);
+    useEffect(() => {
+      if (initialData && !isInitializedRef.current) {
+        isInitializedRef.current = true;
+        form.reset(normalizeHighlights(initialData));
+      }
+    }, [initialData, form]);
+
+    const [highlightedSection, setHighlightedSection] = useState<string | null>(null);
+
+    const targetOrigin =
+      process.env.NEXT_PUBLIC_FRONTEND_URL || "http://localhost:3001";
+
+    const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+    const onDataChangeDebounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+    const sendToPreview = useCallback(
+      (data: any) => {
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => {
+          iframeRef.current?.contentWindow?.postMessage(
+            { type: previewEventType, content: data },
+            targetOrigin,
+          );
+        }, 300);
+      },
+      [iframeRef, previewEventType, targetOrigin],
+    );
+
+    useEffect(() => {
+      const subscription = form.watch((value) => {
+        sendToPreview(value);
+        if (onDataChange) {
+          if (onDataChangeDebounceRef.current) {
+            clearTimeout(onDataChangeDebounceRef.current);
+          }
+          onDataChangeDebounceRef.current = setTimeout(() => {
+            onDataChange(value);
+          }, 150);
+        }
+      });
+      return () => {
+        subscription.unsubscribe();
+        if (onDataChangeDebounceRef.current) {
+          clearTimeout(onDataChangeDebounceRef.current);
+        }
+      };
+    }, [form, sendToPreview, onDataChange]);
 
   const scrollToSection = useCallback(
     (sectionName: string) => {
       iframeRef.current?.contentWindow?.postMessage(
         { type: "SCROLL_TO_SECTION", section: sectionName },
-        "*",
+        targetOrigin,
       );
     },
-    [iframeRef],
+    [iframeRef, targetOrigin],
   );
+
+  // Bidirectional Click-to-Edit: listen for INSPECT_SECTION events from the preview iframe
+  useEffect(() => {
+    const handleInspectMessage = (event: MessageEvent) => {
+      try {
+        const expected = new URL(targetOrigin);
+        const incoming = new URL(event.origin);
+        if (expected.origin !== incoming.origin) return;
+      } catch {
+        if (event.origin !== targetOrigin) return;
+      }
+
+      if (event.data?.type === "INSPECT_SECTION" && event.data?.section) {
+        const sectionName = event.data.section;
+        const match = uiSchema.find(
+          (s) =>
+            s.name === sectionName ||
+            s.name.toLowerCase() === sectionName.toLowerCase(),
+        );
+        const targetKey = match ? match.name : sectionName;
+
+        setOpenSections((prev) => ({
+          ...prev,
+          [targetKey]: true,
+        }));
+
+        setHighlightedSection(targetKey);
+        setTimeout(() => {
+          setHighlightedSection((cur) => (cur === targetKey ? null : cur));
+        }, 2000);
+
+        setTimeout(() => {
+          const el = document.querySelector(
+            `[data-editor-section="${targetKey}"]`,
+          );
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }, 150);
+      }
+    };
+
+    window.addEventListener("message", handleInspectMessage);
+    return () => window.removeEventListener("message", handleInspectMessage);
+  }, [uiSchema, targetOrigin]);
 
   const toggleSection = (key: string) => {
     setOpenSections((prev) => {
@@ -221,7 +296,12 @@ const SchemaEditor = forwardRef(function SchemaEditor(
             return (
               <div
                 key={section.name}
-                className="border border-border bg-card rounded-sm overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                data-editor-section={section.name}
+                className={`scroll-mt-4 border rounded-sm overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 ${
+                  highlightedSection === section.name
+                    ? "border-amber-500 ring-2 ring-amber-500/40 bg-amber-500/5 shadow-md"
+                    : "border-border bg-card"
+                }`}
               >
                 <div
                   onClick={() => toggleSection(section.name)}

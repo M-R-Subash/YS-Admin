@@ -38,8 +38,9 @@ model Page {
   slug      String   @unique
   status    String   @default("draft")
   isTrashed Boolean  @default(false)
-  content   Json
-  createdAt DateTime @default(now())
+  content      Json
+  draftContent Json?
+  createdAt    DateTime @default(now())
   updatedAt DateTime @updatedAt
   
   seo       SeoMeta?

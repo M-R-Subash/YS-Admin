@@ -41,27 +41,64 @@ export async function PUT(
 
   const { id } = await params;
   const body = await request.json();
-  const { title, slug, content, isTrashed } = body;
+  const { title, slug, content, isTrashed, action } = body;
   let { status } = body;
 
   if (isTrashed === true) {
     status = "draft";
   }
 
-  const page = await prisma.page.update({
-    where: { id },
-    data: {
-      ...(title !== undefined && { title }),
-      ...(slug !== undefined && { slug }),
+  let updateData: any = {
+    authorId: session.user.id,
+    ...(title !== undefined && { title }),
+    ...(slug !== undefined && { slug }),
+    ...(isTrashed !== undefined && { isTrashed }),
+  };
+
+  let shouldRevalidate = false;
+
+  if (action === "save-draft") {
+    // Only save to draftContent without altering live content or triggering ISR
+    updateData = {
+      ...updateData,
+      draftContent: content !== undefined ? content : body.draftContent,
+      ...(status !== undefined && { status }),
+    };
+  } else if (action === "publish") {
+    // Commit to live content, reset draftContent, set status to published, and trigger ISR
+    updateData = {
+      ...updateData,
+      content: content !== undefined ? content : body.draftContent,
+      draftContent: null,
+      status: "published",
+    };
+    shouldRevalidate = true;
+  } else if (action === "discard-draft") {
+    // Clear draftContent, live content remains intact, no ISR
+    updateData = {
+      ...updateData,
+      draftContent: null,
+    };
+  } else {
+    // Standard update
+    updateData = {
+      ...updateData,
       ...(status !== undefined && { status }),
       ...(content !== undefined && { content }),
-      ...(isTrashed !== undefined && { isTrashed }),
-      authorId: session.user.id,
-    },
+      ...(body.draftContent !== undefined && { draftContent: body.draftContent }),
+    };
+    if (content !== undefined || status === "published") {
+      shouldRevalidate = true;
+    }
+  }
+
+  const page = await prisma.page.update({
+    where: { id },
+    data: updateData,
   });
 
-  // Revalidate frontend path asynchronously
-  if (page.slug) {
+  // Revalidate frontend path asynchronously if live content was updated
+  if (shouldRevalidate && page.slug) {
     revalidateFrontendPath(page.slug);
   }
 

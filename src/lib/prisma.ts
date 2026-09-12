@@ -33,6 +33,7 @@ export function mapDbToPageData(page: any): PageData {
     status: page.status,
     isTrashed: page.isTrashed,
     content: page.content || [],
+    draftContent: page.draftContent ?? null,
     seo: page.seo,
     author: page.author,
     createdAt: page.createdAt.toISOString(),
