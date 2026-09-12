@@ -2,7 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, Trash } from "lucide-react";
-import { format } from "date-fns";
+import { format, isToday, isYesterday } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,19 +11,44 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export type User = {
   id: string;
   name: string | null;
   email: string;
   role: "ADMIN" | "EDITOR";
+  profilePicture?: string | null;
   createdAt: string;
-  lastLogin: string | null;
+  lastLogin?: string | null;
 };
 
 interface UserColumnsProps {
   onDelete: (id: string) => void;
   currentUserId: string;
+}
+
+function formatLastVisit(dateStr: string | null): string {
+  if (!dateStr) return "Never";
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return "Never";
+
+  const now = new Date();
+  const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+  const diffInHours = Math.floor(diffInMinutes / 60);
+
+  if (diffInMinutes < 1) return "Just now";
+  if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+
+  if (isToday(date)) {
+    return `${diffInHours} ${diffInHours === 1 ? "hr" : "hrs"} ago`;
+  }
+
+  if (isYesterday(date)) {
+    return `Yesterday at ${format(date, "h:mm a")}`;
+  }
+
+  return format(date, "MMM d, yyyy - h:mm a");
 }
 
 export const getUsersColumns = ({
@@ -34,8 +59,23 @@ export const getUsersColumns = ({
     accessorKey: "name",
     header: "Name",
     cell: ({ row }) => {
-      const name = row.getValue("name") as string | null;
-      return <div className="font-medium">{name || "N/A"}</div>;
+      const user = row.original;
+      const name = user.name || "N/A";
+      const initial = name.charAt(0).toUpperCase() || "U";
+
+      return (
+        <div className="flex items-center gap-3">
+          <Avatar className="h-8 w-8 rounded-full shrink-0">
+            {user.profilePicture ? (
+              <AvatarImage src={user.profilePicture} alt={name} className="object-cover" />
+            ) : null}
+            <AvatarFallback className="bg-muted text-xs font-semibold text-foreground">
+              {initial}
+            </AvatarFallback>
+          </Avatar>
+          <span className="font-medium text-foreground">{name}</span>
+        </div>
+      );
     },
   },
   {
@@ -68,12 +108,12 @@ export const getUsersColumns = ({
   },
   {
     accessorKey: "lastLogin",
-    header: "Last Login",
+    header: "Last Visit",
     cell: ({ row }) => {
       const date = row.getValue("lastLogin") as string | null;
       return (
         <div className="text-muted-foreground text-sm">
-          {date ? format(new Date(date), "MMM d, yyyy h:mm a") : "Never"}
+          {formatLastVisit(date)}
         </div>
       );
     },
