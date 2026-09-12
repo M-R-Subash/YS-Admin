@@ -7,9 +7,14 @@ import { Providers } from "@/components/Providers";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 
+const appName = process.env.NEXT_PUBLIC_APP_NAME || "YS CMS Admin";
+
 export const metadata: Metadata = {
-  title: "YS CMS — Admin",
-  description: "Content management dashboard",
+  title: {
+    default: appName,
+    template: `%s | ${appName}`,
+  },
+  description: "Enterprise content management dashboard",
 };
 
 const bricolage = Bricolage_Grotesque({
