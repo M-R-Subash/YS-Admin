@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import useSWR from "swr"
-import { FileTextIcon, UsersIcon, PenToolIcon, ImageIcon, LayoutDashboardIcon, WavesHorizontalIcon, Bell, MessageSquare } from "lucide-react"
+import { FileTextIcon, UsersIcon, PenToolIcon, ImageIcon, WavesHorizontalIcon, Bell, MessageSquare } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
@@ -18,6 +18,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 
 import Link from "next/link"
+import Image from "next/image"
 
 const navItems = [
   {
@@ -95,14 +96,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <Link 
           href="/" 
-          className={`flex items-center hover:bg-muted/50 rounded-xl transition-all overflow-hidden ${
+          className={`flex items-center hover:bg-muted/50 rounded-sm transition-all overflow-hidden ${
             state === "collapsed" ? "justify-center p-2" : "gap-3 p-2 px-2"
           }`}
         >
-          <div className={`flex aspect-square shrink-0 items-center justify-center rounded-lg bg-black text-white dark:bg-white dark:text-black shadow-sm ${
+          <div className={`relative flex aspect-square shrink-0 items-center justify-center rounded-sm overflow-hidden ${
             state === "collapsed" ? "size-8" : "size-10"
           }`}>
-            <LayoutDashboardIcon className={state === "collapsed" ? "size-4" : "size-5"} />
+            <Image
+              src="/ys-icon.png"
+              alt="YS Innovations"
+              width={40}
+              height={40}
+              className="w-full h-full object-contain rounded-sm"
+              priority
+            />
           </div>
           
           {state !== "collapsed" && (
@@ -127,7 +135,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarFooter>
         {status === "loading" ? (
           <div className="p-2 flex items-center gap-2 w-full">
-            <Skeleton className="h-8 w-8 rounded-md shrink-0" />
+            <Skeleton className="h-8 w-8 rounded-sm shrink-0" />
             {state !== "collapsed" && (
               <div className="grid flex-1 gap-1.5">
                 <Skeleton className="h-4 w-24" />

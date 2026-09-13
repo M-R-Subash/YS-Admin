@@ -174,3 +174,19 @@ body {
 .animate-badge-shine {
   animation: badge-shine 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
+
+/* Page Transition Loader Animations */
+@keyframes transitionPulseSlow {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 10px rgba(245, 168, 23, 0.4));
+  }
+  50% {
+    transform: scale(1.08);
+    filter: drop-shadow(0 0 20px rgba(245, 168, 23, 0.8));
+  }
+}
+
+.animate-transition-pulse {
+  animation: transitionPulseSlow 2.4s ease-in-out infinite;
+}
