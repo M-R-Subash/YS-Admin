@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 export async function DELETE(
   request: Request,
@@ -73,7 +74,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { name, role, authorRole, description, profilePicture } = body;
+    const { name, role, authorRole, description, profilePicture, password } = body;
 
     // Safety guard: if admin is editing themselves, prevent self-demotion to EDITOR
     if (userId === session.user.id && role && role !== "ADMIN") {
@@ -91,6 +92,25 @@ export async function PATCH(
       );
     }
 
+    // Password validation and hashing if provided
+    let hashedPassword: string | undefined = undefined;
+    if (password) {
+      const cleanPassword = String(password).trim();
+      if (cleanPassword.length < 8) {
+        return NextResponse.json(
+          { message: "Password must be at least 8 characters long" },
+          { status: 400 }
+        );
+      }
+      if (!/[A-Za-z]/.test(cleanPassword) || !/[0-9]/.test(cleanPassword)) {
+        return NextResponse.json(
+          { message: "Password must contain both letters and numbers" },
+          { status: 400 }
+        );
+      }
+      hashedPassword = await bcrypt.hash(cleanPassword, 12);
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
@@ -99,6 +119,7 @@ export async function PATCH(
         ...(authorRole !== undefined && { authorRole: typeof authorRole === "string" ? authorRole.trim() : authorRole }),
         ...(description !== undefined && { description: typeof description === "string" ? description.trim() : description }),
         ...(profilePicture !== undefined && { profilePicture: profilePicture || null }),
+        ...(hashedPassword && { password: hashedPassword }),
       },
       select: {
         id: true,

@@ -24,6 +24,7 @@ export async function GET() {
         authorRole: true,
         profilePicture: true,
         role: true,
+        createdAt: true,
       },
     });
 

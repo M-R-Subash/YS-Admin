@@ -161,3 +161,16 @@ body {
     @apply font-sans;
   }
 }
+
+@keyframes badge-shine {
+  0% {
+    transform: translateX(-150%) skewX(-20deg);
+  }
+  35%, 100% {
+    transform: translateX(200%) skewX(-20deg);
+  }
+}
+
+.animate-badge-shine {
+  animation: badge-shine 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}

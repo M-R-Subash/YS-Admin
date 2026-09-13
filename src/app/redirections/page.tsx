@@ -33,6 +33,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import {
   Breadcrumb,
@@ -473,17 +478,22 @@ export default function RedirectionsPage() {
                           <span className="font-mono font-bold text-foreground bg-muted/60 px-2 py-0.5 rounded-sm">
                             {item.sourceUrl}
                           </span>
-                          <button
-                            onClick={() => copyToClipboard(item.sourceUrl, item.id)}
-                            className="text-muted-foreground hover:text-foreground transition-colors p-1"
-                            title="Copy Source URL"
-                          >
-                            {copiedId === item.id ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-500" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" />
-                            )}
-                          </button>
+                          <Tooltip>
+                            <TooltipTrigger
+                              onClick={() => copyToClipboard(item.sourceUrl, item.id)}
+                              className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-xs cursor-pointer inline-flex items-center justify-center"
+                              aria-label="Copy source URL"
+                            >
+                              {copiedId === item.id ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-500" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              {copiedId === item.id ? "Copied!" : "Copy URL"}
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
                       </td>
 
