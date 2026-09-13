@@ -16,20 +16,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "@/components/ui/toast";
 import { UserModal } from "@/components/admin/UserModal";
+import { UserDeleteModal } from "@/components/admin/UserDeleteModal";
 
 export type User = {
   id: string;
@@ -41,6 +32,10 @@ export type User = {
   description?: string | null;
   createdAt: string;
   lastLogin?: string | null;
+  _count?: {
+    blogs: number;
+    pages: number;
+  };
 };
 
 const EmailCell = ({ email }: { email: string }) => {
@@ -110,41 +105,16 @@ export const ActionCell = ({
   user,
   currentUserId,
   onDataChange,
+  allUsers,
 }: {
   user: User;
   currentUserId: string;
   onDataChange: () => void;
+  allUsers: User[];
 }) => {
   const isCurrentUser = user.id === currentUserId;
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    try {
-      const res = await fetch(`/api/users/${user.id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || "Failed to delete user");
-      }
-      toast.add({
-        title: "Deleted",
-        description: "User has been removed.",
-        type: "success",
-      });
-      onDataChange();
-      setIsDeleteOpen(false);
-    } catch (error) {
-      toast.add({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete user.",
-        type: "error",
-      });
-    } finally {
-      setIsDeleting(false);
-    }
-  };
 
   // The current admin cannot edit their own data from the users table (they use Account Settings)
   if (isCurrentUser) {
@@ -186,37 +156,23 @@ export const ActionCell = ({
         onSuccess={onDataChange}
       />
 
-      {/* Delete User Confirmation Dialog */}
-      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the user
-              account for <span className="font-semibold text-foreground">{user.name || user.email}</span> and remove their access to the CMS.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting} className="cursor-pointer">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700 cursor-pointer"
-            >
-              {isDeleting ? "Deleting..." : "Yes, delete user"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Reassignment-Aware Delete User Modal */}
+      <UserDeleteModal
+        user={user}
+        open={isDeleteOpen}
+        onOpenChange={setIsDeleteOpen}
+        onSuccess={onDataChange}
+        allUsers={allUsers}
+        currentUserId={currentUserId}
+      />
     </>
   );
 };
 
 export const getUsersColumns = (
   onDataChange: () => void,
-  currentUserId: string
+  currentUserId: string,
+  allUsers: User[] = []
 ): ColumnDef<User>[] => [
   {
     accessorKey: "name",
@@ -292,6 +248,7 @@ export const getUsersColumns = (
         user={row.original}
         currentUserId={currentUserId}
         onDataChange={onDataChange}
+        allUsers={allUsers}
       />
     ),
   },

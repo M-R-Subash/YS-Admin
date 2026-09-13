@@ -95,7 +95,7 @@ export default function UsersPage() {
 
         <div className="rounded-md border bg-card">
           <DataTable
-            columns={getUsersColumns(() => mutate(), session.user.id)}
+            columns={getUsersColumns(() => mutate(), session.user.id, users)}
             data={users}
           />
         </div>

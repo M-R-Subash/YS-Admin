@@ -35,8 +35,56 @@ export async function DELETE(
       );
     }
 
-    await prisma.user.delete({
-      where: { id: userId },
+    // Parse body if present (e.g. { reassignToUserId?: string })
+    let reassignToUserId: string | null = null;
+    try {
+      const body = await request.json();
+      if (body && typeof body.reassignToUserId === "string" && body.reassignToUserId.trim()) {
+        reassignToUserId = body.reassignToUserId.trim();
+      }
+    } catch {
+      // Body may be empty on standard DELETE requests
+    }
+
+    if (reassignToUserId) {
+      if (reassignToUserId === userId) {
+        return NextResponse.json(
+          { message: "Cannot reassign content to the user being deleted" },
+          { status: 400 }
+        );
+      }
+
+      // Verify target user exists
+      const targetUser = await prisma.user.findUnique({
+        where: { id: reassignToUserId },
+        select: { id: true, name: true, role: true },
+      });
+
+      if (!targetUser) {
+        return NextResponse.json(
+          { message: "Selected user for reassignment does not exist" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Execute reassignment and deletion atomically
+    await prisma.$transaction(async (tx) => {
+      if (reassignToUserId) {
+        await tx.blog.updateMany({
+          where: { authorId: userId },
+          data: { authorId: reassignToUserId },
+        });
+
+        await tx.page.updateMany({
+          where: { authorId: userId },
+          data: { authorId: reassignToUserId },
+        });
+      }
+
+      await tx.user.delete({
+        where: { id: userId },
+      });
     });
 
     return NextResponse.json({ message: "User deleted successfully" });

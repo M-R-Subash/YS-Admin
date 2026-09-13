@@ -26,6 +26,12 @@ export async function GET() {
         authorRole: true,
         createdAt: true,
         lastLogin: true,
+        _count: {
+          select: {
+            blogs: true,
+            pages: true,
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
