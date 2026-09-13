@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import useSWR from "swr";
 import {
+  ArrowRight,
   Calendar,
   Camera,
+  CheckCircle2,
   Eye,
   EyeOff,
   KeyRound,
@@ -35,6 +37,14 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function AccountPage() {
   const { data: session, update } = useSession();
@@ -62,6 +72,23 @@ export default function AccountPage() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [countdown, setCountdown] = useState(3);
+
+  useEffect(() => {
+    if (!showSuccessModal) return;
+
+    if (countdown <= 0) {
+      signOut({ callbackUrl: "/login" });
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setCountdown((prev) => prev - 1);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [showSuccessModal, countdown]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -189,8 +216,8 @@ export default function AccountPage() {
 
     if (!currentPassword || !newPassword || !confirmPassword) {
       toast.add({
-        title: "Validation Error",
-        description: "Please fill in all password fields.",
+        title: "Missing Information",
+        description: "Please fill in all three password fields.",
         type: "error",
       });
       return;
@@ -198,8 +225,17 @@ export default function AccountPage() {
 
     if (newPassword !== confirmPassword) {
       toast.add({
-        title: "Validation Error",
-        description: "New password and confirmation password do not match.",
+        title: "Passwords Do Not Match",
+        description: "Your new password and confirmation password do not match.",
+        type: "error",
+      });
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      toast.add({
+        title: "Same Password",
+        description: "Your new password must be different from your current password.",
         type: "error",
       });
       return;
@@ -211,9 +247,9 @@ export default function AccountPage() {
       !/[0-9]/.test(newPassword)
     ) {
       toast.add({
-        title: "Weak Password",
+        title: "Password Too Simple",
         description:
-          "Password must be at least 8 characters long and contain both letters and numbers.",
+          "Please choose a password with at least 8 characters, including both letters and numbers.",
         type: "error",
       });
       return;
@@ -237,18 +273,14 @@ export default function AccountPage() {
         throw new Error(data.message || "Failed to update password.");
       }
 
-      toast.add({
-        title: "Password Updated",
-        description: "Your password has been changed successfully.",
-        type: "success",
-      });
-
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      setCountdown(3);
+      setShowSuccessModal(true);
     } catch (error) {
       toast.add({
-        title: "Error",
+        title: "Could Not Update Password",
         description:
           error instanceof Error ? error.message : "Failed to change password.",
         type: "error",
@@ -726,7 +758,7 @@ export default function AccountPage() {
                   !newPassword ||
                   !confirmPassword
                 }
-                className="h-10 px-6 text-sm font-semibold shadow-xs hover:shadow-md transition-all cursor-pointer"
+                className="h-10 px-6 text-sm font-semibold shadow-xs hover:shadow-md transition-all cursor-pointer rounded-sm"
               >
                 {isChangingPassword ? (
                   <>
@@ -742,6 +774,46 @@ export default function AccountPage() {
           </div>
         </div>
       </div>
+
+      {/* Password Changed Success Modal */}
+      <AlertDialog open={showSuccessModal}>
+        <AlertDialogContent className="rounded-sm max-w-md p-6">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-sm bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+                <CheckCircle2 className="size-5" />
+              </div>
+              <div>
+                <AlertDialogTitle className="text-base font-bold text-foreground">
+                  Password Changed Successfully!
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Your new password is now active
+                </AlertDialogDescription>
+              </div>
+            </div>
+          </AlertDialogHeader>
+
+          <div className="py-2 text-sm text-muted-foreground leading-relaxed space-y-2">
+            <p>
+              Changing your password will sign you out. You will need to log in again with your new password to continue.
+            </p>
+            <p className="text-xs text-muted-foreground/80 font-medium">
+              Redirecting to login in <span className="font-semibold text-foreground font-mono">{countdown}</span> seconds...
+            </p>
+          </div>
+
+          <AlertDialogFooter className="pt-2">
+            <Button
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="w-full sm:w-auto rounded-sm text-xs font-bold px-5 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>Sign in now</span>
+              <ArrowRight className="size-4" />
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

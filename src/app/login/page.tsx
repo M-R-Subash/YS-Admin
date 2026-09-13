@@ -85,7 +85,7 @@ export default function LoginPage() {
           </div>
           <div>
             <h1 className="text-xl font-extrabold tracking-tight text-foreground">
-              Sign in to CMS
+              YS Innovations CMS
             </h1>
             <p className="mt-1 text-xs text-muted-foreground font-medium">
               Enter your credentials to access the admin portal
