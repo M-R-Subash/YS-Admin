@@ -30,6 +30,7 @@ model User {
 
   pages          Page[]    @relation("PageAuthor")
   blogs          Blog[]    @relation("BlogAuthor")
+  refreshTokens  RefreshToken[]
 }
 
 model Page {
@@ -135,6 +136,7 @@ model Comment {
   updatedAt   DateTime @updatedAt
 
   @@index([blogId, isApproved, isTrashed])
+  @@index([isApproved, isTrashed])
 }
 
 model FormSubmission {
@@ -161,4 +163,20 @@ model Redirection {
   updatedAt      DateTime @updatedAt
 
   @@index([sourceUrl, status])
+}
+
+model RefreshToken {
+  id          String   @id @default(cuid())
+  tokenHash   String   @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  userAgent   String?
+  ipAddress   String?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([tokenHash])
 }

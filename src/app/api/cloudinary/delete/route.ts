@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions, requireLiveAdmin } from "@/lib/auth";
 import { v2 as cloudinary } from "cloudinary";
 
 cloudinary.config({
@@ -16,11 +16,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "Forbidden: Only administrators can delete media assets" },
-        { status: 403 }
-      );
+    const guard = await requireLiveAdmin(session.user.id);
+    if (!guard.authorized) {
+      return NextResponse.json({ error: guard.error }, { status: guard.status });
     }
 
     const { public_id } = await request.json();

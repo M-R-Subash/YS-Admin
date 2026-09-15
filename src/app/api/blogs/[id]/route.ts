@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions, requireLiveAdmin } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { revalidateFrontendPath } from "@/lib/revalidate";
 
@@ -116,12 +116,10 @@ export async function DELETE(
     return NextResponse.json({ error: "Blog not found" }, { status: 404 });
   }
 
-  // Role-level RBAC: Only Admins can permanently delete blog posts
-  if (session.user.role !== "ADMIN") {
-    return NextResponse.json(
-      { error: "Forbidden: Only administrators can permanently delete blog posts" },
-      { status: 403 }
-    );
+  // Role-level RBAC: Enforce live database check for Admin role and active account
+  const guard = await requireLiveAdmin(session.user.id);
+  if (!guard.authorized) {
+    return NextResponse.json({ error: guard.error }, { status: guard.status });
   }
 
   if (!blog.isTrashed) {

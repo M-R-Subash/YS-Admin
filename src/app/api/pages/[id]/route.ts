@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions, requireLiveAdmin } from "@/lib/auth";
 import prisma, { mapDbToPageData } from "@/lib/prisma";
 import { revalidateFrontendPath } from "@/lib/revalidate";
 
@@ -117,11 +117,10 @@ export async function DELETE(
 
   const { id } = await params;
   
-  if (session.user.role !== "ADMIN") {
-    return NextResponse.json(
-      { error: "Forbidden: Only administrators can permanently delete website pages" },
-      { status: 403 }
-    );
+  // Role-level RBAC: Enforce live database check for Admin role and active account
+  const guard = await requireLiveAdmin(session.user.id);
+  if (!guard.authorized) {
+    return NextResponse.json({ error: guard.error }, { status: guard.status });
   }
 
   const page = await prisma.page.findUnique({ where: { id } });

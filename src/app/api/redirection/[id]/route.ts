@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions, requireLiveAdmin } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
 // PATCH /api/redirection/[id] - Update status or edit fields
@@ -56,6 +56,11 @@ export async function DELETE(
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const guard = await requireLiveAdmin(session.user.id);
+    if (!guard.authorized) {
+      return NextResponse.json({ error: guard.error }, { status: guard.status });
     }
 
     const { id } = await params;
