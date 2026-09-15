@@ -14,11 +14,11 @@ const MAX_ACTIVE_SESSIONS_PER_USER = 3; // Enforce maximum 3 active devices/sess
  * The client only holds the raw token in their encrypted session;
  * the DB only ever stores the irreversible SHA-256 hash.
  */
-function hashToken(rawToken: string): string {
+export function hashToken(rawToken: string): string {
   return crypto.createHash("sha256").update(rawToken).digest("hex");
 }
 
-function generateRawToken(): string {
+export function generateRawToken(): string {
   return crypto.randomBytes(40).toString("hex");
 }
 
@@ -97,6 +97,7 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
         picture: liveUser.profilePicture || token.picture,
         name: liveUser.name || token.name,
         refreshToken: newRawToken,
+        sessionTokenHash: newHash,
         accessTokenExpires: Date.now() + ACCESS_TOKEN_LIFETIME_MS,
         error: undefined,
       };
@@ -123,7 +124,7 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" }
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Invalid credentials");
         }
@@ -148,12 +149,22 @@ export const authOptions: NextAuthOptions = {
           data: { lastLogin: new Date() },
         });
 
+        const userAgent = (req?.headers as any)?.["user-agent"] || null;
+        const ipAddress =
+          ((req?.headers as any)?.["x-forwarded-for"] as string)
+            ?.split(",")[0]
+            ?.trim() ||
+          (req?.headers as any)?.["x-real-ip"] ||
+          null;
+
         return {
           id: user.id,
           email: user.email,
           name: user.name,
           role: user.role as "ADMIN" | "EDITOR",
           image: user.profilePicture,
+          userAgent,
+          ipAddress,
         };
       }
     })
@@ -189,11 +200,16 @@ export const authOptions: NextAuthOptions = {
           }).catch(() => {});
         }
 
-        // Save new hashed refresh token in DB
+        const userAgent = (user as any).userAgent || null;
+        const ipAddress = (user as any).ipAddress || null;
+
+        // Save new hashed refresh token in DB with device metadata
         await prisma.refreshToken.create({
           data: {
             tokenHash,
             userId: user.id,
+            userAgent,
+            ipAddress,
             expiresAt,
           },
         });
@@ -202,6 +218,7 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role;
         token.picture = user.image;
         token.refreshToken = rawRefreshToken;
+        token.sessionTokenHash = tokenHash;
         token.accessTokenExpires = Date.now() + ACCESS_TOKEN_LIFETIME_MS;
         return token;
       }
@@ -210,6 +227,12 @@ export const authOptions: NextAuthOptions = {
       if (trigger === "update" && session) {
         if (session.name) token.name = session.name;
         if (session.image) token.picture = session.image;
+      }
+
+      // If legacy session without refreshToken, allow normal access without creating phantom DB rows.
+      // (Full refresh token lifecycle is established on login via CredentialsProvider authorize)
+      if (!token.refreshToken && token.id) {
+        return token;
       }
 
       // Check if access token is still fresh (with 10-second buffer for clock skew)
@@ -226,6 +249,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id;
         session.user.role = token.role;
         session.user.image = token.picture;
+        (session as any).sessionTokenHash = token.sessionTokenHash;
         if (token.error) {
           (session as any).error = token.error;
         }

@@ -28,16 +28,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html
-      lang="en"
-      className={`h-full antialiased ${bricolage.variable}`}
-    >
+    <html lang="en" className={`h-full antialiased ${bricolage.variable}`}>
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
         <Providers>
           <TooltipProvider>
-            <AdminLayoutWrapper>
-              {children}
-            </AdminLayoutWrapper>
+            <AdminLayoutWrapper>{children}</AdminLayoutWrapper>
           </TooltipProvider>
         </Providers>
         <Toaster />

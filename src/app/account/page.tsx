@@ -45,6 +45,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ActiveSessionsCard } from "@/components/account/active-sessions-card";
 
 export default function AccountPage() {
   const { data: session, update } = useSession();
@@ -354,6 +355,7 @@ export default function AccountPage() {
                     src={profilePicture}
                     alt={name || "Profile"}
                     fill
+                    sizes="88px"
                     className="object-cover"
                     priority
                   />
@@ -454,6 +456,7 @@ export default function AccountPage() {
                       src={profilePicture}
                       alt="Author Avatar"
                       fill
+                      sizes="48px"
                       className="object-cover"
                     />
                   ) : (
@@ -773,6 +776,9 @@ export default function AccountPage() {
             </div>
           </div>
         </div>
+
+        {/* Panel 3: Active Devices & Sessions */}
+        <ActiveSessionsCard />
       </div>
 
       {/* Password Changed Success Modal */}
