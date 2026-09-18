@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
-import { BubbleMenu } from "@tiptap/react/menus";
+import DragHandle from "@tiptap/extension-drag-handle-react";
+import { BubbleMenu, FloatingMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import { Underline } from "@tiptap/extension-underline";
 import { Link } from "@tiptap/extension-link";
@@ -12,6 +13,15 @@ import { TableRow } from "@tiptap/extension-table-row";
 import { TableHeader } from "@tiptap/extension-table-header";
 import { TableCell } from "@tiptap/extension-table-cell";
 import { Placeholder } from "@tiptap/extension-placeholder";
+import TextAlign from "@tiptap/extension-text-align";
+import CharacterCount from "@tiptap/extension-character-count";
+import Highlight from "@tiptap/extension-highlight";
+import Color from "@tiptap/extension-color";
+import { TextStyle } from "@tiptap/extension-text-style";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
+import Youtube from "@tiptap/extension-youtube";
+import Typography from "@tiptap/extension-typography";
 import {
   Bold,
   Italic,
@@ -34,7 +44,20 @@ import {
   ArrowUpToLine,
   ArrowDownToLine,
   ArrowLeftToLine,
-  ArrowRightToLine
+  ArrowRightToLine,
+  GripVertical,
+  Undo,
+  Redo,
+  Quote,
+  Code,
+  Minus,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+  Highlighter,
+  CheckSquare,
+  Video as YoutubeIcon
 } from "lucide-react";
 import { ImageUploadBlock } from "@/components/ImageUploadBlock";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -108,8 +131,17 @@ export default function BlogEditor({
       TableHeader,
       TableCell,
       Placeholder.configure({
-        placeholder: "Start writing your blog post...",
+        placeholder: "Write your article content here...",
       }),
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      CharacterCount,
+      Highlight.configure({ multicolor: true }),
+      Color,
+      TextStyle,
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      Youtube.configure({ inline: false }),
+      Typography,
     ],
     content: initialContent || "",
     onUpdate: ({ editor }) => {
@@ -244,8 +276,24 @@ export default function BlogEditor({
       {/* Editor Toolbar */}
       <div className="sticky top-0 z-10 flex flex-wrap items-center gap-1 p-2 bg-card border-b border-border shadow-sm shrink-0">
         
-        {/* Formatting Group */}
+        {/* Undo/Redo Group */}
         <div className="flex items-center gap-1 pr-2 border-r border-border">
+          <ToolbarButton
+            onClick={() => editor.chain().focus().undo().run()}
+            disabled={!editor.can().undo()}
+            icon={<Undo className="w-4 h-4" />}
+            title="Undo"
+          />
+          <ToolbarButton
+            onClick={() => editor.chain().focus().redo().run()}
+            disabled={!editor.can().redo()}
+            icon={<Redo className="w-4 h-4" />}
+            title="Redo"
+          />
+        </div>
+
+        {/* Formatting Group */}
+        <div className="flex items-center gap-1 px-2 border-r border-border">
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBold().run()}
             isActive={editor.isActive("bold")}
@@ -265,6 +313,29 @@ export default function BlogEditor({
             onClick={() => editor.chain().focus().toggleStrike().run()}
             isActive={editor.isActive("strike")}
             icon={<Strikethrough className="w-4 h-4" />}
+          />
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleHighlight().run()}
+            isActive={editor.isActive("highlight")}
+            icon={<Highlighter className="w-4 h-4" />}
+          />
+        </div>
+
+        {/* Block Group */}
+        <div className="flex items-center gap-1 px-2 border-r border-border">
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleBlockquote().run()}
+            isActive={editor.isActive("blockquote")}
+            icon={<Quote className="w-4 h-4" />}
+          />
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+            isActive={editor.isActive("codeBlock")}
+            icon={<Code className="w-4 h-4" />}
+          />
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setHorizontalRule().run()}
+            icon={<Minus className="w-4 h-4" />}
           />
         </div>
 
@@ -302,6 +373,30 @@ export default function BlogEditor({
           />
         </div>
 
+        {/* Alignment Group */}
+        <div className="flex items-center gap-1 px-2 border-r border-border">
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign('left').run()}
+            isActive={editor.isActive({ textAlign: 'left' })}
+            icon={<AlignLeft className="w-4 h-4" />}
+          />
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign('center').run()}
+            isActive={editor.isActive({ textAlign: 'center' })}
+            icon={<AlignCenter className="w-4 h-4" />}
+          />
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign('right').run()}
+            isActive={editor.isActive({ textAlign: 'right' })}
+            icon={<AlignRight className="w-4 h-4" />}
+          />
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign('justify').run()}
+            isActive={editor.isActive({ textAlign: 'justify' })}
+            icon={<AlignJustify className="w-4 h-4" />}
+          />
+        </div>
+
         {/* Lists Group */}
         <div className="flex items-center gap-1 px-2 border-r border-border">
           <ToolbarButton
@@ -313,6 +408,11 @@ export default function BlogEditor({
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
             isActive={editor.isActive("orderedList")}
             icon={<ListOrdered className="w-4 h-4" />}
+          />
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleTaskList().run()}
+            isActive={editor.isActive("taskList")}
+            icon={<CheckSquare className="w-4 h-4" />}
           />
         </div>
 
@@ -417,6 +517,17 @@ export default function BlogEditor({
               </button>
             )}
           />
+
+          <ToolbarButton
+            onClick={() => {
+              const url = window.prompt("Enter YouTube URL");
+              if (url) {
+                editor.chain().focus().setYoutubeVideo({ src: url }).run();
+              }
+            }}
+            icon={<YoutubeIcon className="w-4 h-4 text-red-500" />}
+            title="Insert YouTube Video"
+          />
         </div>
 
         {/* Tables Group */}
@@ -460,6 +571,65 @@ export default function BlogEditor({
       {/* Editor Content Area */}
       <div className="w-full flex-1 overflow-y-auto relative custom-scrollbar">
         <EditorContent editor={editor} className="min-w-75 h-full" />
+        
+        {/* Character Count */}
+        {editor && (
+          <div className="flex items-center justify-end px-4 py-2 text-xs text-muted-foreground border-t border-border mt-4">
+            {editor.storage.characterCount.words()} words · {editor.storage.characterCount.characters()} characters
+          </div>
+        )}
+        
+        {/* Drag Handle */}
+        {editor && (
+          <DragHandle editor={editor}>
+            <div className="flex items-center justify-center w-5 h-5 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing hover:bg-accent rounded transition bg-background border border-border shadow-sm">
+              <GripVertical className="w-3.5 h-3.5" />
+            </div>
+          </DragHandle>
+        )}
+
+        {/* Floating Menu for empty lines */}
+        {editor && (
+          <FloatingMenu editor={editor}>
+            <div className="flex items-center gap-1 p-1 bg-card border border-border shadow-md rounded-md z-50">
+              <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} icon={<Heading1 className="w-4 h-4" />} title="Heading 1" />
+              <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} icon={<Heading2 className="w-4 h-4" />} title="Heading 2" />
+              <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} icon={<Heading3 className="w-4 h-4" />} title="Heading 3" />
+              <ToolbarButton onClick={() => editor.chain().focus().toggleBulletList().run()} icon={<List className="w-4 h-4" />} title="Bullet List" />
+              <ToolbarButton onClick={() => editor.chain().focus().toggleOrderedList().run()} icon={<ListOrdered className="w-4 h-4" />} title="Ordered List" />
+            </div>
+          </FloatingMenu>
+        )}
+
+        {/* General Text Bubble Menu */}
+        {editor && (
+          <BubbleMenu 
+            editor={editor} 
+            shouldShow={({ editor }) => {
+              // Show only if text is highlighted and not in a link, image, or table
+              return !editor.isActive('link') && !editor.isActive('table') && !editor.isActive('image') && !editor.state.selection.empty;
+            }}
+          >
+            <div className="flex items-center gap-1 p-1 bg-card border border-border shadow-md rounded-md z-50">
+              <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive("bold")} icon={<Bold className="w-4 h-4" />} title="Bold" />
+              <ToolbarButton onClick={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive("italic")} icon={<Italic className="w-4 h-4" />} title="Italic" />
+              <ToolbarButton onClick={() => editor.chain().focus().toggleUnderline().run()} isActive={editor.isActive("underline")} icon={<UnderlineIcon className="w-4 h-4" />} title="Underline" />
+              <ToolbarButton onClick={() => editor.chain().focus().toggleStrike().run()} isActive={editor.isActive("strike")} icon={<Strikethrough className="w-4 h-4" />} title="Strikethrough" />
+              <div className="w-px h-4 bg-border mx-0.5"></div>
+              <ToolbarButton 
+                onClick={() => {
+                  setLinkUrl("");
+                  setLinkOpenInNewTab(true);
+                  setLinkNoFollow(true);
+                  editor.chain().focus().setLink({ href: "" }).run();
+                }} 
+                isActive={editor.isActive("link")} 
+                icon={<LinkIcon className="w-4 h-4" />} 
+                title="Link" 
+              />
+            </div>
+          </BubbleMenu>
+        )}
         
         {/* Link Bubble Menu */}
         {editor && (
@@ -556,14 +726,15 @@ export default function BlogEditor({
 }
 
 // Sub-component for Toolbar Buttons
-function ToolbarButton({ onClick, isActive, icon, title }: { onClick: () => void; isActive?: boolean; icon: React.ReactNode; title?: string }) {
+function ToolbarButton({ onClick, isActive, icon, title, disabled }: { onClick: () => void; isActive?: boolean; icon: React.ReactNode; title?: string; disabled?: boolean }) {
   return (
     <button
       type="button"
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
+      disabled={disabled}
       title={title}
-      className={`p-2 rounded-sm transition flex items-center justify-center w-8 h-8 cursor-pointer ${
+      className={`p-2 rounded-sm transition flex items-center justify-center w-8 h-8 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
         isActive
           ? "bg-primary text-primary-foreground font-bold shadow-xs"
           : "bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground"

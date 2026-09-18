@@ -97,6 +97,7 @@ model Blog {
   status        String    @default("draft")
   isTrashed     Boolean   @default(false)
   content       Json
+  draftContent  Json?
   excerpt       String?
   readingTime   Int?     
   tags          String[] 

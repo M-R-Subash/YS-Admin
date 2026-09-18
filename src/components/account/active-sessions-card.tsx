@@ -12,7 +12,6 @@ import {
   Loader2,
   ShieldCheck,
   Clock,
-  MapPin,
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";

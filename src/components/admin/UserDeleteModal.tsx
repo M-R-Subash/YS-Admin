@@ -71,9 +71,11 @@ export function UserDeleteModal({
   // Reset/Initialize selection on open
   useEffect(() => {
     if (open && user) {
+      /* eslint-disable react-hooks/set-state-in-effect */
       setAction("reassign");
       const defaultId = oldestAdminId || currentUserId || availableUsers[0]?.id || "";
       setSelectedUserId(defaultId);
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [open, user, oldestAdminId, currentUserId, availableUsers]);
 

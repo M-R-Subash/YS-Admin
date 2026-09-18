@@ -99,6 +99,7 @@ export default function AccountPage() {
 
   useEffect(() => {
     if (accountData) {
+      /* eslint-disable react-hooks/set-state-in-effect */
       setName(accountData.name || session?.user?.name || "");
       setEmail(accountData.email || session?.user?.email || "");
       setProfilePicture(
@@ -114,6 +115,7 @@ export default function AccountPage() {
         description: accountData.description || "",
         authorRole: accountData.authorRole || "",
       });
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [accountData, session]);
 

@@ -40,7 +40,7 @@ export async function PUT(
 
 
   const body = await request.json();
-  const { title, slug, content, isTrashed, featuredImage, allowComments, tags, categories, excerpt, metaTitle, metaDesc, focusKeyword } = body;
+  const { title, slug, content, isTrashed, featuredImage, allowComments, tags, categories, excerpt, metaTitle, metaDesc, focusKeyword, action } = body;
   let { status } = body;
 
   if (isTrashed === true) {
@@ -50,7 +50,7 @@ export async function PUT(
   if (status === "published") {
     body.publishedAt = new Date().toISOString();
   } else if (status === "draft") {
-    body.publishedAt = null; // optional: unset if moving to draft
+    body.publishedAt = null;
   }
 
   // Handle SEO data if any SEO field is provided
@@ -71,29 +71,75 @@ export async function PUT(
       }
     : undefined;
 
-  const blog = await prisma.blog.update({
-    where: { id },
-    data: {
+  let updateData: any = {
+    ...(isTrashed !== undefined && { isTrashed }),
+    ...(seoData && { seo: seoData }),
+    ...(body.publishedAt !== undefined && { publishedAt: body.publishedAt }),
+  };
+
+  let shouldRevalidate = false;
+
+  if (action === "save-draft") {
+    // Only save to draftContent without altering live content
+    updateData = {
+      ...updateData,
+      draftContent: body,
+      ...(status !== undefined && { status }),
+    };
+  } else if (action === "publish") {
+    // Commit to live content, reset draftContent
+    updateData = {
+      ...updateData,
+      title,
+      slug,
+      content,
+      featuredImage,
+      allowComments,
+      tags,
+      categories,
+      excerpt,
+      draftContent: null,
+      status: "published",
+    };
+    shouldRevalidate = true;
+  } else if (action === "discard-draft") {
+    // Clear draftContent, live content remains intact
+    updateData = {
+      ...updateData,
+      draftContent: null,
+    };
+  } else {
+    // Standard update
+    updateData = {
+      ...updateData,
       ...(title !== undefined && { title }),
       ...(slug !== undefined && { slug }),
       ...(status !== undefined && { status }),
       ...(content !== undefined && { content }),
-      ...(isTrashed !== undefined && { isTrashed }),
       ...(featuredImage !== undefined && { featuredImage }),
       ...(allowComments !== undefined && { allowComments }),
       ...(tags !== undefined && { tags }),
       ...(categories !== undefined && { categories }),
       ...(excerpt !== undefined && { excerpt }),
-      ...(seoData && { seo: seoData }),
-      ...(body.publishedAt !== undefined && { publishedAt: body.publishedAt }),
-    },
+      ...(body.draftContent !== undefined && { draftContent: body.draftContent }),
+    };
+    if (content !== undefined || status === "published") {
+      shouldRevalidate = true;
+    }
+  }
+
+  const blog = await prisma.blog.update({
+    where: { id },
+    data: updateData,
     include: { seo: true }
   });
 
   // Revalidate blog listing and blog single page
-  revalidateFrontendPath("/blogs");
-  if (blog.slug) {
-    revalidateFrontendPath(`/blogs/${blog.slug}`);
+  if (shouldRevalidate) {
+    revalidateFrontendPath("/blogs");
+    if (blog.slug) {
+      revalidateFrontendPath(`/blogs/${blog.slug}`);
+    }
   }
 
   return NextResponse.json(blog);

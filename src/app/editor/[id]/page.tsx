@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ScreenLoader } from "@/components/ui/screen-loader";
+import { useEmergencyDraft, getEmergencyBackup } from "@/hooks/useEmergencyDraft";
 
 const SCHEMA_REGISTRY: Record<string, any> = {
   "/": {
@@ -119,21 +120,10 @@ export default function EditorPage({
         let initialContent = data.draftContent ?? data.content ?? {};
 
         // Seamless auto-load from emergency local backup if newer, without blocking prompts
-        try {
-          const rawLocal = localStorage.getItem(`emergency_draft_${pageId}`);
-          if (rawLocal) {
-            const parsed = JSON.parse(rawLocal);
-            const dbTime = new Date(data.updatedAt).getTime();
-            if (
-              parsed.timestamp &&
-              parsed.timestamp > dbTime &&
-              parsed.content
-            ) {
-              initialContent = parsed.content;
-            }
-          }
-        } catch (err) {
-          console.warn("Could not check local storage backup", err);
+        const dbTime = new Date(data.updatedAt).getTime();
+        const backup = getEmergencyBackup<any>(`emergency_draft_${pageId}`, dbTime);
+        if (backup) {
+          initialContent = backup.data;
         }
 
         setSchemaData(initialContent);
@@ -175,40 +165,11 @@ export default function EditorPage({
 
   const hasCloudDraft = Boolean(page?.draftContent);
 
-  // Emergency LocalStorage auto-save every 10 seconds
-  useEffect(() => {
-    if (!pageId || !schemaData || !page || !isUnsavedChanges) return;
-
-    const interval = setInterval(() => {
-      try {
-        const backup = {
-          pageId,
-          content: schemaData,
-          timestamp: Date.now(),
-        };
-        localStorage.setItem(
-          `emergency_draft_${pageId}`,
-          JSON.stringify(backup),
-        );
-      } catch (err) {
-        console.warn("Failed to write emergency backup to localStorage", err);
-      }
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, [pageId, schemaData, page, isUnsavedChanges]);
-
-  // Prevent accidental browser tab close with unsaved changes
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isUnsavedChanges) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isUnsavedChanges]);
+  const { clearBackup } = useEmergencyDraft({
+    key: `emergency_draft_${pageId}`,
+    isDirty: isUnsavedChanges,
+    getPayload: () => schemaData,
+  });
 
   // Action 1: Save Draft to Cloud Database
   async function handleSaveDraft() {
@@ -238,7 +199,7 @@ export default function EditorPage({
       setLastSavedAt(
         new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       );
-      localStorage.removeItem(`emergency_draft_${page.id}`);
+      clearBackup();
 
       // Re-send the saved content to the preview iframe so it stays in sync
       const config = getSchemaConfig(page.slug);
@@ -312,7 +273,7 @@ export default function EditorPage({
       setSchemaData(contentPayload);
       setSavedBaselineString(JSON.stringify(contentPayload));
       setLastSavedAt(null);
-      localStorage.removeItem(`emergency_draft_${page.id}`);
+      clearBackup();
 
       toast.add({
         title: "Page is now live!",
@@ -352,7 +313,7 @@ export default function EditorPage({
 
       const updatedPage: PageData = await res.json();
       setPage(updatedPage);
-      localStorage.removeItem(`emergency_draft_${page.id}`);
+      clearBackup();
 
       // Revert editor schema data back to live published content
       const revertedContent = updatedPage.content || {};

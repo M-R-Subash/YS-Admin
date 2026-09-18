@@ -10,13 +10,11 @@ export async function revalidateFrontendPath(
     process.env.NEXT_PUBLIC_FRONTEND_URL ||
     process.env.FRONTEND_URL || "";
 
-  const secret =
-    process.env.REVALIDATION_SECRET ||
-    process.env.PREVIEW_SECRET;
+  const secret = process.env.REVALIDATION_SECRET;
 
   if (!secret) {
     console.warn(
-      "[revalidate] Neither REVALIDATION_SECRET nor PREVIEW_SECRET is set. Skipping revalidation."
+      "[revalidate] REVALIDATION_SECRET is not set. Skipping revalidation."
     );
     return false;
   }
