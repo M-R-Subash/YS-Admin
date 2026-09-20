@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { revalidateFrontendPath } from "@/lib/revalidate";
+import { blogDraftSchema, blogPublishSchema } from "@/lib/schemas/blog/blog-validation";
 
 export async function GET(req: Request) {
   try {
@@ -82,15 +83,27 @@ export async function POST(req: Request) {
       featuredImage,
       content,
       allowComments,
-      status,
-      tags,
-      categories,
-      readingTime,
+      status = "draft",
+      tags = [],
+      categories = [],
+      readingTime = 0,
+      excerpt = "",
+      metaTitle = "",
+      metaDesc = "",
+      focusKeyword = "",
     } = body;
 
-    if (!title || !slug || !content) {
+    // Validate with Zod based on status
+    const validation = status === "published" 
+      ? blogPublishSchema.safeParse(body) 
+      : blogDraftSchema.safeParse(body);
+
+    if (!validation.success) {
       return NextResponse.json(
-        { message: "Missing required fields (Title, Slug, Content)." },
+        { 
+          message: validation.error.issues[0]?.message || "Validation failed", 
+          errors: validation.error.issues 
+        },
         { status: 400 }
       );
     }
@@ -113,6 +126,7 @@ export async function POST(req: Request) {
         slug,
         featuredImage,
         content,
+        excerpt,
         allowComments: allowComments ?? true,
         status: status || "draft",
         tags: tags || [],
@@ -120,7 +134,15 @@ export async function POST(req: Request) {
         readingTime: readingTime || 0,
         publishedAt: status === "published" ? new Date() : null,
         authorId: session.user.id,
+        seo: (metaTitle || metaDesc || focusKeyword) ? {
+          create: {
+            metaTitle: metaTitle || "",
+            metaDesc: metaDesc || "",
+            focusKeyword: focusKeyword || "",
+          }
+        } : undefined,
       },
+      include: { seo: true },
     });
 
     if (newBlog.status === "published") {

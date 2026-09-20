@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, requireLiveAdmin } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { revalidateFrontendPath } from "@/lib/revalidate";
+import { blogDraftSchema, blogPublishSchema } from "@/lib/schemas/blog/blog-validation";
 
 // GET /api/blogs/[id] — get a single blog
 export async function GET(
@@ -42,6 +43,34 @@ export async function PUT(
   const body = await request.json();
   const { title, slug, content, isTrashed, featuredImage, allowComments, tags, categories, excerpt, metaTitle, metaDesc, focusKeyword, action } = body;
   let { status } = body;
+
+  // Validate action payload with Zod
+  if (action === "publish" || action === "save-draft") {
+    const schema = action === "publish" ? blogPublishSchema : blogDraftSchema;
+    const validation = schema.safeParse(body);
+    if (!validation.success) {
+      return NextResponse.json(
+        { 
+          message: validation.error.issues[0]?.message || "Validation failed", 
+          errors: validation.error.issues 
+        },
+        { status: 400 }
+      );
+    }
+  }
+
+  // Check unique slug conflict if slug is being updated
+  if (slug && slug !== existingBlog.slug) {
+    const slugConflict = await prisma.blog.findFirst({
+      where: { slug, id: { not: id } },
+    });
+    if (slugConflict) {
+      return NextResponse.json(
+        { message: "A blog with this slug already exists. Please choose a different title or edit the slug." },
+        { status: 400 }
+      );
+    }
+  }
 
   if (isTrashed === true) {
     status = "draft";

@@ -2,41 +2,78 @@
 
 import { useFieldArray, Controller } from "react-hook-form";
 import type { FieldSchema } from "@/lib/schemas/global-schema";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
+import { cn } from "@/lib/utils";
 import { ImageUploadBlock } from "@/components/ImageUploadBlock";
 import { MenuBuilderBlock } from "@/components/MenuBuilderBlock";
 import { FooterColumnsBlock } from "@/components/FooterColumnsBlock";
 import FaqManager from "@/components/faq/FaqManager";
+import { Switch } from "@/components/ui/switch";
+import { TagInput } from "@/components/ui/tag-input";
 
 function AutoResizeTextarea({
   value,
   onChange,
   placeholder,
   className,
+  rows = 2,
 }: {
   value: string;
   onChange: any;
   placeholder?: string;
   className?: string;
+  rows?: number;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height =
-        textareaRef.current.scrollHeight + "px";
+  const adjustHeight = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    if (el.scrollHeight > 0) {
+      el.style.height = `${el.scrollHeight}px`;
     }
-  }, [value]);
+  }, []);
+
+  useEffect(() => {
+    adjustHeight();
+  }, [value, adjustHeight]);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+
+    const observer = new ResizeObserver(() => {
+      if (el.offsetParent !== null) {
+        adjustHeight();
+      }
+    });
+    observer.observe(el);
+
+    const timer = setTimeout(adjustHeight, 50);
+
+    return () => {
+      observer.disconnect();
+      clearTimeout(timer);
+    };
+  }, [adjustHeight]);
 
   return (
     <textarea
       ref={textareaRef}
-      value={value}
-      onChange={onChange}
+      value={value || ""}
+      onChange={(e) => {
+        onChange(e);
+        adjustHeight();
+      }}
+      onInput={adjustHeight}
       placeholder={placeholder}
-      rows={1}
-      className={`w-full px-4 py-2.5 bg-background border rounded-sm text-foreground text-sm font-medium transition-colors resize-none overflow-hidden focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${className || "border-border"}`}
+      rows={rows}
+      className={cn(
+        "w-full px-4 py-2.5 bg-background border rounded-sm text-foreground text-sm font-medium leading-relaxed transition-colors resize-none overflow-hidden break-words whitespace-pre-wrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+        rows <= 2 ? "min-h-[46px]" : "min-h-[88px]",
+        className || "border-border"
+      )}
     />
   );
 }
@@ -282,20 +319,13 @@ export function EditorRenderer({
               <Controller
                 name={fieldName}
                 control={control}
-                render={({ field: { onChange, value, ref }, fieldState: { error } }) => (
+                render={({ field: { onChange, value }, fieldState: { error } }) => (
                   <div className="flex flex-col gap-1">
-                    <input
-                      ref={ref}
-                      type="text"
-                      value={Array.isArray(value) ? value.join(", ") : value || ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        onChange(val ? val.split(",").map((s) => s.trim()).filter(Boolean) : []);
-                      }}
-                      placeholder="tag1, tag2, tag3"
-                      className={`w-full px-4 py-2.5 bg-background border rounded-sm text-foreground text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
-                        error ? "border-red-500 focus-visible:ring-red-500" : "border-border"
-                      }`}
+                    <TagInput
+                      value={Array.isArray(value) ? value : value ? [String(value)] : []}
+                      onChange={onChange}
+                      placeholder={field.placeholder || "Type and press Enter..."}
+                      className={error ? "border-red-500 focus-visible:ring-red-500" : undefined}
                     />
                     {error && (
                       <span className="text-red-500 text-[11px] font-bold tracking-wide mt-0.5">
@@ -303,6 +333,41 @@ export function EditorRenderer({
                       </span>
                     )}
                   </div>
+                )}
+              />
+              {field.description && (
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {field.description}
+                </p>
+              )}
+            </div>
+          );
+        }
+
+        if (field.type === "boolean") {
+          return (
+            <div
+              key={fieldName}
+              className="flex items-center justify-between p-5 border border-border/70 rounded-xl bg-muted/20 shadow-xs"
+            >
+              <div>
+                <label className="text-sm font-bold text-foreground cursor-pointer">
+                  {field.label}
+                </label>
+                {field.description && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {field.description}
+                  </p>
+                )}
+              </div>
+              <Controller
+                name={fieldName}
+                control={control}
+                render={({ field: { value, onChange } }) => (
+                  <Switch
+                    checked={Boolean(value)}
+                    onCheckedChange={onChange}
+                  />
                 )}
               />
             </div>
@@ -328,6 +393,7 @@ export function EditorRenderer({
                       value={value || ""}
                       onChange={onChange}
                       placeholder={field.placeholder}
+                      rows={field.rows}
                       className={
                         error
                           ? "border-red-500 focus-visible:ring-red-500"
@@ -356,6 +422,11 @@ export function EditorRenderer({
                 </div>
               )}
             />
+            {field.description && (
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {field.description}
+              </p>
+            )}
           </div>
         );
       })}

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export type FieldType = "text" | "textarea" | "url" | "array" | "object" | "accordion" | "image" | "tags" | "menu-builder" | "footer-columns" | "faq-manager";
+export type FieldType = "text" | "textarea" | "url" | "array" | "object" | "accordion" | "image" | "tags" | "boolean" | "menu-builder" | "footer-columns" | "faq-manager";
 
 export interface FieldSchema {
   name: string;
@@ -8,6 +8,7 @@ export interface FieldSchema {
   type: FieldType;
   placeholder?: string;
   description?: string;
+  rows?: number;
   fields?: FieldSchema[]; // For 'array' and 'object' types
 }
 
