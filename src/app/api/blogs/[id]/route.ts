@@ -84,7 +84,7 @@ export async function PUT(
     updateData = {
       ...updateData,
       draftContent: body,
-      ...(status !== undefined && { status }),
+      status: existingBlog.status === "published" ? "published" : (status || "draft"),
     };
   } else if (action === "publish") {
     // Commit to live content, reset draftContent

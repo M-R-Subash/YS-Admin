@@ -19,10 +19,13 @@ import {
   Link as LinkIcon,
   Unlink,
   ChevronRight,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 export interface FaqItem {
   id?: string;
@@ -37,7 +40,55 @@ interface FaqManagerProps {
   description?: string;
 }
 
-// Mini rich-text editor for FAQ answer content supporting bold, italic, underline, lists, and links
+function FaqToolbarButton({
+  onClick,
+  isActive,
+  icon,
+  title,
+  shortcut,
+  disabled,
+}: {
+  onClick: () => void;
+  isActive?: boolean;
+  icon: React.ReactNode;
+  title?: string;
+  shortcut?: string;
+  disabled?: boolean;
+}) {
+  const btn = (
+    <button
+      type="button"
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onClick}
+      disabled={disabled}
+      className={`p-1.5 px-2 rounded-sm transition flex items-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+        isActive
+          ? "bg-primary text-primary-foreground font-bold shadow-xs"
+          : "bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground"
+      }`}
+    >
+      {icon}
+    </button>
+  );
+
+  if (!title) return btn;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger render={btn} />
+      <TooltipContent side="top" sideOffset={4} className="flex items-center gap-2 px-2.5 py-1 z-60">
+        <span className="font-medium text-xs">{title}</span>
+        {shortcut && (
+          <span className="text-[10px] uppercase tracking-widest text-background/70 bg-background/20 px-1.5 py-0.5 rounded-sm">
+            {shortcut}
+          </span>
+        )}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+// Mini rich-text editor for FAQ answer content matching BlogEditor toolbar styling
 function FaqAnswerEditor({
   content,
   onChange,
@@ -45,6 +96,11 @@ function FaqAnswerEditor({
   content: string;
   onChange: (html: string) => void;
 }) {
+  const [showLinkPopover, setShowLinkPopover] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkOpenInNewTab, setLinkOpenInNewTab] = useState(true);
+  const [linkNoFollow, setLinkNoFollow] = useState(false);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -83,119 +139,182 @@ function FaqAnswerEditor({
 
   if (!editor) return null;
 
-  const handleToggleLink = () => {
-    if (editor.isActive("link")) {
-      editor.chain().focus().unsetLink().run();
-      return;
-    }
-    const previousUrl = editor.getAttributes("link").href;
-    const url = window.prompt("Enter URL for link:", previousUrl || "https://");
-    if (url === null) return;
-    if (url.trim() === "") {
+  const openLinkModal = () => {
+    const existingHref = editor.getAttributes("link").href || "";
+    const target = editor.getAttributes("link").target;
+    const rel = editor.getAttributes("link").rel || "";
+    setLinkUrl(existingHref);
+    setLinkOpenInNewTab(target === "_blank");
+    setLinkNoFollow(rel.includes("nofollow"));
+    setShowLinkPopover(true);
+  };
+
+  const applyLink = () => {
+    if (!linkUrl.trim()) {
       editor.chain().focus().extendMarkRange("link").unsetLink().run();
+      setShowLinkPopover(false);
       return;
     }
-    editor.chain().focus().extendMarkRange("link").setLink({ href: url.trim() }).run();
+    const href =
+      linkUrl.trim().startsWith("http") ||
+      linkUrl.trim().startsWith("/") ||
+      linkUrl.trim().startsWith("#") ||
+      linkUrl.trim().startsWith("mailto:")
+        ? linkUrl.trim()
+        : `https://${linkUrl.trim()}`;
+
+    editor
+      .chain()
+      .focus()
+      .extendMarkRange("link")
+      .setLink({
+        href,
+        target: linkOpenInNewTab ? "_blank" : null,
+        rel: linkNoFollow ? "nofollow noopener noreferrer" : "noopener noreferrer",
+      })
+      .run();
+    setShowLinkPopover(false);
+  };
+
+  const removeLink = () => {
+    editor.chain().focus().extendMarkRange("link").unsetLink().run();
+    setShowLinkPopover(false);
   };
 
   return (
-    <div className="border border-input rounded-lg overflow-hidden bg-background">
-      {/* Mini Toolbar */}
-      <div className="flex flex-wrap items-center gap-1 p-1.5 border-b border-border bg-muted/40 text-xs">
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          className={`p-1.5 rounded transition-colors cursor-pointer ${
-            editor.isActive("bold")
-              ? "bg-accent text-accent-foreground font-bold"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-          title="Bold"
-        >
-          <Bold className="w-3.5 h-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          className={`p-1.5 rounded transition-colors cursor-pointer ${
-            editor.isActive("italic")
-              ? "bg-accent text-accent-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-          title="Italic"
-        >
-          <Italic className="w-3.5 h-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleUnderline().run()}
-          className={`p-1.5 rounded transition-colors cursor-pointer ${
-            editor.isActive("underline")
-              ? "bg-accent text-accent-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-          title="Underline"
-        >
-          <UnderlineIcon className="w-3.5 h-3.5" />
-        </button>
+    <TooltipProvider delay={200}>
+      <div className="border border-input rounded-lg overflow-hidden bg-background">
+        {/* Top Bar with BlogEditor-quality buttons */}
+        <div className="flex flex-wrap items-center gap-1 p-1.5 border-b border-border bg-muted/40 text-xs">
+          <FaqToolbarButton
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            isActive={editor.isActive("bold")}
+            icon={<Bold className="w-3.5 h-3.5" />}
+            title="Bold"
+            shortcut="Ctrl+B"
+          />
+          <FaqToolbarButton
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+            isActive={editor.isActive("italic")}
+            icon={<Italic className="w-3.5 h-3.5" />}
+            title="Italic"
+            shortcut="Ctrl+I"
+          />
+          <FaqToolbarButton
+            onClick={() => editor.chain().focus().toggleUnderline().run()}
+            isActive={editor.isActive("underline")}
+            icon={<UnderlineIcon className="w-3.5 h-3.5" />}
+            title="Underline"
+            shortcut="Ctrl+U"
+          />
 
-        <div className="w-px h-3.5 bg-border mx-1" />
+          <div className="w-px h-3.5 bg-border mx-1" />
 
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          className={`p-1.5 rounded transition-colors cursor-pointer ${
-            editor.isActive("bulletList")
-              ? "bg-accent text-accent-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-          title="Bullet List"
-        >
-          <List className="w-3.5 h-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          className={`p-1.5 rounded transition-colors cursor-pointer ${
-            editor.isActive("orderedList")
-              ? "bg-accent text-accent-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-          title="Numbered List"
-        >
-          <ListOrdered className="w-3.5 h-3.5" />
-        </button>
+          <FaqToolbarButton
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            isActive={editor.isActive("bulletList")}
+            icon={<List className="w-3.5 h-3.5" />}
+            title="Bullet List"
+          />
+          <FaqToolbarButton
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            isActive={editor.isActive("orderedList")}
+            icon={<ListOrdered className="w-3.5 h-3.5" />}
+            title="Numbered List"
+          />
 
-        <div className="w-px h-3.5 bg-border mx-1" />
+          <div className="w-px h-3.5 bg-border mx-1" />
 
-        {/* Link Button */}
-        <button
-          type="button"
-          onClick={handleToggleLink}
-          className={`p-1.5 rounded transition-colors flex items-center gap-1 cursor-pointer ${
-            editor.isActive("link")
-              ? "bg-primary/10 text-primary font-semibold"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-          title={editor.isActive("link") ? "Edit / Remove Link" : "Insert Link"}
-        >
-          <LinkIcon className="w-3.5 h-3.5" />
-          <span className="text-[10px] hidden sm:inline">Link</span>
-        </button>
-        {editor.isActive("link") && (
-          <button
-            type="button"
-            onClick={() => editor.chain().focus().unsetLink().run()}
-            className="p-1.5 rounded text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
-            title="Remove Link"
-          >
-            <Unlink className="w-3.5 h-3.5" />
-          </button>
-        )}
+          {/* Link Tool with Interactive Popover */}
+          <div className="relative">
+            <FaqToolbarButton
+              onClick={openLinkModal}
+              isActive={editor.isActive("link")}
+              icon={
+                <div className="flex items-center gap-0.5">
+                  <LinkIcon className="w-3.5 h-3.5" />
+                  <ChevronDown className="w-2.5 h-2.5 opacity-70" />
+                </div>
+              }
+              title={editor.isActive("link") ? "Edit Link" : "Insert Link"}
+              shortcut="Ctrl+K"
+            />
+
+            {showLinkPopover && (
+              <div className="absolute top-full left-0 mt-2 p-3.5 bg-card border border-border shadow-xl rounded-xl w-72 z-50 animate-in fade-in zoom-in-95">
+                <input
+                  type="text"
+                  placeholder="Paste URL (e.g. https://...)..."
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  className="w-full px-2.5 py-1.5 mb-2 text-xs border border-input rounded-md focus:outline-ring bg-background text-foreground"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      applyLink();
+                    }
+                  }}
+                />
+                <div className="flex flex-col gap-2 mb-3 mt-1 text-xs">
+                  <div className="flex items-center justify-between">
+                    <Label className="cursor-pointer font-medium text-[11px] text-muted-foreground hover:text-foreground">
+                      Open in new tab
+                    </Label>
+                    <Switch
+                      checked={linkOpenInNewTab}
+                      onCheckedChange={setLinkOpenInNewTab}
+                      className="scale-75 origin-right"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="cursor-pointer font-medium text-[11px] text-muted-foreground hover:text-foreground">
+                      Add nofollow
+                    </Label>
+                    <Switch
+                      checked={linkNoFollow}
+                      onCheckedChange={setLinkNoFollow}
+                      className="scale-75 origin-right"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t border-border">
+                  {editor.isActive("link") ? (
+                    <button
+                      type="button"
+                      onClick={removeLink}
+                      className="text-destructive hover:underline text-xs flex items-center gap-1 cursor-pointer font-medium"
+                    >
+                      <Unlink className="w-3 h-3" /> Remove
+                    </button>
+                  ) : (
+                    <div />
+                  )}
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setShowLinkPopover(false)}
+                      className="px-2.5 py-1 text-xs hover:bg-accent rounded-md transition cursor-pointer text-muted-foreground hover:text-foreground"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={applyLink}
+                      className="px-2.5 py-1 text-xs bg-primary text-primary-foreground rounded-md flex items-center gap-1 transition hover:bg-primary/90 cursor-pointer font-semibold shadow-xs"
+                    >
+                      <Check className="w-3 h-3" /> Apply
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <EditorContent editor={editor} />
       </div>
-
-      <EditorContent editor={editor} />
-    </div>
+    </TooltipProvider>
   );
 }
 

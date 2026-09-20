@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/toast";
-import { ArrowLeft, Loader2, Save, Send, Maximize, Minimize, ChevronDown, Search, Sparkles, CheckCircle2, AlertCircle, HelpCircle, FileText } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Send, ChevronDown, Search, Sparkles, CheckCircle2, AlertCircle, HelpCircle, FileText, Settings2 } from "lucide-react";
 import FaqManager, { FaqItem } from "@/components/faq/FaqManager";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { ScreenLoader } from "@/components/ui/screen-loader";
@@ -292,7 +292,6 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(isEditMode);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
-  const [isFocusMode, setIsFocusMode] = useState(false);
 
   // Initial Form Snapshot for dirty check
   const [initialData, setInitialData] = useState<any>(null);
@@ -315,9 +314,9 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   const [allowComments, setAllowComments] = useState(true);
   const [status, setStatus] = useState<"draft" | "published">("draft");
 
-  // FAQ State
+  // Tab & FAQ State
   const [faqs, setFaqs] = useState<FaqItem[]>([]);
-  const [editorTab, setEditorTab] = useState<"content" | "faqs">("content");
+  const [editorTab, setEditorTab] = useState<"general" | "content" | "faqs">("content");
 
   // Editor State
   const [content, setContent] = useState<any>(null);
@@ -328,6 +327,31 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   const seoAnalysis = useMemo(() => {
     return analyzeSeo(focusKeyword, title, slug, metaDesc, content, editorWordCount);
   }, [focusKeyword, title, slug, metaDesc, content, editorWordCount]);
+
+  // Helpers to normalize content and faqs comparison
+  const isContentEqual = (a: any, b: any) => {
+    if (!a && !b) return true;
+    if (!a || !b) return false;
+    const cleanDoc = (doc: any) => {
+      if (!doc) return null;
+      if (typeof doc === "string") {
+        try { doc = JSON.parse(doc); } catch { return doc; }
+      }
+      if (typeof doc !== "object") return doc;
+      const clone = { ...doc };
+      delete clone.faqs;
+      return clone;
+    };
+    return JSON.stringify(cleanDoc(a)) === JSON.stringify(cleanDoc(b));
+  };
+
+  const areFaqsEqual = (a: FaqItem[], b: FaqItem[]) => {
+    const listA = a || [];
+    const listB = b || [];
+    if (listA.length !== listB.length) return false;
+    return JSON.stringify(listA.map((f) => ({ q: (f?.question || "").trim(), a: (f?.answer || "").trim() }))) ===
+           JSON.stringify(listB.map((f) => ({ q: (f?.question || "").trim(), a: (f?.answer || "").trim() })));
+  };
 
   // Fetch blog data if in edit mode
   useEffect(() => {
@@ -342,58 +366,98 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         const dbTime = data.updatedAt ? new Date(data.updatedAt).getTime() : 0;
         
         const initialPayload = data.draftContent ? (typeof data.draftContent === 'string' ? JSON.parse(data.draftContent) : data.draftContent) : data;
-        let finalData = { ...initialPayload };
-        let isBackup = false;
 
         setHasCloudDraft(!!data.draftContent);
 
-        const backup = getEmergencyBackup<any>(`emergency_blog_draft_${blogId || 'new'}`, dbTime);
-        if (backup) {
-          finalData = { ...finalData, ...backup.data };
-          isBackup = true;
-          setLoadedFromBackup(true);
-          setLastSavedAt(new Date(backup.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+        // Separate editor content from faqs for clean database snapshot
+        const blogTags = Array.isArray(initialPayload.tags) ? initialPayload.tags : initialPayload.tags ? String(initialPayload.tags).split(",").map((s: string) => s.trim()).filter(Boolean) : [];
+        const blogCategories = Array.isArray(initialPayload.categories) ? initialPayload.categories : initialPayload.categories ? String(initialPayload.categories).split(",").map((s: string) => s.trim()).filter(Boolean) : [];
+
+        const rawContent = initialPayload.content;
+        let dbEditorContent = rawContent;
+        let dbFaqs: FaqItem[] = [];
+        if (rawContent && typeof rawContent === "object" && !Array.isArray(rawContent)) {
+          if (Array.isArray((rawContent as any).faqs)) {
+            dbFaqs = (rawContent as any).faqs;
+          }
+          const clone = { ...(rawContent as any) };
+          delete clone.faqs;
+          dbEditorContent = clone;
+        }
+        if (dbFaqs.length === 0 && Array.isArray(initialPayload.faqs)) {
+          dbFaqs = initialPayload.faqs;
         }
 
-        const blogTags = Array.isArray(finalData.tags) ? finalData.tags : finalData.tags ? String(finalData.tags).split(",").map((s: string) => s.trim()).filter(Boolean) : [];
-        const blogCategories = Array.isArray(finalData.categories) ? finalData.categories : finalData.categories ? String(finalData.categories).split(",").map((s: string) => s.trim()).filter(Boolean) : [];
-
-        setTitle(finalData.title || "");
-        setSlug(finalData.slug || "");
-        setTags(blogTags);
-        setCategories(blogCategories);
-        setAllowComments(finalData.allowComments ?? true);
-        setStatus(finalData.status || "draft");
-        setContent(finalData.content);
-        setFeaturedImage(finalData.featuredImage || null);
-        setExcerpt(finalData.excerpt || "");
-        setMetaTitle(finalData.metaTitle || finalData.seo?.metaTitle || "");
-        setMetaDesc(finalData.metaDesc || finalData.seo?.metaDesc || "");
-        setFocusKeyword(finalData.focusKeyword || finalData.seo?.focusKeyword || "");
-
-        const loadedFaqs = Array.isArray(finalData.content?.faqs)
-          ? finalData.content.faqs
-          : Array.isArray(finalData.faqs)
-          ? finalData.faqs
-          : [];
-        setFaqs(loadedFaqs);
-
-        // Save snapshot for dirty check using the effective loaded data
-        setInitialData({
-          title: finalData.title || "",
-          slug: finalData.slug || "",
+        const dbSnapshot = {
+          title: initialPayload.title || "",
+          slug: initialPayload.slug || "",
           tags: blogTags,
           categories: blogCategories,
-          allowComments: finalData.allowComments ?? true,
-          status: finalData.status || "draft",
-          content: finalData.content,
-          featuredImage: finalData.featuredImage || null,
-          excerpt: finalData.excerpt || "",
-          metaTitle: finalData.metaTitle || finalData.seo?.metaTitle || "",
-          metaDesc: finalData.metaDesc || finalData.seo?.metaDesc || "",
-          focusKeyword: finalData.focusKeyword || finalData.seo?.focusKeyword || "",
-          faqs: loadedFaqs,
-        });
+          allowComments: initialPayload.allowComments ?? true,
+          status: initialPayload.status || "draft",
+          content: dbEditorContent,
+          featuredImage: initialPayload.featuredImage || null,
+          excerpt: initialPayload.excerpt || "",
+          metaTitle: initialPayload.metaTitle || initialPayload.seo?.metaTitle || "",
+          metaDesc: initialPayload.metaDesc || initialPayload.seo?.metaDesc || "",
+          focusKeyword: initialPayload.focusKeyword || initialPayload.seo?.focusKeyword || "",
+          faqs: dbFaqs,
+        };
+
+        let effectiveData = { ...dbSnapshot };
+        let isBackup = false;
+
+        const backupKey = `emergency_blog_draft_${blogId || 'new'}`;
+        const backup = getEmergencyBackup<any>(backupKey, dbTime);
+
+        if (backup && backup.data) {
+          const bData = backup.data;
+          const bFaqs = bData.faqs || bData.content?.faqs || [];
+          const hasRealChanges =
+            (bData.title !== undefined && bData.title !== dbSnapshot.title) ||
+            (bData.slug !== undefined && bData.slug !== dbSnapshot.slug) ||
+            (bData.excerpt !== undefined && bData.excerpt !== dbSnapshot.excerpt) ||
+            (bData.featuredImage !== undefined && bData.featuredImage !== dbSnapshot.featuredImage) ||
+            !isContentEqual(bData.content, dbSnapshot.content) ||
+            !areFaqsEqual(bFaqs, dbSnapshot.faqs);
+
+          if (hasRealChanges) {
+            effectiveData = {
+              ...dbSnapshot,
+              ...bData,
+              tags: Array.isArray(bData.tags) ? bData.tags : dbSnapshot.tags,
+              categories: Array.isArray(bData.categories) ? bData.categories : dbSnapshot.categories,
+              faqs: bFaqs,
+            };
+            isBackup = true;
+            setLoadedFromBackup(true);
+            setLastSavedAt(new Date(backup.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+          } else {
+            // Backup is identical to database/cloud draft — automatically clear obsolete local backup!
+            try {
+              localStorage.removeItem(backupKey);
+            } catch {}
+          }
+        }
+
+        setTitle(effectiveData.title);
+        setSlug(effectiveData.slug);
+        setTags(effectiveData.tags);
+        setCategories(effectiveData.categories);
+        setAllowComments(effectiveData.allowComments);
+        setStatus(effectiveData.status);
+        setContent(effectiveData.content);
+        setFeaturedImage(effectiveData.featuredImage);
+        setExcerpt(effectiveData.excerpt);
+        setMetaTitle(effectiveData.metaTitle);
+        setMetaDesc(effectiveData.metaDesc);
+        setFocusKeyword(effectiveData.focusKeyword);
+        setFaqs(effectiveData.faqs);
+
+        // initialData is the dbSnapshot!
+        // If an emergency backup with changes was restored, isDirtyOrFilled will be true so user can save or discard.
+        // If clean, isDirtyOrFilled will be false.
+        setInitialData(dbSnapshot);
 
         if (!isBackup && data.updatedAt) {
           try {
@@ -418,23 +482,23 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       return (
         title !== initialData.title ||
         slug !== initialData.slug ||
-        JSON.stringify(tags) !== JSON.stringify(initialData.tags || []) ||
-        JSON.stringify(categories) !== JSON.stringify(initialData.categories || []) ||
+        JSON.stringify(tags || []) !== JSON.stringify(initialData.tags || []) ||
+        JSON.stringify(categories || []) !== JSON.stringify(initialData.categories || []) ||
         allowComments !== initialData.allowComments ||
         featuredImage !== initialData.featuredImage ||
         excerpt !== initialData.excerpt ||
         metaTitle !== initialData.metaTitle ||
         metaDesc !== initialData.metaDesc ||
         focusKeyword !== initialData.focusKeyword ||
-        JSON.stringify(faqs) !== JSON.stringify(initialData.faqs || []) ||
-        JSON.stringify(content) !== JSON.stringify(initialData.content)
+        !areFaqsEqual(faqs, initialData.faqs || []) ||
+        !isContentEqual(content, initialData.content)
       );
     } else {
       // Create Mode
       return (
         title.trim() !== "" ||
         slug.trim() !== "" ||
-        (content && JSON.stringify(content) !== '""' && JSON.stringify(content) !== 'null') ||
+        (content && JSON.stringify(content) !== '""' && JSON.stringify(content) !== 'null' && JSON.stringify(content) !== '{"type":"doc","content":[]}') ||
         featuredImage !== null ||
         excerpt.trim() !== "" ||
         tags.length > 0 ||
@@ -442,7 +506,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         metaTitle.trim() !== "" ||
         metaDesc.trim() !== "" ||
         focusKeyword.trim() !== "" ||
-        faqs.length > 0
+        faqs.some((f) => f && (f.question?.trim() || f.answer?.trim()))
       );
     }
   }, [isEditMode, initialData, title, slug, tags, categories, allowComments, featuredImage, excerpt, metaTitle, metaDesc, focusKeyword, content, faqs]);
@@ -585,10 +649,13 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       
       const responseData = await response.json();
 
-      setStatus(publishStatus);
       if (publishStatus === "published") {
+        setStatus("published");
         setHasCloudDraft(false);
-      } else if (publishStatus === "draft") {
+      } else {
+        if (status !== "published") {
+          setStatus("draft");
+        }
         setHasCloudDraft(true);
       }
       setLoadedFromBackup(false);
@@ -596,18 +663,20 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       setInitialData({
         title,
         slug,
-        tags,
-        categories,
+        tags: [...tags],
+        categories: [...categories],
         allowComments,
-        status: publishStatus,
-        content: contentPayload,
+        status: publishStatus === "published" ? "published" : status,
+        content: content,
         featuredImage,
         excerpt,
         metaTitle,
         metaDesc,
         focusKeyword,
-        faqs,
+        faqs: [...faqs],
       });
+
+      setLastSavedAt(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
 
       toast.add({
         title: "Success",
@@ -700,10 +769,17 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                   {isDirtyOrFilled ? "Unsaved Edits" : lastSavedAt ? `Draft · Saved ${lastSavedAt}` : "Draft Saved"}
                 </span>
               ) : isEditMode && status === "published" ? (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-xs">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  Live Published
-                </span>
+                hasCloudDraft ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-xs">
+                    <span className={`w-1.5 h-1.5 rounded-full bg-amber-500 ${isDirtyOrFilled ? "animate-pulse" : ""}`} />
+                    {isDirtyOrFilled ? "Live · Unsaved Edits" : "Live · Draft Staged"}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-xs">
+                    <span className={`w-1.5 h-1.5 rounded-full bg-emerald-500 ${isDirtyOrFilled ? "animate-pulse" : ""}`} />
+                    {isDirtyOrFilled ? "Unsaved Changes" : "Live Published"}
+                  </span>
+                )
               ) : null}
             </div>
             <p className="text-xs text-black font-medium mt-1">
@@ -712,18 +788,6 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Tooltip>
-            <TooltipTrigger
-              onClick={() => setIsFocusMode(!isFocusMode)}
-              className="hidden lg:flex items-center justify-center w-9 h-9 p-0 text-muted-foreground hover:text-foreground hover:bg-accent transition-all cursor-pointer rounded-sm bg-transparent"
-            >
-              {isFocusMode ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
-            </TooltipTrigger>
-            <TooltipContent side="bottom" sideOffset={4} className="flex items-center gap-2 px-2.5 py-1 z-60">
-              <span className="font-medium text-xs">{isFocusMode ? "Exit Focus Mode" : "Enter Focus Mode"}</span>
-            </TooltipContent>
-          </Tooltip>
-          <div className="w-px h-5 bg-border hidden lg:block mx-1"></div>
           <Button
             variant="outline"
             onClick={() => handleSave("draft")}
@@ -735,7 +799,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           </Button>
           <Button
             onClick={() => handleSave("published")}
-            disabled={isSubmitting || (isEditMode ? (status === "published" && !isDirtyOrFilled) : !isDirtyOrFilled)}
+            disabled={isSubmitting || (isEditMode ? (status === "published" && !hasCloudDraft && !isDirtyOrFilled) : !isDirtyOrFilled)}
             className="flex items-center gap-2 h-9 px-4 text-xs font-bold rounded-sm shadow-md transition-all hover:scale-[1.02] bg-black hover:bg-black/90 text-white disabled:opacity-50 cursor-pointer"
           >
             {isSubmitting && status === "published" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
@@ -746,10 +810,10 @@ export default function BlogForm({ blogId }: BlogFormProps) {
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-hidden w-full relative">
-        <div className={`mx-auto w-full h-full flex flex-col lg:flex-row transition-all duration-300 ${isFocusMode ? "p-0" : "max-w-full p-4 md:p-6 gap-6"}`}>
+        <div className="mx-auto w-full h-full flex flex-col lg:flex-row max-w-full p-4 md:p-6 gap-6">
           
-          {/* Main Editor Column */}
-          <div className={`flex-1 h-full flex flex-col overflow-hidden transition-all duration-300 ${isFocusMode ? "border-x border-border shadow-2xl bg-card" : "min-h-125"}`}>
+          {/* Main Content / Editor Column */}
+          <div className="flex-1 h-full flex flex-col overflow-hidden min-h-125">
             {isLoading ? (
               <ScreenLoader
                 text="Loading Blog Post..."
@@ -760,6 +824,18 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                 {/* Editor Top Navigation Tabs */}
                 <div className="flex items-center justify-between pb-3 shrink-0">
                   <div className="flex items-center gap-1.5 p-1 bg-muted/60 border border-border/80 rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => setEditorTab("general")}
+                      className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                        editorTab === "general"
+                          ? "bg-background text-foreground shadow-xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <Settings2 className="w-3.5 h-3.5" />
+                      General Info
+                    </button>
                     <button
                       type="button"
                       onClick={() => setEditorTab("content")}
@@ -792,6 +868,121 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                   </div>
                 </div>
 
+                {/* General Info Tab Content */}
+                <div className={`flex-1 overflow-y-auto custom-scrollbar p-6 bg-card rounded-xl border border-border ${editorTab === "general" ? "block" : "hidden"}`}>
+                  <div className="max-w-4xl mx-auto space-y-6">
+                    <div>
+                      <h2 className="text-base font-bold text-foreground">General Article Information</h2>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Configure the core details, featured cover image, taxonomy, and reader interaction settings for this post.
+                      </p>
+                    </div>
+
+                    <div className="space-y-5">
+                      {/* Title */}
+                      <div className="bg-muted/20 border border-border/70 rounded-xl p-5 space-y-2">
+                        <Label htmlFor="title" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                          Blog Title <span className="text-red-500">*</span>
+                        </Label>
+                        <textarea
+                          id="title"
+                          value={title}
+                          onChange={(e) => {
+                            handleTitleChange(e);
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          placeholder="e.g. Next-Generation Cloud Architecture with Next.js 15..."
+                          className="w-full resize-none overflow-hidden rounded-lg border border-input bg-background px-4 py-3 text-base font-semibold shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          rows={2}
+                        />
+                        <p className="text-[11px] text-muted-foreground">
+                          A catchy, clear headline. Also used to generate the default URL slug and SEO title.
+                        </p>
+                      </div>
+
+                      {/* Featured Image */}
+                      <div className="bg-muted/20 border border-border/70 rounded-xl p-5 space-y-3">
+                        <Label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                          Featured Cover Image
+                        </Label>
+                        <p className="text-[11px] text-muted-foreground -mt-1">
+                          This image appears at the top of the article, on blog listing cards, and when shared across social networks.
+                        </p>
+                        <ImageUploadBlock 
+                          value={featuredImage || undefined}
+                          onChange={(val) => setFeaturedImage(val?.url || null)}
+                        />
+                      </div>
+
+                      {/* Taxonomies: Categories & Tags side-by-side */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div className="bg-muted/20 border border-border/70 rounded-xl p-5 space-y-2.5">
+                          <Label htmlFor="categories" className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                            Categories
+                          </Label>
+                          <p className="text-[11px] text-muted-foreground">
+                            Group this post into broad topics (e.g. Engineering, AI, Cloud).
+                          </p>
+                          <TagInput
+                            value={categories}
+                            onChange={setCategories}
+                            placeholder="Type category and press Enter..."
+                          />
+                        </div>
+
+                        <div className="bg-muted/20 border border-border/70 rounded-xl p-5 space-y-2.5">
+                          <Label htmlFor="tags" className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                            Tags
+                          </Label>
+                          <p className="text-[11px] text-muted-foreground">
+                            Specific keywords or subjects (e.g. typescript, nextjs, devops).
+                          </p>
+                          <TagInput
+                            value={tags}
+                            onChange={setTags}
+                            placeholder="Type tag and press Enter..."
+                          />
+                        </div>
+                      </div>
+
+                      {/* Excerpt */}
+                      <div className="bg-muted/20 border border-border/70 rounded-xl p-5 space-y-2">
+                        <Label htmlFor="excerpt" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                          Short Summary / Excerpt
+                        </Label>
+                        <p className="text-[11px] text-muted-foreground">
+                          A brief teaser shown on blog archive cards, search engine previews, and RSS feeds.
+                        </p>
+                        <textarea
+                          id="excerpt"
+                          className="flex min-h-24 w-full rounded-lg border border-input bg-background px-4 py-3 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          value={excerpt}
+                          onChange={(e) => setExcerpt(e.target.value)}
+                          placeholder="Write a concise overview of what readers will learn in this post..."
+                        />
+                      </div>
+
+                      {/* Allow Comments */}
+                      <div className="flex items-center justify-between bg-muted/20 border border-border/70 rounded-xl p-5">
+                        <div>
+                          <Label htmlFor="allowComments" className="text-sm font-bold text-foreground cursor-pointer">
+                            Reader Comments
+                          </Label>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Allow readers to post public comments and join discussions on this article.
+                          </p>
+                        </div>
+                        <Switch
+                          id="allowComments"
+                          checked={allowComments}
+                          onCheckedChange={setAllowComments}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Article Content TipTap Editor */}
                 <div className={`flex-1 overflow-hidden h-full ${editorTab === "content" ? "flex flex-col" : "hidden"}`}>
                   <BlogEditor
@@ -814,77 +1005,9 @@ export default function BlogForm({ blogId }: BlogFormProps) {
             )}
           </div>
 
-          {/* Sidebar Settings Column */}
-          <div className={`shrink-0 h-full overflow-y-auto pb-8 pr-2 custom-scrollbar transition-all duration-300 ${isFocusMode ? "w-0 opacity-0 overflow-hidden" : "w-full lg:w-95 opacity-100"}`}>
+          {/* Sidebar Settings Column - Strictly Real-Time SEO */}
+          <div className="shrink-0 h-full overflow-y-auto pb-8 pr-2 custom-scrollbar w-full lg:w-95">
             <div className="space-y-4">
-              
-              {/* General Settings */}
-              <div className="border border-border rounded-xl bg-card shadow-sm overflow-hidden">
-                <div className="flex w-full items-center justify-between p-4 text-sm font-bold text-foreground border-b border-border bg-accent/20">
-                  General Info
-                </div>
-                <div className="p-4 space-y-5">
-                  <div>
-                    <Label htmlFor="title" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Blog Title</Label>
-                    <textarea
-                      id="title"
-                      value={title}
-                      onChange={(e) => {
-                        handleTitleChange(e);
-                        e.target.style.height = 'auto';
-                        e.target.style.height = e.target.scrollHeight + 'px';
-                      }}
-                      placeholder="The Future of Next.js..."
-                      className="mt-2 w-full resize-none overflow-hidden rounded-md border border-input bg-transparent px-3 py-2 text-sm font-semibold shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      rows={2}
-                    />
-                  </div>
-                  <div>
-                    <Label className="block mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Featured Image</Label>
-                    <ImageUploadBlock 
-                      value={featuredImage || undefined}
-                      onChange={(val) => setFeaturedImage(val?.url || null)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="categories" className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Categories</Label>
-                    <TagInput
-                      value={categories}
-                      onChange={setCategories}
-                      placeholder="Add category..."
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="tags" className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Tags</Label>
-                    <TagInput
-                      value={tags}
-                      onChange={setTags}
-                      placeholder="Add tag..."
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="excerpt" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Excerpt</Label>
-                    <textarea
-                      id="excerpt"
-                      className="flex min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-2"
-                      value={excerpt}
-                      onChange={(e) => setExcerpt(e.target.value)}
-                      placeholder="A brief summary of the blog..."
-                    />
-                  </div>
-                  <div className="flex items-center justify-between border-t border-border pt-4">
-                    <div>
-                      <Label htmlFor="allowComments" className="text-sm font-bold text-foreground">Allow Comments</Label>
-                      <p className="text-xs text-muted-foreground mt-1">Enable user comments on this post</p>
-                    </div>
-                    <Switch
-                      id="allowComments"
-                      checked={allowComments}
-                      onCheckedChange={setAllowComments}
-                    />
-                  </div>
-                </div>
-              </div>
 
               {/* SEO & Meta */}
               <div className="border border-border rounded-xl bg-card shadow-sm overflow-hidden">
