@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/toast";
-import { ArrowLeft, Loader2, Save, Send, Maximize, Minimize, ChevronDown, Search } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Send, Maximize, Minimize, ChevronDown, Search, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { ScreenLoader } from "@/components/ui/screen-loader";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -25,6 +25,260 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useEmergencyDraft, getEmergencyBackup } from "@/hooks/useEmergencyDraft";
+
+interface ExtractedDoc {
+  fullText: string;
+  introText: string;
+  headingTexts: string[];
+  wordCount: number;
+}
+
+function extractTextFromTipTap(json: any): ExtractedDoc {
+  if (!json) {
+    return { fullText: "", introText: "", headingTexts: [], wordCount: 0 };
+  }
+
+  if (typeof json === "string") {
+    const plain = json.replace(/<[^>]+>/g, " ");
+    const words = plain.trim().split(/\s+/).filter(Boolean);
+    return {
+      fullText: plain,
+      introText: plain.slice(0, 500),
+      headingTexts: [],
+      wordCount: words.length,
+    };
+  }
+
+  const allWords: string[] = [];
+  const headingTexts: string[] = [];
+  let firstParagraphText = "";
+
+  function traverse(node: any) {
+    if (!node) return;
+    if (node.type === "heading" && Array.isArray(node.content)) {
+      const headingText = node.content.map((c: any) => c.text || "").join(" ").trim();
+      if (headingText) headingTexts.push(headingText);
+    }
+    if (node.type === "paragraph" && !firstParagraphText && Array.isArray(node.content)) {
+      firstParagraphText = node.content.map((c: any) => c.text || "").join(" ").trim();
+    }
+    if (node.text) {
+      allWords.push(node.text);
+    }
+    if (Array.isArray(node.content)) {
+      for (const child of node.content) {
+        traverse(child);
+      }
+    }
+  }
+
+  traverse(json);
+
+  const fullText = allWords.join(" ");
+  const words = fullText.trim().split(/\s+/).filter(Boolean);
+
+  return {
+    fullText,
+    introText: firstParagraphText || fullText.slice(0, 500),
+    headingTexts,
+    wordCount: words.length,
+  };
+}
+
+function countKeywordOccurrences(text: string, keyword: string): number {
+  if (!text || !keyword.trim()) return 0;
+  const trimmed = keyword.trim().toLowerCase();
+  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const startsWithWord = /^\w/.test(trimmed);
+  const endsWithWord = /\w$/.test(trimmed);
+  const pattern = `${startsWithWord ? "(?:^|\\s|[.,!?;:\"'()\\[\\]{}])" : ""}(${escaped})${endsWithWord ? "(?:$|\\s|[.,!?;:\"'()\\[\\]{}])" : ""}`;
+  try {
+    const regex = new RegExp(pattern, "gi");
+    const matches = text.match(regex);
+    return matches ? matches.length : 0;
+  } catch {
+    let count = 0;
+    let pos = 0;
+    const lowerText = text.toLowerCase();
+    while ((pos = lowerText.indexOf(trimmed, pos)) !== -1) {
+      count++;
+      pos += trimmed.length;
+    }
+    return count;
+  }
+}
+
+interface SeoCheckItem {
+  id: string;
+  label: string;
+  passed: boolean;
+  score: number;
+  maxScore: number;
+  message: string;
+}
+
+interface SeoAnalysisResult {
+  hasKeyword: boolean;
+  score: number;
+  items: SeoCheckItem[];
+  keywordCount: number;
+  density: number;
+  densityStatus: "optimal" | "low" | "high" | "none";
+  wordCount: number;
+}
+
+function analyzeSeo(
+  keyword: string,
+  title: string,
+  slug: string,
+  metaDesc: string,
+  content: any,
+  overrideWordCount?: number | null
+): SeoAnalysisResult {
+  const trimmedKeyword = keyword.trim();
+  if (!trimmedKeyword) {
+    return {
+      hasKeyword: false,
+      score: 0,
+      items: [],
+      keywordCount: 0,
+      density: 0,
+      densityStatus: "none",
+      wordCount: typeof overrideWordCount === "number" ? overrideWordCount : 0,
+    };
+  }
+
+  const { fullText, introText, headingTexts, wordCount: extractedCount } = extractTextFromTipTap(content);
+  const wordCount = typeof overrideWordCount === "number" ? overrideWordCount : extractedCount;
+  const lowerKeyword = trimmedKeyword.toLowerCase();
+  const keywordOccurrences = countKeywordOccurrences(fullText, trimmedKeyword);
+  const keywordWordCount = trimmedKeyword.split(/\s+/).filter(Boolean).length;
+  const density = wordCount > 0 ? (keywordOccurrences * keywordWordCount / wordCount) * 100 : 0;
+  const roundedDensity = Math.round(density * 10) / 10;
+
+  // 1. In Title (20 pts)
+  const inTitle = title.toLowerCase().includes(lowerKeyword);
+  const titleItem: SeoCheckItem = {
+    id: "title",
+    label: "Focus Keyword in Title",
+    passed: inTitle,
+    score: inTitle ? 20 : 0,
+    maxScore: 20,
+    message: inTitle ? "Keyword appears in the title" : "Add focus keyword to the blog title",
+  };
+
+  // 2. In Slug (15 pts)
+  const slugifiedKeyword = lowerKeyword.replace(/\s+/g, "-").replace(/[^\w-]+/g, "");
+  const inSlug =
+    (slug && slugifiedKeyword && slug.toLowerCase().includes(slugifiedKeyword)) ||
+    (slug && slug.toLowerCase().includes(lowerKeyword.replace(/[^a-z0-9]/g, "")));
+  const slugItem: SeoCheckItem = {
+    id: "slug",
+    label: "Focus Keyword in URL Slug",
+    passed: Boolean(inSlug),
+    score: inSlug ? 15 : 0,
+    maxScore: 15,
+    message: inSlug ? "Keyword appears in the URL slug" : "Include focus keyword in the URL slug",
+  };
+
+  // 3. In Meta Description (15 pts)
+  const inMeta = metaDesc.toLowerCase().includes(lowerKeyword);
+  const metaItem: SeoCheckItem = {
+    id: "meta",
+    label: "Focus Keyword in Meta Description",
+    passed: inMeta,
+    score: inMeta ? 15 : 0,
+    maxScore: 15,
+    message: inMeta ? "Keyword appears in the meta description" : "Add focus keyword to the meta description",
+  };
+
+  // 4. In Intro (15 pts)
+  const inIntro = countKeywordOccurrences(introText, trimmedKeyword) > 0;
+  const introItem: SeoCheckItem = {
+    id: "intro",
+    label: "Focus Keyword in Introduction",
+    passed: inIntro,
+    score: inIntro ? 15 : 0,
+    maxScore: 15,
+    message: inIntro ? "Keyword appears in the first paragraph" : "Include focus keyword in the introductory paragraph",
+  };
+
+  // 5. In Headings (15 pts)
+  const inHeadings = headingTexts.some((h) => countKeywordOccurrences(h, trimmedKeyword) > 0);
+  const headingsItem: SeoCheckItem = {
+    id: "headings",
+    label: "Focus Keyword in Subheadings",
+    passed: inHeadings,
+    score: inHeadings ? 15 : 0,
+    maxScore: 15,
+    message: inHeadings ? "Keyword found in at least one subheading (H2/H3)" : "Use focus keyword in at least one subheading",
+  };
+
+  // 6. Keyword Density (10 pts)
+  let densityStatus: "optimal" | "low" | "high" | "none" = "none";
+  let densityScore = 0;
+  let densityMessage = "Keyword does not appear in the content";
+
+  if (keywordOccurrences > 0) {
+    if (roundedDensity >= 0.8 && roundedDensity <= 2.5) {
+      densityStatus = "optimal";
+      densityScore = 10;
+      densityMessage = `Optimal density: ${roundedDensity}% (${keywordOccurrences}x)`;
+    } else if (roundedDensity < 0.8) {
+      densityStatus = "low";
+      densityScore = 5;
+      densityMessage = `Density is low: ${roundedDensity}% (${keywordOccurrences}x). Aim for 0.8% - 2.5%`;
+    } else {
+      densityStatus = "high";
+      densityScore = 4;
+      densityMessage = `High density: ${roundedDensity}% (${keywordOccurrences}x). Risk of keyword stuffing`;
+    }
+  }
+
+  const densityItem: SeoCheckItem = {
+    id: "density",
+    label: "Keyword Density",
+    passed: densityStatus === "optimal",
+    score: densityScore,
+    maxScore: 10,
+    message: densityMessage,
+  };
+
+  // 7. Word Count (10 pts)
+  let wordCountScore = 0;
+  let wordCountPassed = false;
+  let wordCountMessage = "Content is too short (< 100 words)";
+  if (wordCount >= 300) {
+    wordCountScore = 10;
+    wordCountPassed = true;
+    wordCountMessage = `Good content length (${wordCount} words)`;
+  } else if (wordCount >= 100) {
+    wordCountScore = 5;
+    wordCountMessage = `Acceptable length (${wordCount} words). Recommended >= 300 words`;
+  }
+
+  const wordCountItem: SeoCheckItem = {
+    id: "wordCount",
+    label: "Content Length",
+    passed: wordCountPassed,
+    score: wordCountScore,
+    maxScore: 10,
+    message: wordCountMessage,
+  };
+
+  const items = [titleItem, slugItem, metaItem, introItem, headingsItem, densityItem, wordCountItem];
+  const totalScore = items.reduce((acc, item) => acc + item.score, 0);
+
+  return {
+    hasKeyword: true,
+    score: totalScore,
+    items,
+    keywordCount: keywordOccurrences,
+    density: roundedDensity,
+    densityStatus,
+    wordCount,
+  };
+}
 
 interface BlogFormProps {
   blogId?: string;
@@ -63,6 +317,12 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   // Editor State
   const [content, setContent] = useState<any>(null);
   const [featuredImage, setFeaturedImage] = useState<string | null>(null);
+  const [editorWordCount, setEditorWordCount] = useState<number | null>(null);
+
+  // Real-time SEO Analysis
+  const seoAnalysis = useMemo(() => {
+    return analyzeSeo(focusKeyword, title, slug, metaDesc, content, editorWordCount);
+  }, [focusKeyword, title, slug, metaDesc, content, editorWordCount]);
 
   // Fetch blog data if in edit mode
   useEffect(() => {
@@ -437,7 +697,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
             >
               {isFocusMode ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
             </TooltipTrigger>
-            <TooltipContent side="bottom" sideOffset={4} className="flex items-center gap-2 px-2.5 py-1 z-[60]">
+            <TooltipContent side="bottom" sideOffset={4} className="flex items-center gap-2 px-2.5 py-1 z-60">
               <span className="font-medium text-xs">{isFocusMode ? "Exit Focus Mode" : "Enter Focus Mode"}</span>
             </TooltipContent>
           </Tooltip>
@@ -445,7 +705,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           <Button
             variant="outline"
             onClick={() => handleSave("draft")}
-            disabled={isSubmitting || (isEditMode ? (!isDirtyOrFilled && status === "draft") : !isDirtyOrFilled)}
+            disabled={isSubmitting || !isDirtyOrFilled}
             className="flex items-center gap-2 h-9 px-4 text-xs font-bold rounded-sm shadow-md transition-all hover:scale-[1.02] disabled:opacity-50 cursor-pointer"
           >
             {isSubmitting && status === "draft" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -453,7 +713,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           </Button>
           <Button
             onClick={() => handleSave("published")}
-            disabled={isSubmitting || (isEditMode ? (!isDirtyOrFilled && status === "published") : !isDirtyOrFilled)}
+            disabled={isSubmitting || (isEditMode ? (status === "published" && !isDirtyOrFilled) : !isDirtyOrFilled)}
             className="flex items-center gap-2 h-9 px-4 text-xs font-bold rounded-sm shadow-md transition-all hover:scale-[1.02] bg-black hover:bg-black/90 text-white disabled:opacity-50 cursor-pointer"
           >
             {isSubmitting && status === "published" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
@@ -478,13 +738,14 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                 <BlogEditor
                   initialContent={content}
                   onChange={setContent}
+                  onWordCountChange={setEditorWordCount}
                 />
               </div>
             )}
           </div>
 
           {/* Sidebar Settings Column */}
-          <div className={`shrink-0 h-full overflow-y-auto pb-8 pr-2 custom-scrollbar transition-all duration-300 ${isFocusMode ? "w-0 opacity-0 overflow-hidden" : "w-full lg:w-[380px] opacity-100"}`}>
+          <div className={`shrink-0 h-full overflow-y-auto pb-8 pr-2 custom-scrollbar transition-all duration-300 ${isFocusMode ? "w-0 opacity-0 overflow-hidden" : "w-full lg:w-95 opacity-100"}`}>
             <div className="space-y-4">
               
               {/* General Settings */}
@@ -494,7 +755,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                 </div>
                 <div className="p-4 space-y-5">
                   <div>
-                    <Label htmlFor="title" className="text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground">Blog Title</Label>
+                    <Label htmlFor="title" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Blog Title</Label>
                     <textarea
                       id="title"
                       value={title}
@@ -509,14 +770,14 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                     />
                   </div>
                   <div>
-                    <Label className="block mb-2 text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground">Featured Image</Label>
+                    <Label className="block mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Featured Image</Label>
                     <ImageUploadBlock 
                       value={featuredImage || undefined}
                       onChange={(val) => setFeaturedImage(val?.url || null)}
                     />
                   </div>
                   <div>
-                    <Label htmlFor="categories" className="text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground mb-2 block">Categories</Label>
+                    <Label htmlFor="categories" className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Categories</Label>
                     <TagInput
                       value={categories}
                       onChange={setCategories}
@@ -524,7 +785,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="tags" className="text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground mb-2 block">Tags</Label>
+                    <Label htmlFor="tags" className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Tags</Label>
                     <TagInput
                       value={tags}
                       onChange={setTags}
@@ -532,7 +793,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="excerpt" className="text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground">Excerpt</Label>
+                    <Label htmlFor="excerpt" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Excerpt</Label>
                     <textarea
                       id="excerpt"
                       className="flex min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-2"
@@ -563,7 +824,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                 <div className="p-4 space-y-5">
                   
                   <div>
-                    <Label htmlFor="slug" className="text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground mb-2 block">URL Slug</Label>
+                    <Label htmlFor="slug" className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">URL Slug</Label>
                     <Input
                       id="slug"
                       value={slug}
@@ -593,7 +854,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                   </div>
 
                   <div>
-                    <Label htmlFor="metaTitle" className="text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground">Meta Title</Label>
+                    <Label htmlFor="metaTitle" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Meta Title</Label>
                     <Input
                       id="metaTitle"
                       value={metaTitle}
@@ -604,7 +865,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                   </div>
 
                   <div>
-                    <Label htmlFor="metaDesc" className="text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground">Meta Description</Label>
+                    <Label htmlFor="metaDesc" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Meta Description</Label>
                     <textarea
                       id="metaDesc"
                       className="flex min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-2"
@@ -615,7 +876,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                   </div>
 
                   <div>
-                    <Label htmlFor="focusKeyword" className="text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground">Focus Keyword</Label>
+                    <Label htmlFor="focusKeyword" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Focus Keyword</Label>
                     <Input
                       id="focusKeyword"
                       value={focusKeyword}
@@ -623,6 +884,121 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                       placeholder="e.g. Next.js tutorial"
                       className="mt-2 text-sm"
                     />
+
+                    {/* Real-time SEO Analyzer Health Scorecard */}
+                    <div className="mt-4 pt-3.5 border-t border-border/60">
+                      {!seoAnalysis.hasKeyword ? (
+                        <div className="rounded-xl border border-border/60 bg-muted/30 p-3.5 text-xs text-muted-foreground flex items-start gap-3">
+                          <Sparkles className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-bold text-foreground">Real-Time SEO Advisor</p>
+                            <p className="mt-1 text-xs leading-relaxed">
+                              Enter a focus keyword above to analyze keyword density, search ranking factors, and on-page optimization.
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-3.5 rounded-xl border border-border/80 bg-card p-4 shadow-xs">
+                          {/* Header with Score & Progress Bar */}
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                                <Sparkles className="w-4 h-4 text-primary" /> SEO Health Score
+                              </span>
+                              <span
+                                className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                                  seoAnalysis.score >= 80
+                                    ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                                    : seoAnalysis.score >= 50
+                                    ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                                    : "bg-red-500/10 text-red-500 border border-red-500/20"
+                                }`}
+                              >
+                                {seoAnalysis.score} / 100 &bull;{" "}
+                                {seoAnalysis.score >= 80 ? "Good" : seoAnalysis.score >= 50 ? "Fair" : "Needs Work"}
+                              </span>
+                            </div>
+
+                            {/* Animated Progress Bar */}
+                            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                  seoAnalysis.score >= 80
+                                    ? "bg-emerald-500"
+                                    : seoAnalysis.score >= 50
+                                    ? "bg-amber-500"
+                                    : "bg-red-500"
+                                }`}
+                                style={{ width: `${Math.max(5, seoAnalysis.score)}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Keyword Density & Stats Badge */}
+                          <div className="grid grid-cols-2 gap-2 bg-muted/40 p-2.5 rounded-xl border border-border/40 text-center">
+                            <div>
+                              <span className="block text-xs text-muted-foreground uppercase font-semibold tracking-wide">Density</span>
+                              <span
+                                className={`text-base font-extrabold flex items-center justify-center gap-1 mt-0.5 ${
+                                  seoAnalysis.densityStatus === "optimal"
+                                    ? "text-emerald-500"
+                                    : seoAnalysis.densityStatus === "high"
+                                    ? "text-red-500"
+                                    : "text-amber-500"
+                                }`}
+                              >
+                                {seoAnalysis.density}%
+                                <span className="text-xs font-normal opacity-80">
+                                  ({seoAnalysis.keywordCount}x)
+                                </span>
+                              </span>
+                            </div>
+                            <div>
+                              <span className="block text-xs text-muted-foreground uppercase font-semibold tracking-wide">Words</span>
+                              <span className="text-base font-extrabold text-foreground mt-0.5 block">
+                                {seoAnalysis.wordCount}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Checklist */}
+                          <div className="space-y-2.5 pt-1">
+                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                              Search Engine Checklist
+                            </span>
+                            <div className="space-y-2">
+                              {seoAnalysis.items.map((item) => (
+                                <div
+                                  key={item.id}
+                                  className="flex items-start gap-2.5 text-xs sm:text-[13px] leading-snug py-0.5"
+                                >
+                                  {item.passed ? (
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                                  ) : (
+                                    <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <span
+                                      className={`font-semibold ${
+                                        item.passed ? "text-foreground" : "text-muted-foreground"
+                                      }`}
+                                    >
+                                      {item.label}
+                                    </span>
+                                    <p className="text-xs text-muted-foreground leading-normal mt-0.5">
+                                      {item.message}
+                                    </p>
+                                  </div>
+                                  <span className="text-xs font-bold text-muted-foreground shrink-0 pl-1">
+                                    {item.score}/{item.maxScore}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
