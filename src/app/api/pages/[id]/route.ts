@@ -102,7 +102,10 @@ export async function PUT(
     revalidateFrontendPath(page.slug);
   }
 
-  return NextResponse.json(mapDbToPageData(page));
+  return NextResponse.json({
+    ...mapDbToPageData(page),
+    previewSecret: process.env.PREVIEW_SECRET || "",
+  });
 }
 
 // DELETE /api/pages/[id] — delete a page

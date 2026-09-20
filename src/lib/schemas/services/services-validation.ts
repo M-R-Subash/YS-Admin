@@ -164,6 +164,7 @@ export const servicesSchema = z.object({
     graphicTitleLine4: z.string().optional(),
     list: z.array(
       z.object({
+        id: z.string().optional(),
         question: z.string().optional(),
         answer: z.string().optional(),
       })

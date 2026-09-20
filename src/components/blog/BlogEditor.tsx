@@ -136,75 +136,6 @@ const CustomImage = Image.extend({
   },
 });
 
-const Details = Node.create({
-  name: "details",
-  group: "block",
-  content: "detailsSummary detailsContent",
-  defining: true,
-  isolating: true,
-  addAttributes() {
-    return {
-      open: {
-        default: true,
-        parseHTML: (element) => element.hasAttribute("open"),
-        renderHTML: (attributes) => (attributes.open ? { open: "" } : {}),
-      },
-    };
-  },
-  parseHTML() {
-    return [{ tag: "details" }];
-  },
-  renderHTML({ HTMLAttributes }) {
-    return [
-      "details",
-      mergeAttributes(HTMLAttributes, {
-        class: "my-4 rounded-xl border border-border bg-card/60 p-4 transition-all duration-200 open:shadow-xs",
-      }),
-      0,
-    ];
-  },
-});
-
-const DetailsSummary = Node.create({
-  name: "detailsSummary",
-  group: "block",
-  content: "inline*",
-  defining: true,
-  isolating: true,
-  parseHTML() {
-    return [{ tag: "summary" }];
-  },
-  renderHTML({ HTMLAttributes }) {
-    return [
-      "summary",
-      mergeAttributes(HTMLAttributes, {
-        class: "font-bold text-sm text-foreground cursor-pointer select-none flex items-center gap-2",
-      }),
-      0,
-    ];
-  },
-});
-
-const DetailsContent = Node.create({
-  name: "detailsContent",
-  group: "block",
-  content: "block+",
-  defining: true,
-  parseHTML() {
-    return [{ tag: "div[data-details-content]" }, { tag: "div.details-content" }];
-  },
-  renderHTML({ HTMLAttributes }) {
-    return [
-      "div",
-      mergeAttributes(HTMLAttributes, {
-        "data-details-content": "",
-        class: "mt-2 pt-2 border-t border-border/50 text-muted-foreground",
-      }),
-      0,
-    ];
-  },
-});
-
 export default function BlogEditor({
   initialContent,
   onChange,
@@ -281,9 +212,6 @@ export default function BlogEditor({
       TaskItem.configure({ nested: true }),
       Youtube.configure({ inline: false }),
       Typography,
-      Details,
-      DetailsSummary,
-      DetailsContent,
     ],
     content: initialContent || "",
     onCreate: ({ editor }) => {
@@ -746,31 +674,6 @@ export default function BlogEditor({
             icon={<YoutubeIcon className="w-4 h-4 text-red-500" />}
             title="Insert YouTube Video"
           />
-
-          <ToolbarButton
-            onClick={() => {
-              editor?.chain().focus().insertContent({
-                type: "details",
-                content: [
-                  {
-                    type: "detailsSummary",
-                    content: [{ type: "text", text: "Accordion Title (Click to toggle)" }],
-                  },
-                  {
-                    type: "detailsContent",
-                    content: [
-                      {
-                        type: "paragraph",
-                        content: [{ type: "text", text: "Add your collapsible details here..." }],
-                      },
-                    ],
-                  },
-                ],
-              }).run();
-            }}
-            icon={<ChevronsUpDown className="w-4 h-4" />}
-            title="Insert Collapsible Accordion"
-          />
         </div>
 
         {/* Tables Group */}
@@ -936,37 +839,6 @@ export default function BlogEditor({
               <button onClick={() => { editor.chain().focus().deleteRange({ from: editor.state.selection.from - 1, to: editor.state.selection.from }).toggleOrderedList().run(); }} className="flex items-center gap-3 px-2 py-1.5 w-full text-left rounded-md hover:bg-accent text-sm transition-colors text-foreground group">
                 <div className="flex items-center justify-center w-8 h-8 rounded border border-border bg-background group-hover:bg-card shrink-0"><ListOrdered className="w-4 h-4" /></div>
                 <div><span className="block font-medium">Numbered List</span><span className="block text-[11px] text-muted-foreground">Create an ordered list</span></div>
-              </button>
-              <button 
-                onClick={() => { 
-                  editor.chain().focus().deleteRange({ from: editor.state.selection.from - 1, to: editor.state.selection.from }).insertContent({
-                    type: "details",
-                    content: [
-                      {
-                        type: "detailsSummary",
-                        content: [{ type: "text", text: "Accordion Title (Click to toggle)" }],
-                      },
-                      {
-                        type: "detailsContent",
-                        content: [
-                          {
-                            type: "paragraph",
-                            content: [{ type: "text", text: "Add your collapsible details here..." }],
-                          },
-                        ],
-                      },
-                    ],
-                  }).run(); 
-                }} 
-                className="flex items-center gap-3 px-2 py-1.5 w-full text-left rounded-md hover:bg-accent text-sm transition-colors text-foreground group"
-              >
-                <div className="flex items-center justify-center w-8 h-8 rounded border border-border bg-background group-hover:bg-card shrink-0">
-                  <ChevronsUpDown className="w-4 h-4" />
-                </div>
-                <div>
-                  <span className="block font-medium">Toggle / Accordion</span>
-                  <span className="block text-[11px] text-muted-foreground">Collapsible FAQ / details block</span>
-                </div>
               </button>
             </div>
           </FloatingMenu>

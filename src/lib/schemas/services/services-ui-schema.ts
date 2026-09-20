@@ -291,11 +291,8 @@ export const servicesUiSchema: FieldSchema[] = [
           {
             name: "list",
             label: "FAQ List",
-            type: "array",
-            fields: [
-              { name: "question", label: "Question", type: "text" },
-              { name: "answer", label: "Answer", type: "textarea" },
-            ],
+            type: "faq-manager",
+            description: "Add, remove, and rearrange questions and rich answers.",
           },
         ],
       },

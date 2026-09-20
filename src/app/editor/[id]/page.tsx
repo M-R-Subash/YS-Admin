@@ -193,7 +193,10 @@ export default function EditorPage({
       }
 
       const updatedPage: PageData = await res.json();
-      setPage(updatedPage);
+      setPage((prev) => ({
+        ...updatedPage,
+        previewSecret: updatedPage.previewSecret || prev?.previewSecret || "",
+      }));
       setSchemaData(contentPayload);
       setSavedBaselineString(JSON.stringify(contentPayload));
       setLastSavedAt(
@@ -269,7 +272,10 @@ export default function EditorPage({
       }
 
       const updatedPage: PageData = await res.json();
-      setPage(updatedPage);
+      setPage((prev) => ({
+        ...updatedPage,
+        previewSecret: updatedPage.previewSecret || prev?.previewSecret || "",
+      }));
       setSchemaData(contentPayload);
       setSavedBaselineString(JSON.stringify(contentPayload));
       setLastSavedAt(null);
@@ -312,7 +318,10 @@ export default function EditorPage({
       }
 
       const updatedPage: PageData = await res.json();
-      setPage(updatedPage);
+      setPage((prev) => ({
+        ...updatedPage,
+        previewSecret: updatedPage.previewSecret || prev?.previewSecret || "",
+      }));
       clearBackup();
 
       // Revert editor schema data back to live published content

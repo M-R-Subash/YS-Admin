@@ -62,6 +62,7 @@ export const contactSchema = z.object({
     graphicImage: imageSchema,
     list: z.array(
       z.object({
+        id: z.string().optional(),
         question: z.string().optional(),
         answer: z.string().optional(),
       })

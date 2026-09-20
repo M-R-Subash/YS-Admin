@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import { ImageUploadBlock } from "@/components/ImageUploadBlock";
 import { MenuBuilderBlock } from "@/components/MenuBuilderBlock";
 import { FooterColumnsBlock } from "@/components/FooterColumnsBlock";
+import FaqManager from "@/components/faq/FaqManager";
 
 function AutoResizeTextarea({
   value,
@@ -238,6 +239,25 @@ export function EditorRenderer({
                 )}
               </div>
               <FooterColumnsBlock control={control} name={fieldName} flat={isFlat} />
+            </div>
+          );
+        }
+
+        if (field.type === "faq-manager") {
+          return (
+            <div key={fieldName} className="flex flex-col gap-3 p-5 border border-border rounded-xl bg-card shadow-xs">
+              <Controller
+                name={fieldName}
+                control={control}
+                render={({ field: { value, onChange } }) => (
+                  <FaqManager
+                    value={value || []}
+                    onChange={onChange}
+                    title={field.label || "Frequently Asked Questions"}
+                    description={field.description}
+                  />
+                )}
+              />
             </div>
           );
         }

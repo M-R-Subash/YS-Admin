@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/toast";
-import { ArrowLeft, Loader2, Save, Send, Maximize, Minimize, ChevronDown, Search, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Send, Maximize, Minimize, ChevronDown, Search, Sparkles, CheckCircle2, AlertCircle, HelpCircle, FileText } from "lucide-react";
+import FaqManager, { FaqItem } from "@/components/faq/FaqManager";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { ScreenLoader } from "@/components/ui/screen-loader";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -314,6 +315,10 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   const [allowComments, setAllowComments] = useState(true);
   const [status, setStatus] = useState<"draft" | "published">("draft");
 
+  // FAQ State
+  const [faqs, setFaqs] = useState<FaqItem[]>([]);
+  const [editorTab, setEditorTab] = useState<"content" | "faqs">("content");
+
   // Editor State
   const [content, setContent] = useState<any>(null);
   const [featuredImage, setFeaturedImage] = useState<string | null>(null);
@@ -366,6 +371,13 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         setMetaDesc(finalData.metaDesc || finalData.seo?.metaDesc || "");
         setFocusKeyword(finalData.focusKeyword || finalData.seo?.focusKeyword || "");
 
+        const loadedFaqs = Array.isArray(finalData.content?.faqs)
+          ? finalData.content.faqs
+          : Array.isArray(finalData.faqs)
+          ? finalData.faqs
+          : [];
+        setFaqs(loadedFaqs);
+
         // Save snapshot for dirty check using the effective loaded data
         setInitialData({
           title: finalData.title || "",
@@ -380,6 +392,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           metaTitle: finalData.metaTitle || finalData.seo?.metaTitle || "",
           metaDesc: finalData.metaDesc || finalData.seo?.metaDesc || "",
           focusKeyword: finalData.focusKeyword || finalData.seo?.focusKeyword || "",
+          faqs: loadedFaqs,
         });
 
         if (!isBackup && data.updatedAt) {
@@ -413,6 +426,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         metaTitle !== initialData.metaTitle ||
         metaDesc !== initialData.metaDesc ||
         focusKeyword !== initialData.focusKeyword ||
+        JSON.stringify(faqs) !== JSON.stringify(initialData.faqs || []) ||
         JSON.stringify(content) !== JSON.stringify(initialData.content)
       );
     } else {
@@ -427,10 +441,11 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         categories.length > 0 ||
         metaTitle.trim() !== "" ||
         metaDesc.trim() !== "" ||
-        focusKeyword.trim() !== ""
+        focusKeyword.trim() !== "" ||
+        faqs.length > 0
       );
     }
-  }, [isEditMode, initialData, title, slug, tags, categories, allowComments, featuredImage, excerpt, metaTitle, metaDesc, focusKeyword, content]);
+  }, [isEditMode, initialData, title, slug, tags, categories, allowComments, featuredImage, excerpt, metaTitle, metaDesc, focusKeyword, content, faqs]);
 
   // Emergency load for Create mode
   useEffect(() => {
@@ -450,6 +465,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         setMetaTitle(backup.data.metaTitle || "");
         setMetaDesc(backup.data.metaDesc || "");
         setFocusKeyword(backup.data.focusKeyword || "");
+        setFaqs(backup.data.faqs || backup.data.content?.faqs || []);
         
         setLoadedFromBackup(true);
         setLastSavedAt(new Date(backup.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
@@ -461,7 +477,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     key: `emergency_blog_draft_${blogId || 'new'}`,
     isDirty: isDirtyOrFilled,
     getPayload: () => ({
-      title, slug, featuredImage, content, allowComments, status, tags, categories, excerpt, metaTitle, metaDesc, focusKeyword
+      title, slug, featuredImage, content, allowComments, status, tags, categories, excerpt, metaTitle, metaDesc, focusKeyword, faqs
     }),
   });
 
@@ -530,11 +546,16 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       return Math.max(1, Math.ceil(words / 200));
     };
 
+    const contentPayload = {
+      ...(content || { type: "doc", content: [] }),
+      faqs: faqs.filter((f) => f.question?.trim() || f.answer?.trim()),
+    };
+
     const payload = {
       title,
       slug,
       featuredImage,
-      content,
+      content: contentPayload,
       allowComments,
       status: publishStatus,
       tags: tags.map((t) => t.trim()).filter(Boolean),
@@ -579,12 +600,13 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         categories,
         allowComments,
         status: publishStatus,
-        content,
+        content: contentPayload,
         featuredImage,
         excerpt,
         metaTitle,
         metaDesc,
         focusKeyword,
+        faqs,
       });
 
       toast.add({
@@ -734,12 +756,60 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                 subtitle="Fetching article content and SEO settings..."
               />
             ) : (
-              <div className="flex-1 overflow-hidden h-full">
-                <BlogEditor
-                  initialContent={content}
-                  onChange={setContent}
-                  onWordCountChange={setEditorWordCount}
-                />
+              <div className="flex-1 flex flex-col overflow-hidden h-full">
+                {/* Editor Top Navigation Tabs */}
+                <div className="flex items-center justify-between pb-3 shrink-0">
+                  <div className="flex items-center gap-1.5 p-1 bg-muted/60 border border-border/80 rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => setEditorTab("content")}
+                      className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                        editorTab === "content"
+                          ? "bg-background text-foreground shadow-xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      Article Content
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditorTab("faqs")}
+                      className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                        editorTab === "faqs"
+                          ? "bg-background text-foreground shadow-xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <HelpCircle className="w-3.5 h-3.5 text-primary" />
+                      FAQ Section
+                      {faqs.length > 0 && (
+                        <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-primary/10 text-primary border border-primary/20">
+                          {faqs.length}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Article Content TipTap Editor */}
+                <div className={`flex-1 overflow-hidden h-full ${editorTab === "content" ? "flex flex-col" : "hidden"}`}>
+                  <BlogEditor
+                    initialContent={content}
+                    onChange={setContent}
+                    onWordCountChange={setEditorWordCount}
+                  />
+                </div>
+
+                {/* FAQ Manager Area */}
+                <div className={`flex-1 overflow-y-auto custom-scrollbar p-6 bg-card rounded-xl border border-border ${editorTab === "faqs" ? "block" : "hidden"}`}>
+                  <FaqManager
+                    value={faqs}
+                    onChange={setFaqs}
+                    title="Blog Post Frequently Asked Questions"
+                    description="Add FAQ items to appear at the end of this blog post. If empty, the FAQ section will not render on the public blog."
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -884,122 +954,144 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                       placeholder="e.g. Next.js tutorial"
                       className="mt-2 text-sm"
                     />
-
-                    {/* Real-time SEO Analyzer Health Scorecard */}
-                    <div className="mt-4 pt-3.5 border-t border-border/60">
-                      {!seoAnalysis.hasKeyword ? (
-                        <div className="rounded-xl border border-border/60 bg-muted/30 p-3.5 text-xs text-muted-foreground flex items-start gap-3">
-                          <Sparkles className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                          <div>
-                            <p className="text-sm font-bold text-foreground">Real-Time SEO Advisor</p>
-                            <p className="mt-1 text-xs leading-relaxed">
-                              Enter a focus keyword above to analyze keyword density, search ranking factors, and on-page optimization.
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-3.5 rounded-xl border border-border/80 bg-card p-4 shadow-xs">
-                          {/* Header with Score & Progress Bar */}
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                                <Sparkles className="w-4 h-4 text-primary" /> SEO Health Score
-                              </span>
-                              <span
-                                className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                                  seoAnalysis.score >= 80
-                                    ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                                    : seoAnalysis.score >= 50
-                                    ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
-                                    : "bg-red-500/10 text-red-500 border border-red-500/20"
-                                }`}
-                              >
-                                {seoAnalysis.score} / 100 &bull;{" "}
-                                {seoAnalysis.score >= 80 ? "Good" : seoAnalysis.score >= 50 ? "Fair" : "Needs Work"}
-                              </span>
-                            </div>
-
-                            {/* Animated Progress Bar */}
-                            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all duration-500 ${
-                                  seoAnalysis.score >= 80
-                                    ? "bg-emerald-500"
-                                    : seoAnalysis.score >= 50
-                                    ? "bg-amber-500"
-                                    : "bg-red-500"
-                                }`}
-                                style={{ width: `${Math.max(5, seoAnalysis.score)}%` }}
-                              />
-                            </div>
-                          </div>
-
-                          {/* Keyword Density & Stats Badge */}
-                          <div className="grid grid-cols-2 gap-2 bg-muted/40 p-2.5 rounded-xl border border-border/40 text-center">
-                            <div>
-                              <span className="block text-xs text-muted-foreground uppercase font-semibold tracking-wide">Density</span>
-                              <span
-                                className={`text-base font-extrabold flex items-center justify-center gap-1 mt-0.5 ${
-                                  seoAnalysis.densityStatus === "optimal"
-                                    ? "text-emerald-500"
-                                    : seoAnalysis.densityStatus === "high"
-                                    ? "text-red-500"
-                                    : "text-amber-500"
-                                }`}
-                              >
-                                {seoAnalysis.density}%
-                                <span className="text-xs font-normal opacity-80">
-                                  ({seoAnalysis.keywordCount}x)
-                                </span>
-                              </span>
-                            </div>
-                            <div>
-                              <span className="block text-xs text-muted-foreground uppercase font-semibold tracking-wide">Words</span>
-                              <span className="text-base font-extrabold text-foreground mt-0.5 block">
-                                {seoAnalysis.wordCount}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Checklist */}
-                          <div className="space-y-2.5 pt-1">
-                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
-                              Search Engine Checklist
-                            </span>
-                            <div className="space-y-2">
-                              {seoAnalysis.items.map((item) => (
-                                <div
-                                  key={item.id}
-                                  className="flex items-start gap-2.5 text-xs sm:text-[13px] leading-snug py-0.5"
-                                >
-                                  {item.passed ? (
-                                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                                  ) : (
-                                    <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                                  )}
-                                  <div className="flex-1 min-w-0">
-                                    <span
-                                      className={`font-semibold ${
-                                        item.passed ? "text-foreground" : "text-muted-foreground"
-                                      }`}
-                                    >
-                                      {item.label}
-                                    </span>
-                                    <p className="text-xs text-muted-foreground leading-normal mt-0.5">
-                                      {item.message}
-                                    </p>
-                                  </div>
-                                  <span className="text-xs font-bold text-muted-foreground shrink-0 pl-1">
-                                    {item.score}/{item.maxScore}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Standalone SEO Health Advisor Card */}
+              <div className="border border-border rounded-xl bg-card shadow-sm overflow-hidden">
+                <div className="flex w-full items-center justify-between p-4 text-sm font-bold text-foreground border-b border-border bg-accent/20">
+                  <span className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    SEO Health Advisor
+                  </span>
+                  {seoAnalysis.hasKeyword && (
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        seoAnalysis.score >= 80
+                          ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                          : seoAnalysis.score >= 50
+                          ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                          : "bg-red-500/10 text-red-500 border border-red-500/20"
+                      }`}
+                    >
+                      {seoAnalysis.score} / 100
+                    </span>
+                  )}
+                </div>
+
+                <div className="p-4">
+                  {!seoAnalysis.hasKeyword ? (
+                    <div className="rounded-xl border border-border/60 bg-muted/30 p-3.5 text-xs text-muted-foreground flex items-start gap-3">
+                      <Sparkles className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-bold text-foreground">Real-Time SEO Advisor</p>
+                        <p className="mt-1 text-xs leading-relaxed">
+                          Enter a focus keyword in the SEO &amp; Meta section above to analyze keyword density, search ranking factors, and on-page optimization.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3.5">
+                      {/* Header with Score & Progress Bar */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                            Overall Score
+                          </span>
+                          <span
+                            className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                              seoAnalysis.score >= 80
+                                ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                                : seoAnalysis.score >= 50
+                                ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                                : "bg-red-500/10 text-red-500 border border-red-500/20"
+                            }`}
+                          >
+                            {seoAnalysis.score} / 100 &bull;{" "}
+                            {seoAnalysis.score >= 80 ? "Good" : seoAnalysis.score >= 50 ? "Fair" : "Needs Work"}
+                          </span>
+                        </div>
+
+                        {/* Animated Progress Bar */}
+                        <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              seoAnalysis.score >= 80
+                                ? "bg-emerald-500"
+                                : seoAnalysis.score >= 50
+                                ? "bg-amber-500"
+                                : "bg-red-500"
+                            }`}
+                            style={{ width: `${Math.max(5, seoAnalysis.score)}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Keyword Density & Stats Badge */}
+                      <div className="grid grid-cols-2 gap-2 bg-muted/40 p-2.5 rounded-xl border border-border/40 text-center">
+                        <div>
+                          <span className="block text-xs text-muted-foreground uppercase font-semibold tracking-wide">Density</span>
+                          <span
+                            className={`text-base font-extrabold flex items-center justify-center gap-1 mt-0.5 ${
+                              seoAnalysis.densityStatus === "optimal"
+                                ? "text-emerald-500"
+                                : seoAnalysis.densityStatus === "high"
+                                ? "text-red-500"
+                                : "text-amber-500"
+                            }`}
+                          >
+                            {seoAnalysis.density}%
+                            <span className="text-xs font-normal opacity-80">
+                              ({seoAnalysis.keywordCount}x)
+                            </span>
+                          </span>
+                        </div>
+                        <div>
+                          <span className="block text-xs text-muted-foreground uppercase font-semibold tracking-wide">Words</span>
+                          <span className="text-base font-extrabold text-foreground mt-0.5 block">
+                            {seoAnalysis.wordCount}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Checklist */}
+                      <div className="space-y-2.5 pt-1">
+                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                          Search Engine Checklist
+                        </span>
+                        <div className="space-y-2">
+                          {seoAnalysis.items.map((item) => (
+                            <div
+                              key={item.id}
+                              className="flex items-start gap-2.5 text-xs sm:text-[13px] leading-snug py-0.5"
+                            >
+                              {item.passed ? (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                              ) : (
+                                <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <span
+                                  className={`font-semibold ${
+                                    item.passed ? "text-foreground" : "text-muted-foreground"
+                                  }`}
+                                >
+                                  {item.label}
+                                </span>
+                                <p className="text-xs text-muted-foreground leading-normal mt-0.5">
+                                  {item.message}
+                                </p>
+                              </div>
+                              <span className="text-xs font-bold text-muted-foreground shrink-0 pl-1">
+                                {item.score}/{item.maxScore}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
