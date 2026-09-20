@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useDeferredValue } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import BlogEditor from "@/components/blog/BlogEditor";
@@ -149,7 +149,7 @@ function analyzeSeo(
   title: string,
   slug: string,
   metaDesc: string,
-  content: any,
+  contentOrDoc: any,
   overrideWordCount?: number | null
 ): SeoAnalysisResult {
   const trimmedKeyword = keyword.trim();
@@ -165,7 +165,10 @@ function analyzeSeo(
     };
   }
 
-  const { fullText, introText, headingTexts, wordCount: extractedCount } = extractTextFromTipTap(content);
+  const { fullText, introText, headingTexts, wordCount: extractedCount } =
+    contentOrDoc && typeof contentOrDoc.fullText === "string"
+      ? (contentOrDoc as ExtractedDoc)
+      : extractTextFromTipTap(contentOrDoc);
   const wordCount = typeof overrideWordCount === "number" ? overrideWordCount : extractedCount;
   const lowerKeyword = trimmedKeyword.toLowerCase();
   const keywordOccurrences = countKeywordOccurrences(fullText, trimmedKeyword);
@@ -366,10 +369,44 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   const content = watchedValues.content;
   const faqs = watchedValues.faqs ?? [];
 
-  // Real-time SEO Analysis
+  // Deferred values for non-blocking background SEO calculation
+  const deferredContent = useDeferredValue(content);
+  const deferredWordCount = useDeferredValue(editorWordCount);
+  const deferredKeyword = useDeferredValue(focusKeyword);
+  const deferredTitle = useDeferredValue(title);
+  const deferredSlug = useDeferredValue(slug);
+  const deferredMetaDesc = useDeferredValue(metaDesc);
+
+  const isSeoCalculating =
+    content !== deferredContent ||
+    focusKeyword !== deferredKeyword ||
+    title !== deferredTitle ||
+    slug !== deferredSlug ||
+    metaDesc !== deferredMetaDesc;
+
+  // Memoize TipTap AST traversal so changing keywords/meta doesn't re-parse the document
+  const extractedDoc = useMemo(() => {
+    return extractTextFromTipTap(deferredContent);
+  }, [deferredContent]);
+
+  // Real-time SEO Analysis using deferred values
   const seoAnalysis = useMemo(() => {
-    return analyzeSeo(focusKeyword, title, slug, metaDesc, content, editorWordCount);
-  }, [focusKeyword, title, slug, metaDesc, content, editorWordCount]);
+    return analyzeSeo(
+      deferredKeyword,
+      deferredTitle,
+      deferredSlug,
+      deferredMetaDesc,
+      extractedDoc,
+      deferredWordCount
+    );
+  }, [
+    deferredKeyword,
+    deferredTitle,
+    deferredSlug,
+    deferredMetaDesc,
+    extractedDoc,
+    deferredWordCount,
+  ]);
 
   // Helpers to normalize content and faqs comparison
   const isContentEqual = (a: any, b: any) => {
@@ -1285,10 +1322,14 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                 <div className="border border-border rounded-xl bg-card shadow-sm overflow-hidden">
                   <div className="flex w-full items-center justify-between p-4 text-sm font-bold text-foreground border-b border-border bg-accent/20">
                     <span className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-primary" />
+                      <Sparkles className={`w-4 h-4 text-primary ${isSeoCalculating ? "text-amber-500 animate-pulse" : ""}`} />
                       SEO Health Advisor
                     </span>
-                    {seoAnalysis.hasKeyword && (
+                    {isSeoCalculating ? (
+                      <span className="text-[10px] font-semibold text-muted-foreground animate-pulse">
+                        Calculating...
+                      </span>
+                    ) : seoAnalysis.hasKeyword ? (
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                           seoAnalysis.score >= 80
@@ -1300,10 +1341,10 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                       >
                         {seoAnalysis.score} / 100
                       </span>
-                    )}
+                    ) : null}
                   </div>
 
-                  <div className="p-4">
+                  <div className={`p-4 transition-opacity duration-200 ${isSeoCalculating ? "opacity-70" : "opacity-100"}`}>
                     {!seoAnalysis.hasKeyword ? (
                       <div className="rounded-xl border border-border/60 bg-muted/30 p-3.5 text-xs text-muted-foreground flex items-start gap-3">
                         <Sparkles className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />

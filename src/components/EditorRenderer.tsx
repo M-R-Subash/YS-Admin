@@ -2,7 +2,7 @@
 
 import { useFieldArray, Controller } from "react-hook-form";
 import type { FieldSchema } from "@/lib/schemas/global-schema";
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useLayoutEffect } from "react";
 import { cn } from "@/lib/utils";
 import { ImageUploadBlock } from "@/components/ImageUploadBlock";
 import { MenuBuilderBlock } from "@/components/MenuBuilderBlock";
@@ -10,6 +10,9 @@ import { FooterColumnsBlock } from "@/components/FooterColumnsBlock";
 import FaqManager from "@/components/faq/FaqManager";
 import { Switch } from "@/components/ui/switch";
 import { TagInput } from "@/components/ui/tag-input";
+import { Trash2, Plus } from "lucide-react";
+
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 function AutoResizeTextarea({
   value,
@@ -19,7 +22,7 @@ function AutoResizeTextarea({
   rows = 2,
 }: {
   value: string;
-  onChange: any;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   placeholder?: string;
   className?: string;
   rows?: number;
@@ -35,7 +38,7 @@ function AutoResizeTextarea({
     }
   }, []);
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     adjustHeight();
   }, [value, adjustHeight]);
 
@@ -50,11 +53,8 @@ function AutoResizeTextarea({
     });
     observer.observe(el);
 
-    const timer = setTimeout(adjustHeight, 50);
-
     return () => {
       observer.disconnect();
-      clearTimeout(timer);
     };
   }, [adjustHeight]);
 
@@ -403,7 +403,7 @@ export function EditorRenderer({
                   ) : (
                     <input
                       ref={ref}
-                      type={field.type === "url" ? "text" : field.type}
+                      type={field.type}
                       value={value || ""}
                       onChange={onChange}
                       placeholder={field.placeholder}
@@ -443,22 +443,37 @@ function ArrayRenderer({
   fieldName: string;
   control: any;
 }) {
-  const { fields } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control,
     name: fieldName,
   });
 
   return (
     <div className="space-y-4">
+      {fields.length === 0 && (
+        <div className="border border-dashed border-border/80 rounded-sm p-4 text-center text-xs text-muted-foreground bg-muted/20">
+          No items added yet. Click &quot;Add {field.label || "Item"}&quot; to create one.
+        </div>
+      )}
       {fields.map((item, index) => (
         <div
           key={item.id}
           className="bg-card-hover border border-border p-5 rounded-sm shadow-sm relative"
         >
-          <div className="absolute top-0 left-0 bg-black text-white text-[10px] font-bold px-3 py-1 rounded-br-sm rounded-tl-sm uppercase tracking-wider">
-            Item {index + 1}
+          <div className="flex items-center justify-between pb-3 mb-3 border-b border-border/60">
+            <div className="inline-flex items-center bg-black text-white text-[10px] font-bold px-2.5 py-0.5 rounded-sm uppercase tracking-wider">
+              Item {index + 1}
+            </div>
+            <button
+              type="button"
+              onClick={() => remove(index)}
+              className="p-1 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-sm transition-colors cursor-pointer"
+              title="Remove item"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
           </div>
-          <div className="mt-2">
+          <div>
             <EditorRenderer
               schema={field.fields || []}
               control={control}
@@ -467,6 +482,22 @@ function ArrayRenderer({
           </div>
         </div>
       ))}
+      <button
+        type="button"
+        onClick={() => {
+          const defaultItem: Record<string, any> = {};
+          if (field.fields) {
+            field.fields.forEach((f) => {
+              defaultItem[f.name] = f.type === "array" || f.type === "tags" ? [] : "";
+            });
+          }
+          append(defaultItem);
+        }}
+        className="w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-border hover:border-black/50 dark:hover:border-white/50 rounded-sm text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-all cursor-pointer"
+      >
+        <Plus className="w-3.5 h-3.5" />
+        Add {field.label ? field.label.replace(/s$/, "") : "Item"}
+      </button>
     </div>
   );
 }
