@@ -57,13 +57,15 @@ import {
   AlignJustify,
   Highlighter,
   CheckSquare,
-  Video as YoutubeIcon
+  Video as YoutubeIcon,
+  ChevronDown
 } from "lucide-react";
 import { ImageUploadBlock } from "@/components/ImageUploadBlock";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 
 interface BlogEditorProps {
   initialContent?: any;
@@ -435,8 +437,14 @@ export default function BlogEditor({
                 }
               }}
               isActive={editor.isActive("link")}
-              icon={<LinkIcon className="w-4 h-4" />}
+              icon={
+                <div className="flex items-center gap-0.5">
+                  <LinkIcon className="w-4 h-4" />
+                  <ChevronDown className="w-3 h-3 opacity-70" />
+                </div>
+              }
               title={editor.isActive("link") ? "Edit Link" : "Insert Link"}
+              className="w-auto px-2"
             />
             
             {showLinkPopover && (
@@ -455,25 +463,25 @@ export default function BlogEditor({
                     }
                   }}
                 />
-                <div className="flex flex-col gap-2 mb-4 text-sm">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
+                <div className="flex flex-col gap-3 mb-4 mt-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="topOpenInNewTab" className="cursor-pointer font-medium text-xs">Open in new tab</Label>
+                    <Switch
+                      id="topOpenInNewTab"
                       checked={linkOpenInNewTab}
-                      onChange={(e) => setLinkOpenInNewTab(e.target.checked)}
-                      className="rounded border-input text-primary focus:ring-primary"
+                      onCheckedChange={setLinkOpenInNewTab}
+                      className="scale-75 origin-right"
                     />
-                    Open in new tab
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="topNoFollow" className="cursor-pointer font-medium text-xs">Add nofollow</Label>
+                    <Switch
+                      id="topNoFollow"
                       checked={linkNoFollow}
-                      onChange={(e) => setLinkNoFollow(e.target.checked)}
-                      className="rounded border-input text-primary focus:ring-primary"
+                      onCheckedChange={setLinkNoFollow}
+                      className="scale-75 origin-right"
                     />
-                    Add nofollow
-                  </label>
+                  </div>
                 </div>
                 <div className="flex items-center justify-between">
                   {editor.isActive("link") ? (
@@ -534,10 +542,11 @@ export default function BlogEditor({
         <div className="flex items-center gap-1 pl-2">
           <Popover open={showTablePopover} onOpenChange={setShowTablePopover}>
             <PopoverTrigger
-              className="p-2 rounded transition flex items-center justify-center w-8 h-8 bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer"
+              className="p-2 px-2.5 rounded transition flex items-center gap-0.5 bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer"
               title="Insert Table"
             >
               <TableIcon className="w-4 h-4" />
+              <ChevronDown className="w-3 h-3 opacity-70" />
             </PopoverTrigger>
             <PopoverContent className="w-64 p-4" align="end" sideOffset={8}>
               <div className="space-y-4">
@@ -572,10 +581,17 @@ export default function BlogEditor({
       <div className="w-full flex-1 overflow-y-auto relative custom-scrollbar">
         <EditorContent editor={editor} className="min-w-75 h-full" />
         
-        {/* Character Count */}
+        {/* Live Metrics Floating Badge */}
         {editor && (
-          <div className="flex items-center justify-end px-4 py-2 text-xs text-muted-foreground border-t border-border mt-4">
-            {editor.storage.characterCount.words()} words · {editor.storage.characterCount.characters()} characters
+          <div className="absolute bottom-4 right-4 z-40">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-card/90 backdrop-blur-sm border border-border shadow-sm rounded-full text-[11px] font-medium text-muted-foreground pointer-events-none">
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                {editor.storage.characterCount.words()} words
+              </span>
+              <span className="w-px h-3 bg-border"></span>
+              <span>{Math.max(1, Math.ceil(editor.storage.characterCount.words() / 200))} min read</span>
+            </div>
           </div>
         )}
         
@@ -588,15 +604,31 @@ export default function BlogEditor({
           </DragHandle>
         )}
 
-        {/* Floating Menu for empty lines */}
+        {/* Floating Menu for empty lines (Slash Menu) */}
         {editor && (
           <FloatingMenu editor={editor}>
-            <div className="flex items-center gap-1 p-1 bg-card border border-border shadow-md rounded-md z-50">
-              <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} icon={<Heading1 className="w-4 h-4" />} title="Heading 1" />
-              <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} icon={<Heading2 className="w-4 h-4" />} title="Heading 2" />
-              <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} icon={<Heading3 className="w-4 h-4" />} title="Heading 3" />
-              <ToolbarButton onClick={() => editor.chain().focus().toggleBulletList().run()} icon={<List className="w-4 h-4" />} title="Bullet List" />
-              <ToolbarButton onClick={() => editor.chain().focus().toggleOrderedList().run()} icon={<ListOrdered className="w-4 h-4" />} title="Ordered List" />
+            <div className="flex flex-col gap-1 p-1.5 bg-card border border-border shadow-xl rounded-xl z-50 min-w-[200px] animate-in fade-in zoom-in-95">
+              <div className="px-2 py-1.5 text-[10px] font-bold tracking-wider text-muted-foreground uppercase">Basic blocks</div>
+              <button onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} className="flex items-center gap-3 px-2 py-1.5 w-full text-left rounded-md hover:bg-accent text-sm transition-colors text-foreground group">
+                <div className="flex items-center justify-center w-8 h-8 rounded border border-border bg-background group-hover:bg-card shrink-0"><Heading1 className="w-4 h-4" /></div>
+                <div><span className="block font-medium">Heading 1</span><span className="block text-[11px] text-muted-foreground">Large section heading</span></div>
+              </button>
+              <button onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className="flex items-center gap-3 px-2 py-1.5 w-full text-left rounded-md hover:bg-accent text-sm transition-colors text-foreground group">
+                <div className="flex items-center justify-center w-8 h-8 rounded border border-border bg-background group-hover:bg-card shrink-0"><Heading2 className="w-4 h-4" /></div>
+                <div><span className="block font-medium">Heading 2</span><span className="block text-[11px] text-muted-foreground">Medium section heading</span></div>
+              </button>
+              <button onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className="flex items-center gap-3 px-2 py-1.5 w-full text-left rounded-md hover:bg-accent text-sm transition-colors text-foreground group">
+                <div className="flex items-center justify-center w-8 h-8 rounded border border-border bg-background group-hover:bg-card shrink-0"><Heading3 className="w-4 h-4" /></div>
+                <div><span className="block font-medium">Heading 3</span><span className="block text-[11px] text-muted-foreground">Small section heading</span></div>
+              </button>
+              <button onClick={() => editor.chain().focus().toggleBulletList().run()} className="flex items-center gap-3 px-2 py-1.5 w-full text-left rounded-md hover:bg-accent text-sm transition-colors text-foreground group">
+                <div className="flex items-center justify-center w-8 h-8 rounded border border-border bg-background group-hover:bg-card shrink-0"><List className="w-4 h-4" /></div>
+                <div><span className="block font-medium">Bulleted List</span><span className="block text-[11px] text-muted-foreground">Create a simple list</span></div>
+              </button>
+              <button onClick={() => editor.chain().focus().toggleBlockquote().run()} className="flex items-center gap-3 px-2 py-1.5 w-full text-left rounded-md hover:bg-accent text-sm transition-colors text-foreground group">
+                <div className="flex items-center justify-center w-8 h-8 rounded border border-border bg-background group-hover:bg-card shrink-0"><Quote className="w-4 h-4" /></div>
+                <div><span className="block font-medium">Quote</span><span className="block text-[11px] text-muted-foreground">Capture a quote</span></div>
+              </button>
             </div>
           </FloatingMenu>
         )}
@@ -610,13 +642,13 @@ export default function BlogEditor({
               return !editor.isActive('link') && !editor.isActive('table') && !editor.isActive('image') && !editor.state.selection.empty;
             }}
           >
-            <div className="flex items-center gap-1 p-1 bg-card border border-border shadow-md rounded-md z-50">
-              <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive("bold")} icon={<Bold className="w-4 h-4" />} title="Bold" />
-              <ToolbarButton onClick={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive("italic")} icon={<Italic className="w-4 h-4" />} title="Italic" />
-              <ToolbarButton onClick={() => editor.chain().focus().toggleUnderline().run()} isActive={editor.isActive("underline")} icon={<UnderlineIcon className="w-4 h-4" />} title="Underline" />
-              <ToolbarButton onClick={() => editor.chain().focus().toggleStrike().run()} isActive={editor.isActive("strike")} icon={<Strikethrough className="w-4 h-4" />} title="Strikethrough" />
-              <div className="w-px h-4 bg-border mx-0.5"></div>
-              <ToolbarButton 
+            <div className="flex items-center gap-0.5 p-1 bg-zinc-900 border border-zinc-800 shadow-2xl rounded-full z-50 animate-in fade-in zoom-in-95">
+              <BubbleToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive("bold")} icon={<Bold className="w-3.5 h-3.5" />} title="Bold" />
+              <BubbleToolbarButton onClick={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive("italic")} icon={<Italic className="w-3.5 h-3.5" />} title="Italic" />
+              <BubbleToolbarButton onClick={() => editor.chain().focus().toggleUnderline().run()} isActive={editor.isActive("underline")} icon={<UnderlineIcon className="w-3.5 h-3.5" />} title="Underline" />
+              <BubbleToolbarButton onClick={() => editor.chain().focus().toggleStrike().run()} isActive={editor.isActive("strike")} icon={<Strikethrough className="w-3.5 h-3.5" />} title="Strikethrough" />
+              <div className="w-px h-4 bg-zinc-700 mx-1"></div>
+              <BubbleToolbarButton 
                 onClick={() => {
                   setLinkUrl("");
                   setLinkOpenInNewTab(true);
@@ -624,7 +656,7 @@ export default function BlogEditor({
                   editor.chain().focus().setLink({ href: "" }).run();
                 }} 
                 isActive={editor.isActive("link")} 
-                icon={<LinkIcon className="w-4 h-4" />} 
+                icon={<LinkIcon className="w-3.5 h-3.5" />} 
                 title="Link" 
               />
             </div>
@@ -664,26 +696,24 @@ export default function BlogEditor({
                   <Check className="w-3 h-3" /> Apply
                 </button>
               </div>
-              <div className="flex items-center justify-between pt-1 border-t border-border text-[11px] text-muted-foreground">
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-1.5 cursor-pointer hover:text-foreground">
-                    <input
-                      type="checkbox"
+              <div className="flex items-center justify-between pt-3 pb-1 border-t border-border mt-2">
+                <div className="flex flex-col gap-3 flex-1 pr-6">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[11px] font-medium cursor-pointer text-muted-foreground hover:text-foreground transition-colors">Open in new tab</Label>
+                    <Switch
                       checked={linkOpenInNewTab}
-                      onChange={(e) => setLinkOpenInNewTab(e.target.checked)}
-                      className="rounded border-input text-primary focus:ring-primary w-3.5 h-3.5"
+                      onCheckedChange={setLinkOpenInNewTab}
+                      className="scale-[0.6] origin-right"
                     />
-                    New tab
-                  </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer hover:text-foreground">
-                    <input
-                      type="checkbox"
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[11px] font-medium cursor-pointer text-muted-foreground hover:text-foreground transition-colors">Add nofollow</Label>
+                    <Switch
                       checked={linkNoFollow}
-                      onChange={(e) => setLinkNoFollow(e.target.checked)}
-                      className="rounded border-input text-primary focus:ring-primary w-3.5 h-3.5"
+                      onCheckedChange={setLinkNoFollow}
+                      className="scale-[0.6] origin-right"
                     />
-                    Nofollow
-                  </label>
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -726,7 +756,7 @@ export default function BlogEditor({
 }
 
 // Sub-component for Toolbar Buttons
-function ToolbarButton({ onClick, isActive, icon, title, disabled }: { onClick: () => void; isActive?: boolean; icon: React.ReactNode; title?: string; disabled?: boolean }) {
+function ToolbarButton({ onClick, isActive, icon, title, disabled, className = "w-8 h-8 justify-center" }: { onClick: () => void; isActive?: boolean; icon: React.ReactNode; title?: string; disabled?: boolean; className?: string }) {
   return (
     <button
       type="button"
@@ -734,10 +764,30 @@ function ToolbarButton({ onClick, isActive, icon, title, disabled }: { onClick: 
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`p-2 rounded-sm transition flex items-center justify-center w-8 h-8 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+      className={`p-2 rounded-sm transition flex items-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${className} ${
         isActive
           ? "bg-primary text-primary-foreground font-bold shadow-xs"
           : "bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground"
+      }`}
+    >
+      {icon}
+    </button>
+  );
+}
+
+// Sub-component for Bubble Toolbar Buttons
+function BubbleToolbarButton({ onClick, isActive, icon, title, disabled }: { onClick: () => void; isActive?: boolean; icon: React.ReactNode; title?: string; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={`p-1.5 rounded-full transition flex items-center justify-center w-7 h-7 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+        isActive
+          ? "bg-zinc-700 text-white font-bold"
+          : "bg-transparent text-zinc-400 hover:bg-zinc-800 hover:text-white"
       }`}
     >
       {icon}

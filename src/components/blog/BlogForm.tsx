@@ -10,8 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/toast";
-import { ArrowLeft, Loader2, Save, Send } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Send, Maximize, Minimize, ChevronDown, Search } from "lucide-react";
 import { ScreenLoader } from "@/components/ui/screen-loader";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +36,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(isEditMode);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [isFocusMode, setIsFocusMode] = useState(false);
 
   // Initial Form Snapshot for dirty check
   const [initialData, setInitialData] = useState<any>(null);
@@ -427,6 +429,15 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         </div>
         <div className="flex items-center gap-3">
           <Button
+            variant="ghost"
+            onClick={() => setIsFocusMode(!isFocusMode)}
+            className="hidden lg:flex items-center justify-center w-9 h-9 p-0 text-muted-foreground hover:text-foreground hover:bg-accent transition-all cursor-pointer rounded-sm"
+            title={isFocusMode ? "Exit Focus Mode" : "Enter Focus Mode"}
+          >
+            {isFocusMode ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+          </Button>
+          <div className="w-px h-5 bg-border hidden lg:block mx-1"></div>
+          <Button
             variant="outline"
             onClick={() => handleSave("draft")}
             disabled={isSubmitting || (isEditMode ? (!isDirtyOrFilled && status === "draft") : !isDirtyOrFilled)}
@@ -448,10 +459,10 @@ export default function BlogForm({ blogId }: BlogFormProps) {
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-hidden w-full relative">
-        <div className="max-w-full mx-auto p-4 md:p-6 w-full h-full flex flex-col lg:flex-row gap-6">
+        <div className={`mx-auto w-full h-full flex flex-col lg:flex-row transition-all duration-300 ${isFocusMode ? "max-w-4xl p-0 md:p-0" : "max-w-full p-4 md:p-6 gap-6"}`}>
           
           {/* Main Editor Column */}
-          <div className="flex-1 h-full min-h-125 flex flex-col overflow-hidden">
+          <div className={`flex-1 h-full flex flex-col overflow-hidden transition-all duration-300 ${isFocusMode ? "border-x border-border shadow-2xl bg-card" : "min-h-125"}`}>
             {isLoading ? (
               <ScreenLoader
                 text="Loading Blog Post..."
@@ -468,132 +479,180 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           </div>
 
           {/* Sidebar Settings Column */}
-          <div className="w-full lg:w-100 shrink-0 h-full overflow-y-auto pb-8 pr-2 custom-scrollbar">
-            <div className="bg-card border border-border p-6 rounded-xl space-y-6">
+          <div className={`shrink-0 h-full overflow-y-auto pb-8 pr-2 custom-scrollbar transition-all duration-300 ${isFocusMode ? "w-0 opacity-0 overflow-hidden" : "w-full lg:w-[380px] opacity-100"}`}>
+            <div className="space-y-4">
               
-              {/* Blog Title */}
-              <div>
-                <Label htmlFor="title" className="text-sm font-bold text-foreground">Blog Title</Label>
-                <textarea
-                  id="title"
-                  value={title}
-                  onChange={(e) => {
-                    handleTitleChange(e);
-                    e.target.style.height = 'auto';
-                    e.target.style.height = e.target.scrollHeight + 'px';
-                  }}
-                  placeholder="The Future of Next.js..."
-                  className="mt-2 w-full resize-none overflow-hidden rounded-md border border-input bg-transparent px-3 py-2 text-base font-semibold shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  rows={2}
-                />
-              </div>
+              {/* General Settings */}
+              <Collapsible defaultOpen className="group border border-border rounded-xl bg-card shadow-sm overflow-hidden">
+                <CollapsibleTrigger className="flex w-full items-center justify-between p-4 text-sm font-bold text-foreground hover:bg-accent/50 transition-colors cursor-pointer data-[state=open]:border-b data-[state=open]:border-border">
+                  General Info
+                  <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="p-4 space-y-5 animate-in slide-in-from-top-1 fade-in-0">
+                  <div>
+                    <Label htmlFor="title" className="text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground">Blog Title</Label>
+                    <textarea
+                      id="title"
+                      value={title}
+                      onChange={(e) => {
+                        handleTitleChange(e);
+                        e.target.style.height = 'auto';
+                        e.target.style.height = e.target.scrollHeight + 'px';
+                      }}
+                      placeholder="The Future of Next.js..."
+                      className="mt-2 w-full resize-none overflow-hidden rounded-md border border-input bg-transparent px-3 py-2 text-sm font-semibold shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      rows={2}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="slug" className="text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground">URL Slug</Label>
+                    <Input
+                      id="slug"
+                      value={slug}
+                      onChange={(e) => setSlug(e.target.value)}
+                      className="mt-2 text-sm"
+                      placeholder="the-future-of-nextjs"
+                    />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
 
-              {/* URL Slug */}
-              <div className="border-t border-border pt-6">
-                <Label htmlFor="slug" className="text-sm font-bold text-foreground">URL Slug</Label>
-                <Input
-                  id="slug"
-                  value={slug}
-                  onChange={(e) => setSlug(e.target.value)}
-                  className="mt-2"
-                  placeholder="the-future-of-nextjs"
-                />
-                <p className="text-xs text-muted-foreground mt-2">
-                  This is the URL path for the blog post.
-                </p>
-              </div>
+              {/* Organization */}
+              <Collapsible defaultOpen className="group border border-border rounded-xl bg-card shadow-sm overflow-hidden">
+                <CollapsibleTrigger className="flex w-full items-center justify-between p-4 text-sm font-bold text-foreground hover:bg-accent/50 transition-colors cursor-pointer data-[state=open]:border-b data-[state=open]:border-border">
+                  Organization
+                  <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="p-4 space-y-5 animate-in slide-in-from-top-1 fade-in-0">
+                  <div>
+                    <Label htmlFor="categories" className="text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground mb-2 block">Categories</Label>
+                    <TagInput
+                      value={categories}
+                      onChange={setCategories}
+                      placeholder="Add category..."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="tags" className="text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground mb-2 block">Tags</Label>
+                    <TagInput
+                      value={tags}
+                      onChange={setTags}
+                      placeholder="Add tag..."
+                    />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
 
-              {/* Categories */}
-              <div className="border-t border-border pt-6">
-                <Label htmlFor="categories" className="text-sm font-bold text-foreground mb-2 block">Categories</Label>
-                <TagInput
-                  value={categories}
-                  onChange={setCategories}
-                  placeholder="Add category (e.g. Technology)..."
-                />
-                <p className="text-[11px] text-muted-foreground mt-1.5">Press Enter or comma to add</p>
-              </div>
+              {/* Media & Excerpt */}
+              <Collapsible className="group border border-border rounded-xl bg-card shadow-sm overflow-hidden">
+                <CollapsibleTrigger className="flex w-full items-center justify-between p-4 text-sm font-bold text-foreground hover:bg-accent/50 transition-colors cursor-pointer data-[state=open]:border-b data-[state=open]:border-border">
+                  Media & Excerpt
+                  <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="p-4 space-y-5 animate-in slide-in-from-top-1 fade-in-0">
+                  <div>
+                    <Label className="block mb-2 text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground">Featured Image</Label>
+                    <ImageUploadBlock 
+                      value={featuredImage || undefined}
+                      onChange={(val) => setFeaturedImage(val?.url || null)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="excerpt" className="text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground">Excerpt</Label>
+                    <textarea
+                      id="excerpt"
+                      className="flex min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-2"
+                      value={excerpt}
+                      onChange={(e) => setExcerpt(e.target.value)}
+                      placeholder="A brief summary of the blog..."
+                    />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
 
-              {/* Tags */}
-              <div className="border-t border-border pt-6">
-                <Label htmlFor="tags" className="text-sm font-bold text-foreground mb-2 block">Tags</Label>
-                <TagInput
-                  value={tags}
-                  onChange={setTags}
-                  placeholder="Add tag (e.g. react, nextjs)..."
-                />
-                <p className="text-[11px] text-muted-foreground mt-1.5">Press Enter or comma to add</p>
-              </div>
+              {/* SEO & Meta */}
+              <Collapsible className="group border border-border rounded-xl bg-card shadow-sm overflow-hidden">
+                <CollapsibleTrigger className="flex w-full items-center justify-between p-4 text-sm font-bold text-foreground hover:bg-accent/50 transition-colors cursor-pointer data-[state=open]:border-b data-[state=open]:border-border">
+                  SEO & Meta
+                  <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="p-4 space-y-5 animate-in slide-in-from-top-1 fade-in-0">
+                  
+                  {/* Google Search Preview */}
+                  <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm font-sans space-y-1 mb-2">
+                    <div className="flex items-center gap-2 mb-1 text-[12px] text-gray-700">
+                      <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
+                        <Search className="w-3.5 h-3.5 text-gray-500" />
+                      </div>
+                      <div>
+                        <span className="block font-medium">Your Website</span>
+                        <span className="block text-gray-500 text-[11px] truncate w-60">https://yourdomain.com/blogs/{slug || "slug"}</span>
+                      </div>
+                    </div>
+                    <h3 className="text-[18px] text-[#1a0dab] hover:underline cursor-pointer truncate font-medium">
+                      {metaTitle || title || "SEO Title Preview"}
+                    </h3>
+                    <p className="text-[13px] text-[#4d5156] line-clamp-2 leading-snug">
+                      {metaDesc || excerpt || "Write an engaging meta description that encourages users to click through to your content from search engines."}
+                    </p>
+                  </div>
 
-              {/* Featured Image */}
-              <div className="border-t border-border pt-6">
-                <Label className="block mb-2 text-sm font-bold text-foreground">Featured Image</Label>
-                <ImageUploadBlock 
-                  value={featuredImage || undefined}
-                  onChange={(val) => setFeaturedImage(val?.url || null)}
-                />
-              </div>
+                  <div>
+                    <Label htmlFor="metaTitle" className="text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground">Meta Title</Label>
+                    <Input
+                      id="metaTitle"
+                      value={metaTitle}
+                      onChange={(e) => setMetaTitle(e.target.value)}
+                      placeholder="SEO Title (50-60 chars)"
+                      className="mt-2 text-sm"
+                    />
+                  </div>
 
-              {/* Excerpt */}
-              <div className="border-t border-border pt-6">
-                <Label htmlFor="excerpt" className="text-sm font-bold text-foreground">Excerpt</Label>
-                <textarea
-                  id="excerpt"
-                  className="flex min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-2"
-                  value={excerpt}
-                  onChange={(e) => setExcerpt(e.target.value)}
-                  placeholder="A brief summary of the blog..."
-                />
-              </div>
+                  <div>
+                    <Label htmlFor="metaDesc" className="text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground">Meta Description</Label>
+                    <textarea
+                      id="metaDesc"
+                      className="flex min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-2"
+                      value={metaDesc}
+                      onChange={(e) => setMetaDesc(e.target.value)}
+                      placeholder="SEO Description (150-160 chars)"
+                    />
+                  </div>
 
-              <div className="border-t border-border pt-6 space-y-4">
-                <h3 className="font-bold text-sm tracking-tight text-foreground">SEO & Meta</h3>
-                
-                <div>
-                  <Label htmlFor="metaTitle">Meta Title</Label>
-                  <Input
-                    id="metaTitle"
-                    value={metaTitle}
-                    onChange={(e) => setMetaTitle(e.target.value)}
-                    placeholder="SEO Title (50-60 chars)"
-                    className="mt-2"
-                  />
-                </div>
+                  <div>
+                    <Label htmlFor="focusKeyword" className="text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground">Focus Keyword</Label>
+                    <Input
+                      id="focusKeyword"
+                      value={focusKeyword}
+                      onChange={(e) => setFocusKeyword(e.target.value)}
+                      placeholder="e.g. Next.js tutorial"
+                      className="mt-2 text-sm"
+                    />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
 
-                <div>
-                  <Label htmlFor="metaDesc">Meta Description</Label>
-                  <textarea
-                    id="metaDesc"
-                    className="flex min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-2"
-                    value={metaDesc}
-                    onChange={(e) => setMetaDesc(e.target.value)}
-                    placeholder="SEO Description (150-160 chars)"
-                  />
-                </div>
+              {/* Settings */}
+              <Collapsible defaultOpen className="group border border-border rounded-xl bg-card shadow-sm overflow-hidden">
+                <CollapsibleTrigger className="flex w-full items-center justify-between p-4 text-sm font-bold text-foreground hover:bg-accent/50 transition-colors cursor-pointer data-[state=open]:border-b data-[state=open]:border-border">
+                  Settings
+                  <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="p-4 animate-in slide-in-from-top-1 fade-in-0">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="allowComments" className="text-sm font-bold text-foreground">Allow Comments</Label>
+                      <p className="text-xs text-muted-foreground mt-1">Enable user comments on this post</p>
+                    </div>
+                    <Switch
+                      id="allowComments"
+                      checked={allowComments}
+                      onCheckedChange={setAllowComments}
+                    />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
 
-                <div>
-                  <Label htmlFor="focusKeyword">Focus Keyword</Label>
-                  <Input
-                    id="focusKeyword"
-                    value={focusKeyword}
-                    onChange={(e) => setFocusKeyword(e.target.value)}
-                    placeholder="e.g. Next.js tutorial"
-                    className="mt-2"
-                  />
-                </div>
-              </div>
-
-              <div className="border-t border-border pt-6 flex items-center justify-between">
-                <div>
-                  <Label htmlFor="allowComments" className="text-sm font-bold text-foreground">Allow Comments</Label>
-                  <p className="text-xs text-muted-foreground mt-1">Enable user comments on this post</p>
-                </div>
-                <Switch
-                  id="allowComments"
-                  checked={allowComments}
-                  onCheckedChange={setAllowComments}
-                />
-              </div>
             </div>
           </div>
         </div>
