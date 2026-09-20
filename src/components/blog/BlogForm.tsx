@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/toast";
 import { ArrowLeft, Loader2, Save, Send, Maximize, Minimize, ChevronDown, Search } from "lucide-react";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { ScreenLoader } from "@/components/ui/screen-loader";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -346,6 +347,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   };
 
   return (
+    <TooltipProvider delay={200}>
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       {/* Draft Info Banner */}
       {(hasCloudDraft || loadedFromBackup) && (
@@ -428,14 +430,17 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            onClick={() => setIsFocusMode(!isFocusMode)}
-            className="hidden lg:flex items-center justify-center w-9 h-9 p-0 text-muted-foreground hover:text-foreground hover:bg-accent transition-all cursor-pointer rounded-sm"
-            title={isFocusMode ? "Exit Focus Mode" : "Enter Focus Mode"}
-          >
-            {isFocusMode ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              onClick={() => setIsFocusMode(!isFocusMode)}
+              className="hidden lg:flex items-center justify-center w-9 h-9 p-0 text-muted-foreground hover:text-foreground hover:bg-accent transition-all cursor-pointer rounded-sm bg-transparent"
+            >
+              {isFocusMode ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={4} className="flex items-center gap-2 px-2.5 py-1 z-[60]">
+              <span className="font-medium text-xs">{isFocusMode ? "Exit Focus Mode" : "Enter Focus Mode"}</span>
+            </TooltipContent>
+          </Tooltip>
           <div className="w-px h-5 bg-border hidden lg:block mx-1"></div>
           <Button
             variant="outline"
@@ -459,7 +464,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-hidden w-full relative">
-        <div className={`mx-auto w-full h-full flex flex-col lg:flex-row transition-all duration-300 ${isFocusMode ? "max-w-4xl p-0 md:p-0" : "max-w-full p-4 md:p-6 gap-6"}`}>
+        <div className={`mx-auto w-full h-full flex flex-col lg:flex-row transition-all duration-300 ${isFocusMode ? "p-0" : "max-w-full p-4 md:p-6 gap-6"}`}>
           
           {/* Main Editor Column */}
           <div className={`flex-1 h-full flex flex-col overflow-hidden transition-all duration-300 ${isFocusMode ? "border-x border-border shadow-2xl bg-card" : "min-h-125"}`}>
@@ -483,12 +488,11 @@ export default function BlogForm({ blogId }: BlogFormProps) {
             <div className="space-y-4">
               
               {/* General Settings */}
-              <Collapsible defaultOpen className="group border border-border rounded-xl bg-card shadow-sm overflow-hidden">
-                <CollapsibleTrigger className="flex w-full items-center justify-between p-4 text-sm font-bold text-foreground hover:bg-accent/50 transition-colors cursor-pointer data-[state=open]:border-b data-[state=open]:border-border">
+              <div className="border border-border rounded-xl bg-card shadow-sm overflow-hidden">
+                <div className="flex w-full items-center justify-between p-4 text-sm font-bold text-foreground border-b border-border bg-accent/20">
                   General Info
-                  <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="p-4 space-y-5 animate-in slide-in-from-top-1 fade-in-0">
+                </div>
+                <div className="p-4 space-y-5">
                   <div>
                     <Label htmlFor="title" className="text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground">Blog Title</Label>
                     <textarea
@@ -505,25 +509,12 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="slug" className="text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground">URL Slug</Label>
-                    <Input
-                      id="slug"
-                      value={slug}
-                      onChange={(e) => setSlug(e.target.value)}
-                      className="mt-2 text-sm"
-                      placeholder="the-future-of-nextjs"
+                    <Label className="block mb-2 text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground">Featured Image</Label>
+                    <ImageUploadBlock 
+                      value={featuredImage || undefined}
+                      onChange={(val) => setFeaturedImage(val?.url || null)}
                     />
                   </div>
-                </CollapsibleContent>
-              </Collapsible>
-
-              {/* Organization */}
-              <Collapsible defaultOpen className="group border border-border rounded-xl bg-card shadow-sm overflow-hidden">
-                <CollapsibleTrigger className="flex w-full items-center justify-between p-4 text-sm font-bold text-foreground hover:bg-accent/50 transition-colors cursor-pointer data-[state=open]:border-b data-[state=open]:border-border">
-                  Organization
-                  <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="p-4 space-y-5 animate-in slide-in-from-top-1 fade-in-0">
                   <div>
                     <Label htmlFor="categories" className="text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground mb-2 block">Categories</Label>
                     <TagInput
@@ -540,23 +531,6 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                       placeholder="Add tag..."
                     />
                   </div>
-                </CollapsibleContent>
-              </Collapsible>
-
-              {/* Media & Excerpt */}
-              <Collapsible className="group border border-border rounded-xl bg-card shadow-sm overflow-hidden">
-                <CollapsibleTrigger className="flex w-full items-center justify-between p-4 text-sm font-bold text-foreground hover:bg-accent/50 transition-colors cursor-pointer data-[state=open]:border-b data-[state=open]:border-border">
-                  Media & Excerpt
-                  <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="p-4 space-y-5 animate-in slide-in-from-top-1 fade-in-0">
-                  <div>
-                    <Label className="block mb-2 text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground">Featured Image</Label>
-                    <ImageUploadBlock 
-                      value={featuredImage || undefined}
-                      onChange={(val) => setFeaturedImage(val?.url || null)}
-                    />
-                  </div>
                   <div>
                     <Label htmlFor="excerpt" className="text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground">Excerpt</Label>
                     <textarea
@@ -567,17 +541,38 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                       placeholder="A brief summary of the blog..."
                     />
                   </div>
-                </CollapsibleContent>
-              </Collapsible>
+                  <div className="flex items-center justify-between border-t border-border pt-4">
+                    <div>
+                      <Label htmlFor="allowComments" className="text-sm font-bold text-foreground">Allow Comments</Label>
+                      <p className="text-xs text-muted-foreground mt-1">Enable user comments on this post</p>
+                    </div>
+                    <Switch
+                      id="allowComments"
+                      checked={allowComments}
+                      onCheckedChange={setAllowComments}
+                    />
+                  </div>
+                </div>
+              </div>
 
               {/* SEO & Meta */}
-              <Collapsible className="group border border-border rounded-xl bg-card shadow-sm overflow-hidden">
-                <CollapsibleTrigger className="flex w-full items-center justify-between p-4 text-sm font-bold text-foreground hover:bg-accent/50 transition-colors cursor-pointer data-[state=open]:border-b data-[state=open]:border-border">
+              <div className="border border-border rounded-xl bg-card shadow-sm overflow-hidden">
+                <div className="flex w-full items-center justify-between p-4 text-sm font-bold text-foreground border-b border-border bg-accent/20">
                   SEO & Meta
-                  <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="p-4 space-y-5 animate-in slide-in-from-top-1 fade-in-0">
+                </div>
+                <div className="p-4 space-y-5">
                   
+                  <div>
+                    <Label htmlFor="slug" className="text-xs font-bold text-foreground uppercase tracking-wider text-muted-foreground mb-2 block">URL Slug</Label>
+                    <Input
+                      id="slug"
+                      value={slug}
+                      onChange={(e) => setSlug(e.target.value)}
+                      className="text-sm"
+                      placeholder="the-future-of-nextjs"
+                    />
+                  </div>
+
                   {/* Google Search Preview */}
                   <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm font-sans space-y-1 mb-2">
                     <div className="flex items-center gap-2 mb-1 text-[12px] text-gray-700">
@@ -585,8 +580,8 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                         <Search className="w-3.5 h-3.5 text-gray-500" />
                       </div>
                       <div>
-                        <span className="block font-medium">Your Website</span>
-                        <span className="block text-gray-500 text-[11px] truncate w-60">https://yourdomain.com/blogs/{slug || "slug"}</span>
+                        <span className="block font-medium">YS Innovations</span>
+                        <span className="block text-gray-500 text-[11px] truncate w-60">{process.env.NEXT_PUBLIC_APP_URL || "https://ysinnovations.com"}/blogs/{slug || "slug"}</span>
                       </div>
                     </div>
                     <h3 className="text-[18px] text-[#1a0dab] hover:underline cursor-pointer truncate font-medium">
@@ -629,29 +624,10 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                       className="mt-2 text-sm"
                     />
                   </div>
-                </CollapsibleContent>
-              </Collapsible>
+                </div>
+              </div>
 
-              {/* Settings */}
-              <Collapsible defaultOpen className="group border border-border rounded-xl bg-card shadow-sm overflow-hidden">
-                <CollapsibleTrigger className="flex w-full items-center justify-between p-4 text-sm font-bold text-foreground hover:bg-accent/50 transition-colors cursor-pointer data-[state=open]:border-b data-[state=open]:border-border">
-                  Settings
-                  <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="p-4 animate-in slide-in-from-top-1 fade-in-0">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="allowComments" className="text-sm font-bold text-foreground">Allow Comments</Label>
-                      <p className="text-xs text-muted-foreground mt-1">Enable user comments on this post</p>
-                    </div>
-                    <Switch
-                      id="allowComments"
-                      checked={allowComments}
-                      onCheckedChange={setAllowComments}
-                    />
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
+
 
             </div>
           </div>
@@ -714,5 +690,6 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </TooltipProvider>
   );
 }

@@ -66,6 +66,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 interface BlogEditorProps {
   initialContent?: any;
@@ -133,7 +134,8 @@ export default function BlogEditor({
       TableHeader,
       TableCell,
       Placeholder.configure({
-        placeholder: "Write your article content here...",
+        placeholder: "Type '/' for commands, or start writing...",
+        showOnlyCurrent: true,
       }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       CharacterCount,
@@ -151,7 +153,7 @@ export default function BlogEditor({
     },
     editorProps: {
       attributes: {
-        class: "prose prose-sm sm:prose !max-w-full w-full focus:outline-none min-h-full p-4 pb-32 [&_p]:my-2 [&_p]:leading-relaxed [&_table]:border-collapse [&_table]:w-full [&_td]:border [&_td]:border-border [&_th]:border [&_th]:border-border [&_td]:p-2 [&_th]:p-2 [&_th]:bg-muted/50 text-sm sm:text-base",
+        class: "prose prose-sm sm:prose !max-w-full w-full focus:outline-none min-h-full py-6 px-10 md:px-16 pb-32 [&_p]:my-2 [&_p]:leading-relaxed [&_table]:border-collapse [&_table]:w-full [&_td]:border [&_td]:border-border [&_th]:border [&_th]:border-border [&_td]:p-2 [&_th]:p-2 [&_th]:bg-muted/50 text-sm sm:text-base [&_p.is-empty::before]:content-[attr(data-placeholder)] [&_p.is-empty::before]:float-left [&_p.is-empty::before]:text-muted-foreground/50 [&_p.is-empty::before]:pointer-events-none [&_p.is-empty::before]:h-0",
       },
       handleClick: (view, pos, event) => {
         const target = event.target as HTMLElement;
@@ -273,9 +275,10 @@ export default function BlogEditor({
   };
 
   return (
-    <div className="flex flex-col h-full border border-border rounded-xl bg-card overflow-hidden">
-      
-      {/* Editor Toolbar */}
+    <TooltipProvider delay={200}>
+      <div className="flex flex-col h-full border border-border rounded-xl bg-card overflow-hidden relative">
+        
+        {/* Editor Toolbar */}
       <div className="sticky top-0 z-10 flex flex-wrap items-center gap-1 p-2 bg-card border-b border-border shadow-sm shrink-0">
         
         {/* Undo/Redo Group */}
@@ -285,12 +288,14 @@ export default function BlogEditor({
             disabled={!editor.can().undo()}
             icon={<Undo className="w-4 h-4" />}
             title="Undo"
+            shortcut="Ctrl+Z"
           />
           <ToolbarButton
             onClick={() => editor.chain().focus().redo().run()}
             disabled={!editor.can().redo()}
             icon={<Redo className="w-4 h-4" />}
             title="Redo"
+            shortcut="Ctrl+Y"
           />
         </div>
 
@@ -300,26 +305,36 @@ export default function BlogEditor({
             onClick={() => editor.chain().focus().toggleBold().run()}
             isActive={editor.isActive("bold")}
             icon={<Bold className="w-4 h-4" />}
+            title="Bold"
+            shortcut="Ctrl+B"
           />
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleItalic().run()}
             isActive={editor.isActive("italic")}
             icon={<Italic className="w-4 h-4" />}
+            title="Italic"
+            shortcut="Ctrl+I"
           />
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleUnderline().run()}
             isActive={editor.isActive("underline")}
             icon={<UnderlineIcon className="w-4 h-4" />}
+            title="Underline"
+            shortcut="Ctrl+U"
           />
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleStrike().run()}
             isActive={editor.isActive("strike")}
             icon={<Strikethrough className="w-4 h-4" />}
+            title="Strikethrough"
+            shortcut="Ctrl+Shift+S"
           />
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleHighlight().run()}
             isActive={editor.isActive("highlight")}
             icon={<Highlighter className="w-4 h-4" />}
+            title="Highlight"
+            shortcut="Ctrl+Shift+H"
           />
         </div>
 
@@ -329,15 +344,21 @@ export default function BlogEditor({
             onClick={() => editor.chain().focus().toggleBlockquote().run()}
             isActive={editor.isActive("blockquote")}
             icon={<Quote className="w-4 h-4" />}
+            title="Quote"
+            shortcut="Ctrl+Shift+B"
           />
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleCodeBlock().run()}
             isActive={editor.isActive("codeBlock")}
             icon={<Code className="w-4 h-4" />}
+            title="Code Block"
+            shortcut="Ctrl+Alt+C"
           />
           <ToolbarButton
             onClick={() => editor.chain().focus().setHorizontalRule().run()}
             icon={<Minus className="w-4 h-4" />}
+            title="Divider"
+            shortcut="---"
           />
         </div>
 
@@ -347,31 +368,43 @@ export default function BlogEditor({
             onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
             isActive={editor.isActive("heading", { level: 1 })}
             icon={<Heading1 className="w-4 h-4" />}
+            title="Heading 1"
+            shortcut="Ctrl+Alt+1"
           />
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
             isActive={editor.isActive("heading", { level: 2 })}
             icon={<Heading2 className="w-4 h-4" />}
+            title="Heading 2"
+            shortcut="Ctrl+Alt+2"
           />
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
             isActive={editor.isActive("heading", { level: 3 })}
             icon={<Heading3 className="w-4 h-4" />}
+            title="Heading 3"
+            shortcut="Ctrl+Alt+3"
           />
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()}
             isActive={editor.isActive("heading", { level: 4 })}
             icon={<Heading4 className="w-4 h-4" />}
+            title="Heading 4"
+            shortcut="Ctrl+Alt+4"
           />
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleHeading({ level: 5 }).run()}
             isActive={editor.isActive("heading", { level: 5 })}
             icon={<Heading5 className="w-4 h-4" />}
+            title="Heading 5"
+            shortcut="Ctrl+Alt+5"
           />
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleHeading({ level: 6 }).run()}
             isActive={editor.isActive("heading", { level: 6 })}
             icon={<Heading6 className="w-4 h-4" />}
+            title="Heading 6"
+            shortcut="Ctrl+Alt+6"
           />
         </div>
 
@@ -381,21 +414,29 @@ export default function BlogEditor({
             onClick={() => editor.chain().focus().setTextAlign('left').run()}
             isActive={editor.isActive({ textAlign: 'left' })}
             icon={<AlignLeft className="w-4 h-4" />}
+            title="Align Left"
+            shortcut="Ctrl+Shift+L"
           />
           <ToolbarButton
             onClick={() => editor.chain().focus().setTextAlign('center').run()}
             isActive={editor.isActive({ textAlign: 'center' })}
             icon={<AlignCenter className="w-4 h-4" />}
+            title="Align Center"
+            shortcut="Ctrl+Shift+E"
           />
           <ToolbarButton
             onClick={() => editor.chain().focus().setTextAlign('right').run()}
             isActive={editor.isActive({ textAlign: 'right' })}
             icon={<AlignRight className="w-4 h-4" />}
+            title="Align Right"
+            shortcut="Ctrl+Shift+R"
           />
           <ToolbarButton
             onClick={() => editor.chain().focus().setTextAlign('justify').run()}
             isActive={editor.isActive({ textAlign: 'justify' })}
             icon={<AlignJustify className="w-4 h-4" />}
+            title="Justify"
+            shortcut="Ctrl+Shift+J"
           />
         </div>
 
@@ -405,16 +446,22 @@ export default function BlogEditor({
             onClick={() => editor.chain().focus().toggleBulletList().run()}
             isActive={editor.isActive("bulletList")}
             icon={<List className="w-4 h-4" />}
+            title="Bullet List"
+            shortcut="Ctrl+Shift+8"
           />
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
             isActive={editor.isActive("orderedList")}
             icon={<ListOrdered className="w-4 h-4" />}
+            title="Ordered List"
+            shortcut="Ctrl+Shift+7"
           />
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleTaskList().run()}
             isActive={editor.isActive("taskList")}
             icon={<CheckSquare className="w-4 h-4" />}
+            title="Task List"
+            shortcut="Ctrl+Shift+9"
           />
         </div>
 
@@ -444,6 +491,7 @@ export default function BlogEditor({
                 </div>
               }
               title={editor.isActive("link") ? "Edit Link" : "Insert Link"}
+              shortcut="Ctrl+K"
               className="w-auto px-2"
             />
             
@@ -515,14 +563,20 @@ export default function BlogEditor({
               }
             }}
             customTrigger={(onClick) => (
-              <button
-                type="button"
-                onClick={onClick}
-                className="flex items-center justify-center w-8 h-8 rounded hover:bg-accent cursor-pointer transition text-muted-foreground hover:text-foreground"
-                title="Insert Image"
-              >
-                <ImageIcon className="w-4 h-4" />
-              </button>
+              <Tooltip>
+                <TooltipTrigger render={
+                  <button
+                    type="button"
+                    onClick={onClick}
+                    className="p-2 rounded-sm transition flex items-center justify-center w-8 h-8 bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                  </button>
+                } />
+                <TooltipContent side="top" sideOffset={4} className="flex items-center gap-2 px-2.5 py-1">
+                  <span className="font-medium text-xs relative z-50">Insert Image</span>
+                </TooltipContent>
+              </Tooltip>
             )}
           />
 
@@ -541,13 +595,19 @@ export default function BlogEditor({
         {/* Tables Group */}
         <div className="flex items-center gap-1 pl-2">
           <Popover open={showTablePopover} onOpenChange={setShowTablePopover}>
-            <PopoverTrigger
-              className="p-2 px-2.5 rounded transition flex items-center gap-0.5 bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer"
-              title="Insert Table"
-            >
-              <TableIcon className="w-4 h-4" />
-              <ChevronDown className="w-3 h-3 opacity-70" />
-            </PopoverTrigger>
+            <Tooltip>
+              <TooltipTrigger render={
+                <PopoverTrigger
+                  className="p-2 px-2.5 rounded-sm transition flex items-center gap-0.5 bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer"
+                >
+                  <TableIcon className="w-4 h-4" />
+                  <ChevronDown className="w-3 h-3 opacity-70" />
+                </PopoverTrigger>
+              } />
+              <TooltipContent side="top" sideOffset={4} className="flex items-center gap-2 px-2.5 py-1">
+                <span className="font-medium text-xs relative z-50">Insert Table</span>
+              </TooltipContent>
+            </Tooltip>
             <PopoverContent className="w-64 p-4" align="end" sideOffset={8}>
               <div className="space-y-4">
                 <h4 className="font-semibold text-sm leading-none">Insert Table</h4>
@@ -581,53 +641,41 @@ export default function BlogEditor({
       <div className="w-full flex-1 overflow-y-auto relative custom-scrollbar">
         <EditorContent editor={editor} className="min-w-75 h-full" />
         
-        {/* Live Metrics Floating Badge */}
-        {editor && (
-          <div className="absolute bottom-4 right-4 z-40">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-card/90 backdrop-blur-sm border border-border shadow-sm rounded-full text-[11px] font-medium text-muted-foreground pointer-events-none">
-              <span className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                {editor.storage.characterCount.words()} words
-              </span>
-              <span className="w-px h-3 bg-border"></span>
-              <span>{Math.max(1, Math.ceil(editor.storage.characterCount.words() / 200))} min read</span>
-            </div>
-          </div>
-        )}
-        
         {/* Drag Handle */}
         {editor && (
           <DragHandle editor={editor}>
-            <div className="flex items-center justify-center w-5 h-5 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing hover:bg-accent rounded transition bg-background border border-border shadow-sm">
-              <GripVertical className="w-3.5 h-3.5" />
+            <div className="flex items-center justify-center w-6 h-6 bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 text-zinc-600 rounded-md shadow-sm transition-all cursor-grab active:cursor-grabbing -translate-x-2">
+              <GripVertical className="w-4 h-4 opacity-70" />
             </div>
           </DragHandle>
         )}
 
         {/* Floating Menu for empty lines (Slash Menu) */}
         {editor && (
-          <FloatingMenu editor={editor}>
+          <FloatingMenu 
+            editor={editor}
+            shouldShow={({ state }) => {
+              const { $from } = state.selection;
+              return $from.parent.textContent === '/';
+            }}
+          >
             <div className="flex flex-col gap-1 p-1.5 bg-card border border-border shadow-xl rounded-xl z-50 min-w-[200px] animate-in fade-in zoom-in-95">
               <div className="px-2 py-1.5 text-[10px] font-bold tracking-wider text-muted-foreground uppercase">Basic blocks</div>
-              <button onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} className="flex items-center gap-3 px-2 py-1.5 w-full text-left rounded-md hover:bg-accent text-sm transition-colors text-foreground group">
-                <div className="flex items-center justify-center w-8 h-8 rounded border border-border bg-background group-hover:bg-card shrink-0"><Heading1 className="w-4 h-4" /></div>
-                <div><span className="block font-medium">Heading 1</span><span className="block text-[11px] text-muted-foreground">Large section heading</span></div>
-              </button>
-              <button onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className="flex items-center gap-3 px-2 py-1.5 w-full text-left rounded-md hover:bg-accent text-sm transition-colors text-foreground group">
+              <button onClick={() => { editor.chain().focus().deleteRange({ from: editor.state.selection.from - 1, to: editor.state.selection.from }).toggleHeading({ level: 2 }).run(); }} className="flex items-center gap-3 px-2 py-1.5 w-full text-left rounded-md hover:bg-accent text-sm transition-colors text-foreground group">
                 <div className="flex items-center justify-center w-8 h-8 rounded border border-border bg-background group-hover:bg-card shrink-0"><Heading2 className="w-4 h-4" /></div>
                 <div><span className="block font-medium">Heading 2</span><span className="block text-[11px] text-muted-foreground">Medium section heading</span></div>
               </button>
-              <button onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className="flex items-center gap-3 px-2 py-1.5 w-full text-left rounded-md hover:bg-accent text-sm transition-colors text-foreground group">
+              <button onClick={() => { editor.chain().focus().deleteRange({ from: editor.state.selection.from - 1, to: editor.state.selection.from }).toggleHeading({ level: 3 }).run(); }} className="flex items-center gap-3 px-2 py-1.5 w-full text-left rounded-md hover:bg-accent text-sm transition-colors text-foreground group">
                 <div className="flex items-center justify-center w-8 h-8 rounded border border-border bg-background group-hover:bg-card shrink-0"><Heading3 className="w-4 h-4" /></div>
                 <div><span className="block font-medium">Heading 3</span><span className="block text-[11px] text-muted-foreground">Small section heading</span></div>
               </button>
-              <button onClick={() => editor.chain().focus().toggleBulletList().run()} className="flex items-center gap-3 px-2 py-1.5 w-full text-left rounded-md hover:bg-accent text-sm transition-colors text-foreground group">
+              <button onClick={() => { editor.chain().focus().deleteRange({ from: editor.state.selection.from - 1, to: editor.state.selection.from }).toggleBulletList().run(); }} className="flex items-center gap-3 px-2 py-1.5 w-full text-left rounded-md hover:bg-accent text-sm transition-colors text-foreground group">
                 <div className="flex items-center justify-center w-8 h-8 rounded border border-border bg-background group-hover:bg-card shrink-0"><List className="w-4 h-4" /></div>
                 <div><span className="block font-medium">Bulleted List</span><span className="block text-[11px] text-muted-foreground">Create a simple list</span></div>
               </button>
-              <button onClick={() => editor.chain().focus().toggleBlockquote().run()} className="flex items-center gap-3 px-2 py-1.5 w-full text-left rounded-md hover:bg-accent text-sm transition-colors text-foreground group">
-                <div className="flex items-center justify-center w-8 h-8 rounded border border-border bg-background group-hover:bg-card shrink-0"><Quote className="w-4 h-4" /></div>
-                <div><span className="block font-medium">Quote</span><span className="block text-[11px] text-muted-foreground">Capture a quote</span></div>
+              <button onClick={() => { editor.chain().focus().deleteRange({ from: editor.state.selection.from - 1, to: editor.state.selection.from }).toggleOrderedList().run(); }} className="flex items-center gap-3 px-2 py-1.5 w-full text-left rounded-md hover:bg-accent text-sm transition-colors text-foreground group">
+                <div className="flex items-center justify-center w-8 h-8 rounded border border-border bg-background group-hover:bg-card shrink-0"><ListOrdered className="w-4 h-4" /></div>
+                <div><span className="block font-medium">Numbered List</span><span className="block text-[11px] text-muted-foreground">Create an ordered list</span></div>
               </button>
             </div>
           </FloatingMenu>
@@ -643,10 +691,10 @@ export default function BlogEditor({
             }}
           >
             <div className="flex items-center gap-0.5 p-1 bg-zinc-900 border border-zinc-800 shadow-2xl rounded-full z-50 animate-in fade-in zoom-in-95">
-              <BubbleToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive("bold")} icon={<Bold className="w-3.5 h-3.5" />} title="Bold" />
-              <BubbleToolbarButton onClick={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive("italic")} icon={<Italic className="w-3.5 h-3.5" />} title="Italic" />
-              <BubbleToolbarButton onClick={() => editor.chain().focus().toggleUnderline().run()} isActive={editor.isActive("underline")} icon={<UnderlineIcon className="w-3.5 h-3.5" />} title="Underline" />
-              <BubbleToolbarButton onClick={() => editor.chain().focus().toggleStrike().run()} isActive={editor.isActive("strike")} icon={<Strikethrough className="w-3.5 h-3.5" />} title="Strikethrough" />
+              <BubbleToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive("bold")} icon={<Bold className="w-3.5 h-3.5" />} title="Bold" shortcut="Ctrl+B" />
+              <BubbleToolbarButton onClick={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive("italic")} icon={<Italic className="w-3.5 h-3.5" />} title="Italic" shortcut="Ctrl+I" />
+              <BubbleToolbarButton onClick={() => editor.chain().focus().toggleUnderline().run()} isActive={editor.isActive("underline")} icon={<UnderlineIcon className="w-3.5 h-3.5" />} title="Underline" shortcut="Ctrl+U" />
+              <BubbleToolbarButton onClick={() => editor.chain().focus().toggleStrike().run()} isActive={editor.isActive("strike")} icon={<Strikethrough className="w-3.5 h-3.5" />} title="Strikethrough" shortcut="Ctrl+Shift+S" />
               <div className="w-px h-4 bg-zinc-700 mx-1"></div>
               <BubbleToolbarButton 
                 onClick={() => {
@@ -658,6 +706,7 @@ export default function BlogEditor({
                 isActive={editor.isActive("link")} 
                 icon={<LinkIcon className="w-3.5 h-3.5" />} 
                 title="Link" 
+                shortcut="Ctrl+K"
               />
             </div>
           </BubbleMenu>
@@ -751,19 +800,30 @@ export default function BlogEditor({
         )}
       </div>
 
+      {/* Word Count & Read Time */}
+      {editor && (
+        <div className="absolute bottom-6 right-8 z-10 flex items-center gap-3 bg-card/80 backdrop-blur-md border border-border px-3 py-1.5 rounded-full shadow-sm text-xs font-medium text-muted-foreground opacity-70 hover:opacity-100 transition-opacity pointer-events-none">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            {editor.storage.characterCount.words()} words
+          </div>
+          <div className="w-px h-3 bg-border" />
+          <div>{Math.max(1, Math.ceil(editor.storage.characterCount.words() / 200))} min read</div>
+        </div>
+      )}
     </div>
+    </TooltipProvider>
   );
 }
 
 // Sub-component for Toolbar Buttons
-function ToolbarButton({ onClick, isActive, icon, title, disabled, className = "w-8 h-8 justify-center" }: { onClick: () => void; isActive?: boolean; icon: React.ReactNode; title?: string; disabled?: boolean; className?: string }) {
-  return (
+function ToolbarButton({ onClick, isActive, icon, title, shortcut, disabled, className = "w-8 h-8 justify-center" }: { onClick: () => void; isActive?: boolean; icon: React.ReactNode; title?: string; shortcut?: string; disabled?: boolean; className?: string }) {
+  const btn = (
     <button
       type="button"
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       disabled={disabled}
-      title={title}
       className={`p-2 rounded-sm transition flex items-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${className} ${
         isActive
           ? "bg-primary text-primary-foreground font-bold shadow-xs"
@@ -773,17 +833,28 @@ function ToolbarButton({ onClick, isActive, icon, title, disabled, className = "
       {icon}
     </button>
   );
+
+  if (!title) return btn;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger render={btn} />
+      <TooltipContent side="top" sideOffset={4} className="flex items-center gap-2 px-2.5 py-1">
+        <span className="font-medium text-xs relative z-[60]">{title}</span>
+        {shortcut && <span className="text-[10px] uppercase tracking-widest text-background/70 bg-background/20 px-1.5 py-0.5 rounded-sm relative z-[60]">{shortcut}</span>}
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 // Sub-component for Bubble Toolbar Buttons
-function BubbleToolbarButton({ onClick, isActive, icon, title, disabled }: { onClick: () => void; isActive?: boolean; icon: React.ReactNode; title?: string; disabled?: boolean }) {
-  return (
+function BubbleToolbarButton({ onClick, isActive, icon, title, shortcut, disabled }: { onClick: () => void; isActive?: boolean; icon: React.ReactNode; title?: string; shortcut?: string; disabled?: boolean }) {
+  const btn = (
     <button
       type="button"
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       disabled={disabled}
-      title={title}
       className={`p-1.5 rounded-full transition flex items-center justify-center w-7 h-7 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
         isActive
           ? "bg-zinc-700 text-white font-bold"
@@ -792,5 +863,17 @@ function BubbleToolbarButton({ onClick, isActive, icon, title, disabled }: { onC
     >
       {icon}
     </button>
+  );
+
+  if (!title) return btn;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger render={btn} />
+      <TooltipContent side="top" sideOffset={6} className="flex items-center gap-2 px-2.5 py-1 z-[100] border-zinc-700 bg-zinc-800 text-zinc-100">
+        <span className="font-medium text-[11px] relative z-[60]">{title}</span>
+        {shortcut && <span className="text-[9px] uppercase tracking-widest text-zinc-400 bg-zinc-900 border border-zinc-800 px-1 py-0.5 rounded-sm relative z-[60]">{shortcut}</span>}
+      </TooltipContent>
+    </Tooltip>
   );
 }
