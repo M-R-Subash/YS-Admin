@@ -1,6 +1,6 @@
 import type { FieldSchema } from "@/lib/schemas/global-schema";
 
-export const blogGeneralUiSchema: FieldSchema[] = [
+export const blogGeneralLeftUiSchema: FieldSchema[] = [
   {
     name: "title",
     label: "Blog Title",
@@ -10,10 +10,12 @@ export const blogGeneralUiSchema: FieldSchema[] = [
     description: "A catchy, clear headline. Also used to generate the default URL slug and SEO title.",
   },
   {
-    name: "featuredImage",
-    label: "Featured Cover Image",
-    type: "image",
-    description: "This image appears at the top of the article, on blog listing cards, and when shared across social networks.",
+    name: "excerpt",
+    label: "Short Summary / Excerpt",
+    type: "textarea",
+    rows: 3,
+    placeholder: "Write a concise overview of what readers will learn in this post...",
+    description: "A brief teaser shown on blog archive cards, search engine previews, and RSS feeds. Max 400 characters.",
   },
   {
     name: "categories",
@@ -30,17 +32,23 @@ export const blogGeneralUiSchema: FieldSchema[] = [
     description: "Specific keywords or subjects (e.g. typescript, nextjs, devops).",
   },
   {
-    name: "excerpt",
-    label: "Short Summary / Excerpt",
-    type: "textarea",
-    rows: 3,
-    placeholder: "Write a concise overview of what readers will learn in this post...",
-    description: "A brief teaser shown on blog archive cards, search engine previews, and RSS feeds. Max 400 characters.",
-  },
-  {
     name: "allowComments",
     label: "Reader Comments",
     type: "boolean",
     description: "Allow readers to post public comments and join discussions on this article.",
   },
+];
+
+export const blogGeneralRightUiSchema: FieldSchema[] = [
+  {
+    name: "featuredImage",
+    label: "Featured Cover Image",
+    type: "image",
+    description: "This image appears at the top of the article, on blog listing cards, and when shared across social networks.",
+  },
+];
+
+export const blogGeneralUiSchema: FieldSchema[] = [
+  ...blogGeneralLeftUiSchema,
+  ...blogGeneralRightUiSchema,
 ];

@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import BlogEditor from "@/components/blog/BlogEditor";
 import { EditorRenderer } from "@/components/EditorRenderer";
-import { blogGeneralUiSchema } from "@/lib/schemas/blog/blog-ui-schema";
+import {
+  blogGeneralUiSchema,
+  blogGeneralLeftUiSchema,
+  blogGeneralRightUiSchema,
+} from "@/lib/schemas/blog/blog-ui-schema";
 import { GoogleSearchPreview } from "@/components/seo/GoogleSearchPreview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -270,7 +274,15 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           return text.includes(item.text.trim()) || item.text.trim().includes(text);
         });
         if (target) {
-          target.scrollIntoView({ behavior: "smooth", block: "center" });
+          const scrollContainer = target.closest(".overflow-y-auto");
+          if (scrollContainer) {
+            const containerRect = scrollContainer.getBoundingClientRect();
+            const targetRect = target.getBoundingClientRect();
+            const targetTop = targetRect.top - containerRect.top + scrollContainer.scrollTop - 20;
+            scrollContainer.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+          } else {
+            target.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
           target.classList.add("ring-2", "ring-primary", "rounded-md", "transition-all", "duration-500");
           setTimeout(() => {
             target.classList.remove("ring-2", "ring-primary", "rounded-md");
@@ -1041,111 +1053,113 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         </header>
 
         {/* Main Content Area */}
-        <div className="flex-1 overflow-hidden w-full relative">
-          <div className="mx-auto w-full h-full flex flex-col lg:flex-row max-w-full p-4 md:p-6 gap-6">
-            {/* Main Content / Editor Column */}
-            <div className="flex-1 h-full flex flex-col overflow-hidden min-h-125">
+        <div className="flex-1 overflow-hidden w-full relative flex flex-col p-4 md:p-6 gap-3.5">
+          {/* Editor Top Navigation Tabs */}
+          <div className="flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-1.5 p-1 bg-muted/60 border border-border/80 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setEditorTab("general")}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                  editorTab === "general"
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Settings2 className="w-3.5 h-3.5" />
+                General Info
+                {(errors.title || errors.featuredImage || errors.categories || errors.excerpt) && (
+                  <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditorTab("content")}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                  editorTab === "content"
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                Article Content
+                {errors.content && (
+                  <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditorTab("faqs")}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                  editorTab === "faqs"
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <HelpCircle className="w-3.5 h-3.5 text-primary" />
+                FAQ Section
+                {errors.faqs && (
+                  <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+                )}
+                {faqs.length > 0 && !errors.faqs && (
+                  <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-primary/10 text-primary border border-primary/20">
+                    {faqs.length}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditorTab("seo")}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                  editorTab === "seo"
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Globe className="w-3.5 h-3.5 text-primary" />
+                SEO &amp; Meta
+                {(errors.slug ||
+                  errors.metaTitle ||
+                  errors.metaDesc ||
+                  errors.canonicalUrl) && (
+                  <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+                )}
+                {seoAnalysis.hasKeyword ? (
+                  <span
+                    className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                      seoAnalysis.score >= 80
+                        ? "bg-emerald-500/15 text-emerald-600 border border-emerald-500/30"
+                        : seoAnalysis.score >= 50
+                        ? "bg-amber-500/15 text-amber-600 border border-amber-500/30"
+                        : "bg-red-500/15 text-red-600 border border-red-500/30"
+                    }`}
+                  >
+                    {seoAnalysis.score}/100
+                  </span>
+                ) : null}
+              </button>
+            </div>
+          </div>
+
+          {/* Workspace Row: Editor & Sidebar (or full-width tab content) */}
+          <div className="flex-1 min-h-0 w-full flex flex-col lg:flex-row gap-5 overflow-hidden">
+            {/* Main Content / Tab Column */}
+            <div className="flex-1 h-full flex flex-col overflow-hidden min-h-0">
               {isLoading ? (
                 <ScreenLoader
                   text="Loading Blog Post..."
                   subtitle="Fetching article content and SEO settings..."
                 />
               ) : (
-                <div className="flex-1 flex flex-col overflow-hidden h-full">
-                  {/* Editor Top Navigation Tabs */}
-                  <div className="flex items-center justify-between pb-3 shrink-0">
-                    <div className="flex items-center gap-1.5 p-1 bg-muted/60 border border-border/80 rounded-lg">
-                      <button
-                        type="button"
-                        onClick={() => setEditorTab("general")}
-                        className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                          editorTab === "general"
-                            ? "bg-background text-foreground shadow-xs"
-                            : "text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        <Settings2 className="w-3.5 h-3.5" />
-                        General Info
-                        {(errors.title || errors.featuredImage || errors.categories || errors.excerpt) && (
-                          <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditorTab("content")}
-                        className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                          editorTab === "content"
-                            ? "bg-background text-foreground shadow-xs"
-                            : "text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        Article Content
-                        {errors.content && (
-                          <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditorTab("faqs")}
-                        className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                          editorTab === "faqs"
-                            ? "bg-background text-foreground shadow-xs"
-                            : "text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        <HelpCircle className="w-3.5 h-3.5 text-primary" />
-                        FAQ Section
-                        {errors.faqs && (
-                          <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
-                        )}
-                        {faqs.length > 0 && !errors.faqs && (
-                          <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-primary/10 text-primary border border-primary/20">
-                            {faqs.length}
-                          </span>
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditorTab("seo")}
-                        className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                          editorTab === "seo"
-                            ? "bg-background text-foreground shadow-xs"
-                            : "text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        <Globe className="w-3.5 h-3.5 text-primary" />
-                        SEO &amp; Meta
-                        {(errors.slug ||
-                          errors.metaTitle ||
-                          errors.metaDesc ||
-                          errors.canonicalUrl) && (
-                          <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
-                        )}
-                        {seoAnalysis.hasKeyword ? (
-                          <span
-                            className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                              seoAnalysis.score >= 80
-                                ? "bg-emerald-500/15 text-emerald-600 border border-emerald-500/30"
-                                : seoAnalysis.score >= 50
-                                ? "bg-amber-500/15 text-amber-600 border border-amber-500/30"
-                                : "bg-red-500/15 text-red-600 border border-red-500/30"
-                            }`}
-                          >
-                            {seoAnalysis.score}/100
-                          </span>
-                        ) : null}
-                      </button>
-                    </div>
-                  </div>
+                <div className="flex-1 flex flex-col overflow-hidden h-full min-h-0">
 
-                  {/* General Info Tab Content */}
+                  {/* General Info Tab Content (2-column layout to eliminate scrolling) */}
                   <div
                     className={`flex-1 overflow-y-auto custom-scrollbar p-6 bg-card rounded-xl border border-border ${
                       editorTab === "general" ? "block" : "hidden"
                     }`}
                   >
-                    <div className="max-w-4xl mx-auto space-y-6">
+                    <div className="w-full max-w-7xl mx-auto space-y-5">
                       <div>
                         <h2 className="text-base font-bold text-foreground">General Article Information</h2>
                         <p className="text-xs text-muted-foreground mt-0.5">
@@ -1153,8 +1167,25 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                         </p>
                       </div>
 
-                      <div className="bg-card border border-border/80 rounded-xl p-6 shadow-xs">
-                        <EditorRenderer schema={blogGeneralUiSchema} control={control} />
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                        {/* Left Column: Title, Excerpt, Categories, Tags, Comments */}
+                        <div className="bg-card border border-border/80 rounded-xl p-6 shadow-xs">
+                          <EditorRenderer schema={blogGeneralLeftUiSchema} control={control} />
+                        </div>
+
+                        {/* Right Column: Featured Cover Image & Guidelines */}
+                        <div className="bg-card border border-border/80 rounded-xl p-6 shadow-xs space-y-4">
+                          <EditorRenderer schema={blogGeneralRightUiSchema} control={control} />
+                          <div className="rounded-lg bg-muted/30 border border-border/60 p-4 text-xs text-muted-foreground space-y-1.5">
+                            <p className="font-semibold text-foreground flex items-center gap-1.5">
+                              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                              Cover Image Guidelines
+                            </p>
+                            <p className="text-[11px] leading-relaxed">
+                              Recommended dimensions: <strong>1200 &times; 630 px</strong> (1.91:1 ratio). This visual serves as your article&apos;s header banner and defaults as the social share preview card on Twitter, LinkedIn, and messaging apps.
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1222,7 +1253,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                       editorTab === "seo" ? "block" : "hidden"
                     }`}
                   >
-                    <div className="max-w-6xl mx-auto space-y-6">
+                    <div className="w-full max-w-[1600px] mx-auto space-y-5">
                       {/* SEO Tab Header */}
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
                         <div>
@@ -1246,14 +1277,15 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                         </Button>
                       </div>
 
-                      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-                        {/* Left Column: Form Controls & Previews */}
-                        <div className="xl:col-span-7 space-y-6">
+                      {/* 3-Column Layout: Previews/Social | Core/Indexing | SEO Advisor */}
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+                        {/* Column 1 (1/3 width): Previews & Social Card Overrides */}
+                        <div className="space-y-5">
                           {/* Search / Social Preview Box */}
-                          <div className="bg-card border border-border/80 rounded-xl p-5 shadow-xs space-y-4">
+                          <div className="bg-card border border-border/80 rounded-xl p-4 shadow-xs space-y-3.5">
                             <div className="flex items-center justify-between">
                               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                                Real-Time Snippet Preview
+                                Snippet Preview
                               </span>
                               <div className="flex items-center gap-1 p-0.5 bg-muted/70 border border-border/60 rounded-md">
                                 <button
@@ -1278,7 +1310,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                                   }`}
                                 >
                                   <Share2 className="w-3 h-3" />
-                                  Social Card
+                                  Social
                                 </button>
                               </div>
                             </div>
@@ -1299,11 +1331,11 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                                       className="w-full h-full object-cover"
                                     />
                                   ) : (
-                                    <div className="flex flex-col items-center justify-center text-gray-400 gap-1.5 p-6 text-center">
-                                      <Share2 className="w-7 h-7 opacity-40" />
+                                    <div className="flex flex-col items-center justify-center text-gray-400 gap-1.5 p-4 text-center">
+                                      <Share2 className="w-6 h-6 opacity-40" />
                                       <span className="text-xs font-medium">No preview image</span>
                                       <span className="text-[10px] text-gray-400">
-                                        Upload an Open Graph image below or set a Featured Cover Image
+                                        Upload an OG image below or set Cover Image
                                       </span>
                                     </div>
                                   )}
@@ -1311,7 +1343,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                                     OG Card
                                   </div>
                                 </div>
-                                <div className="p-3.5 space-y-1 bg-white border-t border-gray-100">
+                                <div className="p-3 space-y-1 bg-white border-t border-gray-100">
                                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
                                     ysinnovations.com
                                   </span>
@@ -1326,15 +1358,104 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                             )}
                           </div>
 
+                          {/* Social Sharing / Open Graph Card */}
+                          <div className="bg-card border border-border/80 rounded-xl p-4 shadow-xs space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                                <Share2 className="w-3.5 h-3.5" />
+                                Social Sharing (OG)
+                              </h3>
+                              <span className="text-[10px] text-muted-foreground">Overrides</span>
+                            </div>
+
+                            {/* OG Title */}
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <Label htmlFor="seo-ogTitle" className="text-xs font-bold text-foreground">
+                                  Open Graph Title
+                                </Label>
+                                <span className={`text-[11px] font-bold ${charCountColor(ogTitle.length, 40, 70)}`}>
+                                  {ogTitle.length} / 70
+                                </span>
+                              </div>
+                              <Controller
+                                name="ogTitle"
+                                control={control}
+                                render={({ field }) => (
+                                  <Input
+                                    id="seo-ogTitle"
+                                    value={field.value || ""}
+                                    onChange={field.onChange}
+                                    placeholder="Overrides Meta Title on Twitter/LinkedIn"
+                                    className="text-sm h-8.5"
+                                  />
+                                )}
+                              />
+                            </div>
+
+                            {/* OG Description */}
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <Label htmlFor="seo-ogDesc" className="text-xs font-bold text-foreground">
+                                  Open Graph Description
+                                </Label>
+                                <span className={`text-[11px] font-bold ${charCountColor(ogDesc.length, 80, 200)}`}>
+                                  {ogDesc.length} / 200
+                                </span>
+                              </div>
+                              <Controller
+                                name="ogDesc"
+                                control={control}
+                                render={({ field }) => (
+                                  <textarea
+                                    id="seo-ogDesc"
+                                    rows={2}
+                                    value={field.value || ""}
+                                    onChange={field.onChange}
+                                    placeholder="Overrides Meta Description for social cards"
+                                    className="flex w-full rounded-md border border-input bg-transparent px-3 py-1.5 text-xs shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                  />
+                                )}
+                              />
+                            </div>
+
+                            {/* OG Image */}
+                            <div>
+                              <Label className="text-xs font-bold text-foreground block mb-1">
+                                Social Share Image (1200 &times; 630)
+                              </Label>
+                              <Controller
+                                name="ogImage"
+                                control={control}
+                                render={({ field }) => (
+                                  <ImageUploadBlock
+                                    value={field.value || ""}
+                                    onChange={(val) =>
+                                      field.onChange(
+                                        typeof val === "object" ? val?.url || "" : val || ""
+                                      )
+                                    }
+                                  />
+                                )}
+                              />
+                              <p className="text-[10px] text-muted-foreground mt-1">
+                                If empty, Featured Cover Image is used automatically.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Column 2 (1/3 width): Core Search Engine Details & Technical SEO */}
+                        <div className="space-y-5">
                           {/* Core Metadata Card */}
-                          <div className="bg-card border border-border/80 rounded-xl p-5 shadow-xs space-y-5">
+                          <div className="bg-card border border-border/80 rounded-xl p-4 shadow-xs space-y-4">
                             <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                              Core Search Engine Details
+                              Core Search Details
                             </h3>
 
                             {/* URL Slug */}
                             <div>
-                              <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center justify-between mb-1">
                                 <Label htmlFor="seo-slug" className="text-xs font-bold text-foreground">
                                   URL Slug <span className="text-destructive">*</span>
                                 </Label>
@@ -1350,7 +1471,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                                 control={control}
                                 render={({ field }) => (
                                   <div className="flex rounded-md shadow-xs border border-border focus-within:ring-1 focus-within:ring-ring overflow-hidden">
-                                    <span className="inline-flex items-center px-3 text-xs text-muted-foreground bg-muted/60 border-r border-border shrink-0 select-none">
+                                    <span className="inline-flex items-center px-2.5 text-xs text-muted-foreground bg-muted/60 border-r border-border shrink-0 select-none">
                                       /blogs/
                                     </span>
                                     <Input
@@ -1360,7 +1481,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                                         field.onChange(e);
                                         if (errors.slug) clearErrors("slug");
                                       }}
-                                      className="border-0 rounded-none focus-visible:ring-0 text-sm h-9"
+                                      className="border-0 rounded-none focus-visible:ring-0 text-sm h-8.5"
                                       placeholder="article-url-slug"
                                     />
                                   </div>
@@ -1370,13 +1491,13 @@ export default function BlogForm({ blogId }: BlogFormProps) {
 
                             {/* Focus Keyword */}
                             <div>
-                              <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center justify-between mb-1">
                                 <Label htmlFor="seo-focusKeyword" className="text-xs font-bold text-foreground">
                                   Focus Target Keyword
                                 </Label>
                                 {seoAnalysis.hasKeyword && (
                                   <span className="text-[11px] font-semibold text-primary">
-                                    {seoAnalysis.keywordCount} occurrence(s) in content
+                                    {seoAnalysis.keywordCount} in content
                                   </span>
                                 )}
                               </div>
@@ -1389,18 +1510,18 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                                     value={field.value || ""}
                                     onChange={field.onChange}
                                     placeholder="e.g. Next.js performance optimization"
-                                    className="text-sm h-9"
+                                    className="text-sm h-8.5"
                                   />
                                 )}
                               />
-                              <p className="text-[11px] text-muted-foreground mt-1">
-                                Enter the primary phrase this article targets. The SEO Health Advisor will evaluate its presence across your content.
+                              <p className="text-[10px] text-muted-foreground mt-1">
+                                Primary phrase evaluated by the SEO Advisor across your article.
                               </p>
                             </div>
 
                             {/* Meta Title */}
                             <div>
-                              <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center justify-between mb-1">
                                 <Label htmlFor="seo-metaTitle" className="text-xs font-bold text-foreground">
                                   Meta Title
                                 </Label>
@@ -1426,19 +1547,16 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                                       field.onChange(e);
                                       if (errors.metaTitle) clearErrors("metaTitle");
                                     }}
-                                    placeholder="Optimized headline for Google search (50–60 chars)"
-                                    className={`text-sm h-9 ${errors.metaTitle ? "border-destructive" : ""}`}
+                                    placeholder="Clickable headline for Google (50–60 chars)"
+                                    className={`text-sm h-8.5 ${errors.metaTitle ? "border-destructive" : ""}`}
                                   />
                                 )}
                               />
-                              <p className="text-[11px] text-muted-foreground mt-1">
-                                Appears as the clickable headline in Google results. Keep between 50 and 60 characters to prevent truncation.
-                              </p>
                             </div>
 
                             {/* Meta Description */}
                             <div>
-                              <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center justify-between mb-1">
                                 <Label htmlFor="seo-metaDesc" className="text-xs font-bold text-foreground">
                                   Meta Description
                                 </Label>
@@ -1465,8 +1583,8 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                                       field.onChange(e);
                                       if (errors.metaDesc) clearErrors("metaDesc");
                                     }}
-                                    placeholder="Engaging summary with focus keyword and a call to action (120–155 chars)"
-                                    className={`flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 ${
+                                    placeholder="Engaging summary with keyword and call to action (120–155 chars)"
+                                    className={`flex w-full rounded-md border bg-transparent px-3 py-2 text-xs shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 ${
                                       errors.metaDesc
                                         ? "border-destructive focus-visible:ring-destructive"
                                         : "border-input focus-visible:ring-ring"
@@ -1474,107 +1592,18 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                                   />
                                 )}
                               />
-                              <p className="text-[11px] text-muted-foreground mt-1">
-                                Shown below the title in search engine results. Recommended 120–155 characters for optimal click-through rate.
-                              </p>
                             </div>
                           </div>
 
-                          {/* Social Sharing / Open Graph Card */}
-                          <div className="bg-card border border-border/80 rounded-xl p-5 shadow-xs space-y-5">
-                            <div className="flex items-center justify-between">
-                              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                                <Share2 className="w-3.5 h-3.5" />
-                                Social Sharing (Open Graph)
-                              </h3>
-                              <span className="text-[11px] text-muted-foreground">Optional overrides</span>
-                            </div>
-
-                            {/* OG Title */}
-                            <div>
-                              <div className="flex items-center justify-between mb-1.5">
-                                <Label htmlFor="seo-ogTitle" className="text-xs font-bold text-foreground">
-                                  Open Graph Title
-                                </Label>
-                                <span className={`text-[11px] font-bold ${charCountColor(ogTitle.length, 40, 70)}`}>
-                                  {ogTitle.length} / 70
-                                </span>
-                              </div>
-                              <Controller
-                                name="ogTitle"
-                                control={control}
-                                render={({ field }) => (
-                                  <Input
-                                    id="seo-ogTitle"
-                                    value={field.value || ""}
-                                    onChange={field.onChange}
-                                    placeholder="Overrides Meta Title when shared on Twitter & LinkedIn"
-                                    className="text-sm h-9"
-                                  />
-                                )}
-                              />
-                            </div>
-
-                            {/* OG Description */}
-                            <div>
-                              <div className="flex items-center justify-between mb-1.5">
-                                <Label htmlFor="seo-ogDesc" className="text-xs font-bold text-foreground">
-                                  Open Graph Description
-                                </Label>
-                                <span className={`text-[11px] font-bold ${charCountColor(ogDesc.length, 80, 200)}`}>
-                                  {ogDesc.length} / 200
-                                </span>
-                              </div>
-                              <Controller
-                                name="ogDesc"
-                                control={control}
-                                render={({ field }) => (
-                                  <textarea
-                                    id="seo-ogDesc"
-                                    rows={2}
-                                    value={field.value || ""}
-                                    onChange={field.onChange}
-                                    placeholder="Overrides Meta Description for social cards"
-                                    className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                                  />
-                                )}
-                              />
-                            </div>
-
-                            {/* OG Image */}
-                            <div>
-                              <Label className="text-xs font-bold text-foreground block mb-1.5">
-                                Social Share Image (Open Graph)
-                              </Label>
-                              <Controller
-                                name="ogImage"
-                                control={control}
-                                render={({ field }) => (
-                                  <ImageUploadBlock
-                                    value={field.value || ""}
-                                    onChange={(val) =>
-                                      field.onChange(
-                                        typeof val === "object" ? val?.url || "" : val || ""
-                                      )
-                                    }
-                                  />
-                                )}
-                              />
-                              <p className="text-[11px] text-muted-foreground mt-1">
-                                Recommended 1200 x 630 pixels. If left blank, your article&apos;s Featured Cover Image is used automatically.
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Indexing & Canonicalization Card */}
-                          <div className="bg-card border border-border/80 rounded-xl p-5 shadow-xs space-y-5">
+                          {/* Indexing & Technical SEO Card */}
+                          <div className="bg-card border border-border/80 rounded-xl p-4 shadow-xs space-y-4">
                             <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                               Indexing &amp; Technical SEO
                             </h3>
 
                             {/* Canonical URL */}
                             <div>
-                              <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center justify-between mb-1">
                                 <Label htmlFor="seo-canonicalUrl" className="text-xs font-bold text-foreground flex items-center gap-1.5">
                                   <Link2 className="w-3.5 h-3.5" />
                                   Canonical URL
@@ -1596,27 +1625,27 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                                       field.onChange(e);
                                       if (errors.canonicalUrl) clearErrors("canonicalUrl");
                                     }}
-                                    placeholder="https://ysinnovations.com/blogs/original-article"
-                                    className={`text-sm h-9 ${errors.canonicalUrl ? "border-destructive" : ""}`}
+                                    placeholder="https://ysinnovations.com/blogs/original-post"
+                                    className={`text-sm h-8.5 ${errors.canonicalUrl ? "border-destructive" : ""}`}
                                   />
                                 )}
                               />
-                              <p className="text-[11px] text-muted-foreground mt-1">
-                                Inform search engines of the primary original URL if this post is cross-posted or syndicated.
+                              <p className="text-[10px] text-muted-foreground mt-1">
+                                Original URL if cross-posted or syndicated.
                               </p>
                             </div>
 
                             {/* noIndex Switch */}
-                            <div className="flex items-center justify-between p-4 bg-muted/30 border border-border/70 rounded-xl">
-                              <div className="space-y-0.5 pr-4">
-                                <div className="flex items-center gap-2">
-                                  <EyeOff className="w-4 h-4 text-muted-foreground" />
+                            <div className="flex items-center justify-between p-3 bg-muted/30 border border-border/70 rounded-lg">
+                              <div className="space-y-0.5 pr-3">
+                                <div className="flex items-center gap-1.5">
+                                  <EyeOff className="w-3.5 h-3.5 text-muted-foreground" />
                                   <Label htmlFor="seo-noIndex" className="text-xs font-bold text-foreground cursor-pointer">
-                                    Hide from Search Engines (<code className="text-[11px] px-1 py-0.5 bg-muted rounded">noindex</code>)
+                                    Hide from Search (<code className="text-[10px] px-1 py-0.2 bg-muted rounded">noindex</code>)
                                   </Label>
                                 </div>
-                                <p className="text-xs text-muted-foreground">
-                                  Instruct search bots not to index or display this blog post in search results.
+                                <p className="text-[11px] text-muted-foreground">
+                                  Instruct bots not to index this post.
                                 </p>
                               </div>
                               <Controller
@@ -1634,10 +1663,10 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                           </div>
                         </div>
 
-                        {/* Right Column: Real-Time SEO Health Advisor */}
-                        <div className="xl:col-span-5 space-y-6">
-                          <div className="border border-border rounded-xl bg-card shadow-sm overflow-hidden sticky top-0">
-                            <div className="flex items-center justify-between p-4 text-sm font-bold text-foreground border-b border-border bg-accent/20">
+                        {/* Column 3 (1/3 width): Real-Time SEO Health Advisor (Sticky) */}
+                        <div className="space-y-5 sticky top-0">
+                          <div className="border border-border rounded-xl bg-card shadow-sm overflow-hidden">
+                            <div className="flex items-center justify-between p-3.5 text-sm font-bold text-foreground border-b border-border bg-accent/20">
                               <span className="flex items-center gap-2">
                                 <Sparkles
                                   className={`w-4 h-4 text-primary ${
@@ -1676,20 +1705,20 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                                   <div>
                                     <p className="text-sm font-bold text-foreground">Real-Time Keyword Advisor</p>
                                     <p className="mt-1 text-xs leading-relaxed">
-                                      Enter a Focus Target Keyword in the core settings above to analyze search engine factors, keyword density, image alt text, and readability.
+                                      Enter a Focus Target Keyword in the core settings to analyze search engine factors, keyword density, image alt text, and readability.
                                     </p>
                                   </div>
                                 </div>
                               ) : (
                                 <div className="space-y-4">
                                   {/* Score & Progress Bar */}
-                                  <div className="space-y-2">
+                                  <div className="space-y-1.5">
                                     <div className="flex items-center justify-between">
-                                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                                         Optimization Score
                                       </span>
                                       <span
-                                        className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                                        className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                                           seoAnalysis.score >= 80
                                             ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
                                             : seoAnalysis.score >= 50
@@ -1705,7 +1734,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                                           : "Needs Attention"}
                                       </span>
                                     </div>
-                                    <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
+                                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                                       <div
                                         className={`h-full rounded-full transition-all duration-500 ${
                                           seoAnalysis.score >= 80
@@ -1765,15 +1794,15 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                                   </div>
 
                                   {/* 11-Point Search Engine Checklist */}
-                                  <div className="space-y-2 pt-1">
-                                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                                  <div className="space-y-1.5 pt-1">
+                                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">
                                       Action Checklist ({seoAnalysis.items.filter((i) => i.passed).length}/{seoAnalysis.items.length})
                                     </span>
-                                    <div className="space-y-1.5 max-h-[460px] overflow-y-auto custom-scrollbar pr-1">
+                                    <div className="space-y-1.5 max-h-[280px] overflow-y-auto custom-scrollbar pr-1">
                                       {seoAnalysis.items.map((item) => (
                                         <div
                                           key={item.id}
-                                          className="flex items-start gap-2.5 text-xs p-2 rounded-lg bg-card border border-border/60 shadow-2xs"
+                                          className="flex items-start gap-2 text-xs p-2 rounded-lg bg-card border border-border/60 shadow-2xs"
                                         >
                                           {item.passed ? (
                                             <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
@@ -1789,11 +1818,11 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                                               >
                                                 {item.label}
                                               </span>
-                                              <span className="text-[11px] font-bold text-muted-foreground shrink-0 pl-2">
+                                              <span className="text-[10px] font-bold text-muted-foreground shrink-0 pl-1.5">
                                                 {item.score}/{item.maxScore}
                                               </span>
                                             </div>
-                                            <p className="text-[11px] text-muted-foreground leading-normal mt-0.5">
+                                            <p className="text-[10px] text-muted-foreground leading-normal mt-0.5">
                                               {item.message}
                                             </p>
                                           </div>
@@ -1804,13 +1833,13 @@ export default function BlogForm({ blogId }: BlogFormProps) {
 
                                   {/* Readability Diagnostic Details */}
                                   {seoAnalysis.readability && (
-                                    <div className="p-3 bg-muted/20 border border-border/60 rounded-xl space-y-1.5 text-xs">
-                                      <span className="font-bold text-[11px] uppercase tracking-wider text-muted-foreground block">
+                                    <div className="p-2.5 bg-muted/20 border border-border/60 rounded-xl space-y-1 text-xs">
+                                      <span className="font-bold text-[10px] uppercase tracking-wider text-muted-foreground block">
                                         Readability Diagnostics
                                       </span>
-                                      <div className="grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
-                                        <div>Avg. sentence: <strong className="text-foreground">{seoAnalysis.readability.avgSentenceLength}</strong> words</div>
-                                        <div>Avg. syllables: <strong className="text-foreground">{seoAnalysis.readability.avgSyllablesPerWord}</strong>/word</div>
+                                      <div className="grid grid-cols-2 gap-1.5 text-[10px] text-muted-foreground">
+                                        <div>Avg sentence: <strong className="text-foreground">{seoAnalysis.readability.avgSentenceLength}</strong> w</div>
+                                        <div>Avg syllables: <strong className="text-foreground">{seoAnalysis.readability.avgSyllablesPerWord}</strong>/w</div>
                                         <div>Long sentences: <strong className="text-foreground">{seoAnalysis.readability.longSentences}</strong></div>
                                         <div>Long paragraphs: <strong className="text-foreground">{seoAnalysis.readability.longParagraphs}</strong></div>
                                       </div>
@@ -1828,12 +1857,12 @@ export default function BlogForm({ blogId }: BlogFormProps) {
               )}
             </div>
 
-            {/* Sidebar Column - Table of Contents & Article Insights */}
-            <div className="shrink-0 h-full overflow-y-auto pb-8 pr-1 custom-scrollbar w-full lg:w-72 xl:w-80">
-              <div className="space-y-4">
-                {/* Table of Contents Card */}
-                <div className="border border-border rounded-xl bg-card shadow-sm overflow-hidden">
-                  <div className="flex w-full items-center justify-between p-3.5 text-xs font-bold uppercase tracking-wider text-foreground border-b border-border bg-accent/20">
+            {/* Sidebar Column - Table of Contents & Article Insights (only shown when Article Content is active) */}
+            {editorTab === "content" && (
+              <div className="shrink-0 h-full w-full lg:w-72 xl:w-80 flex flex-col gap-4 min-h-0">
+                {/* Table of Contents Card (flex-1 to fill available space down to overview card) */}
+                <div className="flex-1 min-h-0 border border-border rounded-xl bg-card shadow-sm overflow-hidden flex flex-col">
+                  <div className="flex w-full items-center justify-between p-3.5 text-xs font-bold uppercase tracking-wider text-foreground border-b border-border bg-accent/20 shrink-0">
                     <span className="flex items-center gap-2">
                       <ListTree className="w-4 h-4 text-primary" />
                       Table of Contents
@@ -1843,26 +1872,17 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                     </span>
                   </div>
 
-                  <div className="p-3">
+                  <div className="flex-1 overflow-y-auto custom-scrollbar p-3 min-h-0">
                     {tocItems.length === 0 ? (
-                      <div className="py-6 px-3 text-center space-y-2 text-muted-foreground">
+                      <div className="h-full flex flex-col items-center justify-center py-6 px-3 text-center space-y-2 text-muted-foreground">
                         <ListTree className="w-8 h-8 mx-auto opacity-30" />
                         <p className="text-xs font-semibold text-foreground">No Headings Yet</p>
                         <p className="text-[11px] leading-relaxed">
                           Add H2, H3, or H4 subheadings in the Article Content tab to automatically build your outline.
                         </p>
-                        {editorTab !== "content" && (
-                          <button
-                            type="button"
-                            onClick={() => setEditorTab("content")}
-                            className="text-[11px] font-bold text-primary hover:underline cursor-pointer inline-block mt-1"
-                          >
-                            Go to Article Content &rarr;
-                          </button>
-                        )}
                       </div>
                     ) : (
-                      <div className="space-y-1 max-h-[calc(100vh-360px)] overflow-y-auto custom-scrollbar pr-1">
+                      <div className="space-y-1">
                         {tocItems.map((item) => {
                           const paddingLeft =
                             item.level === 1
@@ -1895,8 +1915,8 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                   </div>
                 </div>
 
-                {/* Article Insights & Quick Health Card */}
-                <div className="border border-border rounded-xl bg-card shadow-sm overflow-hidden p-4 space-y-3.5">
+                {/* Article Insights & Quick Health Card (pinned to bottom of column) */}
+                <div className="shrink-0 border border-border rounded-xl bg-card shadow-sm overflow-hidden p-4 space-y-3.5">
                   <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
                     Article Overview
                   </span>
@@ -1967,7 +1987,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                   </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 

@@ -140,7 +140,7 @@ export function EditorRenderer({
                 )}
               />
               {field.description && (
-                <p className="text-xs text-muted font-medium mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   {field.description}
                 </p>
               )}

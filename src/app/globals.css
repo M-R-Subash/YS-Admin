@@ -160,6 +160,10 @@ body {
   html {
     @apply font-sans;
   }
+  ::selection {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+  }
 }
 
 @keyframes badge-shine {
