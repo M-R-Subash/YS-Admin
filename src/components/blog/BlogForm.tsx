@@ -25,13 +25,13 @@ import {
   Sparkles,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   HelpCircle,
   FileText,
   Settings2,
   Search,
   Eye,
   ListTree,
-  Coffee,
   Wand2,
   ExternalLink,
   Link2,
@@ -39,10 +39,21 @@ import {
   Share2,
   Globe,
   ChevronRight,
+  ChevronDown,
   Clock,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import FaqManager, { FaqItem } from "@/components/faq/FaqManager";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+} from "@/components/ui/dropdown-menu";
 import { ScreenLoader } from "@/components/ui/screen-loader";
 import {
   AlertDialog,
@@ -152,6 +163,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   // Tab & Editor Word Count
   const [editorTab, setEditorTab] = useState<"general" | "content" | "faqs" | "seo">("content");
   const [editorWordCount, setEditorWordCount] = useState<number | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // React Hook Form
   const {
@@ -252,6 +264,34 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     return extractTocFromTipTap(deferredContent);
   }, [deferredContent]);
 
+  // Heading hierarchy issue detection
+  const tocIssues = useMemo(() => {
+    const issues: { index: number; message: string }[] = [];
+    const h1Count = tocItems.filter((i) => i.level === 1).length;
+    if (h1Count > 1) {
+      tocItems.forEach((item, idx) => {
+        if (item.level === 1 && tocItems.findIndex((i) => i.level === 1) !== idx) {
+          issues.push({ index: idx, message: "Multiple H1s detected — only one H1 should exist per article" });
+        }
+      });
+    }
+    for (let i = 1; i < tocItems.length; i++) {
+      const prev = tocItems[i - 1];
+      const curr = tocItems[i];
+      if (curr.level > prev.level + 1) {
+        const skipped = Array.from(
+          { length: curr.level - prev.level - 1 },
+          (_, k) => `H${prev.level + 1 + k}`
+        ).join(", ");
+        issues.push({
+          index: i,
+          message: `H${curr.level} appears after H${prev.level} — missing ${skipped}`,
+        });
+      }
+    }
+    return issues;
+  }, [tocItems]);
+
   // Reading time
   const readingTime = useMemo(() => {
     return calculateReadingTime(deferredContent);
@@ -310,10 +350,17 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           handleSaveRef.current("published");
         }
       }
+      // Escape → Exit fullscreen (only if no menus/dialogs are open)
+      if (e.key === "Escape" && isFullscreen) {
+        const hasOpenMenu = document.querySelector('[data-slot="dropdown-menu-content"], [role="menu"], [role="dialog"]');
+        if (!hasOpenMenu) {
+          setIsFullscreen(false);
+        }
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isSubmitting]);
+  }, [isSubmitting, isFullscreen]);
 
   // Helpers to normalize content and faqs comparison
   const isContentEqual = (a: any, b: any) => {
@@ -635,17 +682,23 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   });
 
   const handleDiscardDraft = async () => {
-    if (!blogId) return;
     setDiscarding(true);
     try {
-      const response = await fetch(`/api/blogs/${blogId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "discard-draft" }),
-      });
-      if (!response.ok) throw new Error("Failed to discard draft");
+      if (hasCloudDraft && blogId) {
+        const response = await fetch(`/api/blogs/${blogId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "discard-draft" }),
+        });
+        if (!response.ok) throw new Error("Failed to discard draft");
+      }
 
       clearBackup();
+      try {
+        const backupKey = `emergency_blog_draft_${blogId || "new"}`;
+        localStorage.removeItem(backupKey);
+      } catch {}
+
       window.location.reload();
     } catch (err: any) {
       toast.add({ title: "Error", description: err.message, type: "error" });
@@ -730,8 +783,9 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       return;
     }
 
+    const isPublishingStagedDraft = publishStatus === "published" && (hasCloudDraft || loadedFromBackup);
     const isStatusChanged = isEditMode && publishStatus !== status;
-    if (!isDirtyOrFilled && !isStatusChanged) {
+    if (!isDirtyOrFilled && !isStatusChanged && !isPublishingStagedDraft) {
       toast.add({ title: "No Changes", description: "No changes detected to save.", type: "info" });
       return;
     }
@@ -826,6 +880,10 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         type: "success",
       });
       clearBackup();
+      try {
+        const backupKey = `emergency_blog_draft_${blogId || responseData?.id || "new"}`;
+        localStorage.removeItem(backupKey);
+      } catch {}
 
       if (shouldExit) {
         router.push("/blogs");
@@ -842,47 +900,31 @@ export default function BlogForm({ blogId }: BlogFormProps) {
 
   return (
     <TooltipProvider delay={200}>
-      <div className="h-screen flex flex-col bg-background overflow-hidden">
-        {/* Draft Info Banner */}
-        {(hasCloudDraft || loadedFromBackup) && (
-          <div className="flex items-center justify-between px-6 py-2.5 bg-amber-50 border-b border-amber-200 shrink-0">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-              <p className="text-xs font-semibold text-amber-900">
-                {loadedFromBackup
-                  ? `You're editing an emergency backup from ${lastSavedAt}.`
-                  : lastSavedAt
-                  ? `You're editing a saved cloud draft from ${lastSavedAt}. Changes won't go live until you publish.`
-                  : `You're editing a saved cloud draft. Changes won't go live until you publish.`}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {loadedFromBackup && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    clearBackup();
-                    window.location.reload();
-                  }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-sm text-[11px] font-bold bg-amber-100 hover:bg-red-100 text-amber-900 hover:text-red-700 border border-amber-300 hover:border-red-300 transition-all cursor-pointer shrink-0 shadow-xs"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="w-3 h-3"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M18 6 6 18" />
-                    <path d="m6 6 12 12" />
-                  </svg>
-                  Discard Backup
-                </button>
-              )}
-              {hasCloudDraft && (
+      <div
+        className={`flex flex-col bg-background overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          isFullscreen ? "fixed inset-0 z-40" : "h-screen"
+        }`}
+      >
+        {/* Normal Top Header & Banner Wrapper (smooth collapse on fullscreen) */}
+        <div
+          className={`transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden shrink-0 ${
+            isFullscreen
+              ? "max-h-0 opacity-0 -translate-y-2 pointer-events-none"
+              : "max-h-40 opacity-100 translate-y-0"
+          }`}
+        >
+          {/* Draft Info Banner */}
+          {(hasCloudDraft || loadedFromBackup) && (
+            <div className="flex items-center justify-between px-6 py-2.5 bg-amber-50 border-b border-amber-200 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                <p className="text-xs font-semibold text-amber-900">
+                  {lastSavedAt
+                    ? `You're editing an unpublished draft from ${lastSavedAt}. Changes won't go live until you publish.`
+                    : `You're editing an unpublished draft. Changes won't go live until you publish.`}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setShowDiscardConfirm(true)}
@@ -903,13 +945,12 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                   </svg>
                   Discard Draft
                 </button>
-              )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Top Header Bar */}
-        <header className="flex items-center justify-between px-6 py-4 border-b border-border bg-card shrink-0 shadow-sm z-50 relative">
+          {/* Top Header Bar */}
+          <header className="flex items-center justify-between px-6 py-4 border-b border-border bg-card shrink-0 shadow-sm z-50 relative">
           <div className="flex items-center gap-4">
             <button
               type="button"
@@ -960,16 +1001,28 @@ export default function BlogForm({ blogId }: BlogFormProps) {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            {/* Reading Time & Word Count Pill */}
-            <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-md bg-muted/60 border border-border/80 text-[11px] font-medium text-muted-foreground">
-              <Coffee className="w-3.5 h-3.5 text-zinc-500" />
-              <span>{readingTime} min read</span>
-              <span className="text-muted-foreground/40">•</span>
-              <span>{editorWordCount ?? seoAnalysis.wordCount} words</span>
+          <div className="flex items-center gap-2">
+            {/* Autosave Status Indicator */}
+            <div className="hidden md:flex items-center gap-1.5 text-[11px] font-medium mr-1">
+              {isSubmitting ? (
+                <span className="flex items-center gap-1.5 text-muted-foreground">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Saving...
+                </span>
+              ) : isDirtyOrFilled ? (
+                <span className="flex items-center gap-1.5 text-amber-600">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  Unsaved changes
+                </span>
+              ) : lastSavedAt ? (
+                <span className="flex items-center gap-1.5 text-emerald-600">
+                  <CheckCircle2 className="w-3 h-3" />
+                  Saved {lastSavedAt}
+                </span>
+              ) : null}
             </div>
 
-            {/* Preview Button (Draft Mode) */}
+            {/* Preview Button (Icon-Only with Tooltip) */}
             <Tooltip>
               <TooltipTrigger>
                 <Button
@@ -991,153 +1044,348 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                       : `${frontendUrl}/blogs/${slug}`;
                     window.open(previewUrl, "_blank", "noopener,noreferrer");
                   }}
-                  className="flex items-center gap-1.5 h-9 px-3 text-xs font-semibold rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer"
+                  className="h-9 w-9 p-0 rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer flex items-center justify-center"
                 >
-                  <Eye className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span className="hidden sm:inline">Preview</span>
+                  <Eye className="w-4 h-4 text-muted-foreground" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                <p className="text-xs">Preview post in draft mode (opens new tab)</p>
+                <p className="text-xs">Preview draft (opens new tab)</p>
               </TooltipContent>
             </Tooltip>
 
-            {/* Save Draft Button with Tooltip */}
+            {/* Fullscreen Toggle Button (Icon-Only, lg+ only) */}
             <Tooltip>
               <TooltipTrigger>
                 <Button
                   variant="outline"
-                  onClick={() => handleSave("draft")}
-                  disabled={isSubmitting || !isDirtyOrFilled}
-                  className="flex items-center gap-2 h-9 px-4 text-xs font-bold rounded-sm shadow-md transition-all hover:scale-[1.02] disabled:opacity-50 cursor-pointer"
+                  type="button"
+                  onClick={() => setIsFullscreen((prev) => !prev)}
+                  className="hidden lg:flex h-9 w-9 p-0 rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer items-center justify-center"
                 >
-                  {isSubmitting && status === "draft" ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                  {isFullscreen ? (
+                    <Minimize2 className="w-4 h-4 text-muted-foreground" />
                   ) : (
-                    <Save className="w-4 h-4" />
+                    <Maximize2 className="w-4 h-4 text-muted-foreground" />
                   )}
-                  Save Draft
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                <p className="text-xs">Save as draft (Ctrl+S)</p>
+                <p className="text-xs">{isFullscreen ? "Exit fullscreen (Esc)" : "Enter fullscreen"}</p>
               </TooltipContent>
             </Tooltip>
 
-            {/* Publish Button with Tooltip */}
-            <Tooltip>
-              <TooltipTrigger>
-                <Button
-                  onClick={() => handleSave("published")}
-                  disabled={
-                    isSubmitting ||
-                    (isEditMode
-                      ? status === "published" && !hasCloudDraft && !isDirtyOrFilled
-                      : !isDirtyOrFilled)
+            {/* Split Publish Button with Save Draft Dropdown */}
+            <div className="flex items-center">
+              <Button
+                onClick={() => handleSave("published")}
+                disabled={
+                  isSubmitting ||
+                  (isEditMode
+                    ? status === "published" && !hasCloudDraft && !loadedFromBackup && !isDirtyOrFilled
+                    : !isDirtyOrFilled)
+                }
+                className="flex items-center gap-2 h-9 px-4 text-xs font-bold rounded-sm rounded-r-none shadow-md transition-all hover:scale-[1.02] bg-black hover:bg-black/90 text-white disabled:opacity-50 cursor-pointer"
+              >
+                {isSubmitting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+                {isEditMode && status === "published" ? (hasCloudDraft || loadedFromBackup ? "Publish" : "Update") : "Publish"}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      className="h-9 w-8 p-0 rounded-sm rounded-l-none border-l border-white/20 bg-black hover:bg-black/90 text-white shadow-md cursor-pointer flex items-center justify-center"
+                    />
                   }
-                  className="flex items-center gap-2 h-9 px-4 text-xs font-bold rounded-sm shadow-md transition-all hover:scale-[1.02] bg-black hover:bg-black/90 text-white disabled:opacity-50 cursor-pointer"
                 >
-                  {isSubmitting && status === "published" ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                  Publish
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p className="text-xs">Publish live (Ctrl+Shift+P)</p>
-              </TooltipContent>
-            </Tooltip>
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" side="bottom" sideOffset={6} className="w-44">
+                  <DropdownMenuItem
+                    onClick={() => handleSave("draft")}
+                    disabled={isSubmitting || !isDirtyOrFilled}
+                    className="cursor-pointer"
+                  >
+                    <Save className="w-4 h-4 mr-2 text-muted-foreground" />
+                    Save Draft
+                    <DropdownMenuShortcut>⌘S</DropdownMenuShortcut>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </header>
+        </div>
 
-        {/* Main Content Area */}
-        <div className="flex-1 overflow-hidden w-full relative flex flex-col p-4 md:p-6 gap-3.5">
-          {/* Editor Top Navigation Tabs */}
-          <div className="flex items-center justify-between shrink-0">
+        {/* Compact Fullscreen Toolbar (smooth slide down & fade in on fullscreen) */}
+        <div
+          className={`transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden shrink-0 ${
+            isFullscreen
+              ? "max-h-16 opacity-100 translate-y-0 border-b border-border"
+              : "max-h-0 opacity-0 -translate-y-2 border-b-0 pointer-events-none"
+          }`}
+        >
+          <div className="flex items-center justify-between px-4 py-2.5 bg-card shrink-0 shadow-sm z-50">
+            {/* Tabs */}
             <div className="flex items-center gap-1.5 p-1 bg-muted/60 border border-border/80 rounded-lg">
               <button
                 type="button"
                 onClick={() => setEditorTab("general")}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                   editorTab === "general"
                     ? "bg-background text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Settings2 className="w-3.5 h-3.5" />
-                General Info
-                {(errors.title || errors.featuredImage || errors.categories || errors.excerpt) && (
-                  <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
-                )}
+                General
               </button>
               <button
                 type="button"
                 onClick={() => setEditorTab("content")}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                   editorTab === "content"
                     ? "bg-background text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <FileText className="w-3.5 h-3.5" />
-                Article Content
-                {errors.content && (
-                  <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
-                )}
+                Article
               </button>
               <button
                 type="button"
                 onClick={() => setEditorTab("faqs")}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                   editorTab === "faqs"
                     ? "bg-background text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <HelpCircle className="w-3.5 h-3.5 text-primary" />
-                FAQ Section
-                {errors.faqs && (
-                  <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
-                )}
-                {faqs.length > 0 && !errors.faqs && (
-                  <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-primary/10 text-primary border border-primary/20">
-                    {faqs.length}
-                  </span>
-                )}
+                <HelpCircle className="w-3.5 h-3.5" />
+                FAQs
               </button>
               <button
                 type="button"
                 onClick={() => setEditorTab("seo")}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                   editorTab === "seo"
                     ? "bg-background text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Globe className="w-3.5 h-3.5 text-primary" />
-                SEO &amp; Meta
-                {(errors.slug ||
-                  errors.metaTitle ||
-                  errors.metaDesc ||
-                  errors.canonicalUrl) && (
-                  <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
-                )}
-                {seoAnalysis.hasKeyword ? (
-                  <span
-                    className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                      seoAnalysis.score >= 80
-                        ? "bg-emerald-500/15 text-emerald-600 border border-emerald-500/30"
-                        : seoAnalysis.score >= 50
-                        ? "bg-amber-500/15 text-amber-600 border border-amber-500/30"
-                        : "bg-red-500/15 text-red-600 border border-red-500/30"
-                    }`}
-                  >
-                    {seoAnalysis.score}/100
+                <Globe className="w-3.5 h-3.5" />
+                SEO
+              </button>
+            </div>
+
+            {/* Right side: autosave + preview + exit fullscreen + publish */}
+            <div className="flex items-center gap-2">
+              {/* Autosave indicator */}
+              <div className="flex items-center gap-1.5 text-[11px] font-medium mr-1">
+                {isSubmitting ? (
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Saving...
+                  </span>
+                ) : isDirtyOrFilled ? (
+                  <span className="flex items-center gap-1.5 text-amber-600">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                    Unsaved
+                  </span>
+                ) : lastSavedAt ? (
+                  <span className="flex items-center gap-1.5 text-emerald-600">
+                    <CheckCircle2 className="w-3 h-3" />
+                    Saved
                   </span>
                 ) : null}
-              </button>
+              </div>
+
+              {/* Preview */}
+              <Tooltip>
+                <TooltipTrigger>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={() => {
+                      if (!slug) {
+                        toast.add({ title: "Slug Required", description: "Enter a URL slug in SEO tab to preview.", type: "warning" });
+                        return;
+                      }
+                      const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || "http://localhost:3001";
+                      const previewUrl = previewSecret
+                        ? `${frontendUrl}/api/draft?secret=${previewSecret}&slug=/blogs/${slug}`
+                        : `${frontendUrl}/blogs/${slug}`;
+                      window.open(previewUrl, "_blank", "noopener,noreferrer");
+                    }}
+                    className="h-8 w-8 p-0 rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer flex items-center justify-center"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-muted-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p className="text-xs">Preview draft</p>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Exit Fullscreen */}
+              <Tooltip>
+                <TooltipTrigger>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={() => setIsFullscreen(false)}
+                    className="h-8 w-8 p-0 rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer flex items-center justify-center"
+                  >
+                    <Minimize2 className="w-3.5 h-3.5 text-muted-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p className="text-xs">Exit fullscreen (Esc)</p>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Split Publish */}
+              <div className="flex items-center">
+                <Button
+                  onClick={() => handleSave("published")}
+                  disabled={
+                    isSubmitting ||
+                    (isEditMode
+                      ? status === "published" && !hasCloudDraft && !loadedFromBackup && !isDirtyOrFilled
+                      : !isDirtyOrFilled)
+                  }
+                  className="flex items-center gap-1.5 h-8 px-3 text-xs font-bold rounded-sm rounded-r-none shadow-md bg-black hover:bg-black/90 text-white disabled:opacity-50 cursor-pointer"
+                >
+                  {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                  {isEditMode && status === "published" ? (hasCloudDraft || loadedFromBackup ? "Publish" : "Update") : "Publish"}
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        type="button"
+                        className="h-8 w-7 p-0 rounded-sm rounded-l-none border-l border-white/20 bg-black hover:bg-black/90 text-white shadow-md cursor-pointer flex items-center justify-center"
+                      />
+                    }
+                  >
+                    <ChevronDown className="w-3 h-3" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" side="bottom" sideOffset={6} className="w-44">
+                    <DropdownMenuItem onClick={() => handleSave("draft")} disabled={isSubmitting || !isDirtyOrFilled} className="cursor-pointer">
+                      <Save className="w-4 h-4 mr-2 text-muted-foreground" />
+                      Save Draft
+                      <DropdownMenuShortcut>⌘S</DropdownMenuShortcut>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content Area */}
+        <div
+          className={`flex-1 min-h-0 overflow-hidden w-full relative flex flex-col transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+            isFullscreen ? "p-3 md:p-4 gap-2.5" : "p-4 md:p-6 gap-3.5"
+          }`}
+        >
+          {/* Editor Top Navigation Tabs (smooth collapse in fullscreen) */}
+          <div
+            className={`transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden shrink-0 ${
+              isFullscreen
+                ? "max-h-0 opacity-0 -mb-2.5 pointer-events-none"
+                : "max-h-16 opacity-100 mb-0"
+            }`}
+          >
+            <div className="flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-1.5 p-1 bg-muted/60 border border-border/80 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setEditorTab("general")}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                    editorTab === "general"
+                      ? "bg-background text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Settings2 className="w-3.5 h-3.5" />
+                  General Info
+                  {(errors.title || errors.featuredImage || errors.categories || errors.excerpt) && (
+                    <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditorTab("content")}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                    editorTab === "content"
+                      ? "bg-background text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  Article Content
+                  {errors.content && (
+                    <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditorTab("faqs")}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                    editorTab === "faqs"
+                      ? "bg-background text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <HelpCircle className="w-3.5 h-3.5 text-primary" />
+                  FAQ Section
+                  {errors.faqs && (
+                    <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+                  )}
+                  {faqs.length > 0 && !errors.faqs && (
+                    <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-primary/10 text-primary border border-primary/20">
+                      {faqs.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditorTab("seo")}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                    editorTab === "seo"
+                      ? "bg-background text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Globe className="w-3.5 h-3.5 text-primary" />
+                  SEO &amp; Meta
+                  {(errors.slug ||
+                    errors.metaTitle ||
+                    errors.metaDesc ||
+                    errors.canonicalUrl) && (
+                    <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+                  )}
+                  {seoAnalysis.hasKeyword ? (
+                    <span
+                      className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                        seoAnalysis.score >= 80
+                          ? "bg-emerald-500/15 text-emerald-600 border border-emerald-500/30"
+                          : seoAnalysis.score >= 50
+                          ? "bg-amber-500/15 text-amber-600 border border-amber-500/30"
+                          : "bg-red-500/15 text-red-600 border border-red-500/30"
+                      }`}
+                    >
+                      {seoAnalysis.score}/100
+                    </span>
+                  ) : null}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1867,9 +2115,14 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                       <ListTree className="w-4 h-4 text-primary" />
                       Table of Contents
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-muted text-muted-foreground border border-border">
-                      {tocItems.length}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {tocIssues.length > 0 && (
+                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                      )}
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-muted text-muted-foreground border border-border">
+                        {tocItems.length}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="flex-1 overflow-y-auto custom-scrollbar p-3 min-h-0">
@@ -1883,7 +2136,21 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                       </div>
                     ) : (
                       <div className="space-y-1">
-                        {tocItems.map((item) => {
+                        {/* Heading Hierarchy Warning Banner */}
+                        {tocIssues.length > 0 && (
+                          <div className="flex items-start gap-2 p-2.5 mb-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-900">
+                            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-500" />
+                            <div>
+                              <p className="text-[11px] font-bold">
+                                {tocIssues.length} heading hierarchy {tocIssues.length === 1 ? "issue" : "issues"}
+                              </p>
+                              <p className="text-[10px] text-amber-700 mt-0.5 leading-relaxed">
+                                Proper heading order (H2 → H3 → H4) improves SEO and accessibility.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                        {tocItems.map((item, idx) => {
                           const paddingLeft =
                             item.level === 1
                               ? "pl-1"
@@ -1893,20 +2160,40 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                               ? "pl-6"
                               : "pl-9";
 
+                          const issue = tocIssues.find((i) => i.index === idx);
+
                           return (
                             <button
                               key={item.id}
                               type="button"
                               onClick={() => handleTocClick(item)}
-                              className={`w-full text-left py-1.5 px-2 rounded-md text-xs transition-all flex items-center gap-2 group hover:bg-muted/70 cursor-pointer ${paddingLeft}`}
-                              title={item.text}
+                              className={`w-full text-left py-1.5 px-2 rounded-md text-xs transition-all flex items-center gap-2 group hover:bg-muted/70 cursor-pointer ${paddingLeft} ${
+                                issue ? "bg-amber-50/60 border border-amber-200/50" : ""
+                              }`}
+                              title={issue ? issue.message : item.text}
                             >
-                              <span className="text-[10px] font-bold px-1 py-0.2 rounded bg-muted/80 text-muted-foreground group-hover:text-foreground shrink-0 select-none">
+                              <span className={`text-[10px] font-bold px-1 py-0.2 rounded shrink-0 select-none ${
+                                issue
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-muted/80 text-muted-foreground group-hover:text-foreground"
+                              }`}>
                                 H{item.level}
                               </span>
                               <span className="truncate flex-1 text-foreground/90 group-hover:text-foreground">
                                 {item.text}
                               </span>
+                              {issue && (
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <span className="shrink-0">
+                                      <AlertTriangle className="w-3 h-3 text-amber-500" />
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="left" className="max-w-[200px]">
+                                    <p className="text-xs">{issue.message}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
                             </button>
                           );
                         })}
