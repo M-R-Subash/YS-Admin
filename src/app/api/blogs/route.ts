@@ -91,6 +91,11 @@ export async function POST(req: Request) {
       metaTitle = "",
       metaDesc = "",
       focusKeyword = "",
+      ogImage = "",
+      ogTitle = "",
+      ogDesc = "",
+      canonicalUrl = "",
+      noIndex = false,
     } = body;
 
     // Validate with Zod based on status
@@ -134,11 +139,16 @@ export async function POST(req: Request) {
         readingTime: readingTime || 0,
         publishedAt: status === "published" ? new Date() : null,
         authorId: session.user.id,
-        seo: (metaTitle || metaDesc || focusKeyword) ? {
+        seo: (metaTitle || metaDesc || focusKeyword || ogImage || ogTitle || ogDesc || canonicalUrl || noIndex) ? {
           create: {
             metaTitle: metaTitle || "",
             metaDesc: metaDesc || "",
             focusKeyword: focusKeyword || "",
+            ogImage: ogImage || "",
+            ogTitle: ogTitle || "",
+            ogDesc: ogDesc || "",
+            canonicalUrl: canonicalUrl || "",
+            noIndex: Boolean(noIndex),
           }
         } : undefined,
       },

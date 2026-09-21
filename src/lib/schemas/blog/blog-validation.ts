@@ -44,6 +44,11 @@ export const blogDraftSchema = z.object({
   metaTitle: z.string().max(70, "Meta Title should not exceed 70 characters").optional().default(""),
   metaDesc: z.string().max(170, "Meta Description should not exceed 170 characters").optional().default(""),
   focusKeyword: z.string().optional().default(""),
+  ogImage: z.string().optional().default(""),
+  ogTitle: z.string().max(70, "OG Title should not exceed 70 characters").optional().default(""),
+  ogDesc: z.string().max(200, "OG Description should not exceed 200 characters").optional().default(""),
+  canonicalUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  noIndex: z.boolean().default(false),
   faqs: z.array(blogFaqItemSchema).default([]),
   action: z.enum(["save-draft", "publish", "discard-draft"]).optional(),
 });
@@ -84,6 +89,11 @@ export const blogPublishSchema = z.object({
   metaTitle: z.string().max(70, "Meta Title should not exceed 70 characters").optional().default(""),
   metaDesc: z.string().max(170, "Meta Description should not exceed 170 characters").optional().default(""),
   focusKeyword: z.string().optional().default(""),
+  ogImage: z.string().optional().default(""),
+  ogTitle: z.string().max(70, "OG Title should not exceed 70 characters").optional().default(""),
+  ogDesc: z.string().max(200, "OG Description should not exceed 200 characters").optional().default(""),
+  canonicalUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  noIndex: z.boolean().default(false),
   faqs: z
     .array(
       blogFaqItemSchema.refine(
@@ -116,5 +126,10 @@ export interface BlogFormData {
   metaTitle: string;
   metaDesc: string;
   focusKeyword: string;
+  ogImage: string;
+  ogTitle: string;
+  ogDesc: string;
+  canonicalUrl: string;
+  noIndex: boolean;
   faqs: BlogFaqItem[];
 }

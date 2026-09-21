@@ -1,30 +1,44 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef, useDeferredValue } from "react";
+import React, { useState, useEffect, useMemo, useRef, useDeferredValue, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import BlogEditor from "@/components/blog/BlogEditor";
 import { EditorRenderer } from "@/components/EditorRenderer";
 import { blogGeneralUiSchema } from "@/lib/schemas/blog/blog-ui-schema";
+import { GoogleSearchPreview } from "@/components/seo/GoogleSearchPreview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/toast";
+import { ImageUploadBlock } from "@/components/ImageUploadBlock";
 import {
   ArrowLeft,
   Loader2,
   Save,
   Send,
-  Search,
   Sparkles,
   CheckCircle2,
   AlertCircle,
   HelpCircle,
   FileText,
   Settings2,
+  Search,
+  Eye,
+  ListTree,
+  Coffee,
+  Wand2,
+  ExternalLink,
+  Link2,
+  EyeOff,
+  Share2,
+  Globe,
+  ChevronRight,
+  Clock,
 } from "lucide-react";
 import FaqManager, { FaqItem } from "@/components/faq/FaqManager";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { ScreenLoader } from "@/components/ui/screen-loader";
 import {
   AlertDialog,
@@ -42,262 +56,71 @@ import {
   blogPublishSchema,
   BlogFormData,
 } from "@/lib/schemas/blog/blog-validation";
+import {
+  analyzeSeo,
+  extractTextFromTipTap,
+  type ExtractedDoc,
+  type SeoAnalysisResult,
+} from "@/lib/seo/blog-seo-analyzer";
 
-interface ExtractedDoc {
-  fullText: string;
-  introText: string;
-  headingTexts: string[];
-  wordCount: number;
+// ─── Utility Helpers ──────────────────────────────────────────────────
+
+function arraysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((v, i) => v === b[i]);
 }
 
-function extractTextFromTipTap(json: any): ExtractedDoc {
-  if (!json) {
-    return { fullText: "", introText: "", headingTexts: [], wordCount: 0 };
-  }
+interface TocItem {
+  id: string;
+  text: string;
+  level: number;
+}
 
-  if (typeof json === "string") {
-    const plain = json.replace(/<[^>]+>/g, " ");
-    const words = plain.trim().split(/\s+/).filter(Boolean);
-    return {
-      fullText: plain,
-      introText: plain.slice(0, 500),
-      headingTexts: [],
-      wordCount: words.length,
-    };
-  }
-
-  const allWords: string[] = [];
-  const headingTexts: string[] = [];
-  let firstParagraphText = "";
+function extractTocFromTipTap(json: any): TocItem[] {
+  if (!json || typeof json !== "object") return [];
+  const items: TocItem[] = [];
+  let headingIndex = 0;
 
   function traverse(node: any) {
     if (!node) return;
     if (node.type === "heading" && Array.isArray(node.content)) {
-      const headingText = node.content.map((c: any) => c.text || "").join(" ").trim();
-      if (headingText) headingTexts.push(headingText);
-    }
-    if (node.type === "paragraph" && !firstParagraphText && Array.isArray(node.content)) {
-      firstParagraphText = node.content.map((c: any) => c.text || "").join(" ").trim();
-    }
-    if (node.text) {
-      allWords.push(node.text);
+      const text = node.content.map((c: any) => c.text || "").join(" ").trim();
+      if (text) {
+        const level = node.attrs?.level || 2;
+        const id = `heading-${headingIndex++}`;
+        items.push({ id, text, level });
+      }
     }
     if (Array.isArray(node.content)) {
-      for (const child of node.content) {
-        traverse(child);
-      }
+      for (const child of node.content) traverse(child);
     }
   }
 
   traverse(json);
-
-  const fullText = allWords.join(" ");
-  const words = fullText.trim().split(/\s+/).filter(Boolean);
-
-  return {
-    fullText,
-    introText: firstParagraphText || fullText.slice(0, 500),
-    headingTexts,
-    wordCount: words.length,
-  };
+  return items;
 }
 
-function countKeywordOccurrences(text: string, keyword: string): number {
-  if (!text || !keyword.trim()) return 0;
-  const trimmed = keyword.trim().toLowerCase();
-  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const startsWithWord = /^\w/.test(trimmed);
-  const endsWithWord = /\w$/.test(trimmed);
-  const pattern = `${startsWithWord ? "(?:^|\\s|[.,!?;:\"'()\\[\\]{}])" : ""}(${escaped})${endsWithWord ? "(?:$|\\s|[.,!?;:\"'()\\[\\]{}])" : ""}`;
-  try {
-    const regex = new RegExp(pattern, "gi");
-    const matches = text.match(regex);
-    return matches ? matches.length : 0;
-  } catch {
-    let count = 0;
-    let pos = 0;
-    const lowerText = text.toLowerCase();
-    while ((pos = lowerText.indexOf(trimmed, pos)) !== -1) {
-      count++;
-      pos += trimmed.length;
+function calculateReadingTime(json: any): number {
+  if (!json) return 1;
+  let text = "";
+  const extractText = (node: any) => {
+    if (!node) return;
+    if (node.text) text += " " + node.text;
+    if (Array.isArray(node.content)) {
+      node.content.forEach(extractText);
     }
-    return count;
-  }
+  };
+  extractText(json);
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.ceil(words / 200));
 }
 
-interface SeoCheckItem {
-  id: string;
-  label: string;
-  passed: boolean;
-  score: number;
-  maxScore: number;
-  message: string;
-}
-
-interface SeoAnalysisResult {
-  hasKeyword: boolean;
-  score: number;
-  items: SeoCheckItem[];
-  keywordCount: number;
-  density: number;
-  densityStatus: "optimal" | "low" | "high" | "none";
-  wordCount: number;
-}
-
-function analyzeSeo(
-  keyword: string,
-  title: string,
-  slug: string,
-  metaDesc: string,
-  contentOrDoc: any,
-  overrideWordCount?: number | null
-): SeoAnalysisResult {
-  const trimmedKeyword = keyword.trim();
-  if (!trimmedKeyword) {
-    return {
-      hasKeyword: false,
-      score: 0,
-      items: [],
-      keywordCount: 0,
-      density: 0,
-      densityStatus: "none",
-      wordCount: typeof overrideWordCount === "number" ? overrideWordCount : 0,
-    };
-  }
-
-  const { fullText, introText, headingTexts, wordCount: extractedCount } =
-    contentOrDoc && typeof contentOrDoc.fullText === "string"
-      ? (contentOrDoc as ExtractedDoc)
-      : extractTextFromTipTap(contentOrDoc);
-  const wordCount = typeof overrideWordCount === "number" ? overrideWordCount : extractedCount;
-  const lowerKeyword = trimmedKeyword.toLowerCase();
-  const keywordOccurrences = countKeywordOccurrences(fullText, trimmedKeyword);
-  const keywordWordCount = trimmedKeyword.split(/\s+/).filter(Boolean).length;
-  const density = wordCount > 0 ? (keywordOccurrences * keywordWordCount / wordCount) * 100 : 0;
-  const roundedDensity = Math.round(density * 10) / 10;
-
-  // 1. In Title (20 pts)
-  const inTitle = title.toLowerCase().includes(lowerKeyword);
-  const titleItem: SeoCheckItem = {
-    id: "title",
-    label: "Focus Keyword in Title",
-    passed: inTitle,
-    score: inTitle ? 20 : 0,
-    maxScore: 20,
-    message: inTitle ? "Keyword appears in the title" : "Add focus keyword to the blog title",
-  };
-
-  // 2. In Slug (15 pts)
-  const slugifiedKeyword = lowerKeyword.replace(/\s+/g, "-").replace(/[^\w-]+/g, "");
-  const inSlug =
-    (slug && slugifiedKeyword && slug.toLowerCase().includes(slugifiedKeyword)) ||
-    (slug && slug.toLowerCase().includes(lowerKeyword.replace(/[^a-z0-9]/g, "")));
-  const slugItem: SeoCheckItem = {
-    id: "slug",
-    label: "Focus Keyword in URL Slug",
-    passed: Boolean(inSlug),
-    score: inSlug ? 15 : 0,
-    maxScore: 15,
-    message: inSlug ? "Keyword appears in the URL slug" : "Include focus keyword in the URL slug",
-  };
-
-  // 3. In Meta Description (15 pts)
-  const inMeta = metaDesc.toLowerCase().includes(lowerKeyword);
-  const metaItem: SeoCheckItem = {
-    id: "meta",
-    label: "Focus Keyword in Meta Description",
-    passed: inMeta,
-    score: inMeta ? 15 : 0,
-    maxScore: 15,
-    message: inMeta ? "Keyword appears in the meta description" : "Add focus keyword to the meta description",
-  };
-
-  // 4. In Intro (15 pts)
-  const inIntro = countKeywordOccurrences(introText, trimmedKeyword) > 0;
-  const introItem: SeoCheckItem = {
-    id: "intro",
-    label: "Focus Keyword in Introduction",
-    passed: inIntro,
-    score: inIntro ? 15 : 0,
-    maxScore: 15,
-    message: inIntro ? "Keyword appears in the first paragraph" : "Include focus keyword in the introductory paragraph",
-  };
-
-  // 5. In Headings (15 pts)
-  const inHeadings = headingTexts.some((h) => countKeywordOccurrences(h, trimmedKeyword) > 0);
-  const headingsItem: SeoCheckItem = {
-    id: "headings",
-    label: "Focus Keyword in Subheadings",
-    passed: inHeadings,
-    score: inHeadings ? 15 : 0,
-    maxScore: 15,
-    message: inHeadings ? "Keyword found in at least one subheading (H2/H3)" : "Use focus keyword in at least one subheading",
-  };
-
-  // 6. Keyword Density (10 pts)
-  let densityStatus: "optimal" | "low" | "high" | "none" = "none";
-  let densityScore = 0;
-  let densityMessage = "Keyword does not appear in the content";
-
-  if (keywordOccurrences > 0) {
-    if (roundedDensity >= 0.8 && roundedDensity <= 2.5) {
-      densityStatus = "optimal";
-      densityScore = 10;
-      densityMessage = `Optimal density: ${roundedDensity}% (${keywordOccurrences}x)`;
-    } else if (roundedDensity < 0.8) {
-      densityStatus = "low";
-      densityScore = 5;
-      densityMessage = `Density is low: ${roundedDensity}% (${keywordOccurrences}x). Aim for 0.8% - 2.5%`;
-    } else {
-      densityStatus = "high";
-      densityScore = 4;
-      densityMessage = `High density: ${roundedDensity}% (${keywordOccurrences}x). Risk of keyword stuffing`;
-    }
-  }
-
-  const densityItem: SeoCheckItem = {
-    id: "density",
-    label: "Keyword Density",
-    passed: densityStatus === "optimal",
-    score: densityScore,
-    maxScore: 10,
-    message: densityMessage,
-  };
-
-  // 7. Word Count (10 pts)
-  let wordCountScore = 0;
-  let wordCountPassed = false;
-  let wordCountMessage = "Content is too short (< 100 words)";
-  if (wordCount >= 300) {
-    wordCountScore = 10;
-    wordCountPassed = true;
-    wordCountMessage = `Good content length (${wordCount} words)`;
-  } else if (wordCount >= 100) {
-    wordCountScore = 5;
-    wordCountMessage = `Acceptable length (${wordCount} words). Recommended >= 300 words`;
-  }
-
-  const wordCountItem: SeoCheckItem = {
-    id: "wordCount",
-    label: "Content Length",
-    passed: wordCountPassed,
-    score: wordCountScore,
-    maxScore: 10,
-    message: wordCountMessage,
-  };
-
-  const items = [titleItem, slugItem, metaItem, introItem, headingsItem, densityItem, wordCountItem];
-  const totalScore = items.reduce((acc, item) => acc + item.score, 0);
-
-  return {
-    hasKeyword: true,
-    score: totalScore,
-    items,
-    keywordCount: keywordOccurrences,
-    density: roundedDensity,
-    densityStatus,
-    wordCount,
-  };
+// Character counter color helper
+function charCountColor(current: number, optimal: number, max: number): string {
+  if (current > max) return "text-red-500";
+  if (current >= optimal) return "text-emerald-500";
+  if (current > 0) return "text-amber-500";
+  return "text-muted-foreground";
 }
 
 interface BlogFormProps {
@@ -319,9 +142,11 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   const [hasCloudDraft, setHasCloudDraft] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [previewSecret, setPreviewSecret] = useState<string>("");
+  const [seoPreviewMode, setSeoPreviewMode] = useState<"google" | "social">("google");
 
   // Tab & Editor Word Count
-  const [editorTab, setEditorTab] = useState<"general" | "content" | "faqs">("content");
+  const [editorTab, setEditorTab] = useState<"general" | "content" | "faqs" | "seo">("content");
   const [editorWordCount, setEditorWordCount] = useState<number | null>(null);
 
   // React Hook Form
@@ -348,6 +173,11 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       metaTitle: "",
       metaDesc: "",
       focusKeyword: "",
+      ogImage: "",
+      ogTitle: "",
+      ogDesc: "",
+      canonicalUrl: "",
+      noIndex: false,
       faqs: [],
     },
     mode: "onChange",
@@ -366,6 +196,11 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   const metaTitle = watchedValues.metaTitle ?? "";
   const metaDesc = watchedValues.metaDesc ?? "";
   const focusKeyword = watchedValues.focusKeyword ?? "";
+  const ogImage = watchedValues.ogImage ?? "";
+  const ogTitle = watchedValues.ogTitle ?? "";
+  const ogDesc = watchedValues.ogDesc ?? "";
+  const canonicalUrl = watchedValues.canonicalUrl ?? "";
+  const noIndex = watchedValues.noIndex ?? false;
   const content = watchedValues.content;
   const faqs = watchedValues.faqs ?? [];
 
@@ -408,6 +243,66 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     deferredWordCount,
   ]);
 
+  // Table of Contents from content
+  const tocItems = useMemo(() => {
+    return extractTocFromTipTap(deferredContent);
+  }, [deferredContent]);
+
+  // Reading time
+  const readingTime = useMemo(() => {
+    return calculateReadingTime(deferredContent);
+  }, [deferredContent]);
+
+  // Scroll to heading in editor on TOC item click
+  const handleTocClick = useCallback(
+    (item: TocItem) => {
+      if (editorTab !== "content") {
+        setEditorTab("content");
+      }
+      setTimeout(() => {
+        const headings = Array.from(
+          document.querySelectorAll(
+            ".tiptap h1, .tiptap h2, .tiptap h3, .tiptap h4, .ProseMirror h1, .ProseMirror h2, .ProseMirror h3, .ProseMirror h4"
+          )
+        );
+        const target = headings.find((el) => {
+          const text = el.textContent?.trim() || "";
+          return text.includes(item.text.trim()) || item.text.trim().includes(text);
+        });
+        if (target) {
+          target.scrollIntoView({ behavior: "smooth", block: "center" });
+          target.classList.add("ring-2", "ring-primary", "rounded-md", "transition-all", "duration-500");
+          setTimeout(() => {
+            target.classList.remove("ring-2", "ring-primary", "rounded-md");
+          }, 1500);
+        }
+      }, 150);
+    },
+    [editorTab]
+  );
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+S → Save Draft
+      if ((e.ctrlKey || e.metaKey) && e.key === "s" && !e.shiftKey) {
+        e.preventDefault();
+        if (!isSubmitting && isDirtyOrFilledRef.current) {
+          handleSaveRef.current("draft");
+        }
+      }
+      // Ctrl+Shift+P → Publish
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "P") {
+        e.preventDefault();
+        if (!isSubmitting) {
+          handleSaveRef.current("published");
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isSubmitting]);
+
   // Helpers to normalize content and faqs comparison
   const isContentEqual = (a: any, b: any) => {
     if (!a && !b) return true;
@@ -446,14 +341,19 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       return (
         title !== initialData.title ||
         slug !== initialData.slug ||
-        JSON.stringify(tags || []) !== JSON.stringify(initialData.tags || []) ||
-        JSON.stringify(categories || []) !== JSON.stringify(initialData.categories || []) ||
+        !arraysEqual(tags || [], initialData.tags || []) ||
+        !arraysEqual(categories || [], initialData.categories || []) ||
         allowComments !== initialData.allowComments ||
         featuredImage !== initialData.featuredImage ||
         excerpt !== initialData.excerpt ||
         metaTitle !== initialData.metaTitle ||
         metaDesc !== initialData.metaDesc ||
         focusKeyword !== initialData.focusKeyword ||
+        ogImage !== (initialData.ogImage || "") ||
+        ogTitle !== (initialData.ogTitle || "") ||
+        ogDesc !== (initialData.ogDesc || "") ||
+        canonicalUrl !== (initialData.canonicalUrl || "") ||
+        noIndex !== (initialData.noIndex || false) ||
         !areFaqsEqual(faqs, initialData.faqs || []) ||
         !isContentEqual(content, initialData.content)
       );
@@ -473,6 +373,11 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         metaTitle.trim() !== "" ||
         metaDesc.trim() !== "" ||
         focusKeyword.trim() !== "" ||
+        ogImage.trim() !== "" ||
+        ogTitle.trim() !== "" ||
+        ogDesc.trim() !== "" ||
+        canonicalUrl.trim() !== "" ||
+        noIndex !== false ||
         faqs.some((f) => f && (f.question?.trim() || f.answer?.trim()))
       );
     }
@@ -489,9 +394,39 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     metaTitle,
     metaDesc,
     focusKeyword,
+    ogImage,
+    ogTitle,
+    ogDesc,
+    canonicalUrl,
+    noIndex,
     content,
     faqs,
   ]);
+
+  // Refs for keyboard shortcuts (to avoid stale closures)
+  const isDirtyOrFilledRef = useRef(isDirtyOrFilled);
+  isDirtyOrFilledRef.current = isDirtyOrFilled;
+  const handleSaveRef = useRef<(status: "draft" | "published", shouldExit?: boolean) => Promise<void>>(null!);
+
+  // Auto-fill SEO meta from article content
+  const handleAutoFillMeta = useCallback(() => {
+    const currentTitle = getValues("title");
+    const currentContent = getValues("content");
+    const doc = extractTextFromTipTap(currentContent);
+
+    if (currentTitle && !getValues("metaTitle")) {
+      setValue("metaTitle", currentTitle.slice(0, 60), { shouldDirty: true });
+    }
+    if (doc.introText && !getValues("metaDesc")) {
+      setValue("metaDesc", doc.introText.slice(0, 155), { shouldDirty: true });
+    }
+    if (doc.introText && !getValues("excerpt")) {
+      setValue("excerpt", doc.introText.slice(0, 200), { shouldDirty: true });
+    }
+    toast.add({ title: "Auto-filled", description: "SEO meta fields populated from your article content.", type: "success" });
+  }, [getValues, setValue]);
+
+
 
   // Fetch blog data if in edit mode
   useEffect(() => {
@@ -511,6 +446,9 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           : data;
 
         setHasCloudDraft(Boolean(data.draftContent));
+        if (data.previewSecret) {
+          setPreviewSecret(data.previewSecret);
+        }
 
         const blogTags = Array.isArray(initialPayload.tags)
           ? initialPayload.tags
@@ -558,6 +496,11 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           metaTitle: initialPayload.metaTitle || initialPayload.seo?.metaTitle || "",
           metaDesc: initialPayload.metaDesc || initialPayload.seo?.metaDesc || "",
           focusKeyword: initialPayload.focusKeyword || initialPayload.seo?.focusKeyword || "",
+          ogImage: initialPayload.ogImage || initialPayload.seo?.ogImage || "",
+          ogTitle: initialPayload.ogTitle || initialPayload.seo?.ogTitle || "",
+          ogDesc: initialPayload.ogDesc || initialPayload.seo?.ogDesc || "",
+          canonicalUrl: initialPayload.canonicalUrl || initialPayload.seo?.canonicalUrl || "",
+          noIndex: initialPayload.noIndex ?? initialPayload.seo?.noIndex ?? false,
           faqs: dbFaqs,
         };
 
@@ -640,6 +583,11 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           metaTitle: bData.metaTitle || "",
           metaDesc: bData.metaDesc || "",
           focusKeyword: bData.focusKeyword || "",
+          ogImage: bData.ogImage || "",
+          ogTitle: bData.ogTitle || "",
+          ogDesc: bData.ogDesc || "",
+          canonicalUrl: bData.canonicalUrl || "",
+          noIndex: bData.noIndex ?? false,
           faqs: bData.faqs || bData.content?.faqs || [],
         };
         reset(restored);
@@ -747,6 +695,19 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         setEditorTab("content");
       } else if (firstField === "faqs") {
         setEditorTab("faqs");
+      } else if (
+        [
+          "slug",
+          "metaTitle",
+          "metaDesc",
+          "focusKeyword",
+          "canonicalUrl",
+          "ogTitle",
+          "ogDesc",
+          "ogImage",
+        ].includes(firstField)
+      ) {
+        setEditorTab("seo");
       }
 
       toast.add({
@@ -784,6 +745,11 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       metaTitle: currentValues.metaTitle,
       metaDesc: currentValues.metaDesc,
       focusKeyword: currentValues.focusKeyword,
+      ogImage: currentValues.ogImage || "",
+      ogTitle: currentValues.ogTitle || "",
+      ogDesc: currentValues.ogDesc || "",
+      canonicalUrl: currentValues.canonicalUrl || "",
+      noIndex: Boolean(currentValues.noIndex),
       readingTime,
       action: publishStatus === "draft" ? "save-draft" : "publish",
     };
@@ -829,6 +795,11 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         metaTitle: currentValues.metaTitle,
         metaDesc: currentValues.metaDesc,
         focusKeyword: currentValues.focusKeyword,
+        ogImage: currentValues.ogImage || "",
+        ogTitle: currentValues.ogTitle || "",
+        ogDesc: currentValues.ogDesc || "",
+        canonicalUrl: currentValues.canonicalUrl || "",
+        noIndex: Boolean(currentValues.noIndex),
         faqs: [...(currentValues.faqs || [])],
       };
 
@@ -855,6 +826,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       setIsSubmitting(false);
     }
   };
+  handleSaveRef.current = handleSave;
 
   return (
     <TooltipProvider delay={200}>
@@ -977,36 +949,94 @@ export default function BlogForm({ blogId }: BlogFormProps) {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              onClick={() => handleSave("draft")}
-              disabled={isSubmitting || !isDirtyOrFilled}
-              className="flex items-center gap-2 h-9 px-4 text-xs font-bold rounded-sm shadow-md transition-all hover:scale-[1.02] disabled:opacity-50 cursor-pointer"
-            >
-              {isSubmitting && status === "draft" ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
-              Save Draft
-            </Button>
-            <Button
-              onClick={() => handleSave("published")}
-              disabled={
-                isSubmitting ||
-                (isEditMode
-                  ? status === "published" && !hasCloudDraft && !isDirtyOrFilled
-                  : !isDirtyOrFilled)
-              }
-              className="flex items-center gap-2 h-9 px-4 text-xs font-bold rounded-sm shadow-md transition-all hover:scale-[1.02] bg-black hover:bg-black/90 text-white disabled:opacity-50 cursor-pointer"
-            >
-              {isSubmitting && status === "published" ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
-              Publish
-            </Button>
+            {/* Reading Time & Word Count Pill */}
+            <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-md bg-muted/60 border border-border/80 text-[11px] font-medium text-muted-foreground">
+              <Coffee className="w-3.5 h-3.5 text-zinc-500" />
+              <span>{readingTime} min read</span>
+              <span className="text-muted-foreground/40">•</span>
+              <span>{editorWordCount ?? seoAnalysis.wordCount} words</span>
+            </div>
+
+            {/* Preview Button (Draft Mode) */}
+            <Tooltip>
+              <TooltipTrigger>
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => {
+                    if (!slug) {
+                      toast.add({
+                        title: "Slug Required",
+                        description: "Please enter a URL slug in the SEO tab to preview this post.",
+                        type: "warning",
+                      });
+                      return;
+                    }
+                    const frontendUrl =
+                      process.env.NEXT_PUBLIC_FRONTEND_URL || "http://localhost:3001";
+                    const previewUrl = previewSecret
+                      ? `${frontendUrl}/api/draft?secret=${previewSecret}&slug=/blogs/${slug}`
+                      : `${frontendUrl}/blogs/${slug}`;
+                    window.open(previewUrl, "_blank", "noopener,noreferrer");
+                  }}
+                  className="flex items-center gap-1.5 h-9 px-3 text-xs font-semibold rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer"
+                >
+                  <Eye className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="hidden sm:inline">Preview</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p className="text-xs">Preview post in draft mode (opens new tab)</p>
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Save Draft Button with Tooltip */}
+            <Tooltip>
+              <TooltipTrigger>
+                <Button
+                  variant="outline"
+                  onClick={() => handleSave("draft")}
+                  disabled={isSubmitting || !isDirtyOrFilled}
+                  className="flex items-center gap-2 h-9 px-4 text-xs font-bold rounded-sm shadow-md transition-all hover:scale-[1.02] disabled:opacity-50 cursor-pointer"
+                >
+                  {isSubmitting && status === "draft" ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  Save Draft
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p className="text-xs">Save as draft (Ctrl+S)</p>
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Publish Button with Tooltip */}
+            <Tooltip>
+              <TooltipTrigger>
+                <Button
+                  onClick={() => handleSave("published")}
+                  disabled={
+                    isSubmitting ||
+                    (isEditMode
+                      ? status === "published" && !hasCloudDraft && !isDirtyOrFilled
+                      : !isDirtyOrFilled)
+                  }
+                  className="flex items-center gap-2 h-9 px-4 text-xs font-bold rounded-sm shadow-md transition-all hover:scale-[1.02] bg-black hover:bg-black/90 text-white disabled:opacity-50 cursor-pointer"
+                >
+                  {isSubmitting && status === "published" ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  Publish
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p className="text-xs">Publish live (Ctrl+Shift+P)</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
         </header>
 
@@ -1074,6 +1104,37 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                             {faqs.length}
                           </span>
                         )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditorTab("seo")}
+                        className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                          editorTab === "seo"
+                            ? "bg-background text-foreground shadow-xs"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <Globe className="w-3.5 h-3.5 text-primary" />
+                        SEO &amp; Meta
+                        {(errors.slug ||
+                          errors.metaTitle ||
+                          errors.metaDesc ||
+                          errors.canonicalUrl) && (
+                          <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+                        )}
+                        {seoAnalysis.hasKeyword ? (
+                          <span
+                            className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                              seoAnalysis.score >= 80
+                                ? "bg-emerald-500/15 text-emerald-600 border border-emerald-500/30"
+                                : seoAnalysis.score >= 50
+                                ? "bg-amber-500/15 text-amber-600 border border-amber-500/30"
+                                : "bg-red-500/15 text-red-600 border border-red-500/30"
+                            }`}
+                          >
+                            {seoAnalysis.score}/100
+                          </span>
+                        ) : null}
                       </button>
                     </div>
                   </div>
@@ -1154,317 +1215,755 @@ export default function BlogForm({ blogId }: BlogFormProps) {
                       )}
                     />
                   </div>
+
+                  {/* SEO & Meta Tab Content */}
+                  <div
+                    className={`flex-1 overflow-y-auto custom-scrollbar p-6 bg-card rounded-xl border border-border ${
+                      editorTab === "seo" ? "block" : "hidden"
+                    }`}
+                  >
+                    <div className="max-w-6xl mx-auto space-y-6">
+                      {/* SEO Tab Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
+                        <div>
+                          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                            <Globe className="w-4 h-4 text-primary" />
+                            Search Engine Optimization &amp; Social Metadata
+                          </h2>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Fine-tune search previews, focus keywords, Open Graph social share cards, and indexing controls.
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleAutoFillMeta}
+                          className="flex items-center gap-1.5 text-xs font-semibold self-start sm:self-auto cursor-pointer border-border hover:bg-accent"
+                        >
+                          <Wand2 className="w-3.5 h-3.5 text-amber-500" />
+                          Auto-fill from Article
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+                        {/* Left Column: Form Controls & Previews */}
+                        <div className="xl:col-span-7 space-y-6">
+                          {/* Search / Social Preview Box */}
+                          <div className="bg-card border border-border/80 rounded-xl p-5 shadow-xs space-y-4">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                Real-Time Snippet Preview
+                              </span>
+                              <div className="flex items-center gap-1 p-0.5 bg-muted/70 border border-border/60 rounded-md">
+                                <button
+                                  type="button"
+                                  onClick={() => setSeoPreviewMode("google")}
+                                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-semibold transition-all cursor-pointer ${
+                                    seoPreviewMode === "google"
+                                      ? "bg-background text-foreground shadow-xs"
+                                      : "text-muted-foreground hover:text-foreground"
+                                  }`}
+                                >
+                                  <Search className="w-3 h-3" />
+                                  Google
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setSeoPreviewMode("social")}
+                                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-semibold transition-all cursor-pointer ${
+                                    seoPreviewMode === "social"
+                                      ? "bg-background text-foreground shadow-xs"
+                                      : "text-muted-foreground hover:text-foreground"
+                                  }`}
+                                >
+                                  <Share2 className="w-3 h-3" />
+                                  Social Card
+                                </button>
+                              </div>
+                            </div>
+
+                            {seoPreviewMode === "google" ? (
+                              <GoogleSearchPreview
+                                title={metaTitle || title || "SEO Title Preview"}
+                                slug={slug || "slug"}
+                                description={metaDesc || excerpt || "Write an engaging meta description that encourages search clicks..."}
+                              />
+                            ) : (
+                              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-xs">
+                                <div className="aspect-[1.91/1] w-full bg-gray-100 flex items-center justify-center relative overflow-hidden">
+                                  {ogImage || featuredImage ? (
+                                    <img
+                                      src={(ogImage || featuredImage) || undefined}
+                                      alt={ogTitle || title || "Social Share Preview"}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="flex flex-col items-center justify-center text-gray-400 gap-1.5 p-6 text-center">
+                                      <Share2 className="w-7 h-7 opacity-40" />
+                                      <span className="text-xs font-medium">No preview image</span>
+                                      <span className="text-[10px] text-gray-400">
+                                        Upload an Open Graph image below or set a Featured Cover Image
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-black/70 text-white backdrop-blur-xs">
+                                    OG Card
+                                  </div>
+                                </div>
+                                <div className="p-3.5 space-y-1 bg-white border-t border-gray-100">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                                    ysinnovations.com
+                                  </span>
+                                  <h4 className="text-sm font-bold text-gray-900 line-clamp-1">
+                                    {ogTitle || metaTitle || title || "Article Headline on Social Platforms"}
+                                  </h4>
+                                  <p className="text-xs text-gray-600 line-clamp-2">
+                                    {ogDesc || metaDesc || excerpt || "Summary teaser shown when readers share this blog on Twitter, LinkedIn, and messaging apps."}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Core Metadata Card */}
+                          <div className="bg-card border border-border/80 rounded-xl p-5 shadow-xs space-y-5">
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                              Core Search Engine Details
+                            </h3>
+
+                            {/* URL Slug */}
+                            <div>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <Label htmlFor="seo-slug" className="text-xs font-bold text-foreground">
+                                  URL Slug <span className="text-destructive">*</span>
+                                </Label>
+                                {errors.slug && (
+                                  <span className="text-[11px] font-semibold text-destructive flex items-center gap-1">
+                                    <AlertCircle className="w-3 h-3" />
+                                    {errors.slug.message}
+                                  </span>
+                                )}
+                              </div>
+                              <Controller
+                                name="slug"
+                                control={control}
+                                render={({ field }) => (
+                                  <div className="flex rounded-md shadow-xs border border-border focus-within:ring-1 focus-within:ring-ring overflow-hidden">
+                                    <span className="inline-flex items-center px-3 text-xs text-muted-foreground bg-muted/60 border-r border-border shrink-0 select-none">
+                                      /blogs/
+                                    </span>
+                                    <Input
+                                      id="seo-slug"
+                                      value={field.value || ""}
+                                      onChange={(e) => {
+                                        field.onChange(e);
+                                        if (errors.slug) clearErrors("slug");
+                                      }}
+                                      className="border-0 rounded-none focus-visible:ring-0 text-sm h-9"
+                                      placeholder="article-url-slug"
+                                    />
+                                  </div>
+                                )}
+                              />
+                            </div>
+
+                            {/* Focus Keyword */}
+                            <div>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <Label htmlFor="seo-focusKeyword" className="text-xs font-bold text-foreground">
+                                  Focus Target Keyword
+                                </Label>
+                                {seoAnalysis.hasKeyword && (
+                                  <span className="text-[11px] font-semibold text-primary">
+                                    {seoAnalysis.keywordCount} occurrence(s) in content
+                                  </span>
+                                )}
+                              </div>
+                              <Controller
+                                name="focusKeyword"
+                                control={control}
+                                render={({ field }) => (
+                                  <Input
+                                    id="seo-focusKeyword"
+                                    value={field.value || ""}
+                                    onChange={field.onChange}
+                                    placeholder="e.g. Next.js performance optimization"
+                                    className="text-sm h-9"
+                                  />
+                                )}
+                              />
+                              <p className="text-[11px] text-muted-foreground mt-1">
+                                Enter the primary phrase this article targets. The SEO Health Advisor will evaluate its presence across your content.
+                              </p>
+                            </div>
+
+                            {/* Meta Title */}
+                            <div>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <Label htmlFor="seo-metaTitle" className="text-xs font-bold text-foreground">
+                                  Meta Title
+                                </Label>
+                                <div className="flex items-center gap-2">
+                                  {errors.metaTitle && (
+                                    <span className="text-[11px] font-semibold text-destructive">
+                                      {errors.metaTitle.message}
+                                    </span>
+                                  )}
+                                  <span className={`text-[11px] font-bold ${charCountColor(metaTitle.length, 50, 60)}`}>
+                                    {metaTitle.length} / 60
+                                  </span>
+                                </div>
+                              </div>
+                              <Controller
+                                name="metaTitle"
+                                control={control}
+                                render={({ field }) => (
+                                  <Input
+                                    id="seo-metaTitle"
+                                    value={field.value || ""}
+                                    onChange={(e) => {
+                                      field.onChange(e);
+                                      if (errors.metaTitle) clearErrors("metaTitle");
+                                    }}
+                                    placeholder="Optimized headline for Google search (50–60 chars)"
+                                    className={`text-sm h-9 ${errors.metaTitle ? "border-destructive" : ""}`}
+                                  />
+                                )}
+                              />
+                              <p className="text-[11px] text-muted-foreground mt-1">
+                                Appears as the clickable headline in Google results. Keep between 50 and 60 characters to prevent truncation.
+                              </p>
+                            </div>
+
+                            {/* Meta Description */}
+                            <div>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <Label htmlFor="seo-metaDesc" className="text-xs font-bold text-foreground">
+                                  Meta Description
+                                </Label>
+                                <div className="flex items-center gap-2">
+                                  {errors.metaDesc && (
+                                    <span className="text-[11px] font-semibold text-destructive">
+                                      {errors.metaDesc.message}
+                                    </span>
+                                  )}
+                                  <span className={`text-[11px] font-bold ${charCountColor(metaDesc.length, 120, 155)}`}>
+                                    {metaDesc.length} / 155
+                                  </span>
+                                </div>
+                              </div>
+                              <Controller
+                                name="metaDesc"
+                                control={control}
+                                render={({ field }) => (
+                                  <textarea
+                                    id="seo-metaDesc"
+                                    rows={3}
+                                    value={field.value || ""}
+                                    onChange={(e) => {
+                                      field.onChange(e);
+                                      if (errors.metaDesc) clearErrors("metaDesc");
+                                    }}
+                                    placeholder="Engaging summary with focus keyword and a call to action (120–155 chars)"
+                                    className={`flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 ${
+                                      errors.metaDesc
+                                        ? "border-destructive focus-visible:ring-destructive"
+                                        : "border-input focus-visible:ring-ring"
+                                    }`}
+                                  />
+                                )}
+                              />
+                              <p className="text-[11px] text-muted-foreground mt-1">
+                                Shown below the title in search engine results. Recommended 120–155 characters for optimal click-through rate.
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Social Sharing / Open Graph Card */}
+                          <div className="bg-card border border-border/80 rounded-xl p-5 shadow-xs space-y-5">
+                            <div className="flex items-center justify-between">
+                              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                                <Share2 className="w-3.5 h-3.5" />
+                                Social Sharing (Open Graph)
+                              </h3>
+                              <span className="text-[11px] text-muted-foreground">Optional overrides</span>
+                            </div>
+
+                            {/* OG Title */}
+                            <div>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <Label htmlFor="seo-ogTitle" className="text-xs font-bold text-foreground">
+                                  Open Graph Title
+                                </Label>
+                                <span className={`text-[11px] font-bold ${charCountColor(ogTitle.length, 40, 70)}`}>
+                                  {ogTitle.length} / 70
+                                </span>
+                              </div>
+                              <Controller
+                                name="ogTitle"
+                                control={control}
+                                render={({ field }) => (
+                                  <Input
+                                    id="seo-ogTitle"
+                                    value={field.value || ""}
+                                    onChange={field.onChange}
+                                    placeholder="Overrides Meta Title when shared on Twitter & LinkedIn"
+                                    className="text-sm h-9"
+                                  />
+                                )}
+                              />
+                            </div>
+
+                            {/* OG Description */}
+                            <div>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <Label htmlFor="seo-ogDesc" className="text-xs font-bold text-foreground">
+                                  Open Graph Description
+                                </Label>
+                                <span className={`text-[11px] font-bold ${charCountColor(ogDesc.length, 80, 200)}`}>
+                                  {ogDesc.length} / 200
+                                </span>
+                              </div>
+                              <Controller
+                                name="ogDesc"
+                                control={control}
+                                render={({ field }) => (
+                                  <textarea
+                                    id="seo-ogDesc"
+                                    rows={2}
+                                    value={field.value || ""}
+                                    onChange={field.onChange}
+                                    placeholder="Overrides Meta Description for social cards"
+                                    className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                  />
+                                )}
+                              />
+                            </div>
+
+                            {/* OG Image */}
+                            <div>
+                              <Label className="text-xs font-bold text-foreground block mb-1.5">
+                                Social Share Image (Open Graph)
+                              </Label>
+                              <Controller
+                                name="ogImage"
+                                control={control}
+                                render={({ field }) => (
+                                  <ImageUploadBlock
+                                    value={field.value || ""}
+                                    onChange={(val) =>
+                                      field.onChange(
+                                        typeof val === "object" ? val?.url || "" : val || ""
+                                      )
+                                    }
+                                  />
+                                )}
+                              />
+                              <p className="text-[11px] text-muted-foreground mt-1">
+                                Recommended 1200 x 630 pixels. If left blank, your article&apos;s Featured Cover Image is used automatically.
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Indexing & Canonicalization Card */}
+                          <div className="bg-card border border-border/80 rounded-xl p-5 shadow-xs space-y-5">
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                              Indexing &amp; Technical SEO
+                            </h3>
+
+                            {/* Canonical URL */}
+                            <div>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <Label htmlFor="seo-canonicalUrl" className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                                  <Link2 className="w-3.5 h-3.5" />
+                                  Canonical URL
+                                </Label>
+                                {errors.canonicalUrl && (
+                                  <span className="text-[11px] font-semibold text-destructive">
+                                    {errors.canonicalUrl.message}
+                                  </span>
+                                )}
+                              </div>
+                              <Controller
+                                name="canonicalUrl"
+                                control={control}
+                                render={({ field }) => (
+                                  <Input
+                                    id="seo-canonicalUrl"
+                                    value={field.value || ""}
+                                    onChange={(e) => {
+                                      field.onChange(e);
+                                      if (errors.canonicalUrl) clearErrors("canonicalUrl");
+                                    }}
+                                    placeholder="https://ysinnovations.com/blogs/original-article"
+                                    className={`text-sm h-9 ${errors.canonicalUrl ? "border-destructive" : ""}`}
+                                  />
+                                )}
+                              />
+                              <p className="text-[11px] text-muted-foreground mt-1">
+                                Inform search engines of the primary original URL if this post is cross-posted or syndicated.
+                              </p>
+                            </div>
+
+                            {/* noIndex Switch */}
+                            <div className="flex items-center justify-between p-4 bg-muted/30 border border-border/70 rounded-xl">
+                              <div className="space-y-0.5 pr-4">
+                                <div className="flex items-center gap-2">
+                                  <EyeOff className="w-4 h-4 text-muted-foreground" />
+                                  <Label htmlFor="seo-noIndex" className="text-xs font-bold text-foreground cursor-pointer">
+                                    Hide from Search Engines (<code className="text-[11px] px-1 py-0.5 bg-muted rounded">noindex</code>)
+                                  </Label>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  Instruct search bots not to index or display this blog post in search results.
+                                </p>
+                              </div>
+                              <Controller
+                                name="noIndex"
+                                control={control}
+                                render={({ field }) => (
+                                  <Switch
+                                    id="seo-noIndex"
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                )}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right Column: Real-Time SEO Health Advisor */}
+                        <div className="xl:col-span-5 space-y-6">
+                          <div className="border border-border rounded-xl bg-card shadow-sm overflow-hidden sticky top-0">
+                            <div className="flex items-center justify-between p-4 text-sm font-bold text-foreground border-b border-border bg-accent/20">
+                              <span className="flex items-center gap-2">
+                                <Sparkles
+                                  className={`w-4 h-4 text-primary ${
+                                    isSeoCalculating ? "text-amber-500 animate-pulse" : ""
+                                  }`}
+                                />
+                                SEO Health Advisor
+                              </span>
+                              {isSeoCalculating ? (
+                                <span className="text-[10px] font-semibold text-muted-foreground animate-pulse">
+                                  Evaluating...
+                                </span>
+                              ) : seoAnalysis.hasKeyword ? (
+                                <span
+                                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                    seoAnalysis.score >= 80
+                                      ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                                      : seoAnalysis.score >= 50
+                                      ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                                      : "bg-red-500/10 text-red-500 border border-red-500/20"
+                                  }`}
+                                >
+                                  {seoAnalysis.score} / 100
+                                </span>
+                              ) : null}
+                            </div>
+
+                            <div
+                              className={`p-4 transition-opacity duration-200 ${
+                                isSeoCalculating ? "opacity-70" : "opacity-100"
+                              }`}
+                            >
+                              {!seoAnalysis.hasKeyword ? (
+                                <div className="rounded-xl border border-border/60 bg-muted/30 p-4 text-xs text-muted-foreground flex items-start gap-3">
+                                  <Sparkles className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                                  <div>
+                                    <p className="text-sm font-bold text-foreground">Real-Time Keyword Advisor</p>
+                                    <p className="mt-1 text-xs leading-relaxed">
+                                      Enter a Focus Target Keyword in the core settings above to analyze search engine factors, keyword density, image alt text, and readability.
+                                    </p>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="space-y-4">
+                                  {/* Score & Progress Bar */}
+                                  <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                        Optimization Score
+                                      </span>
+                                      <span
+                                        className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                                          seoAnalysis.score >= 80
+                                            ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                                            : seoAnalysis.score >= 50
+                                            ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                                            : "bg-red-500/10 text-red-500 border border-red-500/20"
+                                        }`}
+                                      >
+                                        {seoAnalysis.score} / 100 &bull;{" "}
+                                        {seoAnalysis.score >= 80
+                                          ? "Well Optimized"
+                                          : seoAnalysis.score >= 50
+                                          ? "Moderate"
+                                          : "Needs Attention"}
+                                      </span>
+                                    </div>
+                                    <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full transition-all duration-500 ${
+                                          seoAnalysis.score >= 80
+                                            ? "bg-emerald-500"
+                                            : seoAnalysis.score >= 50
+                                            ? "bg-amber-500"
+                                            : "bg-red-500"
+                                        }`}
+                                        style={{ width: `${Math.max(5, seoAnalysis.score)}%` }}
+                                      />
+                                    </div>
+                                  </div>
+
+                                  {/* Stats Grid */}
+                                  <div className="grid grid-cols-3 gap-2 bg-muted/40 p-2.5 rounded-xl border border-border/40 text-center">
+                                    <div>
+                                      <span className="block text-[10px] text-muted-foreground uppercase font-bold tracking-wide">
+                                        Density
+                                      </span>
+                                      <span
+                                        className={`text-sm font-extrabold flex items-center justify-center gap-1 mt-0.5 ${
+                                          seoAnalysis.densityStatus === "optimal"
+                                            ? "text-emerald-500"
+                                            : seoAnalysis.densityStatus === "high"
+                                            ? "text-red-500"
+                                            : "text-amber-500"
+                                        }`}
+                                      >
+                                        {seoAnalysis.density}%
+                                      </span>
+                                      <span className="text-[10px] text-muted-foreground/80 block">
+                                        {seoAnalysis.keywordCount}x used
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="block text-[10px] text-muted-foreground uppercase font-bold tracking-wide">
+                                        Words
+                                      </span>
+                                      <span className="text-sm font-extrabold text-foreground mt-0.5 block">
+                                        {seoAnalysis.wordCount}
+                                      </span>
+                                      <span className="text-[10px] text-muted-foreground/80 block">
+                                        {readingTime} min read
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="block text-[10px] text-muted-foreground uppercase font-bold tracking-wide">
+                                        Readability
+                                      </span>
+                                      <span className="text-sm font-extrabold text-foreground mt-0.5 block">
+                                        {seoAnalysis.readability ? seoAnalysis.readability.grade : "Good"}
+                                      </span>
+                                      <span className="text-[10px] text-muted-foreground/80 block">
+                                        {seoAnalysis.readability ? `Flesch ${seoAnalysis.readability.fleschScore}` : "Standard"}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* 11-Point Search Engine Checklist */}
+                                  <div className="space-y-2 pt-1">
+                                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                                      Action Checklist ({seoAnalysis.items.filter((i) => i.passed).length}/{seoAnalysis.items.length})
+                                    </span>
+                                    <div className="space-y-1.5 max-h-[460px] overflow-y-auto custom-scrollbar pr-1">
+                                      {seoAnalysis.items.map((item) => (
+                                        <div
+                                          key={item.id}
+                                          className="flex items-start gap-2.5 text-xs p-2 rounded-lg bg-card border border-border/60 shadow-2xs"
+                                        >
+                                          {item.passed ? (
+                                            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                                          ) : (
+                                            <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                                          )}
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex items-center justify-between">
+                                              <span
+                                                className={`font-bold ${
+                                                  item.passed ? "text-foreground" : "text-foreground/90"
+                                                }`}
+                                              >
+                                                {item.label}
+                                              </span>
+                                              <span className="text-[11px] font-bold text-muted-foreground shrink-0 pl-2">
+                                                {item.score}/{item.maxScore}
+                                              </span>
+                                            </div>
+                                            <p className="text-[11px] text-muted-foreground leading-normal mt-0.5">
+                                              {item.message}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  {/* Readability Diagnostic Details */}
+                                  {seoAnalysis.readability && (
+                                    <div className="p-3 bg-muted/20 border border-border/60 rounded-xl space-y-1.5 text-xs">
+                                      <span className="font-bold text-[11px] uppercase tracking-wider text-muted-foreground block">
+                                        Readability Diagnostics
+                                      </span>
+                                      <div className="grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
+                                        <div>Avg. sentence: <strong className="text-foreground">{seoAnalysis.readability.avgSentenceLength}</strong> words</div>
+                                        <div>Avg. syllables: <strong className="text-foreground">{seoAnalysis.readability.avgSyllablesPerWord}</strong>/word</div>
+                                        <div>Long sentences: <strong className="text-foreground">{seoAnalysis.readability.longSentences}</strong></div>
+                                        <div>Long paragraphs: <strong className="text-foreground">{seoAnalysis.readability.longParagraphs}</strong></div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Sidebar Settings Column - Strictly Real-Time SEO */}
-            <div className="shrink-0 h-full overflow-y-auto pb-8 pr-2 custom-scrollbar w-full lg:w-95">
+            {/* Sidebar Column - Table of Contents & Article Insights */}
+            <div className="shrink-0 h-full overflow-y-auto pb-8 pr-1 custom-scrollbar w-full lg:w-72 xl:w-80">
               <div className="space-y-4">
-                {/* SEO & Meta */}
+                {/* Table of Contents Card */}
                 <div className="border border-border rounded-xl bg-card shadow-sm overflow-hidden">
-                  <div className="flex w-full items-center justify-between p-4 text-sm font-bold text-foreground border-b border-border bg-accent/20">
-                    SEO &amp; Meta
+                  <div className="flex w-full items-center justify-between p-3.5 text-xs font-bold uppercase tracking-wider text-foreground border-b border-border bg-accent/20">
+                    <span className="flex items-center gap-2">
+                      <ListTree className="w-4 h-4 text-primary" />
+                      Table of Contents
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-muted text-muted-foreground border border-border">
+                      {tocItems.length}
+                    </span>
                   </div>
-                  <div className="p-4 space-y-5">
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <Label
-                          htmlFor="slug"
-                          className="text-xs font-bold uppercase tracking-wider text-muted-foreground block"
-                        >
-                          URL Slug <span className="text-destructive">*</span>
-                        </Label>
-                        {errors.slug && (
-                          <span className="text-[11px] font-semibold text-destructive flex items-center gap-1">
-                            <AlertCircle className="w-3 h-3" />
-                            {errors.slug.message}
-                          </span>
+
+                  <div className="p-3">
+                    {tocItems.length === 0 ? (
+                      <div className="py-6 px-3 text-center space-y-2 text-muted-foreground">
+                        <ListTree className="w-8 h-8 mx-auto opacity-30" />
+                        <p className="text-xs font-semibold text-foreground">No Headings Yet</p>
+                        <p className="text-[11px] leading-relaxed">
+                          Add H2, H3, or H4 subheadings in the Article Content tab to automatically build your outline.
+                        </p>
+                        {editorTab !== "content" && (
+                          <button
+                            type="button"
+                            onClick={() => setEditorTab("content")}
+                            className="text-[11px] font-bold text-primary hover:underline cursor-pointer inline-block mt-1"
+                          >
+                            Go to Article Content &rarr;
+                          </button>
                         )}
                       </div>
-                      <Controller
-                        name="slug"
-                        control={control}
-                        render={({ field }) => (
-                          <Input
-                            id="slug"
-                            value={field.value || ""}
-                            onChange={(e) => {
-                              field.onChange(e);
-                              if (errors.slug) clearErrors("slug");
-                            }}
-                            className={`text-sm ${
-                              errors.slug ? "border-destructive focus-visible:ring-destructive" : ""
-                            }`}
-                            placeholder="the-future-of-nextjs"
-                          />
-                        )}
-                      />
-                    </div>
+                    ) : (
+                      <div className="space-y-1 max-h-[calc(100vh-360px)] overflow-y-auto custom-scrollbar pr-1">
+                        {tocItems.map((item) => {
+                          const paddingLeft =
+                            item.level === 1
+                              ? "pl-1"
+                              : item.level === 2
+                              ? "pl-3"
+                              : item.level === 3
+                              ? "pl-6"
+                              : "pl-9";
 
-                    {/* Google Search Preview */}
-                    <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm font-sans space-y-1 mb-2">
-                      <div className="flex items-center gap-2 mb-1 text-[12px] text-gray-700">
-                        <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-                          <Search className="w-3.5 h-3.5 text-gray-500" />
-                        </div>
-                        <div>
-                          <span className="block font-medium">YS Innovations</span>
-                          <span className="block text-gray-500 text-[11px] truncate w-60">
-                            {process.env.NEXT_PUBLIC_APP_URL || "https://ysinnovations.com"}/blogs/
-                            {slug || "slug"}
-                          </span>
-                        </div>
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => handleTocClick(item)}
+                              className={`w-full text-left py-1.5 px-2 rounded-md text-xs transition-all flex items-center gap-2 group hover:bg-muted/70 cursor-pointer ${paddingLeft}`}
+                              title={item.text}
+                            >
+                              <span className="text-[10px] font-bold px-1 py-0.2 rounded bg-muted/80 text-muted-foreground group-hover:text-foreground shrink-0 select-none">
+                                H{item.level}
+                              </span>
+                              <span className="truncate flex-1 text-foreground/90 group-hover:text-foreground">
+                                {item.text}
+                              </span>
+                            </button>
+                          );
+                        })}
                       </div>
-                      <h3 className="text-[18px] text-[#1a0dab] hover:underline cursor-pointer truncate font-medium">
-                        {metaTitle || title || "SEO Title Preview"}
-                      </h3>
-                      <p className="text-[13px] text-[#4d5156] line-clamp-2 leading-snug">
-                        {metaDesc ||
-                          excerpt ||
-                          "Write an engaging meta description that encourages users to click through to your content from search engines."}
-                      </p>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <Label
-                          htmlFor="metaTitle"
-                          className="text-xs font-bold uppercase tracking-wider text-muted-foreground"
-                        >
-                          Meta Title
-                        </Label>
-                        {errors.metaTitle && (
-                          <span className="text-[11px] font-semibold text-destructive">
-                            {errors.metaTitle.message}
-                          </span>
-                        )}
-                      </div>
-                      <Controller
-                        name="metaTitle"
-                        control={control}
-                        render={({ field }) => (
-                          <Input
-                            id="metaTitle"
-                            value={field.value || ""}
-                            onChange={(e) => {
-                              field.onChange(e);
-                              if (errors.metaTitle) clearErrors("metaTitle");
-                            }}
-                            placeholder="SEO Title (50-60 chars)"
-                            className={`mt-1 text-sm ${errors.metaTitle ? "border-destructive" : ""}`}
-                          />
-                        )}
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <Label
-                          htmlFor="metaDesc"
-                          className="text-xs font-bold uppercase tracking-wider text-muted-foreground"
-                        >
-                          Meta Description
-                        </Label>
-                        {errors.metaDesc && (
-                          <span className="text-[11px] font-semibold text-destructive">
-                            {errors.metaDesc.message}
-                          </span>
-                        )}
-                      </div>
-                      <Controller
-                        name="metaDesc"
-                        control={control}
-                        render={({ field }) => (
-                          <textarea
-                            id="metaDesc"
-                            className={`flex min-h-20 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 mt-1 ${
-                              errors.metaDesc
-                                ? "border-destructive focus-visible:ring-destructive"
-                                : "border-input focus-visible:ring-ring"
-                            }`}
-                            value={field.value || ""}
-                            onChange={(e) => {
-                              field.onChange(e);
-                              if (errors.metaDesc) clearErrors("metaDesc");
-                            }}
-                            placeholder="SEO Description (150-160 chars)"
-                          />
-                        )}
-                      />
-                    </div>
-
-                    <div>
-                      <Label
-                        htmlFor="focusKeyword"
-                        className="text-xs font-bold uppercase tracking-wider text-muted-foreground"
-                      >
-                        Focus Keyword
-                      </Label>
-                      <Controller
-                        name="focusKeyword"
-                        control={control}
-                        render={({ field }) => (
-                          <Input
-                            id="focusKeyword"
-                            value={field.value || ""}
-                            onChange={field.onChange}
-                            placeholder="e.g. Next.js tutorial"
-                            className="mt-2 text-sm"
-                          />
-                        )}
-                      />
-                    </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Standalone SEO Health Advisor Card */}
-                <div className="border border-border rounded-xl bg-card shadow-sm overflow-hidden">
-                  <div className="flex w-full items-center justify-between p-4 text-sm font-bold text-foreground border-b border-border bg-accent/20">
-                    <span className="flex items-center gap-2">
-                      <Sparkles className={`w-4 h-4 text-primary ${isSeoCalculating ? "text-amber-500 animate-pulse" : ""}`} />
-                      SEO Health Advisor
-                    </span>
-                    {isSeoCalculating ? (
-                      <span className="text-[10px] font-semibold text-muted-foreground animate-pulse">
-                        Calculating...
+                {/* Article Insights & Quick Health Card */}
+                <div className="border border-border rounded-xl bg-card shadow-sm overflow-hidden p-4 space-y-3.5">
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                    Article Overview
+                  </span>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="p-2.5 rounded-lg bg-muted/40 border border-border/50">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                        Reading Time
                       </span>
-                    ) : seoAnalysis.hasKeyword ? (
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          seoAnalysis.score >= 80
-                            ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                            : seoAnalysis.score >= 50
-                            ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
-                            : "bg-red-500/10 text-red-500 border border-red-500/20"
-                        }`}
-                      >
-                        {seoAnalysis.score} / 100
+                      <span className="text-sm font-extrabold text-foreground mt-0.5 block">
+                        {readingTime} min
                       </span>
-                    ) : null}
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-muted/40 border border-border/50">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                        Word Count
+                      </span>
+                      <span className="text-sm font-extrabold text-foreground mt-0.5 block">
+                        {editorWordCount ?? seoAnalysis.wordCount}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className={`p-4 transition-opacity duration-200 ${isSeoCalculating ? "opacity-70" : "opacity-100"}`}>
-                    {!seoAnalysis.hasKeyword ? (
-                      <div className="rounded-xl border border-border/60 bg-muted/30 p-3.5 text-xs text-muted-foreground flex items-start gap-3">
-                        <Sparkles className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-sm font-bold text-foreground">Real-Time SEO Advisor</p>
-                          <p className="mt-1 text-xs leading-relaxed">
-                            Enter a focus keyword in the SEO &amp; Meta section above to analyze keyword density,
-                            search ranking factors, and on-page optimization.
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-3.5">
-                        {/* Header with Score & Progress Bar */}
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                              Overall Score
-                            </span>
-                            <span
-                              className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                                seoAnalysis.score >= 80
-                                  ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                                  : seoAnalysis.score >= 50
-                                  ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
-                                  : "bg-red-500/10 text-red-500 border border-red-500/20"
-                              }`}
-                            >
-                              {seoAnalysis.score} / 100 &bull;{" "}
-                              {seoAnalysis.score >= 80
-                                ? "Good"
-                                : seoAnalysis.score >= 50
-                                ? "Fair"
-                                : "Needs Work"}
-                            </span>
-                          </div>
+                  <div className="space-y-1.5 text-xs text-muted-foreground pt-1 border-t border-border/60">
+                    <div className="flex items-center justify-between py-0.5">
+                      <span>Subheadings:</span>
+                      <strong className="text-foreground">{tocItems.length}</strong>
+                    </div>
+                    <div className="flex items-center justify-between py-0.5">
+                      <span>Document Images:</span>
+                      <strong className="text-foreground">{extractedDoc.imageNodes.length}</strong>
+                    </div>
+                    <div className="flex items-center justify-between py-0.5">
+                      <span>Internal/External Links:</span>
+                      <strong className="text-foreground">{extractedDoc.linkNodes.length}</strong>
+                    </div>
+                  </div>
 
-                          {/* Animated Progress Bar */}
-                          <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all duration-500 ${
-                                seoAnalysis.score >= 80
-                                  ? "bg-emerald-500"
-                                  : seoAnalysis.score >= 50
-                                  ? "bg-amber-500"
-                                  : "bg-red-500"
-                              }`}
-                              style={{ width: `${Math.max(5, seoAnalysis.score)}%` }}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Keyword Density & Stats Badge */}
-                        <div className="grid grid-cols-2 gap-2 bg-muted/40 p-2.5 rounded-xl border border-border/40 text-center">
-                          <div>
-                            <span className="block text-xs text-muted-foreground uppercase font-semibold tracking-wide">
-                              Density
-                            </span>
-                            <span
-                              className={`text-base font-extrabold flex items-center justify-center gap-1 mt-0.5 ${
-                                seoAnalysis.densityStatus === "optimal"
-                                  ? "text-emerald-500"
-                                  : seoAnalysis.densityStatus === "high"
-                                  ? "text-red-500"
-                                  : "text-amber-500"
-                              }`}
-                            >
-                              {seoAnalysis.density}%
-                              <span className="text-xs font-normal opacity-80">
-                                ({seoAnalysis.keywordCount}x)
-                              </span>
-                            </span>
-                          </div>
-                          <div>
-                            <span className="block text-xs text-muted-foreground uppercase font-semibold tracking-wide">
-                              Words
-                            </span>
-                            <span className="text-base font-extrabold text-foreground mt-0.5 block">
-                              {seoAnalysis.wordCount}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Checklist */}
-                        <div className="space-y-2.5 pt-1">
-                          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
-                            Search Engine Checklist
-                          </span>
-                          <div className="space-y-2">
-                            {seoAnalysis.items.map((item) => (
-                              <div
-                                key={item.id}
-                                className="flex items-start gap-2.5 text-xs sm:text-[13px] leading-snug py-0.5"
-                              >
-                                {item.passed ? (
-                                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                                ) : (
-                                  <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                                )}
-                                <div className="flex-1 min-w-0">
-                                  <span
-                                    className={`font-semibold ${
-                                      item.passed ? "text-foreground" : "text-muted-foreground"
-                                    }`}
-                                  >
-                                    {item.label}
-                                  </span>
-                                  <p className="text-xs text-muted-foreground leading-normal mt-0.5">
-                                    {item.message}
-                                  </p>
-                                </div>
-                                <span className="text-xs font-bold text-muted-foreground shrink-0 pl-1">
-                                  {item.score}/{item.maxScore}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                  {/* Mini SEO Shortcut */}
+                  <div className="pt-2 border-t border-border/60">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-semibold text-foreground">SEO Health</span>
+                      {seoAnalysis.hasKeyword ? (
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            seoAnalysis.score >= 80
+                              ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                              : seoAnalysis.score >= 50
+                              ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                              : "bg-red-500/10 text-red-500 border border-red-500/20"
+                          }`}
+                        >
+                          {seoAnalysis.score} / 100
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground italic">No Keyword</span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditorTab("seo")}
+                      className="w-full text-center py-1.5 px-3 rounded-md text-xs font-semibold bg-muted hover:bg-muted/80 text-foreground border border-border transition-all cursor-pointer flex items-center justify-center gap-1"
+                    >
+                      <span>Open SEO &amp; Meta Tab</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               </div>

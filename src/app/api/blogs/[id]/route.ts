@@ -20,7 +20,10 @@ export async function GET(
     return NextResponse.json({ error: "Blog not found" }, { status: 404 });
   }
 
-  return NextResponse.json(blog);
+  return NextResponse.json({
+    ...blog,
+    previewSecret: process.env.PREVIEW_SECRET || "",
+  });
 }
 
 // PUT /api/blogs/[id] — update a blog
@@ -41,7 +44,26 @@ export async function PUT(
 
 
   const body = await request.json();
-  const { title, slug, content, isTrashed, featuredImage, allowComments, tags, categories, excerpt, metaTitle, metaDesc, focusKeyword, action } = body;
+  const {
+    title,
+    slug,
+    content,
+    isTrashed,
+    featuredImage,
+    allowComments,
+    tags,
+    categories,
+    excerpt,
+    metaTitle,
+    metaDesc,
+    focusKeyword,
+    ogImage,
+    ogTitle,
+    ogDesc,
+    canonicalUrl,
+    noIndex,
+    action,
+  } = body;
   let { status } = body;
 
   // Validate action payload with Zod
@@ -83,20 +105,40 @@ export async function PUT(
   }
 
   // Handle SEO data if any SEO field is provided
-  const seoData = (metaTitle !== undefined || metaDesc !== undefined || focusKeyword !== undefined) 
+  const hasSeoFields =
+    metaTitle !== undefined ||
+    metaDesc !== undefined ||
+    focusKeyword !== undefined ||
+    ogImage !== undefined ||
+    ogTitle !== undefined ||
+    ogDesc !== undefined ||
+    canonicalUrl !== undefined ||
+    noIndex !== undefined;
+
+  const seoData = hasSeoFields
     ? {
         upsert: {
           create: {
             metaTitle: metaTitle || "",
             metaDesc: metaDesc || "",
             focusKeyword: focusKeyword || "",
+            ogImage: ogImage || "",
+            ogTitle: ogTitle || "",
+            ogDesc: ogDesc || "",
+            canonicalUrl: canonicalUrl || "",
+            noIndex: Boolean(noIndex),
           },
           update: {
             ...(metaTitle !== undefined && { metaTitle }),
             ...(metaDesc !== undefined && { metaDesc }),
             ...(focusKeyword !== undefined && { focusKeyword }),
-          }
-        }
+            ...(ogImage !== undefined && { ogImage }),
+            ...(ogTitle !== undefined && { ogTitle }),
+            ...(ogDesc !== undefined && { ogDesc }),
+            ...(canonicalUrl !== undefined && { canonicalUrl }),
+            ...(noIndex !== undefined && { noIndex }),
+          },
+        },
       }
     : undefined;
 
