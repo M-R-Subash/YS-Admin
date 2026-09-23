@@ -60,7 +60,9 @@ export interface BlogFormContextValue {
   handleTocClick: (item: TocItem) => void;
 
   // Actions
-  handleSave: (publishStatus: "draft" | "published", shouldExit?: boolean) => Promise<void>;
+  handleSave: (publishStatus: "draft" | "published", shouldExit?: boolean) => Promise<boolean>;
+  handlePreview: () => Promise<void>;
+  isPreviewSaving: boolean;
   handleDiscardDraft: () => Promise<void>;
   discarding: boolean;
 

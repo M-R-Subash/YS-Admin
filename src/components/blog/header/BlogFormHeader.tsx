@@ -38,6 +38,8 @@ export function BlogFormHeader() {
     isFullscreen,
     setIsFullscreen,
     handleSave,
+    handlePreview,
+    isPreviewSaving,
     setShowExitConfirm,
     watch,
   } = useBlogForm();
@@ -125,28 +127,21 @@ export function BlogFormHeader() {
             <Button
               variant="outline"
               type="button"
-              onClick={() => {
-                if (!slug) {
-                  toast.add({
-                    title: "Slug Required",
-                    description: "Please enter a URL slug in the SEO tab to preview this post.",
-                    type: "warning",
-                  });
-                  return;
-                }
-                const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || "http://localhost:3001";
-                const previewUrl = previewSecret
-                  ? `${frontendUrl}/api/draft?secret=${previewSecret}&slug=/blogs/${slug}`
-                  : `${frontendUrl}/blogs/${slug}`;
-                window.open(previewUrl, "_blank", "noopener,noreferrer");
-              }}
-              className="h-9 w-9 p-0 rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer flex items-center justify-center"
+              disabled={isPreviewSaving || isSubmitting}
+              onClick={handlePreview}
+              className="h-9 w-9 p-0 rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
             >
-              <Eye className="w-4 h-4 text-muted-foreground" />
+              {isPreviewSaving ? (
+                <Loader2 className="w-4 h-4 animate-spin text-primary" />
+              ) : (
+                <Eye className="w-4 h-4 text-muted-foreground" />
+              )}
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom">
-            <p className="text-xs">Preview draft (opens new tab)</p>
+            <p className="text-xs">
+              {isPreviewSaving ? "Saving draft for live preview..." : "Live preview (auto-saves draft)"}
+            </p>
           </TooltipContent>
         </Tooltip>
 

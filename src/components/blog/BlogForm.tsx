@@ -70,6 +70,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   const [seoPreviewMode, setSeoPreviewMode] = useState<"google" | "social">("google");
   const [editorWordCount, setEditorWordCount] = useState<number | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isPreviewSaving, setIsPreviewSaving] = useState(false);
 
   const {
     control,
@@ -310,7 +311,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   // Refs for keyboard shortcuts (to avoid stale closures)
   const isDirtyOrFilledRef = useRef(isDirtyOrFilled);
   isDirtyOrFilledRef.current = isDirtyOrFilled;
-  const handleSaveRef = useRef<(status: "draft" | "published", shouldExit?: boolean) => Promise<void>>(null!);
+  const handleSaveRef = useRef<(status: "draft" | "published", shouldExit?: boolean) => Promise<boolean>>(null!);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -578,7 +579,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     }
   };
 
-  const handleSave = async (publishStatus: "draft" | "published", shouldExit: boolean = false) => {
+  const handleSave = async (publishStatus: "draft" | "published", shouldExit: boolean = false): Promise<boolean> => {
     clearErrors();
 
     const currentValues = getValues();
@@ -652,14 +653,14 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         description: firstIssue?.message || "Please fix the required fields.",
         type: "error",
       });
-      return;
+      return false;
     }
 
     const isPublishingStagedDraft = publishStatus === "published" && (hasCloudDraft || loadedFromBackup);
     const isStatusChanged = isEditMode && publishStatus !== status;
     if (!isDirtyOrFilled && !isStatusChanged && !isPublishingStagedDraft) {
       toast.add({ title: "No Changes", description: "No changes detected to save.", type: "info" });
-      return;
+      return true;
     }
 
     setIsSubmitting(true);
@@ -757,18 +758,82 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         localStorage.removeItem(backupKey);
       } catch {}
 
+      // Cross-tab auto-sync for open preview tabs
+      const activeId = blogId || responseData?.id;
+      if (activeId) {
+        try {
+          const channel = new BroadcastChannel(`blog_preview_${activeId}`);
+          channel.postMessage({
+            type: "BLOG_DRAFT_UPDATED",
+            id: activeId,
+            slug: currentValues.slug,
+          });
+          channel.close();
+        } catch (err) {
+          console.warn("[live-preview] Could not broadcast draft update", err);
+        }
+      }
+
       if (shouldExit) {
         router.push("/blogs");
       } else if (!isEditMode && responseData && responseData.id) {
         router.replace(`/blogs/${responseData.id}`);
       }
+      return true;
     } catch (error: any) {
       toast.add({ title: "Error", description: error.message, type: "error" });
+      return false;
     } finally {
       setIsSubmitting(false);
     }
   };
   handleSaveRef.current = handleSave;
+
+  // Auto-Save and Open/Focus Live Preview tab
+  const handlePreview = async () => {
+    const currentSlug = (getValues("slug") || "").trim();
+    if (!currentSlug) {
+      toast.add({
+        title: "Slug Required",
+        description: "Please enter a URL slug in the SEO tab to preview this post.",
+        type: "warning",
+      });
+      setEditorTab("seo");
+      return;
+    }
+
+    let activeId = blogId;
+
+    // Auto-save latest draft if dirty or not yet created
+    if (isDirtyOrFilled || !isEditMode) {
+      setIsPreviewSaving(true);
+      toast.add({
+        title: "Preparing Live Preview",
+        description: "Saving latest draft for preview...",
+        type: "info",
+      });
+      const saveOk = await handleSave("draft", false);
+      setIsPreviewSaving(false);
+      if (!saveOk) return;
+      activeId = blogId || activeId;
+    }
+
+    if (!activeId) {
+      toast.add({
+        title: "Preview Error",
+        description: "Please save the blog draft once to initialize the preview.",
+        type: "error",
+      });
+      return;
+    }
+
+    const previewUrl = `/blogs/preview/${activeId}`;
+    const targetWindowName = `blog_preview_${activeId}`;
+    const win = window.open(previewUrl, targetWindowName);
+    if (win) {
+      win.focus();
+    }
+  };
 
   const contextValue: BlogFormContextValue = {
     control,
@@ -809,6 +874,8 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     handleTocClick,
 
     handleSave,
+    handlePreview,
+    isPreviewSaving,
     handleDiscardDraft,
     discarding,
 
