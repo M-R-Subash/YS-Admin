@@ -55,13 +55,11 @@ export function FullscreenPreviewWorkspace({
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Fetch metadata to obtain slug & previewSecret
+  // Fetch metadata directly
   useEffect(() => {
     if (!id) return;
 
     let isMounted = true;
-    setLoading(true);
-    setError(null);
 
     fetch(fetchEndpoint)
       .then(async (res) => {
@@ -77,6 +75,7 @@ export function FullscreenPreviewWorkspace({
       .then((item: PreviewItemData) => {
         if (!isMounted) return;
         setData(item);
+        setError(null);
         setLoading(false);
       })
       .catch((err) => {
@@ -198,10 +197,9 @@ export function FullscreenPreviewWorkspace({
 
   const itemPath = getItemPath(data.slug);
   const normalizedPath = itemPath.startsWith("/") ? itemPath : `/${itemPath}`;
-  const previewSecret = data.previewSecret || "";
-  const iframeSrc = `${frontendUrl}${normalizedPath}?preview=true&secret=${encodeURIComponent(
-    previewSecret
-  )}`;
+  const iframeSrc = `${frontendUrl}${normalizedPath}?preview=true${
+    data.previewSecret ? `&secret=${encodeURIComponent(data.previewSecret)}` : ""
+  }`;
   const livePublicUrl = `${frontendUrl}${normalizedPath}`;
 
   return (

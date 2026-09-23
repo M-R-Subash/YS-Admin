@@ -22,7 +22,6 @@ import {
   DropdownMenuItem,
   DropdownMenuShortcut,
 } from "@/components/ui/dropdown-menu";
-import { toast } from "@/components/ui/toast";
 import { useBlogForm } from "../context/BlogFormContext";
 
 export function BlogFormHeader() {
@@ -34,7 +33,6 @@ export function BlogFormHeader() {
     hasCloudDraft,
     loadedFromBackup,
     lastSavedAt,
-    previewSecret,
     isFullscreen,
     setIsFullscreen,
     handleSave,
@@ -45,7 +43,6 @@ export function BlogFormHeader() {
   } = useBlogForm();
 
   const status = watch("status");
-  const slug = watch("slug");
 
   return (
     <header className="flex items-center justify-between px-6 py-4 border-b border-border bg-card shrink-0 shadow-sm z-50 relative">

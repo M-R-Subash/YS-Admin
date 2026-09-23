@@ -23,7 +23,6 @@ import {
   DropdownMenuItem,
   DropdownMenuShortcut,
 } from "@/components/ui/dropdown-menu";
-import { toast } from "@/components/ui/toast";
 import { useBlogForm } from "../context/BlogFormContext";
 
 export function BlogFullscreenToolbar() {
@@ -34,7 +33,6 @@ export function BlogFullscreenToolbar() {
     hasCloudDraft,
     loadedFromBackup,
     lastSavedAt,
-    previewSecret,
     isFullscreen,
     setIsFullscreen,
     editorTab,
@@ -47,7 +45,6 @@ export function BlogFullscreenToolbar() {
   } = useBlogForm();
 
   const status = watch("status");
-  const slug = watch("slug");
 
   return (
     <div

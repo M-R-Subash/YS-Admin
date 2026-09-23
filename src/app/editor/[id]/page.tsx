@@ -641,7 +641,7 @@ export default function EditorPage({
                   : page.slug.startsWith("/")
                     ? page.slug
                     : `/${page.slug}`
-              }?preview=true&secret=${page.previewSecret || ""}`}
+              }?preview=true${page.previewSecret ? `&secret=${encodeURIComponent(page.previewSecret)}` : ""}`}
               className="w-full h-full border-0"
               onLoad={handleIframeLoad}
             />

@@ -63,7 +63,6 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   const [hasCloudDraft, setHasCloudDraft] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
-  const [previewSecret, setPreviewSecret] = useState<string>("");
 
   // Tabs & Fullscreen state
   const [editorTab, setEditorTab] = useState<BlogEditorTab>("general");
@@ -112,8 +111,10 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   const featuredImage = watchedValues.featuredImage ?? null;
   const allowComments = watchedValues.allowComments ?? true;
   const status = watchedValues.status ?? "draft";
-  const tags = watchedValues.tags ?? [];
-  const categories = watchedValues.categories ?? [];
+  const rawTags = watchedValues.tags;
+  const tags = useMemo(() => rawTags ?? [], [rawTags]);
+  const rawCategories = watchedValues.categories;
+  const categories = useMemo(() => rawCategories ?? [], [rawCategories]);
   const excerpt = watchedValues.excerpt ?? "";
   const metaTitle = watchedValues.metaTitle ?? "";
   const metaDesc = watchedValues.metaDesc ?? "";
@@ -124,7 +125,8 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   const canonicalUrl = watchedValues.canonicalUrl ?? "";
   const noIndex = watchedValues.noIndex ?? false;
   const content = watchedValues.content;
-  const faqs = watchedValues.faqs ?? [];
+  const rawFaqs = watchedValues.faqs;
+  const faqs = useMemo(() => rawFaqs ?? [], [rawFaqs]);
 
   // Deferred values for non-blocking background SEO calculation
   const deferredContent = useDeferredValue(content);
@@ -310,8 +312,11 @@ export default function BlogForm({ blogId }: BlogFormProps) {
 
   // Refs for keyboard shortcuts (to avoid stale closures)
   const isDirtyOrFilledRef = useRef(isDirtyOrFilled);
-  isDirtyOrFilledRef.current = isDirtyOrFilled;
   const handleSaveRef = useRef<(status: "draft" | "published", shouldExit?: boolean) => Promise<boolean>>(null!);
+
+  useEffect(() => {
+    isDirtyOrFilledRef.current = isDirtyOrFilled;
+  }, [isDirtyOrFilled]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -378,9 +383,6 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           : data;
 
         setHasCloudDraft(Boolean(data.draftContent));
-        if (data.previewSecret) {
-          setPreviewSecret(data.previewSecret);
-        }
 
         const blogTags = Array.isArray(initialPayload.tags)
           ? initialPayload.tags
@@ -787,7 +789,10 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       setIsSubmitting(false);
     }
   };
-  handleSaveRef.current = handleSave;
+
+  useEffect(() => {
+    handleSaveRef.current = handleSave;
+  });
 
   // Auto-Save and Open/Focus Live Preview tab
   const handlePreview = async () => {
@@ -858,7 +863,6 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     loadedFromBackup,
     lastSavedAt,
 
-    previewSecret,
     seoPreviewMode,
     setSeoPreviewMode,
     editorWordCount,

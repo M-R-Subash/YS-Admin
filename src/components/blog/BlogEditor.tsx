@@ -22,7 +22,6 @@ import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import Youtube from "@tiptap/extension-youtube";
 import Typography from "@tiptap/extension-typography";
-import { Node, mergeAttributes } from "@tiptap/core";
 import {
   Bold,
   Italic,
@@ -61,8 +60,7 @@ import {
   CheckSquare,
   Video as YoutubeIcon,
   ChevronDown,
-  Maximize2,
-  ChevronsUpDown
+  Maximize2
 } from "lucide-react";
 import { ImageUploadBlock } from "@/components/ImageUploadBlock";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";

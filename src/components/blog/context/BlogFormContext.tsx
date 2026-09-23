@@ -43,7 +43,6 @@ export interface BlogFormContextValue {
   lastSavedAt: string | null;
 
   // SEO & Preview
-  previewSecret: string;
   seoPreviewMode: "google" | "social";
   setSeoPreviewMode: (mode: "google" | "social") => void;
   editorWordCount: number | null;
