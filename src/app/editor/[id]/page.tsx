@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ExternalLink, RotateCw, Check, Cloud } from "lucide-react";
+import { ChevronLeft, ExternalLink, RotateCw, Check, Cloud, Eye } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import type { PageData } from "@/types";
 import SchemaEditor, { SchemaEditorRef } from "@/components/admin/SchemaEditor";
@@ -211,6 +211,19 @@ export default function EditorPage({
           { type: config.previewType, content: contentPayload },
           targetOrigin,
         );
+      }
+
+      // Broadcast to any open full screen preview tab
+      if (pageId) {
+        try {
+          const channel = new BroadcastChannel(`page_preview_${pageId}`);
+          channel.postMessage({
+            type: "PAGE_DRAFT_UPDATED",
+            id: pageId,
+            content: contentPayload,
+          });
+          channel.close();
+        } catch {}
       }
 
       toast.add({
@@ -502,6 +515,20 @@ export default function EditorPage({
             <span>View Live</span>
             <ExternalLink className="w-3.5 h-3.5 text-zinc-600" />
           </a>
+
+          {/* Full Screen Live Preview */}
+          <button
+            type="button"
+            onClick={() => {
+              if (!pageId) return;
+              window.open(`/webpages/preview/${pageId}`, `page_preview_${pageId}`);
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-zinc-700 hover:text-black bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 rounded-sm transition-all shadow-xs cursor-pointer"
+            title="Open Full Screen Responsive Live Preview with 3 Breakpoints"
+          >
+            <Eye className="w-3.5 h-3.5 text-zinc-600" />
+            <span>Live Preview</span>
+          </button>
 
           {/* Save Draft Button (Cloud DB) */}
           <button

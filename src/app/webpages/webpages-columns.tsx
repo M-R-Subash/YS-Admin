@@ -104,6 +104,13 @@ export const ActionCell = ({ page, onDataChange }: { page: Page; onDataChange: (
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => {
+                    window.open(`/webpages/preview/${page.id}`, `page_preview_${page.id}`);
+                  }}
+                >
+                  Live Preview
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
                     const baseUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
                     const pageSlug = page.slug === "/" ? "" : page.slug.startsWith("/") ? page.slug : `/${page.slug}`;
                     window.open(`${baseUrl}${pageSlug}?nocache=${Date.now()}`, "_blank");

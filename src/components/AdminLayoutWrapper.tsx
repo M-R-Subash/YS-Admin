@@ -12,6 +12,7 @@ export function AdminLayoutWrapper({ children }: { children: React.ReactNode }) 
     pathname?.startsWith("/blogs/edit") ||
     pathname?.startsWith("/blogs/create") ||
     pathname?.startsWith("/blogs/preview") ||
+    pathname?.startsWith("/webpages/preview") ||
     pathname?.startsWith("/header") ||
     pathname?.startsWith("/footer") ||
     pathname === "/login"
