@@ -179,7 +179,7 @@ export function FullscreenPreviewWorkspace({
             </Link>
             <button
               onClick={() => window.location.reload()}
-              className="px-4 py-2 text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-zinc-950 rounded-lg transition-colors font-bold"
+              className="px-4 py-2 text-xs font-bold bg-amber-500 hover:bg-amber-400 text-zinc-950 rounded-lg transition-colors"
             >
               Retry
             </button>
@@ -221,7 +221,7 @@ export function FullscreenPreviewWorkspace({
 
           <div className="flex items-center gap-2 min-w-0">
             {titleIcon}
-            <span className="text-xs font-semibold text-zinc-200 truncate max-w-[240px] md:max-w-[400px]">
+            <span className="text-xs font-semibold text-zinc-200 truncate max-w-60 md:max-w-100">
               {data.title || `Untitled ${itemTypeLabel}`}
             </span>
           </div>
@@ -319,8 +319,8 @@ export function FullscreenPreviewWorkspace({
             viewport === "desktop"
               ? "w-full rounded-none md:rounded-xl ring-0 md:ring-1 md:ring-white/10"
               : viewport === "tablet"
-                ? "w-[768px] max-w-full rounded-xl ring-1 ring-white/15"
-                : "w-[390px] max-w-full rounded-xl ring-1 ring-white/15"
+                ? "w-3xl max-w-full rounded-xl ring-1 ring-white/15"
+                : "w-97.5 max-w-full rounded-xl ring-1 ring-white/15"
           }`}
         >
           {/* Iframe Loading Overlay */}
