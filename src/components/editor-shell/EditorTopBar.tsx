@@ -2,68 +2,101 @@
 
 import React from "react";
 import {
-  ChevronLeft,
-  ExternalLink,
-  Eye,
-  Cloud,
-  Check,
+  ArrowLeft,
   Loader2,
+  Send,
+  Save,
+  Eye,
+  Maximize2,
+  Minimize2,
+  CheckCircle2,
+  ChevronDown,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuShortcut,
+} from "@/components/ui/dropdown-menu";
 
 export interface EditorTopBarProps {
   title: string;
-  slug?: string;
+  subtitle?: string;
   status: string; // "draft" | "published"
+  isEditMode?: boolean;
   hasCloudDraft?: boolean;
+  loadedFromBackup?: boolean;
   isDirty?: boolean;
   lastSavedAt?: string | null;
+
+  // Navigation
   onBack: () => void;
   backTitle?: string;
-  viewLiveUrl?: string;
+
+  // Live Preview (Fullscreen Workspace)
   onPreview?: () => void;
-  isPreviewLoading?: boolean;
-  previewLabel?: string;
-  onSaveDraft?: () => void;
-  isSavingDraft?: boolean;
-  canSaveDraft?: boolean;
-  onPublish?: () => void;
+  isPreviewSaving?: boolean;
+  previewTooltip?: string;
+
+  // Fullscreen toggle (optional)
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
+
+  // Save / Publish
+  onPublish: () => void;
   isPublishing?: boolean;
   canPublish?: boolean;
   publishLabel?: string;
+
+  onSaveDraft?: () => void;
+  isSavingDraft?: boolean;
+  canSaveDraft?: boolean;
+
+  // Extra action slot
   extraActions?: React.ReactNode;
   className?: string;
 }
 
 export function EditorTopBar({
   title,
-  slug,
+  subtitle,
   status,
+  isEditMode = true,
   hasCloudDraft = false,
+  loadedFromBackup = false,
   isDirty = false,
   lastSavedAt = null,
   onBack,
   backTitle = "Back",
-  viewLiveUrl,
   onPreview,
-  isPreviewLoading = false,
-  previewLabel = "Live Preview",
-  onSaveDraft,
-  isSavingDraft = false,
-  canSaveDraft = true,
+  isPreviewSaving = false,
+  previewTooltip,
+  isFullscreen,
+  onToggleFullscreen,
   onPublish,
   isPublishing = false,
   canPublish = true,
   publishLabel,
+  onSaveDraft,
+  isSavingDraft = false,
+  canSaveDraft = true,
   extraActions,
   className = "",
 }: EditorTopBarProps) {
   const isPublished = status === "published";
-  const defaultPublishLabel = isPublished ? "Publish Changes" : "Publish Page";
+  const defaultPublishLabel = isPublished
+    ? hasCloudDraft || loadedFromBackup
+      ? "Publish"
+      : "Update"
+    : "Publish";
   const effectivePublishLabel = publishLabel || defaultPublishLabel;
 
   return (
     <header
-      className={`flex items-center justify-between px-6 py-3.5 border-b border-border bg-card shrink-0 shadow-sm z-10 ${className}`}
+      className={`flex items-center justify-between px-6 py-4 border-b border-border bg-card shrink-0 shadow-sm z-50 relative ${className}`}
     >
       {/* Left: Back & Title & Draft Status Badge */}
       <div className="flex items-center gap-4 min-w-0">
@@ -73,7 +106,7 @@ export function EditorTopBar({
           className="p-2 rounded-sm bg-black border border-black hover:bg-zinc-800 transition-all text-white shadow-sm cursor-pointer shrink-0"
           title={backTitle}
         >
-          <ChevronLeft className="w-4.5 h-4.5" strokeWidth={2.5} />
+          <ArrowLeft className="w-4.5 h-4.5" strokeWidth={2.5} />
         </button>
 
         <div className="min-w-0">
@@ -82,9 +115,9 @@ export function EditorTopBar({
               {title || "Untitled"}
             </h1>
 
-            {/* Status Badge */}
-            {hasCloudDraft ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-xs shrink-0">
+            {/* Dynamic Status Badges matching Blog editor design */}
+            {isEditMode && status === "draft" ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-xs shrink-0">
                 <span
                   className={`w-1.5 h-1.5 rounded-full bg-amber-500 ${
                     isDirty ? "animate-pulse" : ""
@@ -96,103 +129,158 @@ export function EditorTopBar({
                     ? `Draft · Saved ${lastSavedAt}`
                     : "Draft Saved"}
               </span>
-            ) : isPublished ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-xs shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                {isDirty ? "Live · Unsaved" : "Live Published"}
-              </span>
-            ) : (
+            ) : isEditMode && status === "published" ? (
+              hasCloudDraft || loadedFromBackup ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-xs shrink-0">
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full bg-amber-500 ${
+                      isDirty ? "animate-pulse" : ""
+                    }`}
+                  />
+                  {isDirty ? "Live · Unsaved Edits" : "Live · Draft Staged"}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-xs shrink-0">
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full bg-emerald-500 ${
+                      isDirty ? "animate-pulse" : ""
+                    }`}
+                  />
+                  {isDirty ? "Unsaved Changes" : "Live Published"}
+                </span>
+              )
+            ) : !isEditMode ? (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-zinc-100 text-zinc-700 border border-zinc-300 shadow-xs shrink-0">
-                {isDirty ? "Unsaved Edits" : "Draft"}
+                Draft
               </span>
-            )}
+            ) : null}
           </div>
 
-          {slug !== undefined && (
-            <p className="text-xs text-zinc-600 font-medium truncate">
-              Slug : {slug}
+          {subtitle && (
+            <p className="text-xs text-black font-medium mt-1 truncate">
+              {subtitle}
             </p>
           )}
         </div>
       </div>
 
-      {/* Right: Actions */}
-      <div className="flex items-center gap-3 shrink-0">
-        {/* External Live Site Link */}
-        {viewLiveUrl && (
-          <a
-            href={viewLiveUrl}
-            onClick={(e) => {
-              e.preventDefault();
-              const separator = viewLiveUrl.includes("?") ? "&" : "?";
-              window.open(`${viewLiveUrl}${separator}nocache=${Date.now()}`, "_blank");
-            }}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-zinc-700 hover:text-black bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 rounded-sm transition-all shadow-xs cursor-pointer"
-          >
-            <span>View Live</span>
-            <ExternalLink className="w-3.5 h-3.5 text-zinc-600" />
-          </a>
-        )}
+      {/* Right: Autosave status + Preview + Fullscreen + Split Publish Button */}
+      <div className="flex items-center gap-2 shrink-0">
+        {/* Autosave Status Indicator */}
+        <div className="hidden md:flex items-center gap-1.5 text-[11px] font-medium mr-1">
+          {isPublishing || isSavingDraft ? (
+            <span className="flex items-center gap-1.5 text-muted-foreground">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Saving...
+            </span>
+          ) : isDirty ? (
+            <span className="flex items-center gap-1.5 text-amber-600">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+              Unsaved changes
+            </span>
+          ) : lastSavedAt ? (
+            <span className="flex items-center gap-1.5 text-emerald-600">
+              <CheckCircle2 className="w-3 h-3" />
+              Saved {lastSavedAt}
+            </span>
+          ) : null}
+        </div>
 
-        {/* Live Preview Button */}
+        {/* Live Preview Button (Icon-Only with Tooltip) */}
         {onPreview && (
-          <button
-            type="button"
-            onClick={onPreview}
-            disabled={isPreviewLoading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-zinc-700 hover:text-black bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 rounded-sm transition-all shadow-xs cursor-pointer disabled:opacity-50"
-            title="Open Live Preview"
-          >
-            {isPreviewLoading ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-600" />
-            ) : (
-              <Eye className="w-3.5 h-3.5 text-zinc-600" />
-            )}
-            <span>{previewLabel}</span>
-          </button>
+          <Tooltip>
+            <TooltipTrigger>
+              <Button
+                variant="outline"
+                type="button"
+                disabled={isPreviewSaving || isPublishing || isSavingDraft}
+                onClick={onPreview}
+                className="h-9 w-9 p-0 rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
+              >
+                {isPreviewSaving ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                ) : (
+                  <Eye className="w-4 h-4 text-muted-foreground" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p className="text-xs">
+                {isPreviewSaving
+                  ? "Saving draft for live preview..."
+                  : previewTooltip || "Live preview (auto-saves draft)"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
         )}
 
-        {/* Save Draft Button */}
-        {onSaveDraft && (
-          <button
-            type="button"
-            onClick={onSaveDraft}
-            disabled={isSavingDraft || isPublishing || !canSaveDraft}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-sm border transition-all ${
-              isSavingDraft || isPublishing || !canSaveDraft
-                ? "bg-zinc-100 text-zinc-400 border-zinc-200 cursor-not-allowed"
-                : "bg-white hover:bg-zinc-50 text-zinc-800 border-zinc-300 shadow-xs cursor-pointer"
-            }`}
-          >
-            <Cloud className="w-3.5 h-3.5" />
-            <span>{isSavingDraft ? "Saving..." : "Save Draft"}</span>
-          </button>
+        {/* Fullscreen Toggle Button (Icon-Only, lg+ only) */}
+        {onToggleFullscreen && (
+          <Tooltip>
+            <TooltipTrigger>
+              <Button
+                variant="outline"
+                type="button"
+                onClick={onToggleFullscreen}
+                className="hidden lg:flex h-9 w-9 p-0 rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer items-center justify-center"
+              >
+                {isFullscreen ? (
+                  <Minimize2 className="w-4 h-4 text-muted-foreground" />
+                ) : (
+                  <Maximize2 className="w-4 h-4 text-muted-foreground" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p className="text-xs">
+                {isFullscreen ? "Exit fullscreen (Esc)" : "Enter fullscreen"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
         )}
 
-        {/* Publish Changes Button */}
-        {onPublish && (
-          <button
-            type="button"
+        {/* Split Publish Button with Save Draft Dropdown */}
+        <div className="flex items-center">
+          <Button
             onClick={onPublish}
             disabled={isPublishing || isSavingDraft || !canPublish}
-            className={`inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-sm shadow-sm transition-all ${
-              isPublishing || isSavingDraft || !canPublish
-                ? "bg-black/40 text-white/70 cursor-not-allowed"
-                : "bg-black hover:bg-zinc-800 text-white cursor-pointer hover:scale-[1.01]"
-            }`}
+            className="flex items-center gap-2 h-9 px-4 text-xs font-bold rounded-sm rounded-r-none shadow-md transition-all hover:scale-[1.02] bg-black hover:bg-black/90 text-white disabled:opacity-50 cursor-pointer"
           >
             {isPublishing ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <Check className="w-3.5 h-3.5" />
+              <Send className="w-4 h-4" />
             )}
-            <span>{isPublishing ? "Publishing..." : effectivePublishLabel}</span>
-          </button>
-        )}
+            {effectivePublishLabel}
+          </Button>
 
-        {/* Custom Actions (Fullscreen button, Dropdowns, Tabs, etc.) */}
+          {onSaveDraft && (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    type="button"
+                    className="h-9 w-8 p-0 rounded-sm rounded-l-none border-l border-white/20 bg-black hover:bg-black/90 text-white shadow-md cursor-pointer flex items-center justify-center"
+                  />
+                }
+              >
+                <ChevronDown className="w-3.5 h-3.5" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" side="bottom" sideOffset={6} className="w-44">
+                <DropdownMenuItem
+                  onClick={onSaveDraft}
+                  disabled={isPublishing || isSavingDraft || !canSaveDraft}
+                  className="cursor-pointer"
+                >
+                  <Save className="w-4 h-4 mr-2 text-muted-foreground" />
+                  Save Draft
+                  <DropdownMenuShortcut>⌘S</DropdownMenuShortcut>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+
         {extraActions}
       </div>
     </header>

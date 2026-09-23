@@ -85,6 +85,7 @@ export default function EditorPage({
   const [discarding, setDiscarding] = useState(false);
   const [reloadingIframe, setReloadingIframe] = useState(false);
   const [iframeLoading, setIframeLoading] = useState(true);
+  const [isPreviewSaving, setIsPreviewSaving] = useState(false);
 
   // Dialog states
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -168,8 +169,8 @@ export default function EditorPage({
   });
 
   // Action 1: Save Draft to Cloud Database
-  async function handleSaveDraft() {
-    if (!page) return;
+  const handleSaveDraft = useCallback(async (): Promise<boolean> => {
+    if (!page) return false;
     setSavingDraft(true);
     const contentPayload = schemaEditorRef.current?.getData() ?? schemaData;
 
@@ -227,6 +228,7 @@ export default function EditorPage({
         description: "Your changes are safely saved. The live website hasn't been updated yet.",
         type: "success",
       });
+      return true;
     } catch (error: any) {
       console.error("Save draft error:", error);
       toast.add({
@@ -234,10 +236,35 @@ export default function EditorPage({
         description: "Please check your connection and try again.",
         type: "error",
       });
+      return false;
     } finally {
       setSavingDraft(false);
     }
-  }
+  }, [clearBackup, page, pageId, schemaData, targetOrigin]);
+
+  // Auto-Save and Open/Focus Live Preview tab (identical to Blog Editor)
+  const handlePreview = useCallback(async () => {
+    if (!pageId) return;
+
+    if (isUnsavedChanges) {
+      setIsPreviewSaving(true);
+      toast.add({
+        title: "Preparing Live Preview",
+        description: "Saving latest draft for preview...",
+        type: "info",
+      });
+      const saveOk = await handleSaveDraft();
+      setIsPreviewSaving(false);
+      if (!saveOk) return;
+    }
+
+    const previewUrl = `/webpages/preview/${pageId}`;
+    const targetWindowName = `page_preview_${pageId}`;
+    const win = window.open(previewUrl, targetWindowName);
+    if (win) {
+      win.focus();
+    }
+  }, [handleSaveDraft, isUnsavedChanges, pageId]);
 
   // Action 1B: Save Draft and immediately exit to Webpages
   async function handleSaveDraftAndExit() {
@@ -306,6 +333,39 @@ export default function EditorPage({
       setPublishing(false);
     }
   }
+
+  // Keyboard shortcuts (Cmd+S / Ctrl+S → Save Draft, Cmd+Shift+P / Ctrl+Shift+P → Publish)
+  const isUnsavedChangesRef = useRef(isUnsavedChanges);
+  const handleSaveDraftRef = useRef(handleSaveDraft);
+  const handlePublishRef = useRef(handlePublish);
+
+  useEffect(() => {
+    isUnsavedChangesRef.current = isUnsavedChanges;
+    handleSaveDraftRef.current = handleSaveDraft;
+    handlePublishRef.current = handlePublish;
+  });
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+S / Cmd+S → Save Draft
+      if ((e.ctrlKey || e.metaKey) && e.key === "s" && !e.shiftKey) {
+        e.preventDefault();
+        if (!savingDraft && isUnsavedChangesRef.current) {
+          handleSaveDraftRef.current();
+        }
+      }
+      // Ctrl+Shift+P / Cmd+Shift+P → Publish
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "P") {
+        e.preventDefault();
+        if (!publishing) {
+          handlePublishRef.current();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [savingDraft, publishing]);
 
   // Action 3: Discard Draft
   async function handleDiscardDraft() {
@@ -422,9 +482,10 @@ export default function EditorPage({
 
       {/* Top Header Bar */}
       <EditorTopBar
-        title={page.title}
-        slug={page.slug}
+        title={page.title || "Edit Webpage"}
+        subtitle={page.slug ? `Slug : ${page.slug}` : "Make changes to your webpage."}
         status={page.status}
+        isEditMode={true}
         hasCloudDraft={hasCloudDraft}
         isDirty={isUnsavedChanges}
         lastSavedAt={lastSavedAt}
@@ -436,24 +497,21 @@ export default function EditorPage({
           }
         }}
         backTitle="Back to Webpages"
-        viewLiveUrl={`${targetOrigin}${
-          page.slug === "/"
-            ? ""
-            : page.slug.startsWith("/")
-              ? page.slug
-              : `/${page.slug}`
-        }`}
-        onPreview={() => {
-          if (!pageId) return;
-          window.open(`/webpages/preview/${pageId}`, `page_preview_${pageId}`);
-        }}
-        onSaveDraft={handleSaveDraft}
-        isSavingDraft={savingDraft}
-        canSaveDraft={isUnsavedChanges}
+        onPreview={handlePreview}
+        isPreviewSaving={isPreviewSaving}
         onPublish={handlePublish}
         isPublishing={publishing}
-        canPublish={isDirtyFromLive || hasCloudDraft || isUnsavedChanges}
-        publishLabel={page.status === "published" ? "Publish Changes" : "Publish Page"}
+        canPublish={!publishing && (isDirtyFromLive || hasCloudDraft || isUnsavedChanges)}
+        publishLabel={
+          page.status === "published"
+            ? hasCloudDraft
+              ? "Publish"
+              : "Update"
+            : "Publish"
+        }
+        onSaveDraft={handleSaveDraft}
+        isSavingDraft={savingDraft}
+        canSaveDraft={!savingDraft && isUnsavedChanges}
       />
 
       {/* Editor + Preview Split Panels */}
