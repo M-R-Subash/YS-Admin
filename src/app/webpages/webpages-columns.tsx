@@ -1,230 +1,47 @@
 "use client";
 
-import { useState } from "react";
 import { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { Page } from "@/types";
-import { toast } from "@/components/ui/toast";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuGroup,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { TrashConfirmationModal } from "@/components/ui/trash-confirmation-modal";
-import { useTrashManager } from "@/hooks/useTrashManager";
 import { SeoQuickEditModal } from "@/components/admin/SeoQuickEditModal";
-
-function formatDate(dateStr: string) {
-  if (!dateStr) return "N/A";
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
+import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
+import { StatusBadge } from "@/components/admin/StatusBadge";
+import { SeoStatusBadge } from "@/components/admin/SeoStatusBadge";
+import { ContentActionCell } from "@/components/admin/ContentActionCell";
+import { formatDate } from "@/lib/utils";
 
 // Action Component
 export const ActionCell = ({ page, onDataChange }: { page: Page; onDataChange: () => void }) => {
-  const router = useRouter();
-  const [seoOpen, setSeoOpen] = useState(false);
-
-  const { modal, loading, openTrashModal, closeModal, handleConfirm } =
-    useTrashManager({
-      itemType: "webpage",
-      onSuccess: async () => {
-        onDataChange();
-      },
-    });
-
-  const onModalConfirm = () => {
-    handleConfirm(async (type, item, id) => {
-      if (type === "trash") {
-        const res = await fetch(`/api/pages/${id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isTrashed: true, status: "draft" }),
-        });
-        if (!res.ok) throw new Error();
-        toast.add({ title: "Page moved to trash", type: "success" });
-      } else if (type === "restore") {
-        const res = await fetch(`/api/pages/${id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isTrashed: false, status: "draft" }),
-        });
-        if (!res.ok) throw new Error();
-        toast.add({ title: "Page restored as draft", type: "success" });
-      } else if (type === "delete") {
-        const res = await fetch(`/api/pages/${id}`, { method: "DELETE" });
-        if (!res.ok) throw new Error();
-        toast.add({ title: "Page permanently deleted", type: "success" });
-      } else if (type === "unapprove") {
-        const res = await fetch(`/api/pages/${id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "draft" }),
-        });
-        if (!res.ok) throw new Error();
-        toast.add({ title: "Page set to draft", type: "success" });
-      } else if (type === "approve") {
-        const res = await fetch(`/api/pages/${id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "published" }),
-        });
-        if (!res.ok) throw new Error();
-        toast.add({ title: "Page published successfully", type: "success" });
-      }
-    });
-  };
+  const baseUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || "";
+  const pageSlug = page.slug === "/" ? "" : page.slug.startsWith("/") ? page.slug : `/${page.slug}`;
 
   return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger render={<Button variant="ghost" className="h-8 w-8 p-0 cursor-pointer" />}>
-          <span className="sr-only">Open menu</span>
-          <MoreHorizontal className="h-4 w-4" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          {!page.isTrashed ? (
-            <>
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => router.push(`/editor/${page.id}`)}>
-                  Edit (Builder)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSeoOpen(true)}>
-                  Quick Edit (SEO)
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    window.open(`/webpages/preview/${page.id}`, `page_preview_${page.id}`);
-                  }}
-                >
-                  Live Preview
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    const baseUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
-                    const pageSlug = page.slug === "/" ? "" : page.slug.startsWith("/") ? page.slug : `/${page.slug}`;
-                    window.open(`${baseUrl}${pageSlug}?nocache=${Date.now()}`, "_blank");
-                  }}
-                >
-                  View Page
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                {page.status === "published" ? (
-                  <DropdownMenuItem onClick={() => openTrashModal("unapprove", page, page.id, page.title)}>
-                    Move to Draft
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem onClick={() => openTrashModal("approve", page, page.id, page.title)}>
-                    Set as Published
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem onClick={() => openTrashModal("trash", page, page.id, page.title)} className="text-red-500 focus:text-red-500 focus:bg-red-50">
-                  Move to Trash
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </>
-          ) : (
-            <>
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Trash Actions</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => openTrashModal("restore", page, page.id, page.title)}>
-                  Restore
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => openTrashModal("delete", page, page.id, page.title)} className="text-red-500 focus:text-red-500 focus:bg-red-50">
-                  Permanently Delete
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {/* Centralized Trash & Action Confirmation Modal */}
-      <TrashConfirmationModal
-        open={modal.isOpen}
-        onOpenChange={(open) => !open && closeModal()}
-        type={modal.type}
-        itemName={modal.targetName}
-        itemType="webpage"
-        loading={loading}
-        onConfirm={onModalConfirm}
-      />
-
-      {seoOpen && (
+    <ContentActionCell
+      item={page}
+      itemType="webpage"
+      apiEndpoint="/api/pages"
+      editUrl={`/editor/${page.id}`}
+      previewUrl={`/webpages/preview/${page.id}`}
+      publicUrl={baseUrl ? `${baseUrl}${pageSlug}` : undefined}
+      publicUrlLabel="View Page"
+      quickEditLabel="Quick Edit (SEO)"
+      renderQuickEditModal={({ isOpen, onClose, onSaved }) => (
         <SeoQuickEditModal
           pageId={page.id}
-          isOpen={seoOpen}
-          onClose={() => setSeoOpen(false)}
-          onSaved={onDataChange}
+          isOpen={isOpen}
+          onClose={onClose}
+          onSaved={onSaved}
           initialData={page}
         />
       )}
-    </>
+      onDataChange={onDataChange}
+    />
   );
 };
-
-function calculateSeoStatus(seo: any) {
-  if (!seo) return { label: "Bad", variant: "destructive" };
-
-  const coreFields = [seo.metaTitle, seo.metaDesc, seo.focusKeyword, seo.ogImage].filter(Boolean);
-  const coreCount = coreFields.length;
-
-  if (coreCount <= 1) {
-    return { label: "Bad", variant: "destructive" };
-  }
-
-  const titleLen = seo.metaTitle?.length || 0;
-  const descLen = seo.metaDesc?.length || 0;
-
-  if (titleLen >= 40 && titleLen <= 60 && descLen >= 120 && descLen <= 160) {
-    return { label: "Good", variant: "success" };
-  }
-
-  if (coreCount >= 2) {
-    return { label: "Medium", variant: "warning" };
-  }
-
-  return { label: "Needs Improvement", variant: "default" };
-}
 
 export const getWebpagesColumns = (onDataChange: () => void): ColumnDef<Page>[] => [
   {
     accessorKey: "title",
-    header: ({ column }) => {
-      const isSorted = column.getIsSorted();
-      return (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ml-3 h-8 px-2 font-bold hover:bg-muted/80 text-foreground cursor-pointer flex items-center gap-1.5"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          <span>Title</span>
-          {isSorted === "asc" ? (
-            <ArrowUp className="h-3.5 w-3.5 text-primary" />
-          ) : isSorted === "desc" ? (
-            <ArrowDown className="h-3.5 w-3.5 text-primary" />
-          ) : (
-            <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/60" />
-          )}
-        </Button>
-      );
-    },
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Title" />,
     sortingFn: (rowA, rowB, columnId) => {
       const valA = (rowA.getValue(columnId) as string || "").toLowerCase();
       const valB = (rowB.getValue(columnId) as string || "").toLowerCase();
@@ -248,45 +65,14 @@ export const getWebpagesColumns = (onDataChange: () => void): ColumnDef<Page>[] 
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => {
-      const status: string = row.getValue("status");
-      return (
-        <span
-          className={`text-xs px-2.5 py-1 rounded-sm font-bold uppercase tracking-wider ${
-            status === "published"
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted text-muted-foreground"
-          }`}
-        >
-          {status}
-        </span>
-      );
-    },
+    cell: ({ row }) => <StatusBadge status={row.getValue("status")} />,
   },
-
   {
     id: "seoStatus",
     header: "SEO Status",
     cell: ({ row }) => {
       const page = row.original as any;
-      const status = calculateSeoStatus(page.seo);
-      
-      let badgeClasses = "text-xs px-2.5 py-1 rounded-sm font-semibold border";
-      if (status.variant === "destructive") {
-        badgeClasses += " bg-red-100 text-red-700 border-red-200";
-      } else if (status.variant === "warning") {
-        badgeClasses += " bg-yellow-100 text-yellow-700 border-yellow-200";
-      } else if (status.variant === "success") {
-        badgeClasses += " bg-green-100 text-green-700 border-green-200";
-      } else {
-        badgeClasses += " bg-orange-100 text-orange-700 border-orange-200";
-      }
-
-      return (
-        <span className={badgeClasses}>
-          {status.label}
-        </span>
-      );
+      return <SeoStatusBadge seo={page.seo} />;
     },
   },
   {
@@ -299,61 +85,23 @@ export const getWebpagesColumns = (onDataChange: () => void): ColumnDef<Page>[] 
   },
   {
     accessorKey: "createdAt",
-    header: ({ column }) => {
-      const isSorted = column.getIsSorted();
-      return (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ml-3 h-8 px-2 font-bold hover:bg-muted/80 text-foreground cursor-pointer flex items-center gap-1.5"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          <span>Created Date</span>
-          {isSorted === "asc" ? (
-            <ArrowUp className="h-3.5 w-3.5 text-primary" />
-          ) : isSorted === "desc" ? (
-            <ArrowDown className="h-3.5 w-3.5 text-primary" />
-          ) : (
-            <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/60" />
-          )}
-        </Button>
-      );
-    },
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Created Date" />,
     sortingFn: (rowA, rowB, columnId) => {
       const timeA = rowA.getValue(columnId) ? new Date(rowA.getValue(columnId) as string).getTime() : 0;
       const timeB = rowB.getValue(columnId) ? new Date(rowB.getValue(columnId) as string).getTime() : 0;
       return timeA - timeB;
     },
-    cell: ({ row }) => <div className="text-muted-foreground">{formatDate(row.getValue("createdAt"))}</div>,
+    cell: ({ row }) => <div className="text-muted-foreground text-xs">{formatDate(row.getValue("createdAt"))}</div>,
   },
   {
     accessorKey: "updatedAt",
-    header: ({ column }) => {
-      const isSorted = column.getIsSorted();
-      return (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ml-3 h-8 px-2 font-bold hover:bg-muted/80 text-foreground cursor-pointer flex items-center gap-1.5"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          <span>Last Updated</span>
-          {isSorted === "asc" ? (
-            <ArrowUp className="h-3.5 w-3.5 text-primary" />
-          ) : isSorted === "desc" ? (
-            <ArrowDown className="h-3.5 w-3.5 text-primary" />
-          ) : (
-            <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/60" />
-          )}
-        </Button>
-      );
-    },
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Last Updated" />,
     sortingFn: (rowA, rowB, columnId) => {
       const timeA = rowA.getValue(columnId) ? new Date(rowA.getValue(columnId) as string).getTime() : 0;
       const timeB = rowB.getValue(columnId) ? new Date(rowB.getValue(columnId) as string).getTime() : 0;
       return timeA - timeB;
     },
-    cell: ({ row }) => <div className="text-muted-foreground">{formatDate(row.getValue("updatedAt"))}</div>,
+    cell: ({ row }) => <div className="text-muted-foreground text-xs">{formatDate(row.getValue("updatedAt"))}</div>,
   },
   {
     id: "actions",
