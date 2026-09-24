@@ -21,14 +21,7 @@ import {
   Check,
   Undo2,
 } from "lucide-react";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-} from "@/components/ui/breadcrumb";
-import { Separator } from "@/components/ui/separator";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { AdminTopBar } from "@/components/AdminTopBar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -276,62 +269,47 @@ export default function NotificationsPage() {
     <TooltipProvider>
       <div className="h-screen flex flex-col bg-background overflow-hidden">
         {/* Top Bar Header */}
-        <header className="sticky top-0 z-30 bg-background flex h-16 shrink-0 items-center justify-between px-4 border-b">
-          <div className="flex items-center gap-2">
-            <SidebarTrigger className="-ml-1" />
-            <Separator
-              orientation="vertical"
-              className="mr-2 data-vertical:h-4 data-vertical:self-auto h-4"
-            />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbPage className="flex items-center gap-2 text-foreground">
-                    <span>Form Submissions & Notifications</span>
-                  </BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-
-          {/* Counter Pills & Refresh Tooltip */}
-          <div className="flex items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <button
-                    onClick={handleRefresh}
-                    className="p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+        <AdminTopBar
+          breadcrumbs="Notifications"
+          actions={
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      onClick={handleRefresh}
+                      className="p-1.5 sm:p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    />
+                  }
+                >
+                  <RefreshCw
+                    className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isRefreshing || loading ? "animate-spin" : ""}`}
                   />
-                }
-              >
-                <RefreshCw
-                  className={`w-4 h-4 ${isRefreshing || loading ? "animate-spin" : ""}`}
-                />
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Refresh Submissions</TooltipContent>
-            </Tooltip>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Refresh Submissions</TooltipContent>
+              </Tooltip>
 
-            <Badge variant="outline" className="text-xs bg-card px-3 py-1">
-              Total:{" "}
-              <span className="font-bold ml-1 text-foreground">
-                {totalCount}
-              </span>
-            </Badge>
-
-            {unreadCount > 0 && (
-              <Badge className="text-xs bg-black text-white dark:bg-white dark:text-black px-3 py-1 font-bold">
-                {unreadCount} Unread
+              <Badge variant="outline" className="text-xs bg-card px-2.5 py-1">
+                Total:{" "}
+                <span className="font-bold ml-1 text-foreground">
+                  {totalCount}
+                </span>
               </Badge>
-            )}
 
-            {trashedCount > 0 && (
-              <Badge variant="outline" className="text-xs border-red-300 text-red-600 dark:text-red-400 px-3 py-1 font-bold">
-                {trashedCount} Trashed
-              </Badge>
-            )}
-          </div>
-        </header>
+              {unreadCount > 0 && (
+                <Badge className="text-xs bg-black text-white dark:bg-white dark:text-black px-2.5 py-1 font-bold">
+                  {unreadCount} Unread
+                </Badge>
+              )}
+
+              {trashedCount > 0 && (
+                <Badge variant="outline" className="text-xs border-red-300 text-red-600 dark:text-red-400 px-2.5 py-1 font-bold">
+                  {trashedCount} Trashed
+                </Badge>
+              )}
+            </div>
+          }
+        />
 
         {/* Main Split-Pane Inbox */}
         <div className="flex-1 overflow-hidden">

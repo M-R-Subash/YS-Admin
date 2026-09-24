@@ -3,17 +3,10 @@
 import { useState } from "react";
 import useSWR, { mutate as globalMutate } from "swr";
 import Link from "next/link";
-import { Search, PenTool, Plus, ExternalLink, BookOpen, CheckCircle2, FileEdit, Trash2 } from "lucide-react";
+import { Search, PenTool, Plus, BookOpen, CheckCircle2, FileEdit, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-} from "@/components/ui/breadcrumb";
-import { Separator } from "@/components/ui/separator";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { AdminTopBar } from "@/components/AdminTopBar";
 
 import { DataTable } from "@/components/ui/data-table";
 import { getBlogsColumns } from "./blogs-columns";
@@ -53,40 +46,10 @@ export default function BlogsPage() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 bg-background flex h-16 shrink-0 items-center justify-between px-4 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 border-b">
-        <div className="flex items-center gap-2">
-          <SidebarTrigger className="-ml-1" />
-          <Separator
-            orientation="vertical"
-            className="mr-2 data-vertical:h-4 data-vertical:self-auto h-4"
-          />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbPage>Blogs</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-
-        <a
-          href={`${process.env.NEXT_PUBLIC_FRONTEND_URL}/blogs`}
-          onClick={(e) => {
-            e.preventDefault();
-            const siteUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
-            window.open(`${siteUrl}/blogs?nocache=${Date.now()}`, "_blank");
-          }}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold text-foreground bg-card hover:bg-accent border border-border rounded-sm transition-all shadow-xs cursor-pointer"
-        >
-          <span>View Blogs</span>
-          <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
-        </a>
-      </header>
+      <AdminTopBar breadcrumbs="Blogs" />
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col gap-6 p-6">
+      <div className="flex flex-1 flex-col gap-6 py-6 px-[15px] md:px-[20px] lg:px-[30px]">
         
         {/* 4 Status Metric Filter Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

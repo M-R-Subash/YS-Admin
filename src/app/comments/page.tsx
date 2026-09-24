@@ -23,14 +23,8 @@ import {
   Layers,
   ChevronRight,
 } from "lucide-react";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-} from "@/components/ui/breadcrumb";
+import { AdminTopBar } from "@/components/AdminTopBar";
 import { Separator } from "@/components/ui/separator";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
@@ -72,7 +66,13 @@ interface CommentItem {
   createdAt: string;
 }
 
-type ModalActionType = "approve" | "unapprove" | "trash" | "restore" | "delete" | "reply";
+type ModalActionType =
+  | "approve"
+  | "unapprove"
+  | "trash"
+  | "restore"
+  | "delete"
+  | "reply";
 
 interface ModalState {
   isOpen: boolean;
@@ -108,8 +108,10 @@ function CommentsPageContent() {
 
   // Selected blog & filters
   const [selectedBlogId, setSelectedBlogId] = useState<string>(initialBlogId);
-  const [filter, setFilter] = useState<"all" | "pending" | "approved" | "trashed">("all");
-  
+  const [filter, setFilter] = useState<
+    "all" | "pending" | "approved" | "trashed"
+  >("all");
+
   // Search queries
   const [searchQuery, setSearchQuery] = useState("");
   const [blogSearchQuery, setBlogSearchQuery] = useState("");
@@ -127,9 +129,16 @@ function CommentsPageContent() {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const isAuthorized = status === "authenticated" && session?.user?.role === "ADMIN";
-  const endpoint = isAuthorized ? `/api/comments?filter=${filter}&blogId=${selectedBlogId}` : null;
-  const { data: commentsData, isLoading: isCommentsLoading, mutate } = useSWR<CommentsResponse>(endpoint);
+  const isAuthorized =
+    status === "authenticated" && session?.user?.role === "ADMIN";
+  const endpoint = isAuthorized
+    ? `/api/comments?filter=${filter}&blogId=${selectedBlogId}`
+    : null;
+  const {
+    data: commentsData,
+    isLoading: isCommentsLoading,
+    mutate,
+  } = useSWR<CommentsResponse>(endpoint);
 
   const comments = commentsData?.comments ?? [];
   const blogsSummary = commentsData?.blogsSummary ?? [];
@@ -169,21 +178,18 @@ function CommentsPageContent() {
       if (type === "approve" || type === "unapprove") {
         const newStatus = type === "approve";
         // Optimistic Update directly in SWR cache
-        mutate(
-          (current) => {
-            if (!current) return current;
-            return {
-              ...current,
-              unapprovedCount: newStatus
-                ? Math.max(0, (current.unapprovedCount || 0) - 1)
-                : (current.unapprovedCount || 0) + 1,
-              comments: (current.comments || []).map((c) =>
-                c.id === targetComment.id ? { ...c, isApproved: newStatus } : c
-              ),
-            };
-          },
-          false
-        );
+        mutate((current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            unapprovedCount: newStatus
+              ? Math.max(0, (current.unapprovedCount || 0) - 1)
+              : (current.unapprovedCount || 0) + 1,
+            comments: (current.comments || []).map((c) =>
+              c.id === targetComment.id ? { ...c, isApproved: newStatus } : c,
+            ),
+          };
+        }, false);
 
         const res = await fetch(`/api/comments/${targetComment.id}`, {
           method: "PATCH",
@@ -196,21 +202,20 @@ function CommentsPageContent() {
           type: "success",
         });
       } else if (type === "trash") {
-        mutate(
-          (current) => {
-            if (!current) return current;
-            return {
-              ...current,
-              totalCount: Math.max(0, (current.totalCount || 0) - 1),
-              trashedCount: (current.trashedCount || 0) + 1,
-              unapprovedCount: !targetComment.isApproved
-                ? Math.max(0, (current.unapprovedCount || 0) - 1)
-                : current.unapprovedCount,
-              comments: (current.comments || []).filter((c) => c.id !== targetComment.id),
-            };
-          },
-          false
-        );
+        mutate((current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            totalCount: Math.max(0, (current.totalCount || 0) - 1),
+            trashedCount: (current.trashedCount || 0) + 1,
+            unapprovedCount: !targetComment.isApproved
+              ? Math.max(0, (current.unapprovedCount || 0) - 1)
+              : current.unapprovedCount,
+            comments: (current.comments || []).filter(
+              (c) => c.id !== targetComment.id,
+            ),
+          };
+        }, false);
 
         const res = await fetch(`/api/comments/${targetComment.id}`, {
           method: "PATCH",
@@ -220,21 +225,20 @@ function CommentsPageContent() {
         if (!res.ok) throw new Error();
         toast.add({ title: "Comment moved to Trash", type: "success" });
       } else if (type === "restore") {
-        mutate(
-          (current) => {
-            if (!current) return current;
-            return {
-              ...current,
-              totalCount: (current.totalCount || 0) + 1,
-              trashedCount: Math.max(0, (current.trashedCount || 0) - 1),
-              unapprovedCount: !targetComment.isApproved
-                ? (current.unapprovedCount || 0) + 1
-                : current.unapprovedCount,
-              comments: (current.comments || []).filter((c) => c.id !== targetComment.id),
-            };
-          },
-          false
-        );
+        mutate((current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            totalCount: (current.totalCount || 0) + 1,
+            trashedCount: Math.max(0, (current.trashedCount || 0) - 1),
+            unapprovedCount: !targetComment.isApproved
+              ? (current.unapprovedCount || 0) + 1
+              : current.unapprovedCount,
+            comments: (current.comments || []).filter(
+              (c) => c.id !== targetComment.id,
+            ),
+          };
+        }, false);
 
         const res = await fetch(`/api/comments/${targetComment.id}`, {
           method: "PATCH",
@@ -244,17 +248,16 @@ function CommentsPageContent() {
         if (!res.ok) throw new Error();
         toast.add({ title: "Comment restored from Trash", type: "success" });
       } else if (type === "delete") {
-        mutate(
-          (current) => {
-            if (!current) return current;
-            return {
-              ...current,
-              trashedCount: Math.max(0, (current.trashedCount || 0) - 1),
-              comments: (current.comments || []).filter((c) => c.id !== targetComment.id),
-            };
-          },
-          false
-        );
+        mutate((current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            trashedCount: Math.max(0, (current.trashedCount || 0) - 1),
+            comments: (current.comments || []).filter(
+              (c) => c.id !== targetComment.id,
+            ),
+          };
+        }, false);
 
         const res = await fetch(`/api/comments/${targetComment.id}`, {
           method: "DELETE",
@@ -277,16 +280,13 @@ function CommentsPageContent() {
         if (!res.ok) throw new Error("Failed to post reply");
 
         const data = await res.json();
-        mutate(
-          (current) => {
-            if (!current) return current;
-            return {
-              ...current,
-              comments: [data.comment, ...(current.comments || [])],
-            };
-          },
-          false
-        );
+        mutate((current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            comments: [data.comment, ...(current.comments || [])],
+          };
+        }, false);
         setReplyingToId(null);
         setReplyText("");
         toast.add({ title: "Admin reply published", type: "success" });
@@ -312,15 +312,13 @@ function CommentsPageContent() {
     const content = (c.content || "").toLowerCase();
 
     return (
-      name.includes(query) ||
-      email.includes(query) ||
-      content.includes(query)
+      name.includes(query) || email.includes(query) || content.includes(query)
     );
   });
 
   // Filter for Left Blog Sidebar
   const filteredBlogs = blogsSummary.filter((b) =>
-    b.title.toLowerCase().includes(blogSearchQuery.toLowerCase())
+    b.title.toLowerCase().includes(blogSearchQuery.toLowerCase()),
   );
 
   const selectedBlogInfo = blogsSummary.find((b) => b.id === selectedBlogId);
@@ -336,7 +334,12 @@ function CommentsPageContent() {
   const getModalConfig = () => {
     const { type, targetComment } = modal;
     if (!type || !targetComment) {
-      return { title: "", description: "", confirmText: "", actionClass: "bg-black hover:bg-black/90 text-white" };
+      return {
+        title: "",
+        description: "",
+        confirmText: "",
+        actionClass: "bg-black hover:bg-black/90 text-white",
+      };
     }
 
     switch (type) {
@@ -366,7 +369,8 @@ function CommentsPageContent() {
           title: "Restore Comment?",
           description: `Restore comment by "${targetComment.name}" back to active comments?`,
           confirmText: "Restore Comment",
-          actionClass: "bg-black hover:bg-black/90 text-white dark:bg-white dark:text-black",
+          actionClass:
+            "bg-black hover:bg-black/90 text-white dark:bg-white dark:text-black",
         };
       case "delete":
         return {
@@ -380,14 +384,18 @@ function CommentsPageContent() {
           title: "Publish Admin Reply?",
           description: `Publish official admin response to "${targetComment.name}"?`,
           confirmText: "Publish Reply",
-          actionClass: "bg-black hover:bg-black/90 text-white dark:bg-white dark:text-black",
+          actionClass:
+            "bg-black hover:bg-black/90 text-white dark:bg-white dark:text-black",
         };
     }
   };
 
   const modalConfig = getModalConfig();
 
-  if (status === "loading" || (status === "authenticated" && session?.user?.role !== "ADMIN")) {
+  if (
+    status === "loading" ||
+    (status === "authenticated" && session?.user?.role !== "ADMIN")
+  ) {
     return (
       <div className="flex flex-col gap-4 p-8">
         <Skeleton className="h-10 w-64" />
@@ -400,63 +408,53 @@ function CommentsPageContent() {
     <TooltipProvider>
       <div className="h-screen flex flex-col bg-background overflow-hidden">
         {/* Top Navigation Header */}
-        <header className="sticky top-0 z-30 bg-background flex h-16 shrink-0 items-center justify-between px-4 border-b">
-          <div className="flex items-center gap-2">
-            <SidebarTrigger className="-ml-1" />
-            <Separator
-              orientation="vertical"
-              className="mr-2 data-vertical:h-4 data-vertical:self-auto h-4"
-            />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbPage className="flex items-center gap-2 text-foreground">
-                    <span>Comments</span>
-                  </BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-
-          {/* Top Counter Badges & Refresh */}
-          <div className="flex items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <button
-                    onClick={handleRefresh}
-                    className="p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+        <AdminTopBar
+          breadcrumbs="Comments"
+          actions={
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      onClick={handleRefresh}
+                      className="p-1.5 sm:p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    />
+                  }
+                >
+                  <RefreshCw
+                    className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isRefreshing || loading ? "animate-spin" : ""}`}
                   />
-                }
-              >
-                <RefreshCw
-                  className={`w-4 h-4 ${isRefreshing || loading ? "animate-spin" : ""}`}
-                />
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Refresh Comments</TooltipContent>
-            </Tooltip>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Refresh Comments</TooltipContent>
+              </Tooltip>
 
-            <Badge variant="outline" className="text-xs bg-card px-3 py-1">
-              Total: <span className="font-bold ml-1 text-foreground">{totalCount}</span>
-            </Badge>
-
-            {unapprovedCount > 0 && (
-              <Badge className="text-xs bg-amber-500 text-white px-3 py-1 font-bold">
-                {unapprovedCount} Pending
+              <Badge variant="outline" className="text-xs bg-card px-2.5 py-1">
+                Total:{" "}
+                <span className="font-bold ml-1 text-foreground">
+                  {totalCount}
+                </span>
               </Badge>
-            )}
 
-            {trashedCount > 0 && (
-              <Badge variant="outline" className="text-xs border-red-300 text-red-600 dark:text-red-400 px-3 py-1 font-bold">
-                {trashedCount} Trashed
-              </Badge>
-            )}
-          </div>
-        </header>
+              {unapprovedCount > 0 && (
+                <Badge className="text-xs bg-amber-500 text-white px-2.5 py-1 font-bold">
+                  {unapprovedCount} Pending
+                </Badge>
+              )}
+
+              {trashedCount > 0 && (
+                <Badge
+                  variant="outline"
+                  className="text-xs border-red-300 text-red-600 dark:text-red-400 px-2.5 py-1 font-bold"
+                >
+                  {trashedCount} Trashed
+                </Badge>
+              )}
+            </div>
+          }
+        />
 
         {/* SPLIT MASTER-DETAIL LAYOUT */}
         <div className="flex-1 flex flex-col md:flex-row w-full overflow-hidden min-h-0">
-          
           {/* LEFT SIDEBAR: BLOGS MASTER LIST */}
           <aside className="w-full md:w-80 lg:w-96 shrink-0 border-r border-border bg-card/30 flex flex-col h-full overflow-hidden">
             {/* Sidebar Header & Search */}
@@ -495,16 +493,22 @@ function CommentsPageContent() {
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`w-8 h-8 rounded-sm flex items-center justify-center shrink-0 ${
-                    selectedBlogId === "all"
-                      ? "bg-white/20 text-white dark:bg-black/20 dark:text-black"
-                      : "bg-muted text-muted-foreground"
-                  }`}>
+                  <div
+                    className={`w-8 h-8 rounded-sm flex items-center justify-center shrink-0 ${
+                      selectedBlogId === "all"
+                        ? "bg-white/20 text-white dark:bg-black/20 dark:text-black"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
                     <MessageSquare className="w-4 h-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-bold truncate">All Blog Comments</p>
-                    <p className={`text-[11px] truncate ${selectedBlogId === "all" ? "opacity-80" : "text-muted-foreground"}`}>
+                    <p className="text-xs font-bold truncate">
+                      All Blog Comments
+                    </p>
+                    <p
+                      className={`text-[11px] truncate ${selectedBlogId === "all" ? "opacity-80" : "text-muted-foreground"}`}
+                    >
                       All discussions across site
                     </p>
                   </div>
@@ -532,7 +536,10 @@ function CommentsPageContent() {
               {loading && blogsSummary.length === 0 ? (
                 <div className="space-y-1.5 p-1">
                   {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="p-3 rounded-sm border border-border/50 bg-card/30 flex items-center justify-between">
+                    <div
+                      key={i}
+                      className="p-3 rounded-sm border border-border/50 bg-card/30 flex items-center justify-between"
+                    >
                       <div className="flex items-center gap-2.5 min-w-0 flex-1">
                         <Skeleton className="w-8 h-8 rounded-sm shrink-0" />
                         <div className="space-y-1.5 flex-1">
@@ -577,10 +584,13 @@ function CommentsPageContent() {
                           </p>
                           <p
                             className={`text-[11px] ${
-                              isSelected ? "opacity-80" : "text-muted-foreground"
+                              isSelected
+                                ? "opacity-80"
+                                : "text-muted-foreground"
                             }`}
                           >
-                            {b.totalComments} comment{b.totalComments === 1 ? "" : "s"}
+                            {b.totalComments} comment
+                            {b.totalComments === 1 ? "" : "s"}
                           </p>
                         </div>
                       </div>
@@ -608,7 +618,6 @@ function CommentsPageContent() {
 
           {/* RIGHT CONTENT PANEL: COMMENTS FEED FOR SELECTED BLOG */}
           <main className="flex-1 flex flex-col h-full overflow-hidden bg-background min-h-0">
-            
             {/* Top Fixed Control Panel */}
             <div className="p-6 pb-4 border-b border-border space-y-4 shrink-0 bg-background">
               {/* Header for Selected View */}
@@ -701,381 +710,402 @@ function CommentsPageContent() {
 
             {/* Moderation Cards Scrollable Feed */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-
-            {/* Moderation Cards Feed */}
-            {loading && comments.length === 0 ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="bg-card border border-border/70 rounded-sm p-5 shadow-xs space-y-4">
-                    {/* Header Skeleton: Author Avatar + Name + Context + Status Badge */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <Skeleton className="w-9 h-9 rounded-full shrink-0" />
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-2">
-                            <Skeleton className="h-4 w-28" />
-                            <Skeleton className="h-3 w-36" />
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Skeleton className="h-3 w-16" />
-                            <Skeleton className="h-3 w-40" />
-                          </div>
-                        </div>
-                      </div>
-                      <Skeleton className="h-5 w-24 rounded-full shrink-0" />
-                    </div>
-
-                    <Separator />
-
-                    {/* Comment Content Skeleton */}
-                    <div className="space-y-2">
-                      <Skeleton className="h-3.5 w-full" />
-                      <Skeleton className="h-3.5 w-5/6" />
-                      <Skeleton className="h-3.5 w-2/3" />
-                    </div>
-
-                    {/* Actions Skeleton */}
-                    <div className="flex items-center gap-2 pt-1">
-                      <Skeleton className="h-8 w-24 rounded-sm" />
-                      <Skeleton className="h-8 w-16 rounded-sm" />
-                      <Skeleton className="h-8 w-8 rounded-sm" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : rootComments.length === 0 ? (
-              <div className="p-16 text-center bg-card border rounded-2xl space-y-3">
-                <Inbox className="w-12 h-12 text-muted-foreground mx-auto opacity-50" />
-                <h3 className="text-base font-bold text-foreground">
-                  No comments found
-                </h3>
-                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                  {searchQuery
-                    ? "No comments match your search query."
-                    : filter === "trashed"
-                    ? "Trash is currently empty."
-                    : "No comments posted for this blog yet."}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {rootComments.map((comment) => {
-                  const relativeTime = formatDistanceToNow(
-                    new Date(comment.createdAt),
-                    { addSuffix: true }
-                  );
-                  const commentReplies = getRepliesForComment(comment.id);
-
-                  return (
+              {/* Moderation Cards Feed */}
+              {loading && comments.length === 0 ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
                     <div
-                      key={comment.id}
-                      className={`bg-card border rounded-sm p-5 shadow-xs transition-all space-y-4 relative ${
-                        comment.isTrashed
-                          ? "border-red-200 dark:border-red-900/40 bg-red-50/10 dark:bg-red-950/10"
-                          : !comment.isApproved
-                          ? "border-amber-200 dark:border-amber-900/50 bg-amber-50/20 dark:bg-amber-950/10"
-                          : "hover:border-primary/30"
-                      }`}
+                      key={i}
+                      className="bg-card border border-border/70 rounded-sm p-5 shadow-xs space-y-4"
                     >
-                      {/* Header: Author Info + Status Badge */}
+                      {/* Header Skeleton: Author Avatar + Name + Context + Status Badge */}
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-black text-white dark:bg-white dark:text-black flex items-center justify-center text-xs font-extrabold uppercase shrink-0">
-                            {comment.name.charAt(0)}
-                          </div>
-
-                          <div>
+                          <Skeleton className="w-9 h-9 rounded-full shrink-0" />
+                          <div className="space-y-1.5">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-bold text-foreground">
-                                {comment.name}
-                              </span>
-                              <span className="text-xs text-muted-foreground font-medium">
-                                &lt;{comment.email}&gt;
-                              </span>
+                              <Skeleton className="h-4 w-28" />
+                              <Skeleton className="h-3 w-36" />
                             </div>
-
-                            {/* Context Line: Blog Link */}
-                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground pt-0.5">
-                              <span>Posted on:</span>
-                              <a
-                                href={`/blogs/edit/${comment.blog?.id}`}
-                                className="font-bold text-foreground hover:underline flex items-center gap-1"
-                                title="Edit blog post in admin"
-                              >
-                                <span>{comment.blog?.title || "Unknown Blog"}</span>
-                                <ExternalLink className="w-3 h-3 text-muted-foreground" />
-                              </a>
-
-                              <span>&bull; {relativeTime}</span>
+                            <div className="flex items-center gap-2">
+                              <Skeleton className="h-3 w-16" />
+                              <Skeleton className="h-3 w-40" />
                             </div>
                           </div>
                         </div>
-
-                        {/* Status Badge */}
-                        <div className="shrink-0">
-                          {comment.isTrashed ? (
-                            <Badge className="bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800 text-xs font-bold px-2.5 py-0.5">
-                              Trashed
-                            </Badge>
-                          ) : comment.isApproved ? (
-                            <Badge className="bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-xs font-bold px-2.5 py-0.5">
-                              Approved
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800 text-xs font-bold px-2.5 py-0.5">
-                              Pending Approval
-                            </Badge>
-                          )}
-                        </div>
+                        <Skeleton className="h-5 w-24 rounded-full shrink-0" />
                       </div>
 
                       <Separator />
 
-                      {/* Comment Body Content */}
-                      <div className="text-sm text-foreground/90 font-medium leading-relaxed whitespace-pre-wrap">
-                        {comment.content}
+                      {/* Comment Content Skeleton */}
+                      <div className="space-y-2">
+                        <Skeleton className="h-3.5 w-full" />
+                        <Skeleton className="h-3.5 w-5/6" />
+                        <Skeleton className="h-3.5 w-2/3" />
                       </div>
 
-                      {/* NESTED CHILD REPLIES (Threaded UI) */}
-                      {commentReplies.length > 0 && (
-                        <div className="pt-2 space-y-3">
-                          <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                            <CornerDownRight className="w-3.5 h-3.5" />
-                            <span>Replies ({commentReplies.length})</span>
-                          </div>
-
-                          <div className="space-y-3">
-                            {commentReplies.map((reply) => {
-                              const replyTime = formatDistanceToNow(
-                                new Date(reply.createdAt),
-                                { addSuffix: true }
-                              );
-                              const isAdminReply = reply.name.includes("(Admin)");
-
-                              return (
-                                <div
-                                  key={reply.id}
-                                  className={`ml-4 sm:ml-8 p-4 rounded-sm border border-border/80 space-y-2 relative ${
-                                    isAdminReply
-                                      ? "bg-muted/40 border-l-4 border-l-black dark:border-l-white"
-                                      : "bg-background"
-                                  }`}
-                                >
-                                  <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                                        {isAdminReply && (
-                                          <ShieldCheck className="w-3.5 h-3.5 text-black dark:text-white" />
-                                        )}
-                                        {reply.name}
-                                      </span>
-                                      <span className="text-[11px] text-muted-foreground font-medium">
-                                        &lt;{reply.email}&gt;
-                                      </span>
-                                    </div>
-
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-[10px] text-muted-foreground">
-                                        {replyTime}
-                                      </span>
-                                      {/* Action button for reply */}
-                                      {filter === "trashed" ? (
-                                        <button
-                                          onClick={() => openConfirmModal("delete", reply)}
-                                          className="p-1 text-muted-foreground hover:text-red-600 transition-colors cursor-pointer"
-                                          title="Delete reply permanently"
-                                        >
-                                          <Trash2 className="w-3 h-3" />
-                                        </button>
-                                      ) : (
-                                        <button
-                                          onClick={() => openConfirmModal("trash", reply)}
-                                          className="p-1 text-muted-foreground hover:text-red-600 transition-colors cursor-pointer"
-                                          title="Move reply to trash"
-                                        >
-                                          <Trash2 className="w-3 h-3" />
-                                        </button>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  <p className="text-xs text-foreground/90 font-medium leading-relaxed whitespace-pre-wrap">
-                                    {reply.content}
-                                  </p>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Inline Reply Form */}
-                      {replyingToId === comment.id && (
-                        <div className="p-4 rounded-sm border border-border bg-muted/30 space-y-3">
-                          <div className="flex items-center justify-between text-xs font-bold text-foreground">
-                            <span className="flex items-center gap-1.5">
-                              <Reply className="w-3.5 h-3.5" />
-                              <span>Reply to {comment.name} as Admin</span>
-                            </span>
-                            <button
-                              onClick={() => {
-                                setReplyingToId(null);
-                                setReplyText("");
-                              }}
-                              className="text-muted-foreground hover:text-foreground text-xs"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-
-                          <textarea
-                            rows={3}
-                            placeholder="Type your official response..."
-                            value={replyText}
-                            onChange={(e) => setReplyText(e.target.value)}
-                            className="w-full p-3 bg-background border border-border rounded-sm text-xs font-medium focus:outline-none focus:border-accent transition-colors"
-                          />
-
-                          <div className="flex justify-end">
-                            <button
-                              onClick={() => openConfirmModal("reply", comment)}
-                              disabled={!replyText.trim()}
-                              className="px-4 py-2 bg-black hover:bg-black/90 text-white text-xs font-bold rounded-sm flex items-center gap-1.5 transition-all cursor-pointer shadow-xs disabled:opacity-50"
-                            >
-                              <Send className="w-3.5 h-3.5" />
-                              <span>Publish Reply</span>
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Footer Action Buttons */}
-                      <div className="flex items-center justify-end gap-2 pt-1">
-                        {filter === "trashed" ? (
-                          <>
-                            {/* Restore Button */}
-                            <Tooltip>
-                              <TooltipTrigger
-                                render={
-                                  <button
-                                    onClick={() => openConfirmModal("restore", comment)}
-                                    className="px-3 py-1.5 rounded-sm border border-border bg-background hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                                  />
-                                }
-                              >
-                                <RotateCcw className="w-3.5 h-3.5" />
-                                <span>Restore</span>
-                              </TooltipTrigger>
-                              <TooltipContent side="bottom">
-                                Restore comment from trash
-                              </TooltipContent>
-                            </Tooltip>
-
-                            {/* Delete Permanently Button */}
-                            <Tooltip>
-                              <TooltipTrigger
-                                render={
-                                  <button
-                                    onClick={() => openConfirmModal("delete", comment)}
-                                    className="px-3 py-1.5 rounded-sm border border-red-200 bg-red-600 hover:bg-red-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
-                                  />
-                                }
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                <span>Delete Permanently</span>
-                              </TooltipTrigger>
-                              <TooltipContent side="bottom">
-                                Permanently remove comment from database
-                              </TooltipContent>
-                            </Tooltip>
-                          </>
-                        ) : (
-                          <>
-                            {/* Approve / Unapprove Button */}
-                            <Tooltip>
-                              <TooltipTrigger
-                                render={
-                                  <button
-                                    onClick={() =>
-                                      openConfirmModal(
-                                        comment.isApproved ? "unapprove" : "approve",
-                                        comment
-                                      )
-                                    }
-                                    className={`px-3 py-1.5 rounded-sm text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
-                                      comment.isApproved
-                                        ? "bg-background border-border text-foreground hover:bg-muted"
-                                        : "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-xs"
-                                    }`}
-                                  />
-                                }
-                              >
-                                {comment.isApproved ? (
-                                  <>
-                                    <Circle className="w-3.5 h-3.5 text-muted-foreground" />
-                                    <span>Mark Pending</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <CheckCircle className="w-3.5 h-3.5" />
-                                    <span>Approve</span>
-                                  </>
-                                )}
-                              </TooltipTrigger>
-                              <TooltipContent side="bottom">
-                                {comment.isApproved
-                                  ? "Unapprove comment and hide from site"
-                                  : "Approve comment to publish on main site"}
-                              </TooltipContent>
-                            </Tooltip>
-
-                            {/* Reply Button */}
-                            <Tooltip>
-                              <TooltipTrigger
-                                render={
-                                  <button
-                                    onClick={() => {
-                                      setReplyingToId(
-                                        replyingToId === comment.id ? null : comment.id
-                                      );
-                                      setReplyText("");
-                                    }}
-                                    className="px-3 py-1.5 rounded-sm border border-border bg-background hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                                  />
-                                }
-                              >
-                                <Reply className="w-3.5 h-3.5" />
-                                <span>Reply</span>
-                              </TooltipTrigger>
-                              <TooltipContent side="bottom">
-                                Post an official admin response
-                              </TooltipContent>
-                            </Tooltip>
-
-                            {/* Move to Trash Button */}
-                            <Tooltip>
-                              <TooltipTrigger
-                                render={
-                                  <button
-                                    onClick={() => openConfirmModal("trash", comment)}
-                                    className="p-1.5 rounded-sm border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 transition-all cursor-pointer"
-                                  />
-                                }
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </TooltipTrigger>
-                              <TooltipContent side="bottom">
-                                Move comment to trash
-                              </TooltipContent>
-                            </Tooltip>
-                          </>
-                        )}
+                      {/* Actions Skeleton */}
+                      <div className="flex items-center gap-2 pt-1">
+                        <Skeleton className="h-8 w-24 rounded-sm" />
+                        <Skeleton className="h-8 w-16 rounded-sm" />
+                        <Skeleton className="h-8 w-8 rounded-sm" />
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  ))}
+                </div>
+              ) : rootComments.length === 0 ? (
+                <div className="p-16 text-center bg-card border rounded-2xl space-y-3">
+                  <Inbox className="w-12 h-12 text-muted-foreground mx-auto opacity-50" />
+                  <h3 className="text-base font-bold text-foreground">
+                    No comments found
+                  </h3>
+                  <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                    {searchQuery
+                      ? "No comments match your search query."
+                      : filter === "trashed"
+                        ? "Trash is currently empty."
+                        : "No comments posted for this blog yet."}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {rootComments.map((comment) => {
+                    const relativeTime = formatDistanceToNow(
+                      new Date(comment.createdAt),
+                      { addSuffix: true },
+                    );
+                    const commentReplies = getRepliesForComment(comment.id);
+
+                    return (
+                      <div
+                        key={comment.id}
+                        className={`bg-card border rounded-sm p-5 shadow-xs transition-all space-y-4 relative ${
+                          comment.isTrashed
+                            ? "border-red-200 dark:border-red-900/40 bg-red-50/10 dark:bg-red-950/10"
+                            : !comment.isApproved
+                              ? "border-amber-200 dark:border-amber-900/50 bg-amber-50/20 dark:bg-amber-950/10"
+                              : "hover:border-primary/30"
+                        }`}
+                      >
+                        {/* Header: Author Info + Status Badge */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-black text-white dark:bg-white dark:text-black flex items-center justify-center text-xs font-extrabold uppercase shrink-0">
+                              {comment.name.charAt(0)}
+                            </div>
+
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-bold text-foreground">
+                                  {comment.name}
+                                </span>
+                                <span className="text-xs text-muted-foreground font-medium">
+                                  &lt;{comment.email}&gt;
+                                </span>
+                              </div>
+
+                              {/* Context Line: Blog Link */}
+                              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground pt-0.5">
+                                <span>Posted on:</span>
+                                <a
+                                  href={`/blogs/edit/${comment.blog?.id}`}
+                                  className="font-bold text-foreground hover:underline flex items-center gap-1"
+                                  title="Edit blog post in admin"
+                                >
+                                  <span>
+                                    {comment.blog?.title || "Unknown Blog"}
+                                  </span>
+                                  <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                                </a>
+
+                                <span>&bull; {relativeTime}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Status Badge */}
+                          <div className="shrink-0">
+                            {comment.isTrashed ? (
+                              <Badge className="bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800 text-xs font-bold px-2.5 py-0.5">
+                                Trashed
+                              </Badge>
+                            ) : comment.isApproved ? (
+                              <Badge className="bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-xs font-bold px-2.5 py-0.5">
+                                Approved
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800 text-xs font-bold px-2.5 py-0.5">
+                                Pending Approval
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Comment Body Content */}
+                        <div className="text-sm text-foreground/90 font-medium leading-relaxed whitespace-pre-wrap">
+                          {comment.content}
+                        </div>
+
+                        {/* NESTED CHILD REPLIES (Threaded UI) */}
+                        {commentReplies.length > 0 && (
+                          <div className="pt-2 space-y-3">
+                            <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                              <CornerDownRight className="w-3.5 h-3.5" />
+                              <span>Replies ({commentReplies.length})</span>
+                            </div>
+
+                            <div className="space-y-3">
+                              {commentReplies.map((reply) => {
+                                const replyTime = formatDistanceToNow(
+                                  new Date(reply.createdAt),
+                                  { addSuffix: true },
+                                );
+                                const isAdminReply =
+                                  reply.name.includes("(Admin)");
+
+                                return (
+                                  <div
+                                    key={reply.id}
+                                    className={`ml-4 sm:ml-8 p-4 rounded-sm border border-border/80 space-y-2 relative ${
+                                      isAdminReply
+                                        ? "bg-muted/40 border-l-4 border-l-black dark:border-l-white"
+                                        : "bg-background"
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                                          {isAdminReply && (
+                                            <ShieldCheck className="w-3.5 h-3.5 text-black dark:text-white" />
+                                          )}
+                                          {reply.name}
+                                        </span>
+                                        <span className="text-[11px] text-muted-foreground font-medium">
+                                          &lt;{reply.email}&gt;
+                                        </span>
+                                      </div>
+
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[10px] text-muted-foreground">
+                                          {replyTime}
+                                        </span>
+                                        {/* Action button for reply */}
+                                        {filter === "trashed" ? (
+                                          <button
+                                            onClick={() =>
+                                              openConfirmModal("delete", reply)
+                                            }
+                                            className="p-1 text-muted-foreground hover:text-red-600 transition-colors cursor-pointer"
+                                            title="Delete reply permanently"
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </button>
+                                        ) : (
+                                          <button
+                                            onClick={() =>
+                                              openConfirmModal("trash", reply)
+                                            }
+                                            className="p-1 text-muted-foreground hover:text-red-600 transition-colors cursor-pointer"
+                                            title="Move reply to trash"
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    <p className="text-xs text-foreground/90 font-medium leading-relaxed whitespace-pre-wrap">
+                                      {reply.content}
+                                    </p>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Inline Reply Form */}
+                        {replyingToId === comment.id && (
+                          <div className="p-4 rounded-sm border border-border bg-muted/30 space-y-3">
+                            <div className="flex items-center justify-between text-xs font-bold text-foreground">
+                              <span className="flex items-center gap-1.5">
+                                <Reply className="w-3.5 h-3.5" />
+                                <span>Reply to {comment.name} as Admin</span>
+                              </span>
+                              <button
+                                onClick={() => {
+                                  setReplyingToId(null);
+                                  setReplyText("");
+                                }}
+                                className="text-muted-foreground hover:text-foreground text-xs"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+
+                            <textarea
+                              rows={3}
+                              placeholder="Type your official response..."
+                              value={replyText}
+                              onChange={(e) => setReplyText(e.target.value)}
+                              className="w-full p-3 bg-background border border-border rounded-sm text-xs font-medium focus:outline-none focus:border-accent transition-colors"
+                            />
+
+                            <div className="flex justify-end">
+                              <button
+                                onClick={() =>
+                                  openConfirmModal("reply", comment)
+                                }
+                                disabled={!replyText.trim()}
+                                className="px-4 py-2 bg-black hover:bg-black/90 text-white text-xs font-bold rounded-sm flex items-center gap-1.5 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                              >
+                                <Send className="w-3.5 h-3.5" />
+                                <span>Publish Reply</span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Footer Action Buttons */}
+                        <div className="flex items-center justify-end gap-2 pt-1">
+                          {filter === "trashed" ? (
+                            <>
+                              {/* Restore Button */}
+                              <Tooltip>
+                                <TooltipTrigger
+                                  render={
+                                    <button
+                                      onClick={() =>
+                                        openConfirmModal("restore", comment)
+                                      }
+                                      className="px-3 py-1.5 rounded-sm border border-border bg-background hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                                    />
+                                  }
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                  <span>Restore</span>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom">
+                                  Restore comment from trash
+                                </TooltipContent>
+                              </Tooltip>
+
+                              {/* Delete Permanently Button */}
+                              <Tooltip>
+                                <TooltipTrigger
+                                  render={
+                                    <button
+                                      onClick={() =>
+                                        openConfirmModal("delete", comment)
+                                      }
+                                      className="px-3 py-1.5 rounded-sm border border-red-200 bg-red-600 hover:bg-red-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                                    />
+                                  }
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Delete Permanently</span>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom">
+                                  Permanently remove comment from database
+                                </TooltipContent>
+                              </Tooltip>
+                            </>
+                          ) : (
+                            <>
+                              {/* Approve / Unapprove Button */}
+                              <Tooltip>
+                                <TooltipTrigger
+                                  render={
+                                    <button
+                                      onClick={() =>
+                                        openConfirmModal(
+                                          comment.isApproved
+                                            ? "unapprove"
+                                            : "approve",
+                                          comment,
+                                        )
+                                      }
+                                      className={`px-3 py-1.5 rounded-sm text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                                        comment.isApproved
+                                          ? "bg-background border-border text-foreground hover:bg-muted"
+                                          : "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-xs"
+                                      }`}
+                                    />
+                                  }
+                                >
+                                  {comment.isApproved ? (
+                                    <>
+                                      <Circle className="w-3.5 h-3.5 text-muted-foreground" />
+                                      <span>Mark Pending</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle className="w-3.5 h-3.5" />
+                                      <span>Approve</span>
+                                    </>
+                                  )}
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom">
+                                  {comment.isApproved
+                                    ? "Unapprove comment and hide from site"
+                                    : "Approve comment to publish on main site"}
+                                </TooltipContent>
+                              </Tooltip>
+
+                              {/* Reply Button */}
+                              <Tooltip>
+                                <TooltipTrigger
+                                  render={
+                                    <button
+                                      onClick={() => {
+                                        setReplyingToId(
+                                          replyingToId === comment.id
+                                            ? null
+                                            : comment.id,
+                                        );
+                                        setReplyText("");
+                                      }}
+                                      className="px-3 py-1.5 rounded-sm border border-border bg-background hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                                    />
+                                  }
+                                >
+                                  <Reply className="w-3.5 h-3.5" />
+                                  <span>Reply</span>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom">
+                                  Post an official admin response
+                                </TooltipContent>
+                              </Tooltip>
+
+                              {/* Move to Trash Button */}
+                              <Tooltip>
+                                <TooltipTrigger
+                                  render={
+                                    <button
+                                      onClick={() =>
+                                        openConfirmModal("trash", comment)
+                                      }
+                                      className="p-1.5 rounded-sm border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 transition-all cursor-pointer"
+                                    />
+                                  }
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom">
+                                  Move comment to trash
+                                </TooltipContent>
+                              </Tooltip>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </main>
         </div>

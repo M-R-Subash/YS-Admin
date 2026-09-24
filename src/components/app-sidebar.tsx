@@ -19,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 import Link from "next/link"
 import Image from "next/image"
+import { usePathname } from "next/navigation"
 
 const navItems = [
   {
@@ -59,8 +60,17 @@ const navItems = [
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { state } = useSidebar()
+  const { state, isMobile, setOpenMobile } = useSidebar()
+  const pathname = usePathname()
   const { data: session, status } = useSession()
+
+  // Automatically close mobile/tablet sidebar drawer whenever the route changes
+  React.useEffect(() => {
+    if (isMobile) {
+      setOpenMobile(false)
+    }
+  }, [pathname, isMobile, setOpenMobile])
+
   const { data: badges } = useSWR<{
     unreadSubmissions: number;
     pendingComments: number;
@@ -96,6 +106,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <Link 
           href="/" 
+          onClick={() => {
+            if (isMobile) setOpenMobile(false)
+          }}
           className={`flex items-center hover:bg-muted/50 rounded-sm transition-all overflow-hidden ${
             state === "collapsed" ? "justify-center p-2" : "gap-3 p-2 px-2"
           }`}

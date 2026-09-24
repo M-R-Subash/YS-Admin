@@ -39,14 +39,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-} from "@/components/ui/breadcrumb";
-import { Separator } from "@/components/ui/separator";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { AdminTopBar } from "@/components/AdminTopBar";
 import {
   Select,
   SelectContent,
@@ -267,40 +260,10 @@ export default function RedirectionsPage() {
   return (
     <div className="w-full flex-1 flex flex-col min-h-screen bg-background">
       {/* Top Header Bar */}
-      <header className="sticky top-0 z-30 bg-background flex h-16 shrink-0 items-center justify-between px-4 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 border-b">
-        <div className="flex items-center gap-2">
-          <SidebarTrigger className="-ml-1" />
-          <Separator
-            orientation="vertical"
-            className="mr-2 data-vertical:h-4 data-vertical:self-auto h-4"
-          />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbPage>Redirections</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-
-        <a
-          href={`${process.env.NEXT_PUBLIC_FRONTEND_URL}`}
-          onClick={(e) => {
-            e.preventDefault();
-            const siteUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
-            window.open(`${siteUrl}?nocache=${Date.now()}`, "_blank");
-          }}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 text-[11px] font-semibold text-black hover:text-black/80 bg-black/5 hover:bg-black/10 px-3 py-1.5 rounded-sm transition-all border border-black/10 shadow-2xs cursor-pointer"
-        >
-          <span>View Site</span>
-          <ExternalLink className="w-3 h-3" />
-        </a>
-      </header>
+      <AdminTopBar breadcrumbs="Redirections" />
 
       {/* Main Content Area - Full Width */}
-      <div className="p-6 lg:p-8 space-y-6 w-full flex-1">
+      <div className="py-6 lg:py-8 px-[15px] md:px-[20px] lg:px-[30px] space-y-6 w-full flex-1">
         {/* Header Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>

@@ -16,6 +16,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import { ChevronRightIcon } from "lucide-react"
 
@@ -35,6 +36,13 @@ export function NavMain({
   }[]
 }) {
   const pathname = usePathname()
+  const { isMobile, setOpenMobile } = useSidebar()
+
+  const handleItemClick = () => {
+    if (isMobile) {
+      setOpenMobile(false)
+    }
+  }
 
   return (
     <SidebarGroup>
@@ -60,7 +68,7 @@ export function NavMain({
                 <SidebarMenuSub>
                   {item.items?.map((subItem) => (
                     <SidebarMenuSubItem key={subItem.title}>
-                      <SidebarMenuSubButton isActive={pathname === subItem.url} render={<Link href={subItem.url} />}>
+                      <SidebarMenuSubButton isActive={pathname === subItem.url} render={<Link href={subItem.url} onClick={handleItemClick} />}>
                         <span>{subItem.title}</span>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
@@ -70,7 +78,7 @@ export function NavMain({
             </Collapsible>
           ) : (
             <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton tooltip={item.title} isActive={isItemActive} render={<Link href={item.url} />}>
+              <SidebarMenuButton tooltip={item.title} isActive={isItemActive} render={<Link href={item.url} onClick={handleItemClick} />}>
                 {item.icon}
                 <span className="flex-1">{item.title}</span>
                 {item.badge !== undefined && Number(item.badge) > 0 && (

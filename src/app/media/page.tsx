@@ -5,14 +5,7 @@ import { Trash2Icon, RefreshCcwIcon, PlusIcon, Loader2, X, UploadCloud, Download
 import Image from "next/image";
 import { toast } from "@/components/ui/toast";
 
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-} from "@/components/ui/breadcrumb"
-import { Separator } from "@/components/ui/separator"
-import { SidebarTrigger } from "@/components/ui/sidebar"
+import { AdminTopBar } from "@/components/AdminTopBar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -149,25 +142,10 @@ export default function MediaPage() {
   return (
     <>
     <div className="flex flex-col h-[100dvh] w-full overflow-hidden bg-background">
-      <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 border-b">
-        <div className="flex items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator
-            orientation="vertical"
-            className="mr-2 data-vertical:h-4 data-vertical:self-auto h-4"
-          />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbPage>Media Library</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-      </header>
+      <AdminTopBar breadcrumbs="Media Library" />
 
       {/* Top Header - Always visible because it's shrink-0 inside the flex column */}
-      <div className="flex items-center justify-between p-6 pb-4 border-b shrink-0 shadow-sm z-20">
+      <div className="flex items-center justify-between py-6 pb-4 px-[15px] md:px-[20px] lg:px-[30px] border-b shrink-0 shadow-sm z-20">
         <div>
           <h2 className="text-2xl font-extrabold text-foreground tracking-tight">
             Cloudinary Media
@@ -199,7 +177,7 @@ export default function MediaPage() {
       <div className="flex flex-1 overflow-hidden relative bg-muted/10">
         {/* Left: Image Grid */}
         <div className={`flex flex-col h-full transition-all duration-300 ${selectedMedia ? 'w-[calc(100%-320px)] border-r border-border' : 'w-full'}`}>
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto py-6 px-[15px] md:px-[20px] lg:px-[30px]">
             {loading ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 {[...Array(24)].map((_, i) => (

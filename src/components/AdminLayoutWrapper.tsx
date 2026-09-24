@@ -23,7 +23,7 @@ export function AdminLayoutWrapper({ children }: { children: React.ReactNode }) 
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset className="overflow-x-hidden">
+      <SidebarInset className="min-w-0">
         {children}
       </SidebarInset>
     </SidebarProvider>

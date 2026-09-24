@@ -44,7 +44,7 @@ export function NavUser({
     avatar: string
   }
 }) {
-  const { isMobile } = useSidebar()
+  const { isMobile, setOpenMobile } = useSidebar()
   const router = useRouter()
   const [showLogoutModal, setShowLogoutModal] = useState(false)
 
@@ -90,7 +90,12 @@ export function NavUser({
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => router.push('/account')}>
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (isMobile) setOpenMobile(false)
+                    router.push('/account')
+                  }}
+                >
                   <SettingsIcon className="mr-2 h-4 w-4" />
                   Profile Settings
                 </DropdownMenuItem>
