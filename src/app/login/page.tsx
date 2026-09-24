@@ -94,7 +94,7 @@ export default function LoginPage() {
         </div>
 
         {/* Login Form */}
-        <form className="mt-8 space-y-5" onSubmit={handleLogin}>
+        <form className="mt-8 space-y-5" action="#" method="POST" onSubmit={handleLogin}>
           <div className="space-y-4">
             {/* Email Field */}
             <div className="space-y-1.5">

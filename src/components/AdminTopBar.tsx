@@ -144,35 +144,39 @@ export function AdminTopBar({
 
         <Separator
           orientation="vertical"
-          className="mx-1 sm:mr-2 h-4 data-vertical:h-4 self-center data-vertical:self-center my-auto bg-border shrink-0"
+          className="mx-1 sm:mr-2 h-4 sm:h-5 data-vertical:h-4 sm:data-vertical:h-5 self-center data-vertical:self-center my-auto bg-border shrink-0"
         />
 
         {/* Page Name & Breadcrumb Navigation */}
         <Breadcrumb className="min-w-0">
-          <BreadcrumbList className="flex-nowrap">
+          <BreadcrumbList className="flex-nowrap items-center gap-1 sm:gap-1.5">
             {resolvedCrumbs.map((crumb, idx) => {
               const isLast = idx === resolvedCrumbs.length - 1;
               return (
                 <React.Fragment key={idx}>
                   {idx > 0 && (
-                    <BreadcrumbSeparator className="hidden sm:inline-flex" />
+                    <BreadcrumbSeparator className="hidden sm:inline-flex text-muted-foreground/50 [&>svg]:size-3.5 sm:[&>svg]:size-4" />
                   )}
                   <BreadcrumbItem
                     className={isLast ? "min-w-0" : "hidden sm:inline-flex"}
                   >
                     {isLast ? (
-                      <BreadcrumbPage className="truncate max-w-[150px] sm:max-w-xs md:max-w-sm text-xs sm:text-sm font-semibold text-foreground">
+                      <BreadcrumbPage
+                        role="heading"
+                        aria-level={1}
+                        className="truncate max-w-[200px] xs:max-w-[260px] sm:max-w-xs md:max-w-sm lg:max-w-md text-base sm:text-lg md:text-xl font-bold sm:font-extrabold tracking-tight text-foreground leading-tight"
+                      >
                         {crumb.label}
                       </BreadcrumbPage>
                     ) : crumb.href ? (
                       <BreadcrumbLink
                         href={crumb.href}
-                        className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        className="text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                       >
                         {crumb.label}
                       </BreadcrumbLink>
                     ) : (
-                      <span className="text-xs sm:text-sm text-muted-foreground">
+                      <span className="text-xs sm:text-sm font-medium text-muted-foreground">
                         {crumb.label}
                       </span>
                     )}
