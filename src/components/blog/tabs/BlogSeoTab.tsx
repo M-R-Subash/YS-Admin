@@ -10,7 +10,6 @@ export function BlogSeoTab() {
     watch,
     setValue,
     errors,
-    handleAutoFillMeta,
   } = useBlogForm();
 
   if (editorTab !== "seo") return null;
@@ -72,7 +71,6 @@ export function BlogSeoTab() {
         entityType="blog"
         content={content}
         slugPrefix="/blogs"
-        onAutoFillMeta={handleAutoFillMeta}
         errors={formattedErrors}
       />
     </div>

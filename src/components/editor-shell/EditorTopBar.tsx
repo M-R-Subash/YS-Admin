@@ -176,14 +176,14 @@ export function EditorTopBar({
 
       {/* Center: Segmented View Switcher (Visual Editor vs SEO Suite) */}
       {onViewChange && (
-        <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg border border-border shadow-xs">
+        <div className="flex items-center bg-zinc-100 dark:bg-zinc-800/80 p-1 rounded-lg border border-border shadow-xs">
           <button
             type="button"
             onClick={() => onViewChange("editor")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs rounded-md transition-all cursor-pointer ${
               activeView === "editor"
-                ? "bg-white dark:bg-zinc-900 text-foreground shadow-xs font-bold"
-                : "text-muted-foreground hover:text-foreground"
+                ? "bg-white dark:bg-zinc-900 text-foreground shadow-sm font-bold border border-border/80"
+                : "text-muted-foreground hover:text-foreground font-medium hover:bg-black/5 dark:hover:bg-white/5"
             }`}
           >
             <Layout className="w-3.5 h-3.5" />
@@ -192,10 +192,10 @@ export function EditorTopBar({
           <button
             type="button"
             onClick={() => onViewChange("seo")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs rounded-md transition-all cursor-pointer ${
               activeView === "seo"
-                ? "bg-white dark:bg-zinc-900 text-foreground shadow-xs font-bold"
-                : "text-muted-foreground hover:text-foreground"
+                ? "bg-white dark:bg-zinc-900 text-foreground shadow-sm font-bold border border-border/80"
+                : "text-muted-foreground hover:text-foreground font-medium hover:bg-black/5 dark:hover:bg-white/5"
             }`}
           >
             <Globe className="w-3.5 h-3.5 text-primary" />
@@ -204,10 +204,10 @@ export function EditorTopBar({
               <span
                 className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
                   seoScore >= 80
-                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300/60"
                     : seoScore >= 50
-                    ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
-                    : "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300"
+                    ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/60"
+                    : "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 border border-red-300/60"
                 }`}
               >
                 {seoScore}

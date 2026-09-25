@@ -157,7 +157,6 @@ export function UniversalSeoModal({
 
   const onSubmit = async (data: UniversalSeoFormData) => {
     if (!isDirty) {
-      onClose();
       return;
     }
 
@@ -185,8 +184,9 @@ export function UniversalSeoModal({
         type: "success",
       });
 
+      // Reset baseline to newly saved data so isDirty flips back to false
+      reset(data);
       onSaved?.();
-      onClose();
     } catch (err: any) {
       toast.add({
         title: "Failed to Save",

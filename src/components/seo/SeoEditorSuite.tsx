@@ -2,8 +2,6 @@
 
 import React, { useState, useMemo } from "react";
 import {
-  Globe,
-  Wand2,
   Search,
   Share2,
   AlertCircle,
@@ -35,7 +33,6 @@ interface SeoEditorSuiteProps {
   entityType?: SeoEntityType;
   content?: any;
   slugPrefix?: string;
-  onAutoFillMeta?: () => void;
   errors?: Record<string, string | undefined>;
   className?: string;
 }
@@ -53,7 +50,6 @@ export function SeoEditorSuite({
   entityType = "page",
   content,
   slugPrefix = "",
-  onAutoFillMeta,
   errors = {},
   className = "",
 }: SeoEditorSuiteProps) {
@@ -86,33 +82,7 @@ export function SeoEditorSuite({
   }, [focusKeyword, metaTitle, title, slug, metaDesc, content, entityType]);
 
   return (
-    <div className={`space-y-6 w-full max-w-[1600px] mx-auto p-4 sm:p-6 ${className}`}>
-      {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
-        <div>
-          <h2 className="text-base sm:text-lg font-extrabold text-foreground flex items-center gap-2">
-            <Globe className="size-4.5 text-primary" />
-            Search Engine Optimization &amp; Social Metadata
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Configure Google search snippet previews, target keywords, Open Graph social share cards, and indexing guardrails.
-          </p>
-        </div>
-
-        {onAutoFillMeta && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onAutoFillMeta}
-            className="flex items-center gap-1.5 text-xs font-bold self-start sm:self-auto cursor-pointer border-border hover:bg-accent"
-          >
-            <Wand2 className="size-3.5 text-amber-500" />
-            <span>Auto-fill from Content</span>
-          </Button>
-        )}
-      </div>
-
+    <div className={`w-full p-4 sm:p-6 ${className}`}>
       {/* 3-Column Layout: Previews/Social | Core/Indexing | Health Advisor */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* Column 1: Snippet & Social Card Previews */}
@@ -426,9 +396,9 @@ export function SeoEditorSuite({
           </div>
         </div>
 
-        {/* Column 3: Real-Time SEO Health Advisor (Sticky) */}
-        <div className="space-y-5 sticky top-4">
-          <SeoHealthAdvisor analysis={analysis} />
+        {/* Column 3: Real-Time SEO Health Advisor (Sticky & Full Height) */}
+        <div className="space-y-5 lg:sticky lg:top-6 lg:h-[calc(100vh-104px)] min-h-[560px] flex flex-col">
+          <SeoHealthAdvisor analysis={analysis} className="h-full flex-1" />
         </div>
       </div>
     </div>

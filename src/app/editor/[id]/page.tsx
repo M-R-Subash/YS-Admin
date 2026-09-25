@@ -24,8 +24,7 @@ import {
 import { ScreenLoader } from "@/components/ui/screen-loader";
 import { useEmergencyDraft, getEmergencyBackup } from "@/hooks/useEmergencyDraft";
 import { SeoEditorSuite } from "@/components/seo/SeoEditorSuite";
-import { calculateQuickSeoScore } from "@/lib/seo/seo-engine";
-import { pageAdapter } from "@/lib/seo/adapters/page-adapter";
+import { analyzeSeo } from "@/lib/seo/seo-engine";
 import type { SeoMetadata } from "@/types/seo";
 
 const SCHEMA_REGISTRY: Record<string, any> = {
@@ -190,14 +189,19 @@ export default function EditorPage({
       });
   }, [pageId]);
 
-  // Live SEO quick score calculated from current inputs & content
+  // Real-time SEO analysis score using the unified engine (matches SEO Health Advisor)
   const seoScore = useMemo(() => {
-    return calculateQuickSeoScore(
-      seoData,
-      page?.title || "",
-      undefined
-    ).score;
-  }, [seoData, page?.title]);
+    const analysis = analyzeSeo(
+      seoData.focusKeyword || "",
+      seoData.metaTitle || page?.title || "",
+      page?.slug || "",
+      seoData.metaDesc || "",
+      schemaData,
+      null,
+      "page"
+    );
+    return analysis.score;
+  }, [seoData, page?.title, page?.slug, schemaData]);
 
   // Calculate accurate dirty states (both schema content and SEO metadata)
   const isSchemaDirty =
@@ -594,89 +598,105 @@ export default function EditorPage({
         canSaveDraft={!savingDraft && isUnsavedChanges}
       />
 
-      {/* Editor + Preview Split Panels OR SEO Suite */}
-      {activeView === "editor" ? (
-        <ResizablePanelGroup orientation="horizontal" className="flex-1 overflow-hidden">
-          {/* Left: Schema Editor Panel */}
-          <ResizablePanel
-            defaultSize="25"
-            minSize="20"
-            maxSize="60"
-            className="overflow-y-auto border-r border-border bg-black/3 dark:bg-white/3 flex flex-col"
-          >
-            {schemaConfig ? (
-              <SchemaEditor
-                ref={schemaEditorRef}
-                initialData={page.draftContent ?? page.content}
-                iframeRef={iframeRef}
-                onDataChange={setSchemaData}
-                uiSchema={schemaConfig.uiSchema}
-                zodSchema={schemaConfig.schema}
-                previewEventType={schemaConfig.previewType}
-                title={page.title}
-              />
-            ) : (
-              <div className="p-6 text-sm text-zinc-500">
-                No schema editor configuration found for slug &quot;{page.slug}&quot;.
-              </div>
-            )}
-          </ResizablePanel>
-
-          {/* Resizer Handle */}
-          <ResizableHandle withHandle />
-
-          {/* Right: Live Preview Panel */}
-          <ResizablePanel
-            defaultSize="75"
-            className="overflow-hidden bg-zinc-950 relative flex items-center justify-center p-4"
-          >
-            <div className="w-full h-full bg-zinc-900 shadow-2xl rounded-xl overflow-hidden ring-1 ring-border relative">
-              {/* Minimal Iframe Toolbar (ONLY Reload, per instructions) */}
-              <div className="absolute top-3 right-3 z-20 flex items-center bg-black/80 backdrop-blur-md px-2.5 py-1.5 rounded-md border border-white/10 shadow-lg">
-                <button
-                  type="button"
-                  onClick={handleReloadIframe}
-                  disabled={reloadingIframe}
-                  className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-zinc-300 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
-                  title="Reload Live Preview"
-                >
-                  <RotateCw
-                    className={`w-3.5 h-3.5 ${
-                      reloadingIframe ? "animate-spin text-amber-400" : ""
-                    }`}
-                  />
-                  <span>Reload</span>
-                </button>
-              </div>
-
-              {/* Iframe Loading Spinner */}
-              {iframeLoading && (
-                <div className="absolute inset-0 bg-[#050505] z-10 flex flex-col items-center justify-center gap-3">
-                  <div className="w-8 h-8 rounded-full border-2 border-[#F5A817] border-t-transparent animate-spin" />
-                  <span className="text-xs font-semibold text-zinc-400">
-                    Loading Live Preview...
-                  </span>
+      {/* Editor & Preview Split Panels + SEO Suite (Both persistent in DOM via absolute positioning to ensure 0ms instant switching without iframe reload) */}
+      <div className="flex-1 overflow-hidden relative">
+        {/* Panel 1: Visual Editor & Live Preview */}
+        <div
+          className={`absolute inset-0 flex flex-col ${
+            activeView === "editor"
+              ? "z-10 opacity-100 visible"
+              : "z-0 opacity-0 invisible pointer-events-none"
+          }`}
+        >
+          <ResizablePanelGroup orientation="horizontal" className="flex-1 overflow-hidden">
+            {/* Left: Schema Editor Panel */}
+            <ResizablePanel
+              defaultSize="25"
+              minSize="20"
+              maxSize="60"
+              className="overflow-y-auto border-r border-border bg-black/3 dark:bg-white/3 flex flex-col"
+            >
+              {schemaConfig ? (
+                <SchemaEditor
+                  ref={schemaEditorRef}
+                  initialData={page.draftContent ?? page.content}
+                  iframeRef={iframeRef}
+                  onDataChange={setSchemaData}
+                  uiSchema={schemaConfig.uiSchema}
+                  zodSchema={schemaConfig.schema}
+                  previewEventType={schemaConfig.previewType}
+                  title={page.title}
+                />
+              ) : (
+                <div className="p-6 text-sm text-zinc-500">
+                  No schema editor configuration found for slug &quot;{page.slug}&quot;.
                 </div>
               )}
+            </ResizablePanel>
 
-              {/* Live Preview Iframe */}
-              <iframe
-                ref={iframeRef}
-                src={`${targetOrigin}${
-                  page.slug === "/"
-                    ? ""
-                    : page.slug.startsWith("/")
-                      ? page.slug
-                      : `/${page.slug}`
-                }?preview=true${page.previewSecret ? `&secret=${encodeURIComponent(page.previewSecret)}` : ""}`}
-                className="w-full h-full border-0"
-                onLoad={handleIframeLoad}
-              />
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      ) : (
-        <div className="flex-1 overflow-y-auto bg-card">
+            {/* Resizer Handle */}
+            <ResizableHandle withHandle />
+
+            {/* Right: Live Preview Panel */}
+            <ResizablePanel
+              defaultSize="75"
+              className="overflow-hidden bg-zinc-950 relative flex items-center justify-center p-4"
+            >
+              <div className="w-full h-full bg-zinc-900 shadow-2xl rounded-xl overflow-hidden ring-1 ring-border relative">
+                {/* Minimal Iframe Toolbar (ONLY Reload, per instructions) */}
+                <div className="absolute top-3 right-3 z-20 flex items-center bg-black/80 backdrop-blur-md px-2.5 py-1.5 rounded-md border border-white/10 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={handleReloadIframe}
+                    disabled={reloadingIframe}
+                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-zinc-300 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+                    title="Reload Live Preview"
+                  >
+                    <RotateCw
+                      className={`w-3.5 h-3.5 ${
+                        reloadingIframe ? "animate-spin text-amber-400" : ""
+                      }`}
+                    />
+                    <span>Reload</span>
+                  </button>
+                </div>
+
+                {/* Iframe Loading Spinner */}
+                {iframeLoading && (
+                  <div className="absolute inset-0 bg-[#050505] z-10 flex flex-col items-center justify-center gap-3">
+                    <div className="w-8 h-8 rounded-full border-2 border-[#F5A817] border-t-transparent animate-spin" />
+                    <span className="text-xs font-semibold text-zinc-400">
+                      Loading Live Preview...
+                    </span>
+                  </div>
+                )}
+
+                {/* Live Preview Iframe */}
+                <iframe
+                  ref={iframeRef}
+                  src={`${targetOrigin}${
+                    page.slug === "/"
+                      ? ""
+                      : page.slug.startsWith("/")
+                        ? page.slug
+                        : `/${page.slug}`
+                  }?preview=true${page.previewSecret ? `&secret=${encodeURIComponent(page.previewSecret)}` : ""}`}
+                  className="w-full h-full border-0"
+                  onLoad={handleIframeLoad}
+                />
+              </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </div>
+
+        {/* Panel 2: SEO Suite Panel */}
+        <div
+          className={`absolute inset-0 overflow-y-auto bg-card ${
+            activeView === "seo"
+              ? "z-10 opacity-100 visible"
+              : "z-0 opacity-0 invisible pointer-events-none"
+          }`}
+        >
           <SeoEditorSuite
             values={{
               title: page.title || "",
@@ -689,17 +709,9 @@ export default function EditorPage({
             entityType="page"
             content={schemaData}
             slugPrefix=""
-            onAutoFillMeta={() => {
-              const extracted = pageAdapter(schemaData);
-              setSeoData((prev) => ({
-                ...prev,
-                metaTitle: prev.metaTitle || page.title,
-                metaDesc: prev.metaDesc || (extracted.introText ? extracted.introText.slice(0, 155) : ""),
-              }));
-            }}
           />
         </div>
-      )}
+      </div>
 
       {/* Exit Confirmation Dialog */}
       <ExitConfirmModal
