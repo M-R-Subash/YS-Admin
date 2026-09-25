@@ -49,6 +49,10 @@ export const blogDraftSchema = z.object({
   ogDesc: z.string().max(200, "OG Description should not exceed 200 characters").optional().default(""),
   canonicalUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   noIndex: z.boolean().default(false),
+  structuredData: z.any().optional().nullable(),
+  authorName: z.string().optional().nullable(),
+  authorRole: z.string().optional().nullable(),
+  authorDescription: z.string().optional().nullable(),
   faqs: z.array(blogFaqItemSchema).default([]),
   action: z.enum(["save-draft", "publish", "discard-draft"]).optional(),
 });
@@ -94,6 +98,10 @@ export const blogPublishSchema = z.object({
   ogDesc: z.string().max(200, "OG Description should not exceed 200 characters").optional().default(""),
   canonicalUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   noIndex: z.boolean().default(false),
+  structuredData: z.any().optional().nullable(),
+  authorName: z.string().optional().nullable(),
+  authorRole: z.string().optional().nullable(),
+  authorDescription: z.string().optional().nullable(),
   faqs: z
     .array(
       blogFaqItemSchema.refine(
@@ -131,5 +139,9 @@ export interface BlogFormData {
   ogDesc: string;
   canonicalUrl: string;
   noIndex: boolean;
+  structuredData?: any;
+  authorName?: string | null;
+  authorRole?: string | null;
+  authorDescription?: string | null;
   faqs: BlogFaqItem[];
 }

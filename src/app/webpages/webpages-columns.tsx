@@ -2,7 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { Page } from "@/types";
-import { SeoQuickEditModal } from "@/components/admin/SeoQuickEditModal";
+import { UniversalSeoModal } from "@/components/admin/UniversalSeoModal";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { SeoStatusBadge } from "@/components/admin/SeoStatusBadge";
@@ -25,8 +25,9 @@ export const ActionCell = ({ page, onDataChange }: { page: Page; onDataChange: (
       publicUrlLabel="View Page"
       quickEditLabel="Quick Edit (SEO)"
       renderQuickEditModal={({ isOpen, onClose, onSaved }) => (
-        <SeoQuickEditModal
-          pageId={page.id}
+        <UniversalSeoModal
+          entityId={page.id}
+          entityType="page"
           isOpen={isOpen}
           onClose={onClose}
           onSaved={onSaved}

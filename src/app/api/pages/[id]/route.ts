@@ -17,6 +17,12 @@ export async function GET(
   const { id } = await params;
   const page = await prisma.page.findUnique({
     where: { id },
+    include: {
+      seo: true,
+      author: {
+        select: { name: true },
+      },
+    },
   });
 
   if (!page) {
@@ -41,7 +47,7 @@ export async function PUT(
 
   const { id } = await params;
   const body = await request.json();
-  const { title, slug, content, isTrashed, action } = body;
+  const { title, slug, content, isTrashed, action, seo } = body;
   let { status } = body;
 
   if (isTrashed === true) {
@@ -54,6 +60,51 @@ export async function PUT(
     ...(slug !== undefined && { slug }),
     ...(isTrashed !== undefined && { isTrashed }),
   };
+
+  // Handle SEO data upsert if provided
+  if (seo !== undefined && seo !== null) {
+    let parsedStructuredData = seo.structuredData;
+    if (typeof parsedStructuredData === "string" && parsedStructuredData.trim()) {
+      try {
+        parsedStructuredData = JSON.parse(parsedStructuredData);
+      } catch {
+        parsedStructuredData = null;
+      }
+    }
+
+    updateData.seo = {
+      upsert: {
+        create: {
+          metaTitle: seo.metaTitle || null,
+          metaDesc: seo.metaDesc || null,
+          focusKeyword: seo.focusKeyword || null,
+          ogImage: seo.ogImage || null,
+          ogTitle: seo.ogTitle || null,
+          ogDesc: seo.ogDesc || null,
+          canonicalUrl: seo.canonicalUrl || null,
+          structuredData: parsedStructuredData || null,
+          noIndex: Boolean(seo.noIndex),
+          authorName: seo.authorName || null,
+          authorRole: seo.authorRole || null,
+          authorDescription: seo.authorDescription || null,
+        },
+        update: {
+          ...(seo.metaTitle !== undefined && { metaTitle: seo.metaTitle || null }),
+          ...(seo.metaDesc !== undefined && { metaDesc: seo.metaDesc || null }),
+          ...(seo.focusKeyword !== undefined && { focusKeyword: seo.focusKeyword || null }),
+          ...(seo.ogImage !== undefined && { ogImage: seo.ogImage || null }),
+          ...(seo.ogTitle !== undefined && { ogTitle: seo.ogTitle || null }),
+          ...(seo.ogDesc !== undefined && { ogDesc: seo.ogDesc || null }),
+          ...(seo.canonicalUrl !== undefined && { canonicalUrl: seo.canonicalUrl || null }),
+          ...(seo.structuredData !== undefined && { structuredData: parsedStructuredData || null }),
+          ...(seo.noIndex !== undefined && { noIndex: Boolean(seo.noIndex) }),
+          ...(seo.authorName !== undefined && { authorName: seo.authorName || null }),
+          ...(seo.authorRole !== undefined && { authorRole: seo.authorRole || null }),
+          ...(seo.authorDescription !== undefined && { authorDescription: seo.authorDescription || null }),
+        },
+      },
+    };
+  }
 
   let shouldRevalidate = false;
 
@@ -95,6 +146,12 @@ export async function PUT(
   const page = await prisma.page.update({
     where: { id },
     data: updateData,
+    include: {
+      seo: true,
+      author: {
+        select: { name: true },
+      },
+    },
   });
 
   // Revalidate frontend path asynchronously if live content was updated

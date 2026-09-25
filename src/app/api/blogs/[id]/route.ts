@@ -67,6 +67,10 @@ export async function PUT(
     ogDesc,
     canonicalUrl,
     noIndex,
+    structuredData,
+    authorName,
+    authorRole,
+    authorDescription,
     action,
   } = body;
   let { status } = body;
@@ -109,6 +113,15 @@ export async function PUT(
     body.publishedAt = null;
   }
 
+  let parsedStructuredData = structuredData;
+  if (typeof structuredData === "string" && structuredData.trim()) {
+    try {
+      parsedStructuredData = JSON.parse(structuredData);
+    } catch {
+      parsedStructuredData = null;
+    }
+  }
+
   // Handle SEO data if any SEO field is provided
   const hasSeoFields =
     metaTitle !== undefined ||
@@ -118,7 +131,11 @@ export async function PUT(
     ogTitle !== undefined ||
     ogDesc !== undefined ||
     canonicalUrl !== undefined ||
-    noIndex !== undefined;
+    noIndex !== undefined ||
+    structuredData !== undefined ||
+    authorName !== undefined ||
+    authorRole !== undefined ||
+    authorDescription !== undefined;
 
   const seoData = hasSeoFields
     ? {
@@ -132,6 +149,10 @@ export async function PUT(
             ogDesc: ogDesc || "",
             canonicalUrl: canonicalUrl || "",
             noIndex: Boolean(noIndex),
+            structuredData: (parsedStructuredData as any) || null,
+            authorName: authorName || null,
+            authorRole: authorRole || null,
+            authorDescription: authorDescription || null,
           },
           update: {
             ...(metaTitle !== undefined && { metaTitle }),
@@ -142,6 +163,10 @@ export async function PUT(
             ...(ogDesc !== undefined && { ogDesc }),
             ...(canonicalUrl !== undefined && { canonicalUrl }),
             ...(noIndex !== undefined && { noIndex }),
+            ...(structuredData !== undefined && { structuredData: (parsedStructuredData as any) || null }),
+            ...(authorName !== undefined && { authorName }),
+            ...(authorRole !== undefined && { authorRole }),
+            ...(authorDescription !== undefined && { authorDescription }),
           },
         },
       }

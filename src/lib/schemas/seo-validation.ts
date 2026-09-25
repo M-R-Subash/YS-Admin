@@ -51,3 +51,10 @@ export type BlogQuickEditFormData = z.infer<typeof blogQuickEditSchema>;
 // Keep backward compat alias
 export const blogSeoQuickEditSchema = blogQuickEditSchema;
 export type BlogSeoQuickEditFormData = BlogQuickEditFormData;
+
+export {
+  universalSeoFormSchema,
+  seoMetadataSchema,
+  type UniversalSeoFormData,
+  type SeoMetadataSchemaType,
+} from "./seo/seo-schema";

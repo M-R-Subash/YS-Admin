@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { seoQuickEditSchema } from "@/lib/schemas/seo-validation";
+import { universalSeoFormSchema } from "@/lib/schemas/seo-validation";
 import { revalidateFrontendPath } from "@/lib/revalidate";
 
 export async function PUT(
@@ -18,8 +18,8 @@ export async function PUT(
     const { id } = await params;
     const body = await req.json();
     
-    // Validate request body
-    const validatedData = seoQuickEditSchema.parse(body);
+    // Validate request body with universal SEO schema
+    const validatedData = universalSeoFormSchema.parse(body);
     
     const {
       title,
@@ -32,13 +32,24 @@ export async function PUT(
       ogDesc,
       canonicalUrl,
       structuredData,
-      noIndex
+      noIndex,
+      authorName,
+      authorRole,
+      authorDescription,
     } = validatedData;
     
     // Convert structuredData string to JSON if present
     let parsedStructuredData = null;
     if (structuredData) {
-      parsedStructuredData = JSON.parse(structuredData);
+      if (typeof structuredData === "string") {
+        try {
+          parsedStructuredData = JSON.parse(structuredData);
+        } catch {
+          parsedStructuredData = null;
+        }
+      } else {
+        parsedStructuredData = structuredData;
+      }
     }
     
     // Update the page and upsert SEO data
@@ -50,26 +61,32 @@ export async function PUT(
         seo: {
           upsert: {
             create: {
-              metaTitle,
-              metaDesc,
-              focusKeyword,
-              ogImage,
-              ogTitle,
-              ogDesc,
-              canonicalUrl,
+              metaTitle: metaTitle || null,
+              metaDesc: metaDesc || null,
+              focusKeyword: focusKeyword || null,
+              ogImage: ogImage || null,
+              ogTitle: ogTitle || null,
+              ogDesc: ogDesc || null,
+              canonicalUrl: canonicalUrl || null,
               structuredData: parsedStructuredData as any,
-              noIndex
+              noIndex: Boolean(noIndex),
+              authorName: authorName || null,
+              authorRole: authorRole || null,
+              authorDescription: authorDescription || null,
             },
             update: {
-              metaTitle,
-              metaDesc,
-              focusKeyword,
-              ogImage,
-              ogTitle,
-              ogDesc,
-              canonicalUrl,
+              metaTitle: metaTitle || null,
+              metaDesc: metaDesc || null,
+              focusKeyword: focusKeyword || null,
+              ogImage: ogImage || null,
+              ogTitle: ogTitle || null,
+              ogDesc: ogDesc || null,
+              canonicalUrl: canonicalUrl || null,
               structuredData: parsedStructuredData as any,
-              noIndex
+              noIndex: Boolean(noIndex),
+              authorName: authorName || null,
+              authorRole: authorRole || null,
+              authorDescription: authorDescription || null,
             }
           }
         }

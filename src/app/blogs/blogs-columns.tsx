@@ -3,7 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 import { MessageSquare } from "lucide-react";
-import { BlogQuickEditModal } from "@/components/admin/BlogQuickEditModal";
+import { UniversalSeoModal } from "@/components/admin/UniversalSeoModal";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
 import { StatusBadge } from "@/components/admin/StatusBadge";
@@ -27,8 +27,9 @@ export const ActionCell = ({ blog, onDataChange }: { blog: any; onDataChange: ()
       publicUrlLabel="View Live"
       quickEditLabel="Quick Edit"
       renderQuickEditModal={({ isOpen, onClose, onSaved }) => (
-        <BlogQuickEditModal
-          blogId={blog.id}
+        <UniversalSeoModal
+          entityId={blog.id}
+          entityType="blog"
           isOpen={isOpen}
           onClose={onClose}
           onSaved={onSaved}

@@ -11,6 +11,8 @@ import {
   Minimize2,
   CheckCircle2,
   ChevronDown,
+  Layout,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -31,6 +33,11 @@ export interface EditorTopBarProps {
   loadedFromBackup?: boolean;
   isDirty?: boolean;
   lastSavedAt?: string | null;
+
+  // Segmented view switcher (Visual Editor vs SEO Suite)
+  activeView?: "editor" | "seo";
+  onViewChange?: (view: "editor" | "seo") => void;
+  seoScore?: number | null;
 
   // Navigation
   onBack: () => void;
@@ -69,6 +76,9 @@ export function EditorTopBar({
   loadedFromBackup = false,
   isDirty = false,
   lastSavedAt = null,
+  activeView = "editor",
+  onViewChange,
+  seoScore = null,
   onBack,
   backTitle = "Back",
   onPreview,
@@ -163,6 +173,49 @@ export function EditorTopBar({
           )}
         </div>
       </div>
+
+      {/* Center: Segmented View Switcher (Visual Editor vs SEO Suite) */}
+      {onViewChange && (
+        <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg border border-border shadow-xs">
+          <button
+            type="button"
+            onClick={() => onViewChange("editor")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+              activeView === "editor"
+                ? "bg-white dark:bg-zinc-900 text-foreground shadow-xs font-bold"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Layout className="w-3.5 h-3.5" />
+            <span>Visual Editor</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onViewChange("seo")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+              activeView === "seo"
+                ? "bg-white dark:bg-zinc-900 text-foreground shadow-xs font-bold"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5 text-primary" />
+            <span>SEO Suite</span>
+            {typeof seoScore === "number" && (
+              <span
+                className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  seoScore >= 80
+                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                    : seoScore >= 50
+                    ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
+                    : "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300"
+                }`}
+              >
+                {seoScore}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Right: Autosave status + Preview + Fullscreen + Split Publish Button */}
       <div className="flex items-center gap-2 shrink-0">
