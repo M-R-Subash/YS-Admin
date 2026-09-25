@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/toast";
 import { Loader2 } from "lucide-react";
 import { useEmergencyDraft, getEmergencyBackup } from "@/hooks/useEmergencyDraft";
+import { useDirtyManager } from "@/hooks/useDirtyManager";
 import {
   blogDraftSchema,
   blogPublishSchema,
@@ -310,13 +311,18 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     faqs,
   ]);
 
+  const dirtyManager = useDirtyManager({
+    isDirty: isDirtyOrFilled,
+    protectWindowClose: true,
+  });
+
   // Refs for keyboard shortcuts (to avoid stale closures)
-  const isDirtyOrFilledRef = useRef(isDirtyOrFilled);
+  const isDirtyOrFilledRef = useRef(dirtyManager.isDirty);
   const handleSaveRef = useRef<(status: "draft" | "published", shouldExit?: boolean) => Promise<boolean>>(null!);
 
   useEffect(() => {
-    isDirtyOrFilledRef.current = isDirtyOrFilled;
-  }, [isDirtyOrFilled]);
+    isDirtyOrFilledRef.current = dirtyManager.isDirty;
+  }, [dirtyManager.isDirty]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -552,7 +558,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   // Auto-save emergency draft hook
   const { clearBackup } = useEmergencyDraft({
     key: `emergency_blog_draft_${blogId || "new"}`,
-    isDirty: isDirtyOrFilled,
+    isDirty: dirtyManager.isDirty,
     getPayload: () => getValues(),
   });
 
@@ -858,7 +864,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     isFullscreen,
     setIsFullscreen,
 
-    isDirtyOrFilled,
+    isDirtyOrFilled: dirtyManager.isDirty,
     hasCloudDraft,
     loadedFromBackup,
     lastSavedAt,

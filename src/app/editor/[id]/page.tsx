@@ -23,6 +23,7 @@ import {
 } from "@/components/editor-shell";
 import { ScreenLoader } from "@/components/ui/screen-loader";
 import { useEmergencyDraft, getEmergencyBackup } from "@/hooks/useEmergencyDraft";
+import { useDirtyManager } from "@/hooks/useDirtyManager";
 import { SeoEditorSuite } from "@/components/seo/SeoEditorSuite";
 import { analyzeSeo } from "@/lib/seo/seo-engine";
 import type { SeoMetadata } from "@/types/seo";
@@ -111,7 +112,6 @@ export default function EditorPage({
   const [isPreviewSaving, setIsPreviewSaving] = useState(false);
 
   // Dialog states
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -220,6 +220,11 @@ export default function EditorPage({
       page?.status !== "published");
 
   const hasCloudDraft = Boolean(page?.draftContent);
+
+  const dirtyManager = useDirtyManager({
+    isDirty: isUnsavedChanges,
+    protectWindowClose: true,
+  });
 
   const { clearBackup } = useEmergencyDraft({
     key: `emergency_draft_${pageId}`,
@@ -568,17 +573,13 @@ export default function EditorPage({
         status={page.status}
         isEditMode={true}
         hasCloudDraft={hasCloudDraft}
-        isDirty={isUnsavedChanges}
+        isDirty={dirtyManager.isDirty}
         lastSavedAt={lastSavedAt}
         activeView={activeView}
         onViewChange={setActiveView}
         seoScore={seoScore}
         onBack={() => {
-          if (isUnsavedChanges) {
-            setShowExitConfirm(true);
-          } else {
-            router.push("/webpages");
-          }
+          dirtyManager.confirmExit(() => router.push("/webpages"));
         }}
         backTitle="Back to Webpages"
         onPreview={handlePreview}
@@ -715,10 +716,10 @@ export default function EditorPage({
 
       {/* Exit Confirmation Dialog */}
       <ExitConfirmModal
-        open={showExitConfirm}
-        onOpenChange={setShowExitConfirm}
-        onStay={() => setShowExitConfirm(false)}
-        onExitWithoutSave={() => router.push("/webpages")}
+        open={dirtyManager.showExitConfirm}
+        onOpenChange={dirtyManager.setShowExitConfirm}
+        onStay={dirtyManager.handleCancelExit}
+        onExitWithoutSave={dirtyManager.handleConfirmExit}
         onSaveAndExit={handleSaveDraftAndExit}
         isSubmitting={savingDraft}
       />

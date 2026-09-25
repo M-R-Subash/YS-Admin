@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useDirtyManager } from "@/hooks/useDirtyManager";
 import {
   Dialog,
   DialogContent,
@@ -105,10 +106,15 @@ export function UniversalSeoModal({
     watch,
     reset,
     setValue,
-    formState: { errors, isDirty },
+    formState: { errors, isDirty: formIsDirty },
   } = useForm<UniversalSeoFormData>({
     resolver: zodResolver(universalSeoFormSchema) as any,
     defaultValues,
+  });
+
+  const dirtyManager = useDirtyManager({
+    isDirty: formIsDirty,
+    onMarkClean: (data) => reset(data),
   });
 
   useEffect(() => {
@@ -156,7 +162,7 @@ export function UniversalSeoModal({
   ]);
 
   const onSubmit = async (data: UniversalSeoFormData) => {
-    if (!isDirty) {
+    if (!dirtyManager.isDirty) {
       return;
     }
 
@@ -184,8 +190,8 @@ export function UniversalSeoModal({
         type: "success",
       });
 
-      // Reset baseline to newly saved data so isDirty flips back to false
-      reset(data);
+      // Reset baseline to newly saved data so dirtyManager flips back to clean
+      dirtyManager.markClean(data);
       onSaved?.();
     } catch (err: any) {
       toast.add({
@@ -785,7 +791,7 @@ export function UniversalSeoModal({
           {/* Footer Actions - Docked at Bottom, Never shifts height */}
           <DialogFooter className="shrink-0 px-6 sm:px-8 py-4 border-t border-border bg-card/95 backdrop-blur-xs flex items-center justify-between gap-3 m-0">
             <div className="flex items-center gap-2 text-xs">
-              {isDirty ? (
+              {dirtyManager.isDirty ? (
                 <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-medium">
                   <span className="size-2 rounded-full bg-amber-500 animate-pulse" />
                   Unsaved changes
@@ -810,9 +816,9 @@ export function UniversalSeoModal({
               </Button>
               <Button
                 type="submit"
-                disabled={!isDirty || isSaving}
+                disabled={dirtyManager.isSaveDisabled(isSaving)}
                 className={`h-10 px-6 text-xs font-bold cursor-pointer rounded-lg flex items-center gap-2 transition-all ${
-                  !isDirty || isSaving
+                  dirtyManager.isSaveDisabled(isSaving)
                     ? "opacity-50 cursor-not-allowed bg-muted text-muted-foreground"
                     : "bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
                 }`}

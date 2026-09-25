@@ -11,17 +11,22 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/componen
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "@/components/ui/toast";
+import { useDirtyManager } from "@/hooks/useDirtyManager";
 
 export default function FooterEditorClient({ initialData }: { initialData: any }) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
-
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const { control, handleSubmit, watch, reset, formState: { isDirty } } = useForm({
+  const { control, handleSubmit, watch, reset, formState: { isDirty: formIsDirty } } = useForm({
     resolver: zodResolver(footerZodSchema as any),
     defaultValues: initialData,
+  });
+
+  const dirtyManager = useDirtyManager({
+    isDirty: formIsDirty,
+    protectWindowClose: true,
+    onMarkClean: (data) => reset(data),
   });
 
   const formData = watch();
@@ -41,7 +46,7 @@ export default function FooterEditorClient({ initialData }: { initialData: any }
     const result = await saveFooterData(data);
     setIsSaving(false);
     if (result.success) {
-      reset(data);
+      dirtyManager.markClean(data);
       toast.add({ title: "Footer published successfully", type: "success" });
     } else {
       toast.add({ title: "Failed to save footer", type: "error" });
@@ -55,13 +60,7 @@ export default function FooterEditorClient({ initialData }: { initialData: any }
         <div className="flex items-center gap-4">
           <button
             type="button"
-            onClick={() => {
-              if (isDirty) {
-                setShowExitConfirm(true);
-              } else {
-                router.push("/webpages");
-              }
-            }}
+            onClick={() => dirtyManager.confirmExit(() => router.push("/webpages"))}
             className="p-2 rounded-sm bg-black border border-black hover:bg-card-hover transition-all text-muted shadow-sm cursor-pointer"
           >
             <ChevronLeft className="w-4.5 h-4.5" strokeWidth={2.5} />
@@ -75,7 +74,7 @@ export default function FooterEditorClient({ initialData }: { initialData: any }
         <div className="flex items-center gap-3">
           <button
             onClick={handleSubmit(onSubmit)}
-            disabled={isSaving || !isDirty}
+            disabled={dirtyManager.isSaveDisabled(isSaving)}
             className="px-4 py-4 text-xs font-bold bg-black hover:bg-black/90 text-white rounded-sm shadow-md transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {isSaving ? "Publishing..." : "Publish Changes"}
@@ -137,7 +136,7 @@ export default function FooterEditorClient({ initialData }: { initialData: any }
         </ResizablePanel>
       </ResizablePanelGroup>
 
-      <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
+      <AlertDialog open={dirtyManager.showExitConfirm} onOpenChange={dirtyManager.setShowExitConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
@@ -146,8 +145,8 @@ export default function FooterEditorClient({ initialData }: { initialData: any }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowExitConfirm(false)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => router.push("/webpages")}>Exit Without Saving</AlertDialogAction>
+            <AlertDialogCancel onClick={dirtyManager.handleCancelExit}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={dirtyManager.handleConfirmExit}>Exit Without Saving</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import Image from "next/image";
+import { useDirtyManager, deepEqual } from "@/hooks/useDirtyManager";
 import {
   Camera,
   Check,
@@ -88,15 +89,39 @@ function UserForm({ user, onClose, onSuccess }: UserFormProps) {
   const [description, setDescription] = useState(user?.description || "");
   const [profilePicture, setProfilePicture] = useState(user?.profilePicture || "");
 
-  // Form dirty check to prevent redundant API calls when no changes have been made
-  const isDirty = !isEdit
-    ? true
-    : name.trim() !== (user?.name || "").trim() ||
-      role !== (user?.role || "EDITOR") ||
-      authorRole.trim() !== (user?.authorRole || "").trim() ||
-      description.trim() !== (user?.description || "").trim() ||
-      profilePicture !== (user?.profilePicture || "") ||
-      password.trim().length > 0;
+  // Form dirty check via unified useDirtyManager
+  const currentFormData = useMemo(
+    () => ({
+      name: name.trim(),
+      role,
+      authorRole: authorRole.trim(),
+      description: description.trim(),
+      profilePicture,
+      password: password.trim(),
+    }),
+    [name, role, authorRole, description, profilePicture, password]
+  );
+
+  const initialFormData = useMemo(
+    () => ({
+      name: (user?.name || "").trim(),
+      role: user?.role || "EDITOR",
+      authorRole: (user?.authorRole || "").trim(),
+      description: (user?.description || "").trim(),
+      profilePicture: user?.profilePicture || "",
+      password: "",
+    }),
+    [user]
+  );
+
+  const dirtyManager = useDirtyManager({
+    currentData: currentFormData,
+    initialData: initialFormData,
+    isDirtyFn: (curr, init) => {
+      if (!isEdit) return true;
+      return !deepEqual(curr, init);
+    },
+  });
 
   const handleGeneratePassword = () => {
     const gen = generateStrongPassword();
@@ -177,7 +202,7 @@ function UserForm({ user, onClose, onSuccess }: UserFormProps) {
     e.preventDefault();
 
     // Prevent redundant API call if editing and no changes were made
-    if (isEdit && !isDirty) {
+    if (isEdit && !dirtyManager.isDirty) {
       onClose();
       return;
     }
@@ -552,7 +577,7 @@ function UserForm({ user, onClose, onSuccess }: UserFormProps) {
           </Button>
           <Button
             type="submit"
-            disabled={loading || isUploading || (isEdit && !isDirty)}
+            disabled={loading || isUploading || (isEdit && !dirtyManager.isDirty)}
             className="h-10 px-6 text-sm font-semibold shadow-xs hover:shadow-sm transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading && <Loader2 className="size-4 mr-2 animate-spin" />}
