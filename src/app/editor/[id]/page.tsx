@@ -203,21 +203,15 @@ export default function EditorPage({
     return analysis.score;
   }, [seoData, page?.title, page?.slug, schemaData]);
 
-  // Calculate accurate dirty states (both schema content and SEO metadata)
-  const isSchemaDirty =
-    Boolean(page && schemaData && savedBaselineString) &&
-    JSON.stringify(schemaData) !== savedBaselineString;
-  const isSeoDirty =
-    Boolean(savedSeoBaselineString) &&
-    JSON.stringify(seoData) !== savedSeoBaselineString;
+  // Track accurate dirty states (both schema content and SEO metadata)
+  const [isSchemaDirty, setIsSchemaDirty] = useState(false);
+  const isSeoDirty = useMemo(() => {
+    return (
+      Boolean(savedSeoBaselineString) &&
+      JSON.stringify(seoData) !== savedSeoBaselineString
+    );
+  }, [seoData, savedSeoBaselineString]);
   const isUnsavedChanges = isSchemaDirty || isSeoDirty;
-
-  // isDirtyFromLive: content or SEO differs from live published content
-  const isDirtyFromLive =
-    Boolean(page && schemaData) &&
-    (JSON.stringify(schemaData) !== JSON.stringify(page?.content) ||
-      JSON.stringify(seoData) !== JSON.stringify(page?.seo || {}) ||
-      page?.status !== "published");
 
   const hasCloudDraft = Boolean(page?.draftContent);
 
@@ -262,6 +256,9 @@ export default function EditorPage({
       setSchemaData(contentPayload);
       setSavedBaselineString(JSON.stringify(contentPayload));
       setSavedSeoBaselineString(JSON.stringify(seoData));
+      setIsSchemaDirty(false);
+      schemaEditorRef.current?.resetData(contentPayload);
+      dirtyManager.markClean();
       setLastSavedAt(
         new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       );
@@ -382,6 +379,9 @@ export default function EditorPage({
       setSchemaData(contentPayload);
       setSavedBaselineString(JSON.stringify(contentPayload));
       setSavedSeoBaselineString(JSON.stringify(seoData));
+      setIsSchemaDirty(false);
+      schemaEditorRef.current?.resetData(contentPayload);
+      dirtyManager.markClean();
       setLastSavedAt(null);
       clearBackup();
 
@@ -586,7 +586,7 @@ export default function EditorPage({
         isPreviewSaving={isPreviewSaving}
         onPublish={handlePublish}
         isPublishing={publishing}
-        canPublish={!publishing && (isDirtyFromLive || hasCloudDraft || isUnsavedChanges)}
+        canPublish={!publishing && (page.status !== "published" || hasCloudDraft || dirtyManager.isDirty)}
         publishLabel={
           page.status === "published"
             ? hasCloudDraft
@@ -596,7 +596,7 @@ export default function EditorPage({
         }
         onSaveDraft={handleSaveDraft}
         isSavingDraft={savingDraft}
-        canSaveDraft={!savingDraft && isUnsavedChanges}
+        canSaveDraft={!savingDraft && dirtyManager.isDirty}
       />
 
       {/* Editor & Preview Split Panels + SEO Suite (Both persistent in DOM via absolute positioning to ensure 0ms instant switching without iframe reload) */}
@@ -623,6 +623,7 @@ export default function EditorPage({
                   initialData={page.draftContent ?? page.content}
                   iframeRef={iframeRef}
                   onDataChange={setSchemaData}
+                  onDirtyChange={setIsSchemaDirty}
                   uiSchema={schemaConfig.uiSchema}
                   zodSchema={schemaConfig.schema}
                   previewEventType={schemaConfig.previewType}
@@ -714,12 +715,9 @@ export default function EditorPage({
         </div>
       </div>
 
-      {/* Exit Confirmation Dialog */}
+      {/* Exit Confirmation Dialog (Reusable via dirtyManager) */}
       <ExitConfirmModal
-        open={dirtyManager.showExitConfirm}
-        onOpenChange={dirtyManager.setShowExitConfirm}
-        onStay={dirtyManager.handleCancelExit}
-        onExitWithoutSave={dirtyManager.handleConfirmExit}
+        manager={dirtyManager}
         onSaveAndExit={handleSaveDraftAndExit}
         isSubmitting={savingDraft}
       />

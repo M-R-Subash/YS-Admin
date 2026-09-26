@@ -9,8 +9,7 @@ import { ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-
+import { ExitConfirmModal } from "@/components/editor-shell";
 import { toast } from "@/components/ui/toast";
 import { useDirtyManager } from "@/hooks/useDirtyManager";
 
@@ -137,20 +136,7 @@ export default function HeaderEditorClient({ initialData }: { initialData: any }
         </ResizablePanel>
       </ResizablePanelGroup>
 
-      <AlertDialog open={dirtyManager.showExitConfirm} onOpenChange={dirtyManager.setShowExitConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
-            <AlertDialogDescription>
-              You have unsaved changes. Are you sure you want to exit without saving?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={dirtyManager.handleCancelExit}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={dirtyManager.handleConfirmExit}>Exit Without Saving</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ExitConfirmModal manager={dirtyManager} />
     </div>
   );
 }

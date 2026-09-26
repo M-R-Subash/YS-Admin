@@ -19,6 +19,7 @@ interface SchemaEditorProps {
   initialData: any;
   iframeRef: React.RefObject<HTMLIFrameElement | null>;
   onDataChange?: (data: any) => void;
+  onDirtyChange?: (isDirty: boolean) => void;
   uiSchema: FieldSchema[];
   zodSchema: ZodSchema<any>;
   previewEventType: string;
@@ -37,6 +38,7 @@ const SchemaEditor = forwardRef<SchemaEditorRef, SchemaEditorProps>(
       initialData,
       iframeRef,
       onDataChange,
+      onDirtyChange,
       uiSchema,
       zodSchema,
       previewEventType,
@@ -116,9 +118,17 @@ const SchemaEditor = forwardRef<SchemaEditorRef, SchemaEditorProps>(
       },
       getData: () => form.getValues(),
       resetData: (newData: any) => {
-        form.reset(normalizeHighlights(newData));
+        const normalized = normalizeHighlights(newData);
+        form.reset(normalized);
+        onDataChange?.(normalized);
+        onDirtyChange?.(false);
       },
     }));
+
+    const isDirty = form.formState.isDirty;
+    useEffect(() => {
+      onDirtyChange?.(isDirty);
+    }, [isDirty, onDirtyChange]);
 
     const [openSections, setOpenSections] = useState<Record<string, boolean>>({
       [SECTION_KEYS[0]]: true,
@@ -128,9 +138,11 @@ const SchemaEditor = forwardRef<SchemaEditorRef, SchemaEditorProps>(
     useEffect(() => {
       if (initialData && !isInitializedRef.current) {
         isInitializedRef.current = true;
-        form.reset(normalizeHighlights(initialData));
+        const normalized = normalizeHighlights(initialData);
+        form.reset(normalized);
+        onDataChange?.(normalized);
       }
-    }, [initialData, form]);
+    }, [initialData, form, onDataChange]);
 
     const [highlightedSection, setHighlightedSection] = useState<string | null>(null);
 

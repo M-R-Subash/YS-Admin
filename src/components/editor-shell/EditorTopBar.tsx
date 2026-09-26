@@ -242,21 +242,23 @@ export function EditorTopBar({
         {/* Live Preview Button (Icon-Only with Tooltip) */}
         {onPreview && (
           <Tooltip>
-            <TooltipTrigger>
-              <Button
-                variant="outline"
-                type="button"
-                disabled={isPreviewSaving || isPublishing || isSavingDraft}
-                onClick={onPreview}
-                className="h-9 w-9 p-0 rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
-              >
-                {isPreviewSaving ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                ) : (
-                  <Eye className="w-4 h-4 text-muted-foreground" />
-                )}
-              </Button>
-            </TooltipTrigger>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="outline"
+                  type="button"
+                  disabled={isPreviewSaving || isPublishing || isSavingDraft}
+                  onClick={onPreview}
+                  className="h-9 w-9 p-0 rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
+                >
+                  {isPreviewSaving ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                  ) : (
+                    <Eye className="w-4 h-4 text-muted-foreground" />
+                  )}
+                </Button>
+              }
+            />
             <TooltipContent side="bottom">
               <p className="text-xs">
                 {isPreviewSaving
@@ -270,20 +272,22 @@ export function EditorTopBar({
         {/* Fullscreen Toggle Button (Icon-Only, lg+ only) */}
         {onToggleFullscreen && (
           <Tooltip>
-            <TooltipTrigger>
-              <Button
-                variant="outline"
-                type="button"
-                onClick={onToggleFullscreen}
-                className="hidden lg:flex h-9 w-9 p-0 rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer items-center justify-center"
-              >
-                {isFullscreen ? (
-                  <Minimize2 className="w-4 h-4 text-muted-foreground" />
-                ) : (
-                  <Maximize2 className="w-4 h-4 text-muted-foreground" />
-                )}
-              </Button>
-            </TooltipTrigger>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={onToggleFullscreen}
+                  className="hidden lg:flex h-9 w-9 p-0 rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer items-center justify-center"
+                >
+                  {isFullscreen ? (
+                    <Minimize2 className="w-4 h-4 text-muted-foreground" />
+                  ) : (
+                    <Maximize2 className="w-4 h-4 text-muted-foreground" />
+                  )}
+                </Button>
+              }
+            />
             <TooltipContent side="bottom">
               <p className="text-xs">
                 {isFullscreen ? "Exit fullscreen (Esc)" : "Enter fullscreen"}

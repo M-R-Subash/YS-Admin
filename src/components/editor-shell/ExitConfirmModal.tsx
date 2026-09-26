@@ -12,39 +12,50 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+import type { UseDirtyManagerReturn } from "@/hooks/useDirtyManager";
+
 export interface ExitConfirmModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  manager?: UseDirtyManagerReturn;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   onStay?: () => void;
-  onExitWithoutSave: () => void;
+  onExitWithoutSave?: () => void;
   onSaveAndExit?: () => void;
   isSubmitting?: boolean;
+  title?: string;
+  description?: string;
 }
 
 export function ExitConfirmModal({
+  manager,
   open,
   onOpenChange,
   onStay,
   onExitWithoutSave,
   onSaveAndExit,
   isSubmitting = false,
+  title = "Unsaved Changes",
+  description = "You have modifications that haven't been saved yet. What would you like to do before leaving?",
 }: ExitConfirmModalProps) {
+  const isOpen = manager ? manager.showExitConfirm : (open ?? false);
+  const handleOpenChange = manager ? manager.setShowExitConfirm : (onOpenChange ?? (() => {}));
+  const handleStay = onStay || (manager ? manager.handleCancelExit : () => handleOpenChange(false));
+  const handleExit = onExitWithoutSave || (manager ? manager.handleConfirmExit : () => {});
+
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog open={isOpen} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
-          <AlertDialogDescription>
-            You have modifications that haven&apos;t been saved to your draft yet. What would you like to do before leaving?
-          </AlertDialogDescription>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-2">
-          <AlertDialogCancel onClick={onStay || (() => onOpenChange(false))}>
+          <AlertDialogCancel onClick={handleStay}>
             Stay Here
           </AlertDialogCancel>
           <button
             type="button"
-            onClick={onExitWithoutSave}
+            onClick={handleExit}
             className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold text-zinc-700 hover:text-black bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 rounded-md transition-all cursor-pointer"
           >
             Exit Without Saving
@@ -63,3 +74,6 @@ export function ExitConfirmModal({
     </AlertDialog>
   );
 }
+
+export const DirtyConfirmModal = ExitConfirmModal;
+
