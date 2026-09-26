@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toast";
+import { useDirtyManager } from "@/hooks/useDirtyManager";
 import Image from "next/image";
 import { format } from "date-fns";
 import { AdminTopBar } from "@/components/AdminTopBar";
@@ -112,11 +113,25 @@ export default function AccountPage() {
     }
   }, [accountData, session]);
 
-  const hasChanges =
-    name !== initialValues.name ||
-    profilePicture !== initialValues.profilePicture ||
-    description !== initialValues.description ||
-    authorRole !== initialValues.authorRole;
+  const currentProfileData = {
+    name: name.trim(),
+    profilePicture,
+    description: description.trim(),
+    authorRole: authorRole.trim(),
+  };
+
+  const initialProfileData = {
+    name: (initialValues.name || "").trim(),
+    profilePicture: initialValues.profilePicture || "",
+    description: (initialValues.description || "").trim(),
+    authorRole: (initialValues.authorRole || "").trim(),
+  };
+
+  const dirtyManager = useDirtyManager({
+    currentData: currentProfileData,
+    initialData: initialProfileData,
+    protectWindowClose: true,
+  });
 
   const handleUpload = async (file: File) => {
     if (!file) return;
@@ -190,6 +205,7 @@ export default function AccountPage() {
       await mutateAccount();
 
       setInitialValues({ name, profilePicture, description, authorRole });
+      dirtyManager.markClean(currentProfileData);
 
       toast.add({
         title: "Success",
@@ -572,7 +588,7 @@ export default function AccountPage() {
             <div className="pt-4 border-t border-border/60 flex justify-end">
               <Button
                 onClick={handleSave}
-                disabled={isSaving || isUploading || !hasChanges}
+                disabled={isSaving || isUploading || !dirtyManager.isDirty}
                 className="h-10 px-6 text-sm font-semibold shadow-xs hover:shadow-md transition-all cursor-pointer"
               >
                 {isSaving ? (
