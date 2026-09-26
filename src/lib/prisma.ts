@@ -15,7 +15,8 @@ function createPrismaClient(): PrismaClient {
 
 let client = globalForPrisma.prisma;
 
-if (!client || !(client as any).formSubmission) {
+// Re-instantiate if cached instance does not have the scheduledAt field
+if (!client || !(client as any).formSubmission || !(client as any)._runtimeDataModel?.models?.Blog?.fields?.some((f: any) => f.name === "scheduledAt")) {
   client = createPrismaClient();
 }
 

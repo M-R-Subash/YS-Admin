@@ -35,7 +35,8 @@ export const blogDraftSchema = z.object({
   slug: z.string().min(1, "Slug is required"),
   featuredImage: z.string().nullable().optional(),
   allowComments: z.boolean().default(true),
-  status: z.enum(["draft", "published"]).default("draft"),
+  status: z.enum(["draft", "published", "scheduled"]).default("draft"),
+  scheduledAt: z.union([z.string(), z.date()]).optional().nullable(),
   content: z.any().optional(),
   excerpt: z.string().max(400, "Excerpt should not exceed 400 characters").optional().default(""),
   readingTime: z.number().optional(),
@@ -54,7 +55,16 @@ export const blogDraftSchema = z.object({
   authorRole: z.string().optional().nullable(),
   authorDescription: z.string().optional().nullable(),
   faqs: z.array(blogFaqItemSchema).default([]),
-  action: z.enum(["save-draft", "publish", "discard-draft"]).optional(),
+  action: z
+    .enum([
+      "save-draft",
+      "publish",
+      "schedule",
+      "publish-now",
+      "cancel-schedule",
+      "discard-draft",
+    ])
+    .optional(),
 });
 
 export type BlogDraftFormData = z.infer<typeof blogDraftSchema>;
@@ -80,7 +90,8 @@ export const blogPublishSchema = z.object({
     .trim()
     .min(1, "A featured cover image is required to publish live"),
   allowComments: z.boolean().default(true),
-  status: z.literal("published").default("published"),
+  status: z.enum(["published", "scheduled"]).default("published"),
+  scheduledAt: z.union([z.string(), z.date()]).optional().nullable(),
   content: z
     .any()
     .refine(hasTipTapContent, "Article content cannot be empty before publishing"),
@@ -114,10 +125,36 @@ export const blogPublishSchema = z.object({
       )
     )
     .default([]),
-  action: z.enum(["save-draft", "publish", "discard-draft"]).optional(),
+  action: z
+    .enum([
+      "save-draft",
+      "publish",
+      "schedule",
+      "publish-now",
+      "cancel-schedule",
+      "discard-draft",
+    ])
+    .optional(),
 });
 
 export type BlogPublishFormData = z.infer<typeof blogPublishSchema>;
+
+// 3. Strict Schedule Schema (requires valid future timestamp)
+export const blogScheduleSchema = blogPublishSchema.extend({
+  status: z.literal("scheduled").default("scheduled"),
+  scheduledAt: z
+    .union([z.string(), z.date()])
+    .refine(
+      (val) => {
+        if (!val) return false;
+        const d = new Date(val);
+        return !isNaN(d.getTime()) && d.getTime() > Date.now();
+      },
+      { message: "Scheduled date and time must be set in the future" }
+    ),
+});
+
+export type BlogScheduleFormData = z.infer<typeof blogScheduleSchema>;
 
 // Unified Form Data type (used by React Hook Form)
 export interface BlogFormData {
@@ -125,7 +162,8 @@ export interface BlogFormData {
   slug: string;
   featuredImage: string | null;
   allowComments: boolean;
-  status: "draft" | "published";
+  status: "draft" | "published" | "scheduled";
+  scheduledAt?: string | Date | null;
   content: any;
   excerpt: string;
   readingTime?: number;

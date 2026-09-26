@@ -59,8 +59,8 @@ export async function proxy(req: NextRequest, event: NextFetchEvent) {
     }
   }
 
-  // Allow NextAuth endpoints to proceed without requiring an existing session
-  if (pathname.startsWith("/api/auth")) {
+  // Allow NextAuth and Cron endpoints to proceed without requiring an existing session
+  if (pathname.startsWith("/api/auth") || pathname.startsWith("/api/cron")) {
     return NextResponse.next();
   }
 

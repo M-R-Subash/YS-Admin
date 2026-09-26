@@ -11,7 +11,7 @@ export async function GET() {
     }
 
     const isUserAdmin = session.user.role === "ADMIN";
-    const [unreadSubmissions, pendingComments] = await Promise.all([
+    const [unreadSubmissions, pendingComments, upcomingScheduled] = await Promise.all([
       prisma.formSubmission.count({
         where: { isTrashed: false, isRead: false },
       }),
@@ -20,11 +20,15 @@ export async function GET() {
             where: { isTrashed: false, isApproved: false },
           })
         : Promise.resolve(0),
+      prisma.blog.count({
+        where: { status: "scheduled", isTrashed: false },
+      }),
     ]);
 
     return NextResponse.json({
       unreadSubmissions,
       pendingComments,
+      upcomingScheduled,
     });
   } catch (error: any) {
     console.error("Badges count fetch error:", error);

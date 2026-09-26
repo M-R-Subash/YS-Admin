@@ -13,6 +13,9 @@ import {
   ChevronDown,
   Layout,
   Globe,
+  Calendar,
+  Clock,
+  Undo2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -21,13 +24,16 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuShortcut,
 } from "@/components/ui/dropdown-menu";
+import { format, formatDistanceToNow, isToday, isTomorrow } from "date-fns";
 
 export interface EditorTopBarProps {
   title: string;
   subtitle?: string;
-  status: string; // "draft" | "published"
+  status: string; // "draft" | "published" | "scheduled"
+  scheduledAt?: string | Date | null;
   isEditMode?: boolean;
   hasCloudDraft?: boolean;
   loadedFromBackup?: boolean;
@@ -52,7 +58,7 @@ export interface EditorTopBarProps {
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
 
-  // Save / Publish
+  // Save / Publish / Schedule
   onPublish: () => void;
   isPublishing?: boolean;
   canPublish?: boolean;
@@ -61,6 +67,11 @@ export interface EditorTopBarProps {
   onSaveDraft?: () => void;
   isSavingDraft?: boolean;
   canSaveDraft?: boolean;
+
+  onOpenSchedule?: () => void;
+  onPublishNow?: () => void;
+  onCancelSchedule?: () => void;
+  isPublishingNow?: boolean;
 
   // Extra action slot
   extraActions?: React.ReactNode;
@@ -93,11 +104,53 @@ export function EditorTopBar({
   onSaveDraft,
   isSavingDraft = false,
   canSaveDraft = true,
+  scheduledAt = null,
+  onOpenSchedule,
+  onPublishNow,
+  onCancelSchedule,
+  isPublishingNow = false,
   extraActions,
   className = "",
 }: EditorTopBarProps) {
   const isPublished = status === "published";
-  const defaultPublishLabel = isPublished
+  const isScheduled = status === "scheduled";
+
+  const scheduleDate = scheduledAt ? new Date(scheduledAt) : null;
+  const isOverdue =
+    isScheduled && scheduleDate && !isNaN(scheduleDate.getTime())
+      ? scheduleDate.getTime() <= Date.now()
+      : false;
+
+  let scheduleBadgeText = "Scheduled";
+  let scheduleBadgeTooltip = "This post is scheduled for future release.";
+
+  if (isScheduled && scheduleDate && !isNaN(scheduleDate.getTime())) {
+    const timeStr = format(scheduleDate, "h:mm a");
+    const relStr = formatDistanceToNow(scheduleDate, { addSuffix: true });
+
+    if (isOverdue) {
+      scheduleBadgeText = "Pending Publish";
+      scheduleBadgeTooltip = `Scheduled time (${timeStr}) passed. Cron will publish shortly, or you can click 'Publish Immediately'.`;
+    } else if (isToday(scheduleDate)) {
+      scheduleBadgeText = `Scheduled · Today ${timeStr}`;
+      scheduleBadgeTooltip = `Scheduled for Today at ${timeStr} (${relStr})`;
+    } else if (isTomorrow(scheduleDate)) {
+      scheduleBadgeText = `Scheduled · Tomorrow ${timeStr}`;
+      scheduleBadgeTooltip = `Scheduled for Tomorrow at ${timeStr} (${relStr})`;
+    } else {
+      scheduleBadgeText = `Scheduled · ${format(scheduleDate, "MMM d, h:mm a")}`;
+      scheduleBadgeTooltip = `Scheduled for ${format(
+        scheduleDate,
+        "MMM d, yyyy 'at' h:mm a"
+      )} (${relStr})`;
+    }
+  }
+
+  const defaultPublishLabel = isScheduled
+    ? isDirty
+      ? "Save Schedule"
+      : "Update Schedule"
+    : isPublished
     ? hasCloudDraft || loadedFromBackup
       ? "Publish"
       : "Update"
@@ -126,7 +179,35 @@ export function EditorTopBar({
             </h1>
 
             {/* Dynamic Status Badges matching Blog editor design */}
-            {isEditMode && status === "draft" ? (
+            {isEditMode && isScheduled ? (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border shadow-xs shrink-0 cursor-default ${
+                        isOverdue
+                          ? "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800"
+                          : "bg-purple-100 text-purple-900 border-purple-300 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800"
+                      }`}
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          isOverdue
+                            ? "bg-amber-500 animate-ping"
+                            : isDirty
+                            ? "bg-purple-500 animate-pulse"
+                            : "bg-purple-500"
+                        }`}
+                      />
+                      {scheduleBadgeText}
+                    </span>
+                  }
+                />
+                <TooltipContent side="bottom">
+                  <p className="text-xs">{scheduleBadgeTooltip}</p>
+                </TooltipContent>
+              </Tooltip>
+            ) : isEditMode && status === "draft" ? (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-xs shrink-0">
                 <span
                   className={`w-1.5 h-1.5 rounded-full bg-amber-500 ${
@@ -296,43 +377,107 @@ export function EditorTopBar({
           </Tooltip>
         )}
 
-        {/* Split Publish Button with Save Draft Dropdown */}
+        {/* Split Publish Button with Save Draft & Schedule Dropdown */}
         <div className="flex items-center">
           <Button
             onClick={onPublish}
             disabled={isPublishing || isSavingDraft || !canPublish}
-            className="flex items-center gap-2 h-9 px-4 text-xs font-bold rounded-sm rounded-r-none shadow-md transition-all hover:scale-[1.02] bg-black hover:bg-black/90 text-white disabled:opacity-50 cursor-pointer"
+            className={`flex items-center gap-2 h-9 px-4 text-xs font-bold rounded-sm ${
+              onSaveDraft || onOpenSchedule || isScheduled ? "rounded-r-none" : ""
+            } shadow-md transition-all hover:scale-[1.02] ${
+              isScheduled
+                ? "bg-purple-600 hover:bg-purple-700 text-white"
+                : "bg-black hover:bg-black/90 text-white"
+            } disabled:opacity-50 cursor-pointer`}
           >
             {isPublishing ? (
               <Loader2 className="w-4 h-4 animate-spin" />
+            ) : isScheduled ? (
+              <Calendar className="w-4 h-4" />
             ) : (
               <Send className="w-4 h-4" />
             )}
             {effectivePublishLabel}
           </Button>
 
-          {onSaveDraft && (
+          {(onSaveDraft || onOpenSchedule || isScheduled) && (
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
                   <Button
                     type="button"
-                    className="h-9 w-8 p-0 rounded-sm rounded-l-none border-l border-white/20 bg-black hover:bg-black/90 text-white shadow-md cursor-pointer flex items-center justify-center"
+                    className={`h-9 w-8 p-0 rounded-sm rounded-l-none border-l border-white/20 ${
+                      isScheduled
+                        ? "bg-purple-600 hover:bg-purple-700"
+                        : "bg-black hover:bg-black/90"
+                    } text-white shadow-md cursor-pointer flex items-center justify-center`}
                   />
                 }
               >
                 <ChevronDown className="w-3.5 h-3.5" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" side="bottom" sideOffset={6} className="w-44">
-                <DropdownMenuItem
-                  onClick={onSaveDraft}
-                  disabled={isPublishing || isSavingDraft || !canSaveDraft}
-                  className="cursor-pointer"
-                >
-                  <Save className="w-4 h-4 mr-2 text-muted-foreground" />
-                  Save Draft
-                  <DropdownMenuShortcut>⌘S</DropdownMenuShortcut>
-                </DropdownMenuItem>
+              <DropdownMenuContent
+                align="end"
+                side="bottom"
+                sideOffset={6}
+                className="w-56"
+              >
+                {/* 1. Schedule for later / Change schedule */}
+                {onOpenSchedule && (
+                  <DropdownMenuItem
+                    onClick={onOpenSchedule}
+                    disabled={isPublishing || isSavingDraft}
+                    className="cursor-pointer"
+                  >
+                    <Calendar className="w-4 h-4 mr-2 text-purple-600 dark:text-purple-400" />
+                    <span>
+                      {isScheduled
+                        ? "Change Schedule Time..."
+                        : "Schedule for Later..."}
+                    </span>
+                  </DropdownMenuItem>
+                )}
+
+                {/* 2. Publish Immediately if Scheduled */}
+                {isScheduled && onPublishNow && (
+                  <DropdownMenuItem
+                    onClick={onPublishNow}
+                    disabled={isPublishing || isSavingDraft || isPublishingNow}
+                    className="cursor-pointer text-emerald-600 dark:text-emerald-400 font-semibold focus:text-emerald-600 focus:bg-emerald-50 dark:focus:bg-emerald-950/40"
+                  >
+                    <Send className="w-4 h-4 mr-2" />
+                    <span>Publish Immediately</span>
+                  </DropdownMenuItem>
+                )}
+
+                {/* 3. Revert Scheduled to Draft */}
+                {isScheduled && onCancelSchedule && (
+                  <DropdownMenuItem
+                    onClick={onCancelSchedule}
+                    disabled={isPublishing || isSavingDraft}
+                    className="cursor-pointer text-muted-foreground hover:text-destructive focus:text-destructive focus:bg-destructive/10"
+                  >
+                    <Undo2 className="w-4 h-4 mr-2" />
+                    <span>Revert to Draft</span>
+                  </DropdownMenuItem>
+                )}
+
+                {(onOpenSchedule || isScheduled) && onSaveDraft && (
+                  <DropdownMenuSeparator />
+                )}
+
+                {/* 4. Save Draft */}
+                {onSaveDraft && (
+                  <DropdownMenuItem
+                    onClick={onSaveDraft}
+                    disabled={isPublishing || isSavingDraft || !canSaveDraft}
+                    className="cursor-pointer"
+                  >
+                    <Save className="w-4 h-4 mr-2 text-muted-foreground" />
+                    Save Draft
+                    <DropdownMenuShortcut>⌘S</DropdownMenuShortcut>
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}

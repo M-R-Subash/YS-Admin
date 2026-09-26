@@ -3,7 +3,7 @@
 import { useState } from "react";
 import useSWR, { mutate as globalMutate } from "swr";
 import Link from "next/link";
-import { Search, PenTool, Plus, BookOpen, CheckCircle2, FileEdit, Trash2 } from "lucide-react";
+import { Search, PenTool, Plus, BookOpen, CheckCircle2, FileEdit, Trash2, Clock } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { AdminTopBar } from "@/components/AdminTopBar";
@@ -14,7 +14,7 @@ import { getBlogsColumns } from "./blogs-columns";
 export default function BlogsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<
-    "all" | "published" | "draft" | "trash"
+    "all" | "published" | "scheduled" | "draft" | "trash"
   >("all");
 
   const { data, isLoading, mutate } = useSWR<any[]>("/api/blogs");
@@ -39,6 +39,9 @@ export default function BlogsPage() {
   const publishedCount = blogs.filter(
     (b) => !b.isTrashed && b.status === "published",
   ).length;
+  const scheduledCount = blogs.filter(
+    (b) => !b.isTrashed && b.status === "scheduled",
+  ).length;
   const draftCount = blogs.filter(
     (b) => !b.isTrashed && b.status === "draft",
   ).length;
@@ -51,10 +54,11 @@ export default function BlogsPage() {
       {/* Main Content */}
       <div className="flex flex-1 flex-col gap-6 py-6 px-[15px] md:px-[20px] lg:px-[30px]">
         
-        {/* 4 Status Metric Filter Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* 5 Status Metric Filter Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
           {loading ? (
             <>
+              <Skeleton className="h-24 w-full rounded-sm" />
               <Skeleton className="h-24 w-full rounded-sm" />
               <Skeleton className="h-24 w-full rounded-sm" />
               <Skeleton className="h-24 w-full rounded-sm" />
@@ -118,6 +122,37 @@ export default function BlogsPage() {
                   </div>
                   {statusFilter === "published" && (
                     <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-xs border border-emerald-500/20">
+                      Active
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Scheduled Card */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setStatusFilter("scheduled")}
+                className={`rounded-sm border p-4 shadow-xs transition-all cursor-pointer flex flex-col justify-between select-none ${
+                  statusFilter === "scheduled"
+                    ? "bg-purple-500/5 border-purple-500 ring-1 ring-purple-500 shadow-sm"
+                    : "bg-card border-border hover:border-purple-500/40 hover:shadow-xs"
+                }`}
+              >
+                <div className="flex items-center justify-between pb-2">
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Scheduled
+                  </p>
+                  <div className="p-1.5 rounded-sm bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                    <Clock className="size-4" />
+                  </div>
+                </div>
+                <div className="flex items-baseline justify-between pt-1">
+                  <div className="text-2xl font-extrabold text-foreground">
+                    {scheduledCount}
+                  </div>
+                  {statusFilter === "scheduled" && (
+                    <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-xs border border-purple-500/20">
                       Active
                     </span>
                   )}
@@ -201,20 +236,6 @@ export default function BlogsPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="px-3 py-1.5 bg-card border border-border rounded-sm text-xs font-medium text-muted-foreground">
-              Published:{" "}
-              <span className="text-foreground font-bold">
-                {publishedCount}
-              </span>{" "}
-              &bull; Drafts:{" "}
-              <span className="text-muted-foreground font-bold">
-                {draftCount}
-              </span>{" "}
-              &bull; Trashed:{" "}
-              <span className="text-red-500 font-bold">
-                {trashedCount}
-              </span>
-            </div>
             <Link href="/blogs/create">
               <Button className="h-8 rounded-sm px-3 flex items-center gap-2 text-xs cursor-pointer">
                 <Plus className="w-3.5 h-3.5" /> Create Post
@@ -241,7 +262,7 @@ export default function BlogsPage() {
           </div>
 
           {/* Status Filter Pills */}
-          <div className="flex items-center gap-1.5 w-full sm:w-auto">
+          <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
             <button
               onClick={() => setStatusFilter("all")}
               className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer ${
@@ -256,17 +277,27 @@ export default function BlogsPage() {
               onClick={() => setStatusFilter("published")}
               className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer ${
                 statusFilter === "published"
-                  ? "bg-foreground text-background shadow-sm"
+                  ? "bg-emerald-600 text-white shadow-sm"
                   : "text-muted-foreground hover:text-foreground bg-background border border-border"
               }`}
             >
               Published ({publishedCount})
             </button>
             <button
+              onClick={() => setStatusFilter("scheduled")}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer ${
+                statusFilter === "scheduled"
+                  ? "bg-purple-600 text-white shadow-sm"
+                  : "text-muted-foreground hover:text-foreground bg-background border border-border"
+              }`}
+            >
+              Scheduled ({scheduledCount})
+            </button>
+            <button
               onClick={() => setStatusFilter("draft")}
               className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer ${
                 statusFilter === "draft"
-                  ? "bg-muted text-foreground shadow-sm"
+                  ? "bg-amber-600 text-white shadow-sm"
                   : "text-muted-foreground hover:text-foreground bg-background border border-border"
               }`}
             >
@@ -276,7 +307,7 @@ export default function BlogsPage() {
               onClick={() => setStatusFilter("trash")}
               className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer ${
                 statusFilter === "trash"
-                  ? "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400 border-red-200 dark:border-red-800 shadow-sm"
+                  ? "bg-red-600 text-white shadow-sm"
                   : "text-muted-foreground hover:text-red-500 bg-background border border-border"
               }`}
             >

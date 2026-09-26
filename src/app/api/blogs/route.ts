@@ -3,7 +3,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { revalidateFrontendPath } from "@/lib/revalidate";
-import { blogDraftSchema, blogPublishSchema } from "@/lib/schemas/blog/blog-validation";
+import {
+  blogDraftSchema,
+  blogPublishSchema,
+  blogScheduleSchema,
+} from "@/lib/schemas/blog/blog-validation";
 
 export async function GET(req: Request) {
   try {
@@ -24,6 +28,9 @@ export async function GET(req: Request) {
     } else if (status === "draft") {
       whereClause.status = "draft";
       whereClause.isTrashed = false;
+    } else if (status === "scheduled") {
+      whereClause.status = "scheduled";
+      whereClause.isTrashed = false;
     }
 
     // Exclude heavy TipTap rich-text `content` from list view for maximum speed & minimal payload
@@ -42,6 +49,7 @@ export async function GET(req: Request) {
         tags: true,
         categories: true,
         publishedAt: true,
+        scheduledAt: true,
         createdAt: true,
         updatedAt: true,
         author: {
@@ -101,12 +109,16 @@ export async function POST(req: Request) {
       ogDesc = "",
       canonicalUrl = "",
       noIndex = false,
+      scheduledAt = null,
     } = body;
 
     // Validate with Zod based on status
-    const validation = status === "published" 
-      ? blogPublishSchema.safeParse(body) 
-      : blogDraftSchema.safeParse(body);
+    const validation =
+      status === "published"
+        ? blogPublishSchema.safeParse(body)
+        : status === "scheduled"
+        ? blogScheduleSchema.safeParse(body)
+        : blogDraftSchema.safeParse(body);
 
     if (!validation.success) {
       return NextResponse.json(
@@ -130,6 +142,25 @@ export async function POST(req: Request) {
       );
     }
 
+    let parsedScheduledAt: Date | null = null;
+    let finalStatus = status || "draft";
+    let finalPublishedAt: Date | null = null;
+
+    if (status === "published") {
+      finalPublishedAt = new Date();
+    } else if (status === "scheduled" && scheduledAt) {
+      const scheduleDate = new Date(scheduledAt);
+      if (!isNaN(scheduleDate.getTime())) {
+        // Edge case: If scheduled time is already in the past, publish immediately
+        if (scheduleDate.getTime() <= Date.now()) {
+          finalStatus = "published";
+          finalPublishedAt = new Date();
+        } else {
+          parsedScheduledAt = scheduleDate;
+        }
+      }
+    }
+
     const newBlog = await prisma.blog.create({
       data: {
         title,
@@ -138,11 +169,12 @@ export async function POST(req: Request) {
         content,
         excerpt,
         allowComments: allowComments ?? true,
-        status: status || "draft",
+        status: finalStatus,
         tags: tags || [],
         categories: categories || [],
         readingTime: readingTime || 0,
-        publishedAt: status === "published" ? new Date() : null,
+        publishedAt: finalPublishedAt,
+        scheduledAt: parsedScheduledAt,
         authorId: session.user.id,
         seo: (metaTitle || metaDesc || focusKeyword || ogImage || ogTitle || ogDesc || canonicalUrl || noIndex) ? {
           create: {

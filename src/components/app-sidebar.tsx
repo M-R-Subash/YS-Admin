@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import useSWR from "swr"
-import { FileTextIcon, UsersIcon, PenToolIcon, ImageIcon, WavesHorizontalIcon, Bell, MessageSquare } from "lucide-react"
+import { FileTextIcon, UsersIcon, PenToolIcon, ImageIcon, WavesHorizontalIcon, Bell, MessageSquare, CalendarClock } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
@@ -31,6 +31,11 @@ const navItems = [
     title: "Blogs",
     url: "/blogs",
     icon: <PenToolIcon />,
+  },
+  {
+    title: "Scheduled Actions",
+    url: "/scheduled-actions",
+    icon: <CalendarClock />,
   },
   {
     title: "Comments",
@@ -74,6 +79,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: badges } = useSWR<{
     unreadSubmissions: number;
     pendingComments: number;
+    upcomingScheduled: number;
   }>("/api/badges", {
     refreshInterval: 60000,
     revalidateOnFocus: true,
@@ -81,6 +87,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const unreadSubmissionsCount = badges?.unreadSubmissions || 0;
   const unapprovedCommentsCount = badges?.pendingComments || 0;
+  const upcomingScheduledCount = badges?.upcomingScheduled || 0;
 
   const filteredNavMain = React.useMemo(() => {
     return navItems
@@ -97,9 +104,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         if (item.title === "Comments") {
           return { ...item, badge: unapprovedCommentsCount }
         }
+        if (item.title === "Scheduled Actions") {
+          return { ...item, badge: upcomingScheduledCount }
+        }
         return item
       })
-  }, [session, unreadSubmissionsCount, unapprovedCommentsCount])
+  }, [session, unreadSubmissionsCount, unapprovedCommentsCount, upcomingScheduledCount])
 
   return (
     <Sidebar collapsible="icon" {...props}>

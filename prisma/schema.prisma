@@ -103,6 +103,7 @@ model Blog {
   tags          String[] 
   categories    String[] 
   publishedAt   DateTime? 
+  scheduledAt   DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
@@ -113,7 +114,7 @@ model Blog {
   
   comments      Comment[]
 
-  @@index([status, isTrashed, publishedAt])
+  @@index([status, isTrashed, scheduledAt, publishedAt])
 }
 
 model Comment {

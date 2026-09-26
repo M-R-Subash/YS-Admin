@@ -43,6 +43,7 @@ export interface ContentActionCellProps<T extends ContentActionItem = ContentAct
   }) => ReactNode;
   onDataChange: () => void;
   requireAdminForPermanentDelete?: boolean;
+  extraMenuItems?: ReactNode;
 }
 
 export function ContentActionCell<T extends ContentActionItem = ContentActionItem>({
@@ -57,6 +58,7 @@ export function ContentActionCell<T extends ContentActionItem = ContentActionIte
   renderQuickEditModal,
   onDataChange,
   requireAdminForPermanentDelete = true,
+  extraMenuItems,
 }: ContentActionCellProps<T>) {
   const router = useRouter();
   const { data: session } = useSession();
@@ -97,21 +99,39 @@ export function ContentActionCell<T extends ContentActionItem = ContentActionIte
         if (!res.ok) throw new Error();
         toast.add({ title: `${capitalizedItemType} permanently deleted`, type: "success" });
       } else if (type === "unapprove") {
+        const isScheduled = item.status === "scheduled";
         const res = await fetch(endpoint, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "draft" }),
+          body: JSON.stringify({
+            status: "draft",
+            ...(isScheduled ? { action: "cancel-schedule" } : {}),
+          }),
         });
         if (!res.ok) throw new Error();
-        toast.add({ title: `${capitalizedItemType} set to draft`, type: "success" });
+        toast.add({
+          title: isScheduled
+            ? `${capitalizedItemType} schedule cancelled (reverted to draft)`
+            : `${capitalizedItemType} set to draft`,
+          type: "success",
+        });
       } else if (type === "approve") {
+        const isScheduled = item.status === "scheduled";
         const res = await fetch(endpoint, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "published" }),
+          body: JSON.stringify({
+            status: "published",
+            ...(isScheduled ? { action: "publish-now" } : {}),
+          }),
         });
         if (!res.ok) throw new Error();
-        toast.add({ title: `${capitalizedItemType} published successfully`, type: "success" });
+        toast.add({
+          title: isScheduled
+            ? `${capitalizedItemType} published immediately`
+            : `${capitalizedItemType} published successfully`,
+          type: "success",
+        });
       }
     });
   };
@@ -163,11 +183,21 @@ export function ContentActionCell<T extends ContentActionItem = ContentActionIte
                   <DropdownMenuItem onClick={() => openTrashModal("unapprove", item, item.id, item.title)}>
                     Move to Draft
                   </DropdownMenuItem>
+                ) : item.status === "scheduled" ? (
+                  <>
+                    <DropdownMenuItem onClick={() => openTrashModal("approve", item, item.id, item.title)}>
+                      Publish Immediately
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => openTrashModal("unapprove", item, item.id, item.title)}>
+                      Cancel Schedule (Draft)
+                    </DropdownMenuItem>
+                  </>
                 ) : (
                   <DropdownMenuItem onClick={() => openTrashModal("approve", item, item.id, item.title)}>
                     Set as Published
                   </DropdownMenuItem>
                 )}
+                {extraMenuItems}
                 <DropdownMenuItem
                   onClick={() => openTrashModal("trash", item, item.id, item.title)}
                   className="text-red-500 focus:text-red-500 focus:bg-red-50"

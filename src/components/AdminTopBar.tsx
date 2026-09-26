@@ -43,6 +43,7 @@ const ROUTE_LABELS: Record<string, string> = {
   "/": "Dashboard",
   "/webpages": "Webpages",
   "/blogs": "Blogs",
+  "/scheduled-actions": "Scheduled Actions",
   "/comments": "Comments",
   "/users": "Users",
   "/media": "Media Library",

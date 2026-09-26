@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, requireLiveAdmin } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import {
+  blogDraftSchema,
+  blogPublishSchema,
+  blogScheduleSchema,
+} from "@/lib/schemas/blog/blog-validation";
 import { revalidateFrontendPath } from "@/lib/revalidate";
-import { blogDraftSchema, blogPublishSchema } from "@/lib/schemas/blog/blog-validation";
 
 // GET /api/blogs/[id] — get a single blog
 export async function GET(
@@ -76,9 +80,33 @@ export async function PUT(
   let { status } = body;
 
   // Validate action payload with Zod
-  if (action === "publish" || action === "save-draft") {
-    const schema = action === "publish" ? blogPublishSchema : blogDraftSchema;
-    const validation = schema.safeParse(body);
+  if (action === "publish" || (action === "publish-now" && Boolean(body.title && body.content))) {
+    const validation = blogPublishSchema.safeParse(body);
+    if (!validation.success) {
+      return NextResponse.json(
+        { 
+          message: validation.error.issues[0]?.message || "Validation failed", 
+          errors: validation.error.issues 
+        },
+        { status: 400 }
+      );
+    }
+  } else if (action === "schedule") {
+    // If scheduling an existing published blog, we validate using draft schema so it doesn't break live status
+    const validation = existingBlog.status === "published" 
+      ? blogDraftSchema.safeParse(body)
+      : blogScheduleSchema.safeParse(body);
+    if (!validation.success) {
+      return NextResponse.json(
+        { 
+          message: validation.error.issues[0]?.message || "Validation failed", 
+          errors: validation.error.issues 
+        },
+        { status: 400 }
+      );
+    }
+  } else if (action === "save-draft") {
+    const validation = blogDraftSchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json(
         { 
@@ -107,10 +135,14 @@ export async function PUT(
     status = "draft";
   }
   
-  if (status === "published") {
+  if (action === "schedule") {
+    // Keep scheduledAt intact for scheduling
+  } else if (status === "published" || action === "publish" || action === "publish-now") {
     body.publishedAt = new Date().toISOString();
-  } else if (status === "draft") {
+    body.scheduledAt = null;
+  } else if (status === "draft" || action === "cancel-schedule") {
     body.publishedAt = null;
+    body.scheduledAt = null;
   }
 
   let parsedStructuredData = structuredData;
@@ -176,6 +208,9 @@ export async function PUT(
     ...(isTrashed !== undefined && { isTrashed }),
     ...(seoData && { seo: seoData }),
     ...(body.publishedAt !== undefined && { publishedAt: body.publishedAt }),
+    ...(body.scheduledAt !== undefined && {
+      scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null,
+    }),
   };
 
   let shouldRevalidate = false;
@@ -187,8 +222,79 @@ export async function PUT(
       draftContent: body,
       status: existingBlog.status === "published" ? "published" : (status || "draft"),
     };
+  } else if (action === "schedule") {
+    // Schedule post
+    const scheduleDate = body.scheduledAt ? new Date(body.scheduledAt) : null;
+    const isPastSchedule = scheduleDate && scheduleDate.getTime() <= Date.now();
+
+    if (existingBlog.status === "published" && !isPastSchedule) {
+      // EXISTING PUBLISHED BLOG:
+      // The current version stays live! New edits are staged in draftContent with scheduledAt.
+      updateData = {
+        ...updateData,
+        draftContent: body,
+        status: "published",
+        scheduledAt: scheduleDate,
+      };
+    } else {
+      // DRAFT or NEW BLOG:
+      updateData = {
+        ...updateData,
+        ...(title !== undefined && { title }),
+        ...(slug !== undefined && { slug }),
+        ...(content !== undefined && { content }),
+        ...(featuredImage !== undefined && { featuredImage }),
+        ...(allowComments !== undefined && { allowComments }),
+        ...(tags !== undefined && { tags }),
+        ...(categories !== undefined && { categories }),
+        ...(excerpt !== undefined && { excerpt }),
+        draftContent: null,
+        status: isPastSchedule ? "published" : "scheduled",
+        scheduledAt: isPastSchedule ? null : scheduleDate,
+        publishedAt: isPastSchedule ? (existingBlog.publishedAt || new Date()) : null,
+      };
+      if (isPastSchedule) {
+        shouldRevalidate = true;
+      }
+    }
+  } else if (action === "publish-now") {
+    // Immediate publishing: promote staged draftContent if present, flip status to published
+    const stagedDraft = existingBlog.draftContent as any;
+    updateData = {
+      ...updateData,
+      status: "published",
+      publishedAt: existingBlog.publishedAt || new Date(),
+      scheduledAt: null,
+      draftContent: null,
+    };
+    if (stagedDraft && typeof stagedDraft === "object") {
+      updateData = {
+        ...updateData,
+        ...(stagedDraft.title && { title: stagedDraft.title }),
+        ...(stagedDraft.slug && { slug: stagedDraft.slug }),
+        ...(stagedDraft.content !== undefined && { content: stagedDraft.content }),
+        ...(stagedDraft.excerpt !== undefined && { excerpt: stagedDraft.excerpt }),
+        ...(stagedDraft.featuredImage !== undefined && { featuredImage: stagedDraft.featuredImage }),
+        ...(stagedDraft.allowComments !== undefined && { allowComments: stagedDraft.allowComments }),
+        ...(stagedDraft.tags !== undefined && { tags: stagedDraft.tags }),
+        ...(stagedDraft.categories !== undefined && { categories: stagedDraft.categories }),
+      };
+    } else if (title && content) {
+      updateData = {
+        ...updateData,
+        title,
+        slug,
+        content,
+        featuredImage,
+        allowComments,
+        tags,
+        categories,
+        excerpt,
+      };
+    }
+    shouldRevalidate = true;
   } else if (action === "publish") {
-    // Commit to live content, reset draftContent
+    // Commit to live content, reset draftContent & scheduledAt
     updateData = {
       ...updateData,
       title,
@@ -201,8 +307,27 @@ export async function PUT(
       excerpt,
       draftContent: null,
       status: "published",
+      scheduledAt: null,
+      publishedAt: new Date(),
     };
     shouldRevalidate = true;
+  } else if (action === "cancel-schedule") {
+    if (existingBlog.status === "published") {
+      // If it was already published, cancelling schedule simply clears the schedule and staged draftContent!
+      updateData = {
+        ...updateData,
+        status: "published",
+        scheduledAt: null,
+        draftContent: null,
+      };
+    } else {
+      // Revert scheduled post back to draft
+      updateData = {
+        ...updateData,
+        status: "draft",
+        scheduledAt: null,
+      };
+    }
   } else if (action === "discard-draft") {
     // Clear draftContent, live content remains intact
     updateData = {
@@ -211,11 +336,26 @@ export async function PUT(
     };
   } else {
     // Standard update
+    // Check edge case: If updating a scheduled post whose schedule time already elapsed, auto-publish
+    let resolvedStatus = status;
+    if (
+      (status === "scheduled" || existingBlog.status === "scheduled") &&
+      (body.scheduledAt || existingBlog.scheduledAt)
+    ) {
+      const scheduleTime = new Date(body.scheduledAt || existingBlog.scheduledAt!).getTime();
+      if (scheduleTime <= Date.now()) {
+        resolvedStatus = "published";
+        updateData.publishedAt = new Date();
+        updateData.scheduledAt = null;
+        shouldRevalidate = true;
+      }
+    }
+
     updateData = {
       ...updateData,
       ...(title !== undefined && { title }),
       ...(slug !== undefined && { slug }),
-      ...(status !== undefined && { status }),
+      ...(resolvedStatus !== undefined && { status: resolvedStatus }),
       ...(content !== undefined && { content }),
       ...(featuredImage !== undefined && { featuredImage }),
       ...(allowComments !== undefined && { allowComments }),
@@ -224,7 +364,7 @@ export async function PUT(
       ...(excerpt !== undefined && { excerpt }),
       ...(body.draftContent !== undefined && { draftContent: body.draftContent }),
     };
-    if (content !== undefined || status === "published") {
+    if (content !== undefined || resolvedStatus === "published" || existingBlog.status === "published") {
       shouldRevalidate = true;
     }
   }

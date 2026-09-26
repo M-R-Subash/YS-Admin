@@ -1,43 +1,100 @@
 "use client";
 
+import { useState } from "react";
 import { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, CalendarClock } from "lucide-react";
 import { UniversalSeoModal } from "@/components/admin/UniversalSeoModal";
+import { SchedulePostModal } from "@/components/blog/dialogs/SchedulePostModal";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { SeoStatusBadge } from "@/components/admin/SeoStatusBadge";
 import { ContentActionCell } from "@/components/admin/ContentActionCell";
 import { formatDate } from "@/lib/utils";
+import { toast } from "@/components/ui/toast";
+import { format } from "date-fns";
 
 // Action Component
 export const ActionCell = ({ blog, onDataChange }: { blog: any; onDataChange: () => void }) => {
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [rescheduling, setRescheduling] = useState(false);
   const siteUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || "";
   const cleanSlug = blog.slug?.startsWith("/") ? blog.slug.slice(1) : (blog.slug || "");
 
+  const handleReschedule = async (newDate: Date) => {
+    try {
+      setRescheduling(true);
+      const res = await fetch(`/api/blogs/${blog.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "schedule",
+          scheduledAt: newDate.toISOString(),
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to schedule");
+      }
+      toast.add({
+        title: "Schedule Updated",
+        description: `Post scheduled for ${format(newDate, "MMM d, yyyy h:mm a")}`,
+        type: "success",
+      });
+      setScheduleModalOpen(false);
+      onDataChange();
+    } catch (err: any) {
+      toast.add({ title: "Scheduling Failed", description: err.message, type: "error" });
+    } finally {
+      setRescheduling(false);
+    }
+  };
+
   return (
-    <ContentActionCell
-      item={blog}
-      itemType="blog post"
-      apiEndpoint="/api/blogs"
-      editUrl={`/blogs/edit/${blog.id}`}
-      previewUrl={`/blogs/preview/${blog.id}`}
-      publicUrl={siteUrl ? `${siteUrl}/blogs/${cleanSlug}` : undefined}
-      publicUrlLabel="View Live"
-      quickEditLabel="Quick Edit"
-      renderQuickEditModal={({ isOpen, onClose, onSaved }) => (
-        <UniversalSeoModal
-          entityId={blog.id}
-          entityType="blog"
-          isOpen={isOpen}
-          onClose={onClose}
-          onSaved={onSaved}
-          initialData={blog}
+    <>
+      <ContentActionCell
+        item={blog}
+        itemType="blog post"
+        apiEndpoint="/api/blogs"
+        editUrl={`/blogs/edit/${blog.id}`}
+        previewUrl={`/blogs/preview/${blog.id}`}
+        publicUrl={siteUrl ? `${siteUrl}/blogs/${cleanSlug}` : undefined}
+        publicUrlLabel="View Live"
+        quickEditLabel="Quick Edit"
+        extraMenuItems={
+          !blog.isTrashed && (
+            <DropdownMenuItem onClick={() => setScheduleModalOpen(true)}>
+              <span className="flex items-center gap-2">
+                <CalendarClock className="w-3.5 h-3.5 text-purple-600" />
+                <span>{blog.status === "scheduled" ? "Reschedule" : "Schedule Post"}</span>
+              </span>
+            </DropdownMenuItem>
+          )
+        }
+        renderQuickEditModal={({ isOpen, onClose, onSaved }) => (
+          <UniversalSeoModal
+            entityId={blog.id}
+            entityType="blog"
+            isOpen={isOpen}
+            onClose={onClose}
+            onSaved={onSaved}
+            initialData={blog}
+          />
+        )}
+        onDataChange={onDataChange}
+      />
+      {scheduleModalOpen && (
+        <SchedulePostModal
+          open={scheduleModalOpen}
+          onOpenChange={setScheduleModalOpen}
+          currentScheduledAt={blog.scheduledAt}
+          onConfirmSchedule={handleReschedule}
+          isSubmitting={rescheduling}
         />
       )}
-      onDataChange={onDataChange}
-    />
+    </>
   );
 };
 
@@ -80,7 +137,10 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => <StatusBadge status={row.getValue("status")} />,
+    cell: ({ row }) => {
+      const blog = row.original as any;
+      return <StatusBadge status={blog.status} scheduledAt={blog.scheduledAt} />;
+    },
   },
   {
     id: "seoStatus",
@@ -145,7 +205,18 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
       return timeA - timeB;
     },
     cell: ({ row }) => {
+      const blog = row.original as any;
       const publishedAt = row.getValue("publishedAt") as string | null;
+      if (blog.status === "scheduled" && blog.scheduledAt) {
+        return (
+          <div className="flex flex-col">
+            <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400">
+              Target Schedule
+            </span>
+            <span className="text-muted-foreground text-xs">{formatDate(blog.scheduledAt)}</span>
+          </div>
+        );
+      }
       if (!publishedAt) return <span className="text-muted-foreground italic text-xs">Not published</span>;
       return <div className="text-muted-foreground text-xs">{formatDate(publishedAt)}</div>;
     },

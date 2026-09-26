@@ -11,8 +11,10 @@ import { useDirtyManager } from "@/hooks/useDirtyManager";
 import {
   blogDraftSchema,
   blogPublishSchema,
+  blogScheduleSchema,
   BlogFormData,
 } from "@/lib/schemas/blog/blog-validation";
+import { format } from "date-fns";
 import {
   analyzeSeo,
   extractTextFromTipTap,
@@ -35,6 +37,7 @@ import {
 
 import { ExitConfirmDialog } from "./dialogs/ExitConfirmDialog";
 import { DiscardDraftDialog } from "./dialogs/DiscardDraftDialog";
+import { SchedulePostModal } from "./dialogs/SchedulePostModal";
 import { BlogDraftBanner } from "./header/BlogDraftBanner";
 import { BlogFormHeader } from "./header/BlogFormHeader";
 import { BlogFullscreenToolbar } from "./header/BlogFullscreenToolbar";
@@ -64,6 +67,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   const [hasCloudDraft, setHasCloudDraft] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
 
   // Tabs & Fullscreen state
   const [editorTab, setEditorTab] = useState<BlogEditorTab>("general");
@@ -88,6 +92,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       featuredImage: null,
       allowComments: true,
       status: "draft",
+      scheduledAt: null,
       content: null,
       excerpt: "",
       tags: [],
@@ -430,6 +435,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           categories: blogCategories,
           allowComments: initialPayload.allowComments ?? true,
           status: initialPayload.status || "draft",
+          scheduledAt: initialPayload.scheduledAt || null,
           content: dbEditorContent,
           featuredImage: initialPayload.featuredImage || null,
           excerpt: initialPayload.excerpt || "",
@@ -517,6 +523,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           categories: Array.isArray(bData.categories) ? bData.categories : [],
           allowComments: bData.allowComments ?? true,
           status: bData.status || "draft",
+          scheduledAt: bData.scheduledAt || null,
           content: bData.content || null,
           featuredImage: bData.featuredImage || null,
           excerpt: bData.excerpt || "",
@@ -587,11 +594,27 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     }
   };
 
-  const handleSave = async (publishStatus: "draft" | "published", shouldExit: boolean = false): Promise<boolean> => {
+  const handleSave = async (
+    publishStatus: "draft" | "published" | "scheduled",
+    shouldExit: boolean = false,
+    overrideScheduledAt?: Date | null
+  ): Promise<boolean> => {
     clearErrors();
 
     const currentValues = getValues();
-    const schema = publishStatus === "published" ? blogPublishSchema : blogDraftSchema;
+    const targetScheduledAt =
+      overrideScheduledAt !== undefined
+        ? overrideScheduledAt
+        : currentValues.scheduledAt
+        ? new Date(currentValues.scheduledAt)
+        : null;
+
+    const schema =
+      publishStatus === "published"
+        ? blogPublishSchema
+        : publishStatus === "scheduled"
+        ? blogScheduleSchema
+        : blogDraftSchema;
 
     const calcReadingTime = (json: any): number => {
       if (!json) return 1;
@@ -616,7 +639,13 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       readingTime: calculatedTime,
       faqs: cleanFaqs,
       status: publishStatus,
-      action: publishStatus === "draft" ? "save-draft" : "publish",
+      scheduledAt: targetScheduledAt,
+      action:
+        publishStatus === "draft"
+          ? "save-draft"
+          : publishStatus === "scheduled"
+          ? "schedule"
+          : "publish",
     };
 
     const validationResult = schema.safeParse(validationPayload);
@@ -657,22 +686,44 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       }
 
       toast.add({
-        title: publishStatus === "published" ? "Publish Validation Failed" : "Draft Validation Failed",
+        title:
+          publishStatus === "published"
+            ? "Publish Validation Failed"
+            : publishStatus === "scheduled"
+            ? "Schedule Validation Failed"
+            : "Draft Validation Failed",
         description: firstIssue?.message || "Please fix the required fields.",
         type: "error",
       });
       return false;
     }
 
-    const isPublishingStagedDraft = publishStatus === "published" && (hasCloudDraft || loadedFromBackup);
+    const isPublishingStagedDraft =
+      (publishStatus === "published" || publishStatus === "scheduled") &&
+      (hasCloudDraft || loadedFromBackup);
     const isStatusChanged = isEditMode && publishStatus !== status;
-    if (!isDirtyOrFilled && !isStatusChanged && !isPublishingStagedDraft) {
+    const isScheduleDateChanged =
+      publishStatus === "scheduled" &&
+      targetScheduledAt?.toISOString() !==
+        (initialData?.scheduledAt
+          ? new Date(initialData.scheduledAt).toISOString()
+          : null);
+
+    if (
+      !isDirtyOrFilled &&
+      !isStatusChanged &&
+      !isPublishingStagedDraft &&
+      !isScheduleDateChanged
+    ) {
       toast.add({ title: "No Changes", description: "No changes detected to save.", type: "info" });
       return true;
     }
 
     setIsSubmitting(true);
     setValue("status", publishStatus);
+    if (targetScheduledAt) {
+      setValue("scheduledAt", targetScheduledAt);
+    }
 
     const contentPayload = {
       ...(currentValues.content || { type: "doc", content: [] }),
@@ -686,6 +737,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       content: contentPayload,
       allowComments: currentValues.allowComments,
       status: publishStatus,
+      scheduledAt: targetScheduledAt ? targetScheduledAt.toISOString() : null,
       tags: (currentValues.tags || []).map((t) => t.trim()).filter(Boolean),
       categories: (currentValues.categories || []).map((c) => c.trim()).filter(Boolean),
       excerpt: currentValues.excerpt,
@@ -698,7 +750,12 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       canonicalUrl: currentValues.canonicalUrl || "",
       noIndex: Boolean(currentValues.noIndex),
       readingTime: calculatedTime,
-      action: publishStatus === "draft" ? "save-draft" : "publish",
+      action:
+        publishStatus === "draft"
+          ? "save-draft"
+          : publishStatus === "scheduled"
+          ? "schedule"
+          : "publish",
     };
 
     try {
@@ -720,9 +777,14 @@ export default function BlogForm({ blogId }: BlogFormProps) {
 
       if (publishStatus === "published") {
         setValue("status", "published");
+        setValue("scheduledAt", null);
+        setHasCloudDraft(false);
+      } else if (publishStatus === "scheduled") {
+        setValue("status", "scheduled");
+        setValue("scheduledAt", targetScheduledAt);
         setHasCloudDraft(false);
       } else {
-        if (status !== "published") {
+        if (status !== "published" && status !== "scheduled") {
           setValue("status", "draft");
         }
         setHasCloudDraft(true);
@@ -736,6 +798,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         categories: [...(currentValues.categories || [])],
         allowComments: currentValues.allowComments,
         status: publishStatus === "published" ? "published" : status,
+        scheduledAt: targetScheduledAt,
         content: currentValues.content,
         featuredImage: currentValues.featuredImage,
         excerpt: currentValues.excerpt,
@@ -757,7 +820,12 @@ export default function BlogForm({ blogId }: BlogFormProps) {
 
       toast.add({
         title: "Success",
-        description: `Blog ${publishStatus === "published" ? "published" : "saved as draft"} successfully.`,
+        description:
+          publishStatus === "published"
+            ? "Blog published successfully."
+            : publishStatus === "scheduled"
+            ? `Blog scheduled for ${format(targetScheduledAt!, "MMM d, h:mm a")}.`
+            : "Blog saved as draft successfully.",
         type: "success",
       });
       clearBackup();
@@ -794,6 +862,20 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSchedule = async (date: Date): Promise<boolean> => {
+    return handleSave("scheduled", false, date);
+  };
+
+  const handlePublishNow = async (): Promise<boolean> => {
+    return handleSave("published", false);
+  };
+
+  const handleCancelSchedule = async (): Promise<boolean> => {
+    setValue("status", "draft");
+    setValue("scheduledAt", null);
+    return handleSave("draft", false);
   };
 
   useEffect(() => {
@@ -883,6 +965,14 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     tocIssues,
     handleTocClick,
 
+    // Scheduling
+    scheduledAt: watch("scheduledAt") || null,
+    handleSchedule,
+    handlePublishNow,
+    handleCancelSchedule,
+    showScheduleModal,
+    setShowScheduleModal,
+
     handleSave,
     handlePreview,
     isPreviewSaving,
@@ -906,6 +996,14 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           {/* Unsaved Changes & Discard Draft Confirmation Dialogs */}
           <ExitConfirmDialog />
           <DiscardDraftDialog />
+          <SchedulePostModal
+            open={showScheduleModal}
+            onOpenChange={setShowScheduleModal}
+            currentScheduledAt={watch("scheduledAt")}
+            onConfirmSchedule={handleSchedule}
+            onCancelSchedule={handleCancelSchedule}
+            isSubmitting={isSubmitting}
+          />
 
           {/* Normal Top Header & Banner Wrapper (smooth collapse on fullscreen) */}
           <div

@@ -54,6 +54,7 @@
     "next-auth": "^4.24.15",
     "prisma": "^7.9.1",
     "react": "19.2.8",
+    "react-day-picker": "^10.0.1",
     "react-dom": "19.2.8",
     "react-hook-form": "^7.55.0",
     "react-resizable-panels": "^4.12.2",

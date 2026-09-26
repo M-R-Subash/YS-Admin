@@ -58,8 +58,20 @@ export interface BlogFormContextValue {
   tocIssues: TocIssue[];
   handleTocClick: (item: TocItem) => void;
 
+  // Scheduling
+  scheduledAt: string | Date | null;
+  handleSchedule: (date: Date) => Promise<boolean>;
+  handlePublishNow: () => Promise<boolean>;
+  handleCancelSchedule: () => Promise<boolean>;
+  showScheduleModal: boolean;
+  setShowScheduleModal: (show: boolean) => void;
+
   // Actions
-  handleSave: (publishStatus: "draft" | "published", shouldExit?: boolean) => Promise<boolean>;
+  handleSave: (
+    publishStatus: "draft" | "published" | "scheduled",
+    shouldExit?: boolean,
+    overrideScheduledAt?: Date | null
+  ) => Promise<boolean>;
   handlePreview: () => Promise<void>;
   isPreviewSaving: boolean;
   handleDiscardDraft: () => Promise<void>;

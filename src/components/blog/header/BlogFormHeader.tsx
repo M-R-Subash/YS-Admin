@@ -20,20 +20,40 @@ export function BlogFormHeader() {
     handlePreview,
     isPreviewSaving,
     setShowExitConfirm,
+    setShowScheduleModal,
+    handlePublishNow,
+    handleCancelSchedule,
     watch,
   } = useBlogForm();
 
   const status = watch("status");
+  const scheduledAt = watch("scheduledAt");
+
+  const isScheduled = status === "scheduled";
+  const isPublished = status === "published";
+
+  const publishLabel = isScheduled
+    ? isDirtyOrFilled
+      ? "Save Schedule"
+      : "Update Schedule"
+    : isPublished
+    ? hasCloudDraft || loadedFromBackup
+      ? "Publish"
+      : "Update"
+    : "Publish";
 
   return (
     <EditorTopBar
       title={isEditMode ? "Edit Blog Post" : "Create Blog Post"}
       subtitle={
         isEditMode
-          ? "Make changes to your article."
+          ? isScheduled
+            ? "Manage and update your scheduled article."
+            : "Make changes to your article."
           : "Write and publish a new article."
       }
       status={status}
+      scheduledAt={scheduledAt}
       isEditMode={isEditMode}
       hasCloudDraft={hasCloudDraft}
       loadedFromBackup={loadedFromBackup}
@@ -53,22 +73,25 @@ export function BlogFormHeader() {
       isPreviewSaving={isPreviewSaving}
       isFullscreen={isFullscreen}
       onToggleFullscreen={() => setIsFullscreen((prev) => !prev)}
-      onPublish={() => handleSave("published")}
+      onPublish={() => {
+        if (isScheduled) {
+          handleSave("scheduled");
+        } else {
+          handleSave("published");
+        }
+      }}
       canPublish={
         !isSubmitting &&
         (isEditMode
           ? status !== "published" || hasCloudDraft || loadedFromBackup || isDirtyOrFilled
           : isDirtyOrFilled)
       }
-      publishLabel={
-        isEditMode && status === "published"
-          ? hasCloudDraft || loadedFromBackup
-            ? "Publish"
-            : "Update"
-          : "Publish"
-      }
+      publishLabel={publishLabel}
       onSaveDraft={() => handleSave("draft")}
       canSaveDraft={!isSubmitting && isDirtyOrFilled}
+      onOpenSchedule={() => setShowScheduleModal(true)}
+      onPublishNow={isScheduled ? () => handlePublishNow() : undefined}
+      onCancelSchedule={isScheduled ? () => handleCancelSchedule() : undefined}
     />
   );
 }
