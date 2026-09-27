@@ -1,7 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
 import useSWR from "swr";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   PenToolIcon,
@@ -13,11 +15,13 @@ import {
   Search,
   Server,
   Mail,
+  Globe,
 } from "lucide-react";
 
 import { Page } from "@/types";
 import { AdminTopBar } from "@/components/AdminTopBar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ContentMetricCards, MetricCardItem } from "@/components/admin/ContentMetricCards";
 
 import { DataTable } from "@/components/ui/data-table";
 import { getWebpagesColumns } from "@/app/webpages/webpages-columns";
@@ -50,6 +54,7 @@ const QUICK_LINKS = [
 ];
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "ADMIN";
 
@@ -62,6 +67,53 @@ export default function DashboardPage() {
   const notificationsCount = data?.totalSubmissionsCount ?? 0;
   const unreadNotifications = data?.unreadSubmissionsCount ?? 0;
   const pages = (data?.recentPages as Page[]) || [];
+
+  const metricCards = useMemo<MetricCardItem[]>(() => {
+    const list: MetricCardItem[] = [
+      {
+        id: "notifications",
+        label: "Notifications",
+        count: notificationsCount,
+        icon: Bell,
+        color: "primary",
+        badgeLabel: unreadNotifications > 0 ? `${unreadNotifications} unread` : undefined,
+        isActive: unreadNotifications > 0,
+        onClick: () => router.push("/notifications"),
+      },
+      {
+        id: "pages",
+        label: "Published Pages",
+        count: publishedCount,
+        icon: Globe,
+        color: "emerald",
+        onClick: () => router.push("/webpages"),
+      },
+    ];
+
+    if (isAdmin) {
+      list.push({
+        id: "comments",
+        label: "Total Comments",
+        count: commentsCount,
+        icon: MessageSquare,
+        color: "amber",
+        badgeLabel: unapprovedComments > 0 ? `${unapprovedComments} pending` : undefined,
+        isActive: unapprovedComments > 0,
+        onClick: () => router.push("/comments"),
+      });
+    }
+
+    list.push({
+      id: "blogs",
+      label: "Total Blogs",
+      count: blogsCount,
+      icon: PenToolIcon,
+      color: "purple",
+      onClick: () => router.push("/blogs"),
+    });
+
+    return list;
+  }, [notificationsCount, unreadNotifications, publishedCount, commentsCount, unapprovedComments, blogsCount, isAdmin, router]);
 
   return (
     <>
@@ -111,108 +163,7 @@ export default function DashboardPage() {
           <h2 className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
             Platform Metrics
           </h2>
-          <div className={`grid auto-rows-min gap-4 ${isAdmin ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
-            {/* Total Notifications Card */}
-            {isLoading && !data ? (
-              <Skeleton className="h-26 w-full rounded-sm" />
-            ) : (
-            <Link
-              href="/notifications"
-              className="rounded-sm bg-card border border-border p-4 shadow-xs transition-all hover:border-primary hover:shadow-md cursor-pointer group flex flex-col justify-between"
-            >
-              <div className="flex items-center justify-between pb-2">
-                <p className="text-sm font-semibold text-muted-foreground group-hover:text-primary transition-colors">
-                  Total Notifications
-                </p>
-                <div className="relative">
-                  <Bell className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                  {unreadNotifications > 0 && (
-                    <span className="absolute -top-1 -right-1 size-2 rounded-full bg-blue-600 animate-pulse" />
-                  )}
-                </div>
-              </div>
-              <div className="flex items-baseline justify-between pt-1">
-                <div className="text-3xl font-extrabold text-foreground">
-                  {notificationsCount}
-                </div>
-                {unreadNotifications > 0 && (
-                  <span className="text-[11px] font-bold text-blue-600 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-xs border border-blue-200 dark:border-blue-800">
-                    {unreadNotifications} unread
-                  </span>
-                )}
-              </div>
-            </Link>
-            )}
-
-            {/* Published Pages Card */}
-            {isLoading && !data ? (
-              <Skeleton className="h-26 w-full rounded-sm" />
-            ) : (
-            <Link
-              href="/webpages"
-              className="rounded-sm bg-card border border-border p-4 shadow-xs transition-all hover:border-primary hover:shadow-md cursor-pointer group flex flex-col justify-between"
-            >
-              <div className="flex items-center justify-between pb-2">
-                <p className="text-sm font-semibold text-muted-foreground group-hover:text-primary transition-colors">
-                  Published Pages
-                </p>
-                <CheckCircleIcon className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
-              </div>
-              <div className="text-3xl font-extrabold text-foreground pt-1">
-                {publishedCount}
-              </div>
-            </Link>
-            )}
-
-            {/* Total Comments Card - Admin Only */}
-            {isAdmin && (
-              isLoading && !data ? (
-                <Skeleton className="h-26 w-full rounded-sm" />
-              ) : (
-                <Link
-                  href="/comments"
-                  className="rounded-sm bg-card border border-border p-4 shadow-xs transition-all hover:border-primary hover:shadow-md cursor-pointer group flex flex-col justify-between"
-                >
-                  <div className="flex items-center justify-between pb-2">
-                    <p className="text-sm font-semibold text-muted-foreground group-hover:text-primary transition-colors">
-                      Total Comments
-                    </p>
-                    <MessageSquare className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                  </div>
-                  <div className="flex items-baseline justify-between pt-1">
-                    <div className="text-3xl font-extrabold text-foreground">
-                      {commentsCount}
-                    </div>
-                    {unapprovedComments > 0 && (
-                      <span className="text-[11px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-xs border border-amber-200 dark:border-amber-800">
-                        {unapprovedComments} pending
-                      </span>
-                    )}
-                  </div>
-                </Link>
-              )
-            )}
-
-            {/* Total Blogs Card */}
-            {isLoading && !data ? (
-              <Skeleton className="h-26 w-full rounded-sm" />
-            ) : (
-            <Link
-              href="/blogs"
-              className="rounded-sm bg-card border border-border p-4 shadow-xs transition-all hover:border-primary hover:shadow-md cursor-pointer group flex flex-col justify-between"
-            >
-              <div className="flex items-center justify-between pb-2">
-                <p className="text-sm font-semibold text-muted-foreground group-hover:text-primary transition-colors">
-                  Total Blogs
-                </p>
-                <PenToolIcon className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
-              </div>
-              <div className="text-3xl font-extrabold text-foreground pt-1">
-                {blogsCount}
-              </div>
-            </Link>
-            )}
-          </div>
+          <ContentMetricCards cards={metricCards} loading={isLoading && !data} />
         </div>
 
         {/* Table Section */}

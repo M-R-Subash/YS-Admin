@@ -36,8 +36,13 @@ export async function GET(request: Request) {
       updatedAt: true,
       seo: true,
       author: {
-        select: { name: true }
-      }
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          profilePicture: true,
+        },
+      },
     },
     orderBy: { updatedAt: "desc" },
   });

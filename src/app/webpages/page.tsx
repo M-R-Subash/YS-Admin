@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import useSWR, { mutate as globalMutate } from "swr";
 import Link from "next/link";
-import { Menu, FileText, Globe, CheckCircle2, FileEdit, Trash2 } from "lucide-react";
+import { Menu, FileText, Globe, CheckCircle2, FileEdit, Trash2, Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Page } from "@/types";
@@ -151,36 +151,7 @@ export default function WebpagesPage() {
         {/* 4 Status Metric Filter Cards */}
         <ContentMetricCards cards={metricCards} loading={loading} />
 
-        {/* Page Title & Filter Bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-extrabold text-foreground tracking-tight">
-              Main Site Webpages
-            </h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              All website pages stored in your database ({totalCount} total)
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="px-3 py-1.5 bg-card border border-border rounded-sm text-xs font-medium text-muted-foreground">
-              Published:{" "}
-              <span className="text-foreground font-bold">
-                {publishedCount}
-              </span>{" "}
-              &bull; Drafts:{" "}
-              <span className="text-muted-foreground font-bold">
-                {draftCount}
-              </span>{" "}
-              &bull; Trashed:{" "}
-              <span className="text-red-500 font-bold">
-                {trashedCount}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Global Filter & Search Bar */}
+        {/* Global Filter & Search Bar with Action Button */}
         <ContentFilterBar
           tabs={filterTabs}
           activeTab={statusFilter}
@@ -188,6 +159,11 @@ export default function WebpagesPage() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           searchPlaceholder="Search by title or slug..."
+          extraRightContent={
+            <Button className="h-9 rounded-sm px-3 flex items-center gap-2 text-xs cursor-pointer shrink-0">
+              <Plus className="w-3.5 h-3.5" /> Create Page
+            </Button>
+          }
         />
 
         {/* Webpages Table / Cards */}

@@ -32,6 +32,7 @@ interface SeoStatusBadgeProps {
   seo?: SeoData | null;
   fallbackImage?: string | null;
   showScore?: boolean;
+  showLabel?: boolean;
   className?: string;
 }
 
@@ -39,6 +40,7 @@ export function SeoStatusBadge({
   seo,
   fallbackImage,
   showScore = true,
+  showLabel = false,
   className,
 }: SeoStatusBadgeProps) {
   const status = calculateSeoStatus(seo, fallbackImage);
@@ -60,15 +62,15 @@ export function SeoStatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-sm font-bold border transition-colors",
+        "inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-sm font-bold border transition-colors cursor-help",
         variantClasses,
         className
       )}
       title={`SEO Score: ${status.score}/100 • ${status.label}`}
     >
       <span className={cn("size-1.5 rounded-full shrink-0", dotColor)} />
-      {showScore && <span className="font-mono">{status.score}</span>}
-      <span className={showScore ? "opacity-80 font-semibold" : ""}>{status.label}</span>
+      {showScore && <span className="font-mono text-xs">{status.score}</span>}
+      {showLabel && <span className="opacity-80 font-semibold text-[11px]">{status.label}</span>}
     </span>
   );
 }

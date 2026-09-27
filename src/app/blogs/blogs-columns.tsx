@@ -121,13 +121,22 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
               Img
             </div>
           )}
-          <div className="min-w-0 max-w-xs md:max-w-sm">
-            <Link
-              href={`/blogs/edit/${blog.id}`}
-              className="font-bold text-foreground hover:text-primary transition-colors truncate block text-xs"
-            >
-              {blog.title}
-            </Link>
+          <div className="min-w-0 max-w-[200px] md:max-w-[240px]">
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Link
+                    href={`/blogs/edit/${blog.id}`}
+                    className="font-bold text-foreground hover:text-primary transition-colors truncate block text-xs"
+                  >
+                    {blog.title}
+                  </Link>
+                }
+              />
+              <TooltipContent side="top" className="text-xs max-w-sm font-medium">
+                {blog.title}
+              </TooltipContent>
+            </Tooltip>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-[11px] text-muted-foreground truncate font-mono">
                 /blogs/{cleanSlug}
@@ -153,7 +162,7 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
   },
   {
     id: "seoStatus",
-    header: "SEO Status",
+    header: "SEO Score",
     cell: ({ row }) => {
       const blog = row.original as any;
       return <SeoStatusBadge seo={blog.seo} fallbackImage={blog.featuredImage} />;

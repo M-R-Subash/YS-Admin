@@ -26,6 +26,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
 
 export interface ScheduledItem {
@@ -91,13 +92,22 @@ export const getScheduledColumns = ({
               Img
             </div>
           )}
-          <div className="min-w-0 max-w-xs md:max-w-sm">
-            <Link
-              href={`/blogs/edit/${item.id}`}
-              className="font-bold text-foreground hover:text-primary transition-colors truncate block text-xs"
-            >
-              {item.title}
-            </Link>
+          <div className="min-w-0 max-w-[200px] md:max-w-[240px]">
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Link
+                    href={`/blogs/edit/${item.id}`}
+                    className="font-bold text-foreground hover:text-primary transition-colors truncate block text-xs"
+                  >
+                    {item.title}
+                  </Link>
+                }
+              />
+              <TooltipContent side="top" className="text-xs max-w-sm font-medium">
+                {item.title}
+              </TooltipContent>
+            </Tooltip>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-[11px] text-muted-foreground truncate font-mono">
                 /blogs/{cleanSlug}

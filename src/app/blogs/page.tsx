@@ -114,27 +114,7 @@ export default function BlogsPage() {
         {/* 5 Status Metric Filter Cards */}
         <ContentMetricCards cards={metricCards} loading={loading} />
 
-        {/* Page Title & Create Action */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-extrabold text-foreground tracking-tight">
-              Blog Posts
-            </h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Manage and organize your blog content ({totalCount} total)
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Link href="/blogs/create">
-              <Button className="h-8 rounded-sm px-3 flex items-center gap-2 text-xs cursor-pointer">
-                <Plus className="w-3.5 h-3.5" /> Create Post
-              </Button>
-            </Link>
-          </div>
-        </div>
-
-        {/* Global Filter & Search Bar */}
+        {/* Global Filter & Search Bar with Action Button */}
         <ContentFilterBar
           tabs={filterTabs}
           activeTab={statusFilter}
@@ -142,6 +122,13 @@ export default function BlogsPage() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           searchPlaceholder="Search by title or slug..."
+          extraRightContent={
+            <Link href="/blogs/create" className="shrink-0">
+              <Button className="h-9 rounded-sm px-3 flex items-center gap-2 text-xs cursor-pointer">
+                <Plus className="w-3.5 h-3.5" /> Create Post
+              </Button>
+            </Link>
+          }
         />
 
         {/* Blogs Table / Cards */}

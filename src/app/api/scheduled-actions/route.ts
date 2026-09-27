@@ -13,17 +13,16 @@ export async function GET() {
 
     const now = new Date();
 
-    // Fetch all non-trashed blogs that either:
-    // 1. Are currently scheduled (status: "scheduled")
-    // 2. Have a scheduledAt timestamp (to show history of scheduled releases)
-    // 3. Are published (to show completed successful releases in the Success tab)
+    // Fetch non-trashed blogs that actually involve scheduling:
+    // 1. Currently scheduled (status: "scheduled")
+    // 2. Previously scheduled and released (scheduledAt != null)
+    // 3. Staged updates awaiting scheduled publish
     const blogs = await prisma.blog.findMany({
       where: {
         isTrashed: false,
         OR: [
           { status: "scheduled" },
           { scheduledAt: { not: null } },
-          { status: "published" },
         ],
       },
       select: {
@@ -76,7 +75,7 @@ export async function GET() {
             scheduleState = "upcoming";
           }
         }
-      } else if (blog.status === "published") {
+      } else if (blog.status === "published" && blog.scheduledAt) {
         scheduleState = "success";
       } else {
         scheduleState = "upcoming";

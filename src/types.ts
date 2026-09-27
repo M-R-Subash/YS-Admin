@@ -13,7 +13,12 @@ export interface Page {
   content?: any;
   draftContent?: any;
   seo?: any;
-  author?: { name?: string | null } | null;
+  author?: {
+    id?: string;
+    name?: string | null;
+    email?: string | null;
+    profilePicture?: string | null;
+  } | null;
   previewSecret?: string;
   createdAt: string;
   updatedAt: string;

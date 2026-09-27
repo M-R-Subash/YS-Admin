@@ -9,9 +9,8 @@ import { DataTableColumnHeader } from "@/components/ui/data-table-column-header"
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { SeoStatusBadge } from "@/components/admin/SeoStatusBadge";
 import { ContentActionCell } from "@/components/admin/ContentActionCell";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDate } from "@/lib/utils";
-
-// Action Component
 export const ActionCell = ({ page, onDataChange }: { page: Page; onDataChange: () => void }) => {
   const baseUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || "";
   const pageSlug = page.slug === "/" ? "" : page.slug.startsWith("/") ? page.slug : `/${page.slug}`;
@@ -58,13 +57,22 @@ export const getWebpagesColumns = (onDataChange: () => void): ColumnDef<Page>[] 
           <div className="w-10 h-10 rounded-sm bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 text-primary">
             <Globe className="w-4 h-4" />
           </div>
-          <div className="min-w-0 max-w-xs md:max-w-sm">
-            <Link
-              href={`/editor/${page.id}`}
-              className="font-bold text-foreground hover:text-primary transition-colors truncate block text-xs"
-            >
-              {page.title}
-            </Link>
+          <div className="min-w-0 max-w-[200px] md:max-w-[240px]">
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Link
+                    href={`/editor/${page.id}`}
+                    className="font-bold text-foreground hover:text-primary transition-colors truncate block text-xs"
+                  >
+                    {page.title}
+                  </Link>
+                }
+              />
+              <TooltipContent side="top" className="text-xs max-w-sm font-medium">
+                {page.title}
+              </TooltipContent>
+            </Tooltip>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-[11px] text-muted-foreground truncate font-mono">
                 {pageSlug}
@@ -82,7 +90,7 @@ export const getWebpagesColumns = (onDataChange: () => void): ColumnDef<Page>[] 
   },
   {
     id: "seoStatus",
-    header: "SEO Status",
+    header: "SEO Score",
     cell: ({ row }) => {
       const page = row.original as any;
       return <SeoStatusBadge seo={page.seo} />;
@@ -96,9 +104,17 @@ export const getWebpagesColumns = (onDataChange: () => void): ColumnDef<Page>[] 
       const authorName = page.author?.name || "Admin";
       return (
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center border border-primary/20">
-            {authorName[0]?.toUpperCase() || "A"}
-          </div>
+          {page.author?.profilePicture ? (
+            <img
+              src={page.author.profilePicture}
+              alt={authorName}
+              className="w-6 h-6 rounded-full object-cover border border-border"
+            />
+          ) : (
+            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center border border-primary/20">
+              {(authorName[0] || "A").toUpperCase()}
+            </div>
+          )}
           <div className="text-xs">
             <p className="font-medium text-foreground">{authorName}</p>
           </div>

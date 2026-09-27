@@ -306,47 +306,10 @@ export default function ScheduledActionsPage() {
       <AdminTopBar breadcrumbs="Scheduled Actions" />
 
       <div className="flex flex-1 flex-col gap-6 py-6 px-[15px] md:px-[20px] lg:px-[30px]">
-        {/* Header Section */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400">
-                <CalendarClock className="w-5 h-5" />
-              </div>
-              <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
-                Scheduled Actions
-              </h1>
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">
-              Automated publishing queue, upcoming releases, and manual trigger controls.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleTriggerSync}
-              disabled={isSyncing}
-              className="h-8 gap-2 text-xs font-semibold cursor-pointer border-border hover:bg-muted"
-            >
-              <RotateCw className={`w-3.5 h-3.5 text-purple-600 ${isSyncing ? "animate-spin" : ""}`} />
-              <span>{isSyncing ? "Checking Queue..." : "Run Scheduler Now"}</span>
-            </Button>
-
-            <Link href="/blogs/create">
-              <Button size="sm" className="h-8 gap-1.5 text-xs font-semibold cursor-pointer">
-                <Plus className="w-3.5 h-3.5" />
-                <span>Schedule New Blog</span>
-              </Button>
-            </Link>
-          </div>
-        </div>
-
         {/* 4 Metric Cards */}
         <ContentMetricCards cards={metricCards} loading={isLoading && !data} />
 
-        {/* Search & Tabs Filter Row */}
+        {/* Search & Tabs Filter Row with Actions */}
         <ContentFilterBar
           tabs={filterTabs}
           activeTab={activeTab}
@@ -354,6 +317,27 @@ export default function ScheduledActionsPage() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           searchPlaceholder="Search scheduled posts..."
+          extraRightContent={
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleTriggerSync}
+                disabled={isSyncing}
+                className="h-9 gap-2 text-xs font-semibold cursor-pointer border-border hover:bg-muted"
+              >
+                <RotateCw className={`w-3.5 h-3.5 text-purple-600 ${isSyncing ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">{isSyncing ? "Checking..." : "Run Scheduler"}</span>
+              </Button>
+
+              <Link href="/blogs/create">
+                <Button size="sm" className="h-9 gap-1.5 text-xs font-semibold cursor-pointer">
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Schedule Post</span>
+                </Button>
+              </Link>
+            </div>
+          }
         />
 
         {/* Data Table */}

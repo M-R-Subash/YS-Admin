@@ -54,7 +54,14 @@ export async function GET() {
           createdAt: true,
           updatedAt: true,
           seo: true,
-          author: { select: { name: true } }
+          author: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              profilePicture: true,
+            },
+          },
         },
         orderBy: { updatedAt: "desc" },
         take: 10,
