@@ -1,6 +1,7 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import { serverConfig } from "@/lib/config/server";
 
 const authHandler = withAuth(
   function middleware(req) {
@@ -38,21 +39,22 @@ export async function proxy(req: NextRequest, event: NextFetchEvent) {
   if (pathname.startsWith("/api/auth/callback/credentials") && req.method === "POST") {
     const ip = getClientIp(req.headers);
     const limit = rateLimit("login-auth", ip, {
-      windowMs: 5 * 60 * 1000, // 5 minutes
-      max: 10, // max 10 attempts per 5 minutes per IP
+      windowMs: serverConfig.rateLimit.loginWindowMs,
+      max: serverConfig.rateLimit.loginMax,
     });
 
     if (!limit.success) {
       const errorUrl = new URL("/login?error=TooManyAttempts", req.url).toString();
+      const retryMinutes = Math.max(1, Math.ceil(serverConfig.rateLimit.loginWindowSec / 60));
       return NextResponse.json(
         { 
           url: errorUrl,
-          error: "Too many login attempts. Please try again in 5 minutes." 
+          error: `Too many login attempts. Please try again in ${retryMinutes} minute${retryMinutes > 1 ? "s" : ""}.` 
         },
         { 
           status: 429,
           headers: {
-            "Retry-After": "300",
+            "Retry-After": String(serverConfig.rateLimit.loginWindowSec),
           }
         }
       );

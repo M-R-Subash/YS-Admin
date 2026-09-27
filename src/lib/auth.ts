@@ -4,9 +4,10 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import prisma from "@/lib/prisma";
+import { serverConfig } from "@/lib/config/server";
 
-const ACCESS_TOKEN_LIFETIME_MS = 15 * 60 * 1000; // 15 minutes
-const REFRESH_TOKEN_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000; // 7 days sliding
+const ACCESS_TOKEN_LIFETIME_MS = serverConfig.auth.jwt.accessExpiryMs;
+const REFRESH_TOKEN_LIFETIME_MS = serverConfig.auth.jwt.refreshExpiryMs;
 const MAX_ACTIVE_SESSIONS_PER_USER = 3; // Enforce maximum 3 active devices/sessions per user
 
 /**
@@ -273,9 +274,9 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt",
-    maxAge: 7 * 24 * 60 * 60, // 7 days session lifetime
+    maxAge: serverConfig.auth.maxAge,
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: serverConfig.auth.nextAuthSecret,
 };
 
 /**

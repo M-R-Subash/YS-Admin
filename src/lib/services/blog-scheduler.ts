@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { revalidateFrontendPath } from "@/lib/revalidate";
+import { serverConfig } from "@/lib/config/server";
 
 export interface ScheduledExecutionResult {
   success: boolean;
@@ -22,10 +23,10 @@ export function verifyCronAuthorization(req: Request): {
   isAuthorized: boolean;
   reason?: string;
 } {
-  const cronSecret = process.env.CRON_SECRET;
+  const cronSecret = serverConfig.cron.secret || process.env.CRON_SECRET;
 
   // In development mode, allow running if no CRON_SECRET is configured yet
-  if (process.env.NODE_ENV === "development" && !cronSecret) {
+  if (serverConfig.isDevelopment && !cronSecret) {
     return { isAuthorized: true };
   }
 
@@ -75,7 +76,7 @@ export async function publishOverdueBlogs(): Promise<ScheduledExecutionResult> {
   const now = new Date();
 
   // Check if cron execution is globally disabled via environment variable
-  if (process.env.CRON_ENABLED === "false") {
+  if (!serverConfig.cron.enabled) {
     return {
       success: false,
       disabled: true,
