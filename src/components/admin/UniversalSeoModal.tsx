@@ -31,7 +31,7 @@ import {
 } from "@/lib/schemas/seo-validation";
 import { calculateQuickSeoScore } from "@/lib/seo/seo-engine";
 import { toast } from "@/components/ui/toast";
-import { Loader2, Globe, Share2, Code2, Sparkles, UserCheck, Search } from "lucide-react";
+import { Loader2, Globe, Share2, Code2, Sparkles, UserCheck, Search, Building2, User } from "lucide-react";
 import type { SeoEntityType } from "@/types/seo";
 
 interface UniversalSeoModalProps {
@@ -69,11 +69,26 @@ export function UniversalSeoModal({
     }
   }, [isOpen, entityType]);
 
+  // Pre-seed users with initialData.author if present so the active author is immediately available in dropdown
+  useEffect(() => {
+    if (initialData?.author && initialData.author.id) {
+      setUsers((prev) => {
+        if (prev.some((u) => u.id === initialData.author.id)) return prev;
+        return [initialData.author, ...prev];
+      });
+    }
+  }, [initialData?.author]);
+
   const defaultValues = useMemo<UniversalSeoFormData>(() => {
     const hasCustomAuthor = Boolean(initialData.seo?.authorName);
+    const activeAuthorId =
+      initialData.authorId ||
+      initialData.author?.id ||
+      initialData.seo?.authorId ||
+      null;
     const authorSelection = hasCustomAuthor
       ? "custom"
-      : initialData.authorId || "none";
+      : activeAuthorId || "none";
 
     return {
       title: initialData.title || "",
@@ -93,7 +108,7 @@ export function UniversalSeoModal({
         : "",
       noIndex: Boolean(initialData.seo?.noIndex),
       authorSelection,
-      authorId: initialData.authorId || null,
+      authorId: hasCustomAuthor ? null : activeAuthorId,
       authorName: initialData.seo?.authorName || "",
       authorRole: initialData.seo?.authorRole || "",
       authorDescription: initialData.seo?.authorDescription || "",
@@ -636,9 +651,13 @@ export function UniversalSeoModal({
                     </div>
                   )}
 
+                </div>
+
+                {/* Right Column: Author & E-E-A-T Signals (Blog Only) + Schema.org Builder */}
+                <div className="lg:col-span-7 space-y-6">
                   {/* Author & E-E-A-T Signals (Blog Only) */}
                   {entityType === "blog" && (
-                    <div className="pt-3 border-t border-border/70 space-y-3.5">
+                    <div className="space-y-3.5 pb-6 border-b border-border/70">
                       <div>
                         <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                           <UserCheck className="size-3.5 text-primary" />
@@ -671,14 +690,57 @@ export function UniversalSeoModal({
                                 }
                               }}
                             >
-                              <SelectTrigger className="w-full text-xs h-9 bg-card">
+                              <SelectTrigger className="w-full text-xs h-11 bg-card px-3.5 cursor-pointer hover:border-primary/50 transition-colors shadow-2xs rounded-lg">
                                 <SelectValue placeholder="Select author">
                                   {(val: any) => {
-                                    if (!val || val === "none") return "No specific author (Company default)";
-                                    if (val === "custom") return "Custom Guest / External Author";
-                                    const foundUser = users.find((u) => u.id === val);
+                                    if (!val || val === "none") {
+                                      return (
+                                        <div className="flex items-center gap-2.5 min-w-0 cursor-pointer">
+                                          <div className="w-6 h-6 rounded-full bg-muted border border-border flex items-center justify-center shrink-0 text-muted-foreground">
+                                            <Building2 className="w-3.5 h-3.5" />
+                                          </div>
+                                          <span className="truncate">No specific author (Company default)</span>
+                                        </div>
+                                      );
+                                    }
+                                    if (val === "custom") {
+                                      return (
+                                        <div className="flex items-center gap-2.5 min-w-0 cursor-pointer">
+                                          <div className="w-6 h-6 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
+                                            <User className="w-3.5 h-3.5" />
+                                          </div>
+                                          <span className="truncate">Custom Guest / External Author</span>
+                                        </div>
+                                      );
+                                    }
+                                    const foundUser =
+                                      users.find((u) => u.id === val) ||
+                                      (initialData.author?.id === val ? initialData.author : null);
                                     if (foundUser) {
-                                      return `${foundUser.name || foundUser.email}${foundUser.authorRole ? ` (${foundUser.authorRole})` : ""}`;
+                                      const authorName = foundUser.name || foundUser.email || "Author";
+                                      return (
+                                        <div className="flex items-center gap-2.5 min-w-0 cursor-pointer">
+                                          {foundUser.profilePicture ? (
+                                            <img
+                                              src={foundUser.profilePicture}
+                                              alt={authorName}
+                                              className="w-6 h-6 rounded-full object-cover border border-border shrink-0"
+                                            />
+                                          ) : (
+                                            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center border border-primary/20 shrink-0">
+                                              {(authorName[0] || "A").toUpperCase()}
+                                            </div>
+                                          )}
+                                          <span className="truncate font-semibold text-foreground">
+                                            {authorName}
+                                            {foundUser.authorRole && (
+                                              <span className="text-muted-foreground font-normal ml-1.5 text-[11px]">
+                                                ({foundUser.authorRole})
+                                              </span>
+                                            )}
+                                          </span>
+                                        </div>
+                                      );
                                     }
                                     return val;
                                   }}
@@ -689,21 +751,65 @@ export function UniversalSeoModal({
                                 align="start"
                                 sideOffset={6}
                                 alignItemWithTrigger={false}
-                                className="w-[var(--anchor-width)] min-w-[280px]"
+                                className="w-[var(--anchor-width)] min-w-[320px] max-h-72"
                               >
-                                <SelectItem value="none" label="No specific author (Company default)" className="text-xs">
-                                  No specific author (Company default)
+                                <SelectItem value="none" label="No specific author (Company default)" className="text-xs py-2">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-6 h-6 rounded-full bg-muted border border-border flex items-center justify-center shrink-0 text-muted-foreground">
+                                      <Building2 className="w-3.5 h-3.5" />
+                                    </div>
+                                    <div className="flex flex-col text-left">
+                                      <span className="font-semibold text-foreground">No specific author</span>
+                                      <span className="text-[10px] text-muted-foreground">Company default</span>
+                                    </div>
+                                  </div>
                                 </SelectItem>
                                 {users.map((u) => {
-                                  const authorLabel = `${u.name || u.email}${u.authorRole ? ` (${u.authorRole})` : ""}`;
+                                  const authorName = u.name || u.email || "Author";
+                                  const authorLabel = `${authorName}${u.authorRole ? ` (${u.authorRole})` : ""}`;
                                   return (
-                                    <SelectItem key={u.id} value={u.id} label={authorLabel} className="text-xs">
-                                      {authorLabel}
+                                    <SelectItem key={u.id} value={u.id} label={authorLabel} className="text-xs py-2">
+                                      <div className="flex items-center gap-2.5">
+                                        {u.profilePicture ? (
+                                          <img
+                                            src={u.profilePicture}
+                                            alt={authorName}
+                                            className="w-6 h-6 rounded-full object-cover border border-border shrink-0"
+                                          />
+                                        ) : (
+                                          <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center border border-primary/20 shrink-0">
+                                            {(authorName[0] || "A").toUpperCase()}
+                                          </div>
+                                        )}
+                                        <div className="flex flex-col text-left min-w-0">
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="font-semibold text-foreground truncate">{authorName}</span>
+                                            {u.role === "ADMIN" && (
+                                              <span className="px-1.5 py-0.2 bg-primary/10 text-primary text-[9px] font-bold rounded-xs uppercase">
+                                                Admin
+                                              </span>
+                                            )}
+                                          </div>
+                                          {u.authorRole ? (
+                                            <span className="text-[10px] text-muted-foreground truncate">{u.authorRole}</span>
+                                          ) : u.name && u.email ? (
+                                            <span className="text-[10px] text-muted-foreground truncate font-mono">{u.email}</span>
+                                          ) : null}
+                                        </div>
+                                      </div>
                                     </SelectItem>
                                   );
                                 })}
-                                <SelectItem value="custom" label="Custom Guest / External Author" className="text-xs">
-                                  Custom Guest / External Author
+                                <SelectItem value="custom" label="Custom Guest / External Author" className="text-xs py-2">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-6 h-6 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
+                                      <User className="w-3.5 h-3.5" />
+                                    </div>
+                                    <div className="flex flex-col text-left">
+                                      <span className="font-semibold text-foreground">Custom Guest / External Author</span>
+                                      <span className="text-[10px] text-muted-foreground">Specify custom name, role &amp; credentials</span>
+                                    </div>
+                                  </div>
                                 </SelectItem>
                               </SelectContent>
                             </Select>
@@ -764,10 +870,8 @@ export function UniversalSeoModal({
                       )}
                     </div>
                   )}
-                </div>
 
-                {/* Right Column: Schema.org Builder */}
-                <div className="lg:col-span-7 space-y-4">
+                  {/* Schema.org Builder */}
                   <Controller
                     name="structuredData"
                     control={control}
@@ -780,6 +884,13 @@ export function UniversalSeoModal({
                         description={watchedMetaDesc}
                         url={watchedSlug}
                         imageUrl={watchedOgImage || initialData.featuredImage}
+                        authorName={
+                          watchedAuthorSelection === "custom"
+                            ? watch("authorName")
+                            : users.find((u) => u.id === watchedAuthorSelection)?.name ||
+                              initialData.author?.name ||
+                              ""
+                        }
                       />
                     )}
                   />

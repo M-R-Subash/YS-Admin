@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Code2, Wand2, Check, AlertCircle, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/toast";
 
 interface SchemaOrgBuilderProps {
@@ -14,6 +15,7 @@ interface SchemaOrgBuilderProps {
   description?: string;
   url?: string;
   imageUrl?: string;
+  authorName?: string;
 }
 
 export function SchemaOrgBuilder({
@@ -24,6 +26,7 @@ export function SchemaOrgBuilder({
   description = "",
   url = "",
   imageUrl = "",
+  authorName = "",
 }: SchemaOrgBuilderProps) {
   const [copied, setCopied] = useState(false);
 
@@ -57,11 +60,16 @@ export function SchemaOrgBuilder({
         "description": description || "",
         "image": imageUrl || undefined,
         "url": fullUrl,
-        "author": {
-          "@type": "Organization",
-          "name": "YS Innovations",
-          "url": siteUrl,
-        },
+        "author": authorName
+          ? {
+              "@type": "Person",
+              "name": authorName,
+            }
+          : {
+              "@type": "Organization",
+              "name": "YS Innovations",
+              "url": siteUrl,
+            },
         "publisher": {
           "@type": "Organization",
           "name": "YS Innovations",
@@ -119,28 +127,45 @@ export function SchemaOrgBuilder({
           JSON-LD Structured Data (Schema.org)
         </Label>
         <div className="flex items-center gap-1.5">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleGenerateDefault}
-            className="h-7 px-2.5 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
-            title="Auto-generate Schema.org template from current title and description"
-          >
-            <Wand2 className="size-3 text-amber-500" />
-            <span>Generate Schema</span>
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGenerateDefault}
+                  className="h-7 px-2.5 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <Wand2 className="size-3 text-amber-500" />
+                  <span>Generate Schema</span>
+                </Button>
+              }
+            />
+            <TooltipContent side="top" className="text-xs max-w-xs font-medium">
+              Auto-generate Schema.org template from current title and description
+            </TooltipContent>
+          </Tooltip>
+
           {stringValue && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleCopy}
-              className="h-7 px-2 text-[11px] font-semibold cursor-pointer text-muted-foreground hover:text-foreground"
-              title="Copy JSON-LD"
-            >
-              {copied ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCopy}
+                    className="h-7 px-2 text-[11px] font-semibold cursor-pointer text-muted-foreground hover:text-foreground"
+                  >
+                    {copied ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
+                  </Button>
+                }
+              />
+              <TooltipContent side="top" className="text-xs font-medium">
+                {copied ? "Copied!" : "Copy JSON-LD"}
+              </TooltipContent>
+            </Tooltip>
           )}
         </div>
       </div>

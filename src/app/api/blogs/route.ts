@@ -52,6 +52,7 @@ export async function GET(req: Request) {
         scheduledAt: true,
         createdAt: true,
         updatedAt: true,
+        authorId: true,
         author: {
           select: {
             id: true,
