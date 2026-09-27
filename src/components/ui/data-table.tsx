@@ -48,14 +48,14 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-md border bg-card">
-        <Table>
+      <div className="rounded-sm border border-border bg-card overflow-hidden shadow-xs">
+        <Table className="text-xs">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="bg-muted/50 hover:bg-muted/50">
+              <TableRow key={headerGroup.id} className="border-b border-border bg-muted/40 font-semibold text-muted-foreground hover:bg-muted/40">
                 {headerGroup.headers.map((header) => {
                   return (
-                    <TableHead key={header.id} className="font-bold">
+                    <TableHead key={header.id} className="py-3 px-4 text-xs font-semibold text-muted-foreground">
                       {header.isPlaceholder
                         ? null
                         : flexRender(
@@ -68,16 +68,16 @@ export function DataTable<TData, TValue>({
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody>
+          <TableBody className="divide-y divide-border">
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="hover:bg-muted/50 transition-colors"
+                  className="hover:bg-muted/30 transition-colors"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id} className="py-3 px-4 text-xs">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
@@ -85,7 +85,7 @@ export function DataTable<TData, TValue>({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
+                <TableCell colSpan={columns.length} className="h-24 text-center py-6 text-muted-foreground">
                   No results.
                 </TableCell>
               </TableRow>

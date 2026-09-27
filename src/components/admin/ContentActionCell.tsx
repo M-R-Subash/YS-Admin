@@ -3,7 +3,17 @@
 import { useState, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { MoreHorizontal } from "lucide-react";
+import {
+  MoreHorizontal,
+  PenTool,
+  SlidersHorizontal,
+  ExternalLink,
+  Globe,
+  Undo2,
+  Play,
+  Trash2,
+  RotateCcw,
+} from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,6 +54,7 @@ export interface ContentActionCellProps<T extends ContentActionItem = ContentAct
   onDataChange: () => void;
   requireAdminForPermanentDelete?: boolean;
   extraMenuItems?: ReactNode;
+  showQuickViewLive?: boolean;
 }
 
 export function ContentActionCell<T extends ContentActionItem = ContentActionItem>({
@@ -54,6 +65,7 @@ export function ContentActionCell<T extends ContentActionItem = ContentActionIte
   previewUrl,
   publicUrl,
   publicUrlLabel = "View Live",
+  showQuickViewLive = true,
   quickEditLabel = "Quick Edit",
   renderQuickEditModal,
   onDataChange,
@@ -141,96 +153,149 @@ export function ContentActionCell<T extends ContentActionItem = ContentActionIte
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger render={<Button variant="ghost" className="h-8 w-8 p-0 cursor-pointer" />}>
-          <span className="sr-only">Open menu</span>
-          <MoreHorizontal className="h-4 w-4" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          {!item.isTrashed ? (
-            <>
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => router.push(editUrl)}>
-                  Edit (Builder)
-                </DropdownMenuItem>
-                {renderQuickEditModal && (
-                  <DropdownMenuItem onClick={() => setQuickEditOpen(true)}>
-                    {quickEditLabel}
+      <div className="flex items-center justify-end gap-1.5">
+        {showQuickViewLive && publicUrl && item.status === "published" && !item.isTrashed && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const separator = publicUrl.includes("?") ? "&" : "?";
+              window.open(`${publicUrl}${separator}nocache=${Date.now()}`, "_blank");
+            }}
+            className="h-7 px-2.5 text-[11px] font-semibold gap-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 cursor-pointer"
+          >
+            <Globe className="w-3 h-3" />
+            <span>{publicUrlLabel}</span>
+          </Button>
+        )}
+
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 cursor-pointer text-muted-foreground hover:text-foreground"
+              >
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            }
+          />
+          <DropdownMenuContent align="end" className="w-48 text-xs">
+            {!item.isTrashed ? (
+              <>
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => router.push(editUrl)} className="cursor-pointer">
+                    <PenTool className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
+                    <span>Edit (Builder)</span>
                   </DropdownMenuItem>
-                )}
-                <DropdownMenuItem
-                  onClick={() => {
-                    window.open(previewUrl, previewWindowName);
-                  }}
-                >
-                  Live Preview
-                </DropdownMenuItem>
-                {publicUrl && (
+                  {renderQuickEditModal && (
+                    <DropdownMenuItem onClick={() => setQuickEditOpen(true)} className="cursor-pointer">
+                      <SlidersHorizontal className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
+                      <span>{quickEditLabel}</span>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
                     onClick={() => {
-                      const separator = publicUrl.includes("?") ? "&" : "?";
-                      window.open(`${publicUrl}${separator}nocache=${Date.now()}`, "_blank");
+                      window.open(previewUrl, previewWindowName);
                     }}
+                    className="cursor-pointer"
                   >
-                    {publicUrlLabel}
+                    <ExternalLink className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
+                    <span>Live Preview</span>
                   </DropdownMenuItem>
-                )}
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                {item.status === "published" ? (
-                  <DropdownMenuItem onClick={() => openTrashModal("unapprove", item, item.id, item.title)}>
-                    Move to Draft
-                  </DropdownMenuItem>
-                ) : item.status === "scheduled" ? (
-                  <>
-                    <DropdownMenuItem onClick={() => openTrashModal("approve", item, item.id, item.title)}>
-                      Publish Immediately
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => openTrashModal("unapprove", item, item.id, item.title)}>
-                      Cancel Schedule (Draft)
-                    </DropdownMenuItem>
-                  </>
-                ) : (
-                  <DropdownMenuItem onClick={() => openTrashModal("approve", item, item.id, item.title)}>
-                    Set as Published
-                  </DropdownMenuItem>
-                )}
-                {extraMenuItems}
-                <DropdownMenuItem
-                  onClick={() => openTrashModal("trash", item, item.id, item.title)}
-                  className="text-red-500 focus:text-red-500 focus:bg-red-50"
-                >
-                  Move to Trash
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </>
-          ) : (
-            <>
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Trash Actions</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => openTrashModal("restore", item, item.id, item.title)}>
-                  Restore
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-              {showDelete && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
+                  {publicUrl && (
                     <DropdownMenuItem
-                      onClick={() => openTrashModal("delete", item, item.id, item.title)}
-                      className="text-red-500 focus:text-red-500 focus:bg-red-50"
+                      onClick={() => {
+                        const separator = publicUrl.includes("?") ? "&" : "?";
+                        window.open(`${publicUrl}${separator}nocache=${Date.now()}`, "_blank");
+                      }}
+                      className="cursor-pointer"
                     >
-                      Permanently Delete
+                      <Globe className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
+                      <span>{publicUrlLabel}</span>
                     </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                </>
-              )}
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+                  )}
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  {item.status === "published" ? (
+                    <DropdownMenuItem
+                      onClick={() => openTrashModal("unapprove", item, item.id, item.title)}
+                      className="cursor-pointer"
+                    >
+                      <Undo2 className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
+                      <span>Move to Draft</span>
+                    </DropdownMenuItem>
+                  ) : item.status === "scheduled" ? (
+                    <>
+                      <DropdownMenuItem
+                        onClick={() => openTrashModal("approve", item, item.id, item.title)}
+                        className="cursor-pointer"
+                      >
+                        <Play className="w-3.5 h-3.5 mr-2 text-emerald-600 fill-current" />
+                        <span>Publish Immediately</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => openTrashModal("unapprove", item, item.id, item.title)}
+                        className="cursor-pointer"
+                      >
+                        <Undo2 className="w-3.5 h-3.5 mr-2 text-amber-600" />
+                        <span>Cancel Schedule (Draft)</span>
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <DropdownMenuItem
+                      onClick={() => openTrashModal("approve", item, item.id, item.title)}
+                      className="cursor-pointer"
+                    >
+                      <Play className="w-3.5 h-3.5 mr-2 text-emerald-600 fill-current" />
+                      <span>Set as Published</span>
+                    </DropdownMenuItem>
+                  )}
+                  {extraMenuItems}
+                  <DropdownMenuItem
+                    onClick={() => openTrashModal("trash", item, item.id, item.title)}
+                    className="text-red-500 focus:text-red-500 focus:bg-red-50 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 mr-2 text-red-500" />
+                    <span>Move to Trash</span>
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </>
+            ) : (
+              <>
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Trash Actions</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    onClick={() => openTrashModal("restore", item, item.id, item.title)}
+                    className="cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 mr-2 text-emerald-600" />
+                    <span>Restore</span>
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                {showDelete && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem
+                        onClick={() => openTrashModal("delete", item, item.id, item.title)}
+                        className="text-red-500 focus:text-red-500 focus:bg-red-50 cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mr-2 text-red-500" />
+                        <span>Permanently Delete</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                  </>
+                )}
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
       {/* Centralized Confirmation Modal */}
       <TrashConfirmationModal

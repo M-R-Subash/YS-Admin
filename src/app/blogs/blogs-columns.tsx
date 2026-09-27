@@ -65,11 +65,9 @@ export const ActionCell = ({ blog, onDataChange }: { blog: any; onDataChange: ()
         quickEditLabel="Quick Edit"
         extraMenuItems={
           !blog.isTrashed && (
-            <DropdownMenuItem onClick={() => setScheduleModalOpen(true)}>
-              <span className="flex items-center gap-2">
-                <CalendarClock className="w-3.5 h-3.5 text-purple-600" />
-                <span>{blog.status === "scheduled" ? "Reschedule" : "Schedule Post"}</span>
-              </span>
+            <DropdownMenuItem onClick={() => setScheduleModalOpen(true)} className="cursor-pointer">
+              <CalendarClock className="w-3.5 h-3.5 mr-2 text-purple-600" />
+              <span>{blog.status === "scheduled" ? "Reschedule" : "Schedule Post"}</span>
             </DropdownMenuItem>
           )
         }
@@ -101,7 +99,7 @@ export const ActionCell = ({ blog, onDataChange }: { blog: any; onDataChange: ()
 export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
   {
     accessorKey: "title",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Title" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Post & Title" />,
     sortingFn: (rowA, rowB, columnId) => {
       const valA = (rowA.getValue(columnId) as string || "").toLowerCase();
       const valB = (rowB.getValue(columnId) as string || "").toLowerCase();
@@ -109,27 +107,38 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
     },
     cell: ({ row }) => {
       const blog = row.original as any;
+      const cleanSlug = blog.slug?.startsWith("/") ? blog.slug.slice(1) : (blog.slug || "");
       return (
-        <div className="font-bold text-foreground flex items-center gap-3">
+        <div className="flex items-center gap-3">
           {blog.featuredImage ? (
             <img
               src={blog.featuredImage}
               alt={blog.title}
-              className="w-8 h-8 rounded-sm object-cover shrink-0 bg-muted border border-border"
+              className="w-10 h-10 rounded-sm object-cover shrink-0 bg-muted border border-border"
             />
           ) : (
-            <div className="w-8 h-8 rounded-sm bg-muted flex items-center justify-center shrink-0 border border-border text-[10px] text-muted-foreground uppercase">
+            <div className="w-10 h-10 rounded-sm bg-muted flex items-center justify-center shrink-0 border border-border text-[10px] text-muted-foreground uppercase font-bold">
               Img
             </div>
           )}
-          <Tooltip>
-            <TooltipTrigger className="truncate max-w-50 block cursor-default text-left">
+          <div className="min-w-0 max-w-xs md:max-w-sm">
+            <Link
+              href={`/blogs/edit/${blog.id}`}
+              className="font-bold text-foreground hover:text-primary transition-colors truncate block text-xs"
+            >
               {blog.title}
-            </TooltipTrigger>
-            <TooltipContent className="max-w-100">
-              <p>{blog.title}</p>
-            </TooltipContent>
-          </Tooltip>
+            </Link>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[11px] text-muted-foreground truncate font-mono">
+                /blogs/{cleanSlug}
+              </span>
+              {blog.categories?.length > 0 && (
+                <span className="px-1.5 py-0.2 bg-secondary text-secondary-foreground text-[9px] font-semibold uppercase rounded-xs">
+                  {blog.categories[0]}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       );
     },
@@ -193,7 +202,25 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
     header: "Author",
     cell: ({ row }) => {
       const blog = row.original as any;
-      return <div className="text-muted-foreground">{blog.author?.name || "Unknown"}</div>;
+      const authorName = blog.author?.name || "Admin";
+      return (
+        <div className="flex items-center gap-2">
+          {blog.author?.profilePicture ? (
+            <img
+              src={blog.author.profilePicture}
+              alt={authorName}
+              className="w-6 h-6 rounded-full object-cover border border-border"
+            />
+          ) : (
+            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center border border-primary/20">
+              {(authorName[0] || "A").toUpperCase()}
+            </div>
+          )}
+          <div className="text-xs">
+            <p className="font-medium text-foreground">{authorName}</p>
+          </div>
+        </div>
+      );
     },
   },
   {

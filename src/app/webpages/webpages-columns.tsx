@@ -1,6 +1,8 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
+import Link from "next/link";
+import { Globe } from "lucide-react";
 import { Page } from "@/types";
 import { UniversalSeoModal } from "@/components/admin/UniversalSeoModal";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
@@ -22,7 +24,7 @@ export const ActionCell = ({ page, onDataChange }: { page: Page; onDataChange: (
       editUrl={`/editor/${page.id}`}
       previewUrl={`/webpages/preview/${page.id}`}
       publicUrl={baseUrl ? `${baseUrl}${pageSlug}` : undefined}
-      publicUrlLabel="View Page"
+      publicUrlLabel="View Live"
       quickEditLabel="Quick Edit (SEO)"
       renderQuickEditModal={({ isOpen, onClose, onSaved }) => (
         <UniversalSeoModal
@@ -42,26 +44,36 @@ export const ActionCell = ({ page, onDataChange }: { page: Page; onDataChange: (
 export const getWebpagesColumns = (onDataChange: () => void): ColumnDef<Page>[] => [
   {
     accessorKey: "title",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Title" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Page & Title" />,
     sortingFn: (rowA, rowB, columnId) => {
       const valA = (rowA.getValue(columnId) as string || "").toLowerCase();
       const valB = (rowB.getValue(columnId) as string || "").toLowerCase();
       return valA.localeCompare(valB);
     },
     cell: ({ row }) => {
-      const title: string = row.getValue("title");
+      const page = row.original;
+      const pageSlug = page.slug === "/" ? "/" : page.slug.startsWith("/") ? page.slug : `/${page.slug}`;
       return (
-        <div className="font-bold text-foreground flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-          {title}
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-sm bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 text-primary">
+            <Globe className="w-4 h-4" />
+          </div>
+          <div className="min-w-0 max-w-xs md:max-w-sm">
+            <Link
+              href={`/editor/${page.id}`}
+              className="font-bold text-foreground hover:text-primary transition-colors truncate block text-xs"
+            >
+              {page.title}
+            </Link>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[11px] text-muted-foreground truncate font-mono">
+                {pageSlug}
+              </span>
+            </div>
+          </div>
         </div>
       );
     },
-  },
-  {
-    accessorKey: "slug",
-    header: "Slug",
-    cell: ({ row }) => <div className="text-muted-foreground font-mono">{row.getValue("slug")}</div>,
   },
   {
     accessorKey: "status",
@@ -81,7 +93,17 @@ export const getWebpagesColumns = (onDataChange: () => void): ColumnDef<Page>[] 
     header: "Last Edited By",
     cell: ({ row }) => {
       const page = row.original as any;
-      return <div className="text-muted-foreground">{page.author?.name || "Default - Admin"}</div>;
+      const authorName = page.author?.name || "Admin";
+      return (
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center border border-primary/20">
+            {authorName[0]?.toUpperCase() || "A"}
+          </div>
+          <div className="text-xs">
+            <p className="font-medium text-foreground">{authorName}</p>
+          </div>
+        </div>
+      );
     },
   },
   {
@@ -108,7 +130,7 @@ export const getWebpagesColumns = (onDataChange: () => void): ColumnDef<Page>[] 
     id: "actions",
     header: () => <div className="text-right">Actions</div>,
     cell: ({ row }) => (
-      <div className="text-right">
+      <div className="text-right flex justify-end">
         <ActionCell page={row.original} onDataChange={onDataChange} />
       </div>
     ),

@@ -1,16 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import useSWR, { mutate as globalMutate } from "swr";
 import Link from "next/link";
-import { Search, Menu, FileText, Globe, CheckCircle2, FileEdit, Trash2 } from "lucide-react";
+import { Menu, FileText, Globe, CheckCircle2, FileEdit, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { Page } from "@/types";
 import { AdminTopBar } from "@/components/AdminTopBar";
+import { ContentMetricCards, MetricCardItem } from "@/components/admin/ContentMetricCards";
+import { ContentFilterBar, ContentFilterTab } from "@/components/admin/ContentFilterBar";
 
 import { DataTable } from "@/components/ui/data-table";
 import { getWebpagesColumns } from "./webpages-columns";
-
+  
 export default function WebpagesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<
@@ -44,6 +47,52 @@ export default function WebpagesPage() {
     (p) => !p.isTrashed && p.status === "draft",
   ).length;
   const trashedCount = pages.filter((p) => p.isTrashed).length;
+
+  const metricCards = useMemo<MetricCardItem[]>(() => [
+    {
+      id: "all",
+      label: "Total Webpages",
+      count: totalCount,
+      icon: Globe,
+      color: "primary",
+      isActive: statusFilter === "all",
+      onClick: () => setStatusFilter("all"),
+    },
+    {
+      id: "published",
+      label: "Published",
+      count: publishedCount,
+      icon: CheckCircle2,
+      color: "emerald",
+      isActive: statusFilter === "published",
+      onClick: () => setStatusFilter("published"),
+    },
+    {
+      id: "draft",
+      label: "Drafted",
+      count: draftCount,
+      icon: FileEdit,
+      color: "amber",
+      isActive: statusFilter === "draft",
+      onClick: () => setStatusFilter("draft"),
+    },
+    {
+      id: "trash",
+      label: "Trashed",
+      count: trashedCount,
+      icon: Trash2,
+      color: "red",
+      isActive: statusFilter === "trash",
+      onClick: () => setStatusFilter("trash"),
+    },
+  ], [totalCount, publishedCount, draftCount, trashedCount, statusFilter]);
+
+  const filterTabs = useMemo<ContentFilterTab[]>(() => [
+    { id: "all", label: "All", count: totalCount, color: "primary" },
+    { id: "published", label: "Published", count: publishedCount, color: "emerald" },
+    { id: "draft", label: "Drafts", count: draftCount, color: "amber" },
+    { id: "trash", label: "Trash", count: trashedCount, color: "red" },
+  ], [totalCount, publishedCount, draftCount, trashedCount]);
 
   return (
     <>
@@ -100,142 +149,7 @@ export default function WebpagesPage() {
         </div>
 
         {/* 4 Status Metric Filter Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {loading ? (
-            <>
-              <Skeleton className="h-24 w-full rounded-sm" />
-              <Skeleton className="h-24 w-full rounded-sm" />
-              <Skeleton className="h-24 w-full rounded-sm" />
-              <Skeleton className="h-24 w-full rounded-sm" />
-            </>
-          ) : (
-            <>
-              {/* Total Card */}
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => setStatusFilter("all")}
-                className={`rounded-sm border p-4 shadow-xs transition-all cursor-pointer flex flex-col justify-between select-none ${
-                  statusFilter === "all"
-                    ? "bg-primary/5 border-primary ring-1 ring-primary shadow-sm"
-                    : "bg-card border-border hover:border-primary/40 hover:shadow-xs"
-                }`}
-              >
-                <div className="flex items-center justify-between pb-2">
-                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Total Webpages
-                  </p>
-                  <div className="p-1.5 rounded-sm bg-primary/10 text-primary">
-                    <Globe className="size-4" />
-                  </div>
-                </div>
-                <div className="flex items-baseline justify-between pt-1">
-                  <div className="text-2xl font-extrabold text-foreground">
-                    {totalCount}
-                  </div>
-                  {statusFilter === "all" && (
-                    <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-xs border border-primary/20">
-                      Active
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Published Card */}
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => setStatusFilter("published")}
-                className={`rounded-sm border p-4 shadow-xs transition-all cursor-pointer flex flex-col justify-between select-none ${
-                  statusFilter === "published"
-                    ? "bg-emerald-500/5 border-emerald-500 ring-1 ring-emerald-500 shadow-sm"
-                    : "bg-card border-border hover:border-emerald-500/40 hover:shadow-xs"
-                }`}
-              >
-                <div className="flex items-center justify-between pb-2">
-                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Published
-                  </p>
-                  <div className="p-1.5 rounded-sm bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                    <CheckCircle2 className="size-4" />
-                  </div>
-                </div>
-                <div className="flex items-baseline justify-between pt-1">
-                  <div className="text-2xl font-extrabold text-foreground">
-                    {publishedCount}
-                  </div>
-                  {statusFilter === "published" && (
-                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-xs border border-emerald-500/20">
-                      Active
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Drafted Card */}
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => setStatusFilter("draft")}
-                className={`rounded-sm border p-4 shadow-xs transition-all cursor-pointer flex flex-col justify-between select-none ${
-                  statusFilter === "draft"
-                    ? "bg-amber-500/5 border-amber-500 ring-1 ring-amber-500 shadow-sm"
-                    : "bg-card border-border hover:border-amber-500/40 hover:shadow-xs"
-                }`}
-              >
-                <div className="flex items-center justify-between pb-2">
-                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Drafted
-                  </p>
-                  <div className="p-1.5 rounded-sm bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                    <FileEdit className="size-4" />
-                  </div>
-                </div>
-                <div className="flex items-baseline justify-between pt-1">
-                  <div className="text-2xl font-extrabold text-foreground">
-                    {draftCount}
-                  </div>
-                  {statusFilter === "draft" && (
-                    <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-xs border border-amber-500/20">
-                      Active
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Trashed Card */}
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => setStatusFilter("trash")}
-                className={`rounded-sm border p-4 shadow-xs transition-all cursor-pointer flex flex-col justify-between select-none ${
-                  statusFilter === "trash"
-                    ? "bg-red-500/5 border-red-500 ring-1 ring-red-500 shadow-sm"
-                    : "bg-card border-border hover:border-red-500/40 hover:shadow-xs"
-                }`}
-              >
-                <div className="flex items-center justify-between pb-2">
-                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Trashed
-                  </p>
-                  <div className="p-1.5 rounded-sm bg-red-500/10 text-red-600 dark:text-red-400">
-                    <Trash2 className="size-4" />
-                  </div>
-                </div>
-                <div className="flex items-baseline justify-between pt-1">
-                  <div className="text-2xl font-extrabold text-foreground">
-                    {trashedCount}
-                  </div>
-                  {statusFilter === "trash" && (
-                    <span className="text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-0.5 rounded-xs border border-red-500/20">
-                      Active
-                    </span>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+        <ContentMetricCards cards={metricCards} loading={loading} />
 
         {/* Page Title & Filter Bar */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -266,67 +180,15 @@ export default function WebpagesPage() {
           </div>
         </div>
 
-        {/* Search & Filter Controls */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-card p-3 border border-border rounded-sm">
-          {/* Search Box */}
-          <div className="relative w-full sm:w-80">
-            <Search
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4"
-              strokeWidth={2.5}
-            />
-            <input
-              type="text"
-              placeholder="Search by title or slug..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-background border border-border rounded-sm text-foreground text-xs font-medium focus:outline-none focus:border-accent transition-all"
-            />
-          </div>
-
-          {/* Status Filter Pills */}
-          <div className="flex items-center gap-1.5 w-full sm:w-auto">
-            <button
-              onClick={() => setStatusFilter("all")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer ${
-                statusFilter === "all"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground bg-background border border-border"
-              }`}
-            >
-              All ({totalCount})
-            </button>
-            <button
-              onClick={() => setStatusFilter("published")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer ${
-                statusFilter === "published"
-                  ? "bg-foreground text-background shadow-sm"
-                  : "text-muted-foreground hover:text-foreground bg-background border border-border"
-              }`}
-            >
-              Published ({publishedCount})
-            </button>
-            <button
-              onClick={() => setStatusFilter("draft")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer ${
-                statusFilter === "draft"
-                  ? "bg-muted text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground bg-background border border-border"
-              }`}
-            >
-              Drafts ({draftCount})
-            </button>
-            <button
-              onClick={() => setStatusFilter("trash")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer ${
-                statusFilter === "trash"
-                  ? "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400 border-red-200 dark:border-red-800 shadow-sm"
-                  : "text-muted-foreground hover:text-red-500 bg-background border border-border"
-              }`}
-            >
-              Trash ({trashedCount})
-            </button>
-          </div>
-        </div>
+        {/* Global Filter & Search Bar */}
+        <ContentFilterBar
+          tabs={filterTabs}
+          activeTab={statusFilter}
+          onTabChange={(id) => setStatusFilter(id as any)}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchPlaceholder="Search by title or slug..."
+        />
 
         {/* Webpages Table / Cards */}
         {loading ? (
