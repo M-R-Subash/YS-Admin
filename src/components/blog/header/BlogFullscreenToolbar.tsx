@@ -49,9 +49,22 @@ export function BlogFullscreenToolbar() {
 
   const scheduleDate = scheduledAt ? new Date(scheduledAt) : null;
   const hasValidScheduleDate = Boolean(scheduleDate && !isNaN(scheduleDate.getTime()));
-  const isFutureSchedule = Boolean(hasValidScheduleDate && scheduleDate!.getTime() > Date.now());
 
-  const isActivelyScheduled = Boolean(status === "scheduled" || isFutureSchedule);
+  // 1. Pending Overdue Schedule: target time reached/passed, awaiting scheduler execution
+  const isPendingOverdue = Boolean(
+    hasValidScheduleDate &&
+      scheduleDate!.getTime() <= Date.now() &&
+      (status === "scheduled" || hasCloudDraft || loadedFromBackup)
+  );
+
+  // 2. Upcoming Future Schedule: target time is strictly in the future
+  const isUpcoming = Boolean(
+    hasValidScheduleDate &&
+      scheduleDate!.getTime() > Date.now() &&
+      (status === "scheduled" || status === "published")
+  );
+
+  const isActivelyScheduled = isUpcoming || isPendingOverdue;
 
   return (
     <div

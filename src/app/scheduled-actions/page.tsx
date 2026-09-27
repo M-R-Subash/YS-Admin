@@ -61,8 +61,9 @@ export default function ScheduledActionsPage() {
     {
       refreshInterval: 180000, // 3 minutes - smart background polling
       revalidateOnFocus: true,
-      revalidateIfStale: false,
-      dedupingInterval: 10000,
+      revalidateOnMount: true,
+      revalidateIfStale: true,
+      dedupingInterval: 2000,
     }
   );
 

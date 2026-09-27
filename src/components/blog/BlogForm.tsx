@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef, useDeferredValue, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
+import { mutate } from "swr";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/toast";
 import { Loader2 } from "lucide-react";
@@ -842,6 +843,11 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         const backupKey = `emergency_blog_draft_${blogId || responseData?.id || "new"}`;
         localStorage.removeItem(backupKey);
       } catch {}
+
+      // Invalidate SWR caches globally across routes
+      mutate("/api/scheduled-actions");
+      mutate("/api/badges");
+      mutate("/api/blogs");
 
       // Cross-tab auto-sync for open preview tabs
       const activeId = blogId || responseData?.id;

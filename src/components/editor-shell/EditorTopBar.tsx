@@ -115,18 +115,26 @@ export function EditorTopBar({
   const isPublished = status === "published";
   const scheduleDate = scheduledAt ? new Date(scheduledAt) : null;
   const hasValidScheduleDate = Boolean(scheduleDate && !isNaN(scheduleDate.getTime()));
-  const isFutureSchedule = Boolean(hasValidScheduleDate && scheduleDate!.getTime() > Date.now());
 
-  // A post is actively scheduled if status === "scheduled" OR scheduledAt is in the future
-  const isScheduled = Boolean(status === "scheduled" || isFutureSchedule);
+  // 1. Pending Overdue Schedule: target time reached/passed, awaiting scheduler execution
+  const isPendingOverdue = Boolean(
+    hasValidScheduleDate &&
+      scheduleDate!.getTime() <= Date.now() &&
+      (status === "scheduled" || hasCloudDraft || loadedFromBackup)
+  );
+
+  // 2. Upcoming Future Schedule: target time is strictly in the future
+  const isUpcoming = Boolean(
+    hasValidScheduleDate &&
+      scheduleDate!.getTime() > Date.now() &&
+      (status === "scheduled" || status === "published")
+  );
+
+  const isScheduled = isUpcoming || isPendingOverdue;
+  const isOverdue = isPendingOverdue;
 
   // Can schedule for later if not published, has unsaved/draft edits, or is already scheduled
   const canScheduleForLater = !isPublished || isDirty || hasCloudDraft || loadedFromBackup || isScheduled;
-
-  const isOverdue =
-    isScheduled && scheduleDate && !isNaN(scheduleDate.getTime())
-      ? scheduleDate.getTime() <= Date.now()
-      : false;
 
   let scheduleBadgeText = "Scheduled";
   let scheduleBadgeTooltip = "This post is scheduled for future release.";
@@ -136,8 +144,8 @@ export function EditorTopBar({
     const relStr = formatDistanceToNow(scheduleDate, { addSuffix: true });
 
     if (isOverdue) {
-      scheduleBadgeText = "Pending Publish";
-      scheduleBadgeTooltip = `Scheduled time (${timeStr}) passed. Cron will publish shortly, or you can click 'Publish Immediately'.`;
+      scheduleBadgeText = `Pending Release · Due ${relStr.replace(" ago", "")}`;
+      scheduleBadgeTooltip = `Scheduled time (${timeStr}) passed. Waiting for scheduler execution, or click 'Publish Immediately'.`;
     } else if (isToday(scheduleDate)) {
       scheduleBadgeText = `Scheduled · Today ${timeStr}`;
       scheduleBadgeTooltip = `Scheduled for Today at ${timeStr} (${relStr})`;

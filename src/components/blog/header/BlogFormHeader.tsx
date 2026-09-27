@@ -31,14 +31,31 @@ export function BlogFormHeader() {
 
   const scheduleDate = scheduledAt ? new Date(scheduledAt) : null;
   const hasValidScheduleDate = Boolean(scheduleDate && !isNaN(scheduleDate.getTime()));
-  const isFutureSchedule = Boolean(hasValidScheduleDate && scheduleDate!.getTime() > Date.now());
 
+  // 1. Pending Overdue Schedule: target time reached/passed, awaiting scheduler execution
+  const isPendingOverdue = Boolean(
+    hasValidScheduleDate &&
+      scheduleDate!.getTime() <= Date.now() &&
+      (status === "scheduled" || hasCloudDraft || loadedFromBackup)
+  );
+
+  // 2. Upcoming Future Schedule: target time is strictly in the future
+  const isUpcoming = Boolean(
+    hasValidScheduleDate &&
+      scheduleDate!.getTime() > Date.now() &&
+      (status === "scheduled" || status === "published")
+  );
+
+  const isActivelyScheduled = isUpcoming || isPendingOverdue;
   const isPublished = status === "published";
-  const isActivelyScheduled = Boolean(status === "scheduled" || isFutureSchedule);
 
   const publishLabel = isActivelyScheduled
     ? isDirtyOrFilled
-      ? "Save to Schedule"
+      ? isPendingOverdue
+        ? "Save to Pending Release"
+        : "Save to Schedule"
+      : isPendingOverdue
+      ? "Update Pending Post"
       : "Update Scheduled Post"
     : isPublished
     ? hasCloudDraft || loadedFromBackup
@@ -51,7 +68,9 @@ export function BlogFormHeader() {
       title={isEditMode ? "Edit Blog Post" : "Create Blog Post"}
       subtitle={
         isEditMode
-          ? isActivelyScheduled
+          ? isPendingOverdue
+            ? "This article has a pending scheduled release awaiting execution."
+            : isActivelyScheduled
             ? "Manage and update your scheduled article."
             : "Make changes to your article."
           : "Write and publish a new article."
