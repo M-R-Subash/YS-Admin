@@ -22,12 +22,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   format,
   formatDistanceToNow,
   isToday,
   isTomorrow,
   isPast,
   addHours,
+  addMinutes,
   startOfTomorrow,
   startOfToday,
   setHours,
@@ -52,24 +60,39 @@ export function SchedulePostModal({
   onCancelSchedule,
   isSubmitting = false,
 }: SchedulePostModalProps) {
-  // Initialize date & time
+  // Helper to compute default future date: Current date + 10 mins (rounded to next 5 minutes)
+  const getDefaultFutureDate = (): Date => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() + 10);
+    const remainder = d.getMinutes() % 5;
+    if (remainder !== 0) {
+      d.setMinutes(d.getMinutes() + (5 - remainder));
+    }
+    d.setSeconds(0);
+    d.setMilliseconds(0);
+    return d;
+  };
+
+  // Initialize date & time (strictly future date, never past historical dates)
   const getInitialDate = (): Date => {
     if (currentScheduledAt) {
       const d = new Date(currentScheduledAt);
-      if (!isNaN(d.getTime())) return d;
+      if (!isNaN(d.getTime()) && d.getTime() > Date.now()) {
+        return d;
+      }
     }
-    // Default to tomorrow at 9:00 AM
-    return setMinutes(setHours(startOfTomorrow(), 9), 0);
+    return getDefaultFutureDate();
   };
 
   const [date, setDate] = useState<Date>(getInitialDate);
   const [hour, setHour] = useState<number>(() => {
     const initial = getInitialDate();
-    const h = initial.getHours() % 12;
+    const rawH = initial.getHours();
+    const h = rawH % 12;
     return h === 0 ? 12 : h;
   });
   const [minute, setMinute] = useState<number>(() => {
-    return Math.floor(getInitialDate().getMinutes() / 5) * 5;
+    return getInitialDate().getMinutes();
   });
   const [period, setPeriod] = useState<"AM" | "PM">(() => {
     return getInitialDate().getHours() >= 12 ? "PM" : "AM";
@@ -80,10 +103,11 @@ export function SchedulePostModal({
     if (open) {
       const initial = getInitialDate();
       setDate(initial);
-      const h = initial.getHours() % 12;
+      const rawHour = initial.getHours();
+      const h = rawHour % 12;
       setHour(h === 0 ? 12 : h);
-      setMinute(Math.floor(initial.getMinutes() / 5) * 5);
-      setPeriod(initial.getHours() >= 12 ? "PM" : "AM");
+      setMinute(initial.getMinutes());
+      setPeriod(rawHour >= 12 ? "PM" : "AM");
     }
   }, [open, currentScheduledAt]);
 
@@ -125,11 +149,20 @@ export function SchedulePostModal({
 
   // Presets
   const applyPreset = (presetDate: Date) => {
-    setDate(presetDate);
-    const h = presetDate.getHours() % 12;
+    const rounded = new Date(presetDate);
+    const remainder = rounded.getMinutes() % 5;
+    if (remainder !== 0) {
+      rounded.setMinutes(rounded.getMinutes() + (5 - remainder));
+    }
+    rounded.setSeconds(0);
+    rounded.setMilliseconds(0);
+
+    setDate(rounded);
+    const rawH = rounded.getHours();
+    const h = rawH % 12;
     setHour(h === 0 ? 12 : h);
-    setMinute(presetDate.getMinutes());
-    setPeriod(presetDate.getHours() >= 12 ? "PM" : "AM");
+    setMinute(rounded.getMinutes());
+    setPeriod(rawH >= 12 ? "PM" : "AM");
   };
 
   const handleConfirm = async () => {
@@ -140,11 +173,15 @@ export function SchedulePostModal({
     }
   };
 
-  const isAlreadyScheduled = Boolean(currentScheduledAt);
+  const isAlreadyScheduled = Boolean(
+    currentScheduledAt &&
+      !isNaN(new Date(currentScheduledAt).getTime()) &&
+      new Date(currentScheduledAt).getTime() > Date.now()
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl p-6 md:p-8 rounded-xl shadow-2xl border border-border bg-card">
+      <DialogContent className="sm:max-w-3xl md:max-w-4xl p-6 md:p-8 rounded-xl shadow-2xl border border-border bg-card">
         <DialogHeader className="space-y-1.5 pb-3 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400">
@@ -202,49 +239,60 @@ export function SchedulePostModal({
         </div>
 
         {/* Date and Time Selector Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-1">
           {/* Calendar Picker */}
-          <div className="rounded-lg border border-border p-3 bg-muted/20 flex flex-col items-center">
-            <div className="text-xs font-semibold text-muted-foreground mb-1 w-full text-left px-1">
-              Select Date
+          <div className="rounded-lg border border-border p-4 bg-muted/20 flex flex-col items-center justify-center">
+            <div className="w-[280px] relative">
+              <Calendar
+                mode="single"
+                selected={date}
+                onSelect={(newDate) => {
+                  if (newDate) setDate(newDate);
+                }}
+                disabled={(d) => d < startOfToday()}
+                className="rounded-md border-0 p-0"
+              />
             </div>
-            <Calendar
-              mode="single"
-              selected={date}
-              onSelect={(newDate) => {
-                if (newDate) setDate(newDate);
-              }}
-              disabled={(d) => d < startOfToday()}
-              className="rounded-md border-0"
-            />
           </div>
 
           {/* Time Picker & Preview Panel */}
-          <div className="flex flex-col justify-between gap-4 rounded-lg border border-border p-4 bg-muted/20">
+          <div className="flex flex-col justify-between gap-3.5 rounded-lg border border-border p-4 bg-muted/20">
             <div>
-              <div className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5" />
-                <span>Select Time</span>
+              {/* Digital Clock Display */}
+              <div className="flex items-center justify-center gap-2 py-2.5 px-4 bg-background border border-border rounded-xl shadow-xs mb-3">
+                <span className="font-mono text-3xl font-extrabold text-foreground tracking-tight">
+                  {String(hour).padStart(2, "0")}
+                </span>
+                <span className="font-mono text-2xl font-bold text-purple-600 dark:text-purple-400 animate-pulse">
+                  :
+                </span>
+                <span className="font-mono text-3xl font-extrabold text-foreground tracking-tight">
+                  {String(minute).padStart(2, "0")}
+                </span>
+                <span className="text-xs font-extrabold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-md tracking-wider ml-1">
+                  {period}
+                </span>
               </div>
 
-              {/* Time Pickers */}
+              {/* Shadcn Time Selectors */}
               <div className="flex items-center gap-2">
                 {/* Hour */}
                 <div className="flex-1">
                   <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">
                     Hour
                   </label>
-                  <select
-                    value={hour}
-                    onChange={(e) => setHour(Number(e.target.value))}
-                    className="w-full h-10 px-3 rounded-md border border-border bg-background text-sm font-semibold focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-                  >
-                    {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
-                      <option key={h} value={h}>
-                        {String(h).padStart(2, "0")}
-                      </option>
-                    ))}
-                  </select>
+                  <Select value={String(hour)} onValueChange={(val) => setHour(Number(val))}>
+                    <SelectTrigger className="w-full h-10 px-3 bg-background border-border font-mono font-semibold text-xs cursor-pointer focus:ring-purple-500/20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-56">
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+                        <SelectItem key={h} value={String(h)} className="font-mono text-xs cursor-pointer">
+                          {String(h).padStart(2, "0")}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <span className="text-lg font-bold text-muted-foreground pt-4">:</span>
@@ -254,32 +302,33 @@ export function SchedulePostModal({
                   <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">
                     Minute
                   </label>
-                  <select
-                    value={minute}
-                    onChange={(e) => setMinute(Number(e.target.value))}
-                    className="w-full h-10 px-3 rounded-md border border-border bg-background text-sm font-semibold focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-                  >
-                    {Array.from({ length: 12 }, (_, i) => i * 5).map((m) => (
-                      <option key={m} value={m}>
-                        {String(m).padStart(2, "0")}
-                      </option>
-                    ))}
-                  </select>
+                  <Select value={String(minute)} onValueChange={(val) => setMinute(Number(val))}>
+                    <SelectTrigger className="w-full h-10 px-3 bg-background border-border font-mono font-semibold text-xs cursor-pointer focus:ring-purple-500/20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-56">
+                      {Array.from({ length: 12 }, (_, i) => i * 5).map((m) => (
+                        <SelectItem key={m} value={String(m)} className="font-mono text-xs cursor-pointer">
+                          {String(m).padStart(2, "0")} min
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* AM / PM Toggle */}
                 <div className="flex-1">
                   <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">
-                    AM / PM
+                    Period
                   </label>
-                  <div className="grid grid-cols-2 h-10 rounded-md border border-border bg-background p-0.5">
+                  <div className="grid grid-cols-2 h-10 rounded-lg border border-border bg-background p-1 gap-1">
                     <button
                       type="button"
                       onClick={() => setPeriod("AM")}
-                      className={`text-xs font-bold rounded-sm transition-all cursor-pointer ${
+                      className={`text-xs font-bold rounded-md transition-all cursor-pointer ${
                         period === "AM"
-                          ? "bg-primary text-primary-foreground shadow-xs"
-                          : "text-muted-foreground hover:text-foreground"
+                          ? "bg-purple-600 text-white shadow-xs"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                       }`}
                     >
                       AM
@@ -287,10 +336,10 @@ export function SchedulePostModal({
                     <button
                       type="button"
                       onClick={() => setPeriod("PM")}
-                      className={`text-xs font-bold rounded-sm transition-all cursor-pointer ${
+                      className={`text-xs font-bold rounded-md transition-all cursor-pointer ${
                         period === "PM"
-                          ? "bg-primary text-primary-foreground shadow-xs"
-                          : "text-muted-foreground hover:text-foreground"
+                          ? "bg-purple-600 text-white shadow-xs"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                       }`}
                     >
                       PM
@@ -298,11 +347,47 @@ export function SchedulePostModal({
                   </div>
                 </div>
               </div>
+
+              {/* Quick Popular Times */}
+              <div className="pt-2.5">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1.5 block">
+                  Popular Release Times
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { label: "9:00 AM", h: 9, m: 0, p: "AM" as const },
+                    { label: "12:00 PM", h: 12, m: 0, p: "PM" as const },
+                    { label: "3:30 PM", h: 3, m: 30, p: "PM" as const },
+                    { label: "6:00 PM", h: 6, m: 0, p: "PM" as const },
+                    { label: "8:00 PM", h: 8, m: 0, p: "PM" as const },
+                  ].map((slot) => {
+                    const isActive = hour === slot.h && minute === slot.m && period === slot.p;
+                    return (
+                      <button
+                        key={slot.label}
+                        type="button"
+                        onClick={() => {
+                          setHour(slot.h);
+                          setMinute(slot.m);
+                          setPeriod(slot.p);
+                        }}
+                        className={`px-2 py-1 rounded-md text-[11px] font-semibold border transition-all cursor-pointer ${
+                          isActive
+                            ? "border-purple-600 bg-purple-500/10 text-purple-600 dark:text-purple-400"
+                            : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-purple-500/30"
+                        }`}
+                      >
+                        {slot.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
             {/* Target Schedule Live Preview */}
             <div
-              className={`p-3 rounded-md border transition-colors ${
+              className={`p-3 rounded-lg border transition-colors ${
                 isInPast
                   ? "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400"
                   : "bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300"

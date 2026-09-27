@@ -113,9 +113,16 @@ export function EditorTopBar({
   className = "",
 }: EditorTopBarProps) {
   const isPublished = status === "published";
-  const isScheduled = status === "scheduled";
-
   const scheduleDate = scheduledAt ? new Date(scheduledAt) : null;
+  const hasValidScheduleDate = Boolean(scheduleDate && !isNaN(scheduleDate.getTime()));
+  const isFutureSchedule = Boolean(hasValidScheduleDate && scheduleDate!.getTime() > Date.now());
+
+  // A post is actively scheduled if status === "scheduled" OR scheduledAt is in the future
+  const isScheduled = Boolean(status === "scheduled" || isFutureSchedule);
+
+  // Can schedule for later if not published, has unsaved/draft edits, or is already scheduled
+  const canScheduleForLater = !isPublished || isDirty || hasCloudDraft || loadedFromBackup || isScheduled;
+
   const isOverdue =
     isScheduled && scheduleDate && !isNaN(scheduleDate.getTime())
       ? scheduleDate.getTime() <= Date.now()
@@ -148,8 +155,8 @@ export function EditorTopBar({
 
   const defaultPublishLabel = isScheduled
     ? isDirty
-      ? "Save Schedule"
-      : "Update Schedule"
+      ? "Save to Schedule"
+      : "Update Scheduled Post"
     : isPublished
     ? hasCloudDraft || loadedFromBackup
       ? "Publish"
@@ -414,27 +421,34 @@ export function EditorTopBar({
                   />
                 }
               >
-                <ChevronDown className="w-3.5 h-3.5" />
+                <ChevronDown className="w-4 h-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
                 side="bottom"
                 sideOffset={6}
-                className="w-56"
+                className="w-60"
               >
-                {/* 1. Schedule for later / Change schedule */}
+                {/* 1. Schedule for later / Reschedule */}
                 {onOpenSchedule && (
                   <DropdownMenuItem
                     onClick={onOpenSchedule}
-                    disabled={isPublishing || isSavingDraft}
-                    className="cursor-pointer"
+                    disabled={isPublishing || isSavingDraft || (!isScheduled && !canScheduleForLater)}
+                    className="cursor-pointer flex items-center justify-between"
                   >
-                    <Calendar className="w-4 h-4 mr-2 text-purple-600 dark:text-purple-400" />
-                    <span>
-                      {isScheduled
-                        ? "Change Schedule Time..."
-                        : "Schedule for Later..."}
-                    </span>
+                    <div className="flex items-center">
+                      <Calendar className="w-4 h-4 mr-2 text-purple-600 dark:text-purple-400" />
+                      <span>
+                        {isScheduled
+                          ? "Reschedule Release..."
+                          : "Schedule for Later..."}
+                      </span>
+                    </div>
+                    {!isScheduled && !canScheduleForLater && (
+                      <span className="text-[10px] text-muted-foreground italic font-normal ml-2">
+                        (Edit first)
+                      </span>
+                    )}
                   </DropdownMenuItem>
                 )}
 
@@ -458,7 +472,7 @@ export function EditorTopBar({
                     className="cursor-pointer text-muted-foreground hover:text-destructive focus:text-destructive focus:bg-destructive/10"
                   >
                     <Undo2 className="w-4 h-4 mr-2" />
-                    <span>Revert to Draft</span>
+                    <span>Cancel Schedule (Draft)</span>
                   </DropdownMenuItem>
                 )}
 

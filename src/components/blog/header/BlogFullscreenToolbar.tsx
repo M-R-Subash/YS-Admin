@@ -45,6 +45,13 @@ export function BlogFullscreenToolbar() {
   } = useBlogForm();
 
   const status = watch("status");
+  const scheduledAt = watch("scheduledAt");
+
+  const scheduleDate = scheduledAt ? new Date(scheduledAt) : null;
+  const hasValidScheduleDate = Boolean(scheduleDate && !isNaN(scheduleDate.getTime()));
+  const isFutureSchedule = Boolean(hasValidScheduleDate && scheduleDate!.getTime() > Date.now());
+
+  const isActivelyScheduled = Boolean(status === "scheduled" || isFutureSchedule);
 
   return (
     <div
@@ -185,17 +192,35 @@ export function BlogFullscreenToolbar() {
           {/* Split Publish */}
           <div className="flex items-center">
             <Button
-              onClick={() => handleSave("published")}
+              onClick={() => handleSave(isActivelyScheduled ? "scheduled" : "published")}
               disabled={
                 isSubmitting ||
                 (isEditMode
-                  ? status === "published" && !hasCloudDraft && !loadedFromBackup && !isDirtyOrFilled
+                  ? isActivelyScheduled
+                    ? !isDirtyOrFilled
+                    : status === "published" && !hasCloudDraft && !loadedFromBackup && !isDirtyOrFilled
                   : !isDirtyOrFilled)
               }
-              className="flex items-center gap-1.5 h-8 px-3 text-xs font-bold rounded-sm rounded-r-none shadow-md bg-black hover:bg-black/90 text-white disabled:opacity-50 cursor-pointer"
+              className={`flex items-center gap-1.5 h-8 px-3 text-xs font-bold rounded-sm rounded-r-none shadow-md ${
+                isActivelyScheduled
+                  ? "bg-purple-600 hover:bg-purple-700 text-white"
+                  : "bg-black hover:bg-black/90 text-white"
+              } disabled:opacity-50 cursor-pointer`}
             >
-              {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-              {isEditMode && status === "published" ? (hasCloudDraft || loadedFromBackup ? "Publish" : "Update") : "Publish"}
+              {isSubmitting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Send className="w-3.5 h-3.5" />
+              )}
+              {isActivelyScheduled
+                ? isDirtyOrFilled
+                  ? "Save to Schedule"
+                  : "Update Scheduled Post"
+                : isEditMode && status === "published"
+                ? hasCloudDraft || loadedFromBackup
+                  ? "Publish"
+                  : "Update"
+                : "Publish"}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger

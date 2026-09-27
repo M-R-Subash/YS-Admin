@@ -29,13 +29,17 @@ export function BlogFormHeader() {
   const status = watch("status");
   const scheduledAt = watch("scheduledAt");
 
-  const isScheduled = status === "scheduled";
-  const isPublished = status === "published";
+  const scheduleDate = scheduledAt ? new Date(scheduledAt) : null;
+  const hasValidScheduleDate = Boolean(scheduleDate && !isNaN(scheduleDate.getTime()));
+  const isFutureSchedule = Boolean(hasValidScheduleDate && scheduleDate!.getTime() > Date.now());
 
-  const publishLabel = isScheduled
+  const isPublished = status === "published";
+  const isActivelyScheduled = Boolean(status === "scheduled" || isFutureSchedule);
+
+  const publishLabel = isActivelyScheduled
     ? isDirtyOrFilled
-      ? "Save Schedule"
-      : "Update Schedule"
+      ? "Save to Schedule"
+      : "Update Scheduled Post"
     : isPublished
     ? hasCloudDraft || loadedFromBackup
       ? "Publish"
@@ -47,13 +51,13 @@ export function BlogFormHeader() {
       title={isEditMode ? "Edit Blog Post" : "Create Blog Post"}
       subtitle={
         isEditMode
-          ? isScheduled
+          ? isActivelyScheduled
             ? "Manage and update your scheduled article."
             : "Make changes to your article."
           : "Write and publish a new article."
       }
       status={status}
-      scheduledAt={scheduledAt}
+      scheduledAt={isActivelyScheduled ? scheduledAt : null}
       isEditMode={isEditMode}
       hasCloudDraft={hasCloudDraft}
       loadedFromBackup={loadedFromBackup}
@@ -74,7 +78,7 @@ export function BlogFormHeader() {
       isFullscreen={isFullscreen}
       onToggleFullscreen={() => setIsFullscreen((prev) => !prev)}
       onPublish={() => {
-        if (isScheduled) {
+        if (isActivelyScheduled) {
           handleSave("scheduled");
         } else {
           handleSave("published");
@@ -83,15 +87,17 @@ export function BlogFormHeader() {
       canPublish={
         !isSubmitting &&
         (isEditMode
-          ? status !== "published" || hasCloudDraft || loadedFromBackup || isDirtyOrFilled
+          ? isActivelyScheduled
+            ? isDirtyOrFilled
+            : status !== "published" || hasCloudDraft || loadedFromBackup || isDirtyOrFilled
           : isDirtyOrFilled)
       }
       publishLabel={publishLabel}
       onSaveDraft={() => handleSave("draft")}
       canSaveDraft={!isSubmitting && isDirtyOrFilled}
       onOpenSchedule={() => setShowScheduleModal(true)}
-      onPublishNow={isScheduled ? () => handlePublishNow() : undefined}
-      onCancelSchedule={isScheduled ? () => handleCancelSchedule() : undefined}
+      onPublishNow={isActivelyScheduled ? () => handlePublishNow() : undefined}
+      onCancelSchedule={isActivelyScheduled ? () => handleCancelSchedule() : undefined}
     />
   );
 }

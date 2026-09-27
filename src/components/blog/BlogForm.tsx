@@ -780,9 +780,11 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         setValue("scheduledAt", null);
         setHasCloudDraft(false);
       } else if (publishStatus === "scheduled") {
-        setValue("status", "scheduled");
+        if (status !== "published") {
+          setValue("status", "scheduled");
+        }
         setValue("scheduledAt", targetScheduledAt);
-        setHasCloudDraft(false);
+        setHasCloudDraft(Boolean(responseData?.draftContent));
       } else {
         if (status !== "published" && status !== "scheduled") {
           setValue("status", "draft");
@@ -797,7 +799,14 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         tags: [...(currentValues.tags || [])],
         categories: [...(currentValues.categories || [])],
         allowComments: currentValues.allowComments,
-        status: publishStatus === "published" ? "published" : status,
+        status:
+          publishStatus === "published"
+            ? "published"
+            : status === "published"
+            ? "published"
+            : publishStatus === "scheduled"
+            ? "scheduled"
+            : status,
         scheduledAt: targetScheduledAt,
         content: currentValues.content,
         featuredImage: currentValues.featuredImage,

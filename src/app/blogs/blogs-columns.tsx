@@ -64,7 +64,7 @@ export const ActionCell = ({ blog, onDataChange }: { blog: any; onDataChange: ()
         publicUrlLabel="View Live"
         quickEditLabel="Quick Edit"
         extraMenuItems={
-          !blog.isTrashed && (
+          !blog.isTrashed && (blog.status === "scheduled" || blog.status === "draft") && (
             <DropdownMenuItem onClick={() => setScheduleModalOpen(true)} className="cursor-pointer">
               <CalendarClock className="w-3.5 h-3.5 mr-2 text-purple-600" />
               <span>{blog.status === "scheduled" ? "Reschedule" : "Schedule Post"}</span>
