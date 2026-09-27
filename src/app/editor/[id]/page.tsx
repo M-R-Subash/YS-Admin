@@ -99,8 +99,6 @@ export default function EditorPage({
   });
   const [savedSeoBaselineString, setSavedSeoBaselineString] = useState<string>("");
 
-  // Tracks the serialized content string that matches the DB/saved version
-  const [savedBaselineString, setSavedBaselineString] = useState<string>("");
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
   // Operation states
@@ -148,7 +146,6 @@ export default function EditorPage({
 
         setSchemaData(initialContent);
         setLoadedPageId(data.id);
-        setSavedBaselineString(JSON.stringify(initialContent));
 
         // Load SEO metadata if available
         const initialSeo: SeoMetadata = {
@@ -254,7 +251,6 @@ export default function EditorPage({
         previewSecret: updatedPage.previewSecret || prev?.previewSecret || "",
       }));
       setSchemaData(contentPayload);
-      setSavedBaselineString(JSON.stringify(contentPayload));
       setSavedSeoBaselineString(JSON.stringify(seoData));
       setIsSchemaDirty(false);
       schemaEditorRef.current?.resetData(contentPayload);
@@ -303,7 +299,7 @@ export default function EditorPage({
     } finally {
       setSavingDraft(false);
     }
-  }, [clearBackup, page, pageId, schemaData, seoData, targetOrigin]);
+  }, [clearBackup, dirtyManager, page, pageId, schemaData, seoData, targetOrigin]);
 
   // Auto-Save and Open/Focus Live Preview tab (identical to Blog Editor)
   const handlePreview = useCallback(async () => {
@@ -377,7 +373,6 @@ export default function EditorPage({
         previewSecret: updatedPage.previewSecret || prev?.previewSecret || "",
       }));
       setSchemaData(contentPayload);
-      setSavedBaselineString(JSON.stringify(contentPayload));
       setSavedSeoBaselineString(JSON.stringify(seoData));
       setIsSchemaDirty(false);
       schemaEditorRef.current?.resetData(contentPayload);
@@ -464,7 +459,6 @@ export default function EditorPage({
       // Revert editor schema data back to live published content
       const revertedContent = updatedPage.content || {};
       setSchemaData(revertedContent);
-      setSavedBaselineString(JSON.stringify(revertedContent));
 
       // Revert SEO data back to live published SEO
       const revertedSeo: SeoMetadata = {

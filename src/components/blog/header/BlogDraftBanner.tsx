@@ -5,6 +5,7 @@ import { CalendarClock, AlertCircle } from "lucide-react";
 import { format, formatDistanceToNow, isToday, isTomorrow } from "date-fns";
 import { EditorDraftBanner } from "@/components/editor-shell";
 import { useBlogForm } from "../context/BlogFormContext";
+import { useNow } from "@/hooks/useNow";
 
 export function BlogDraftBanner() {
   const {
@@ -20,6 +21,7 @@ export function BlogDraftBanner() {
     watch,
   } = useBlogForm();
 
+  const now = useNow();
   const status = watch("status");
   const scheduleDate = scheduledAt ? new Date(scheduledAt) : null;
   const hasValidScheduleDate = Boolean(scheduleDate && !isNaN(scheduleDate.getTime()));
@@ -27,14 +29,14 @@ export function BlogDraftBanner() {
   // 1. Pending Overdue Schedule: target time reached/passed, awaiting scheduler execution
   const isPendingOverdue = Boolean(
     hasValidScheduleDate &&
-      scheduleDate!.getTime() <= Date.now() &&
+      scheduleDate!.getTime() <= now &&
       (status === "scheduled" || hasCloudDraft || loadedFromBackup)
   );
 
   // 2. Upcoming Future Schedule: target time is strictly in the future
   const isUpcoming = Boolean(
     hasValidScheduleDate &&
-      scheduleDate!.getTime() > Date.now() &&
+      scheduleDate!.getTime() > now &&
       (status === "scheduled" || status === "published")
   );
 

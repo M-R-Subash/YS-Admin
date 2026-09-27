@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import useSWR from "swr";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   CalendarClock,
   Clock,
@@ -43,7 +42,6 @@ interface ScheduledApiResponse {
 type TabType = "all" | "upcoming" | "pending" | "failed" | "success";
 
 export default function ScheduledActionsPage() {
-  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<TabType>("all");
   const [isSyncing, setIsSyncing] = useState(false);
@@ -67,8 +65,11 @@ export default function ScheduledActionsPage() {
     }
   );
 
-  const items = data?.items || [];
-  const counts = data?.counts || { all: 0, upcoming: 0, pending: 0, failed: 0, success: 0 };
+  const items = useMemo(() => data?.items || [], [data?.items]);
+  const counts = useMemo(
+    () => data?.counts || { all: 0, upcoming: 0, pending: 0, failed: 0, success: 0 },
+    [data?.counts]
+  );
   const siteUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || "";
 
   // Filter items based on activeTab and searchQuery
@@ -124,7 +125,7 @@ export default function ScheduledActionsPage() {
   };
 
   // Immediate publish of a single post
-  const handlePublishNow = async (item: ScheduledItem) => {
+  const handlePublishNow = useCallback(async (item: ScheduledItem) => {
     try {
       setActionLoadingId(item.id);
       const res = await fetch(`/api/blogs/${item.id}`, {
@@ -156,10 +157,10 @@ export default function ScheduledActionsPage() {
     } finally {
       setActionLoadingId(null);
     }
-  };
+  }, [mutate]);
 
   // Cancel schedule and revert to draft
-  const handleCancelSchedule = async (item: ScheduledItem) => {
+  const handleCancelSchedule = useCallback(async (item: ScheduledItem) => {
     try {
       setActionLoadingId(item.id);
       const res = await fetch(`/api/blogs/${item.id}`, {
@@ -191,13 +192,13 @@ export default function ScheduledActionsPage() {
     } finally {
       setActionLoadingId(null);
     }
-  };
+  }, [mutate]);
 
   // Open reschedule dialog for post
-  const openRescheduleModal = (item: ScheduledItem) => {
+  const openRescheduleModal = useCallback((item: ScheduledItem) => {
     setSelectedPost(item);
     setRescheduleModalOpen(true);
-  };
+  }, []);
 
   // Confirm reschedule from dialog
   const handleConfirmReschedule = async (newDate: Date) => {
@@ -246,9 +247,8 @@ export default function ScheduledActionsPage() {
       onCancelSchedule: handleCancelSchedule,
       actionLoadingId,
       siteUrl,
-      onNavigateEdit: (url) => router.push(url),
     });
-  }, [actionLoadingId, siteUrl, router]);
+  }, [handlePublishNow, openRescheduleModal, handleCancelSchedule, actionLoadingId, siteUrl]);
 
   // Metric Cards
   const metricCards = useMemo<MetricCardItem[]>(() => [
@@ -308,7 +308,7 @@ export default function ScheduledActionsPage() {
     <TooltipProvider delay={200}>
       <AdminTopBar breadcrumbs="Scheduled Actions" />
 
-      <div className="flex flex-1 flex-col gap-6 py-6 px-[15px] md:px-[20px] lg:px-[30px]">
+      <div className="flex flex-1 flex-col gap-6 py-6 px-3.75 md:px-5 lg:px-7.5">
         {/* 4 Metric Cards */}
         <ContentMetricCards cards={metricCards} loading={isLoading && !data} />
 

@@ -8,7 +8,6 @@ import {
   Link2,
   EyeOff,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -397,7 +396,7 @@ export function SeoEditorSuite({
         </div>
 
         {/* Column 3: Real-Time SEO Health Advisor (Sticky & Full Height) */}
-        <div className="space-y-5 lg:sticky lg:top-6 lg:h-[calc(100vh-104px)] min-h-[560px] flex flex-col">
+        <div className="space-y-5 lg:sticky lg:top-6 lg:h-[calc(100vh-104px)] min-h-140 flex flex-col">
           <SeoHealthAdvisor analysis={analysis} className="h-full flex-1" />
         </div>
       </div>

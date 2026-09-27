@@ -24,6 +24,7 @@ import {
   DropdownMenuShortcut,
 } from "@/components/ui/dropdown-menu";
 import { useBlogForm } from "../context/BlogFormContext";
+import { useNow } from "@/hooks/useNow";
 
 export function BlogFullscreenToolbar() {
   const {
@@ -44,6 +45,7 @@ export function BlogFullscreenToolbar() {
     watch,
   } = useBlogForm();
 
+  const now = useNow();
   const status = watch("status");
   const scheduledAt = watch("scheduledAt");
 
@@ -53,14 +55,14 @@ export function BlogFullscreenToolbar() {
   // 1. Pending Overdue Schedule: target time reached/passed, awaiting scheduler execution
   const isPendingOverdue = Boolean(
     hasValidScheduleDate &&
-      scheduleDate!.getTime() <= Date.now() &&
+      scheduleDate!.getTime() <= now &&
       (status === "scheduled" || hasCloudDraft || loadedFromBackup)
   );
 
   // 2. Upcoming Future Schedule: target time is strictly in the future
   const isUpcoming = Boolean(
     hasValidScheduleDate &&
-      scheduleDate!.getTime() > Date.now() &&
+      scheduleDate!.getTime() > now &&
       (status === "scheduled" || status === "published")
   );
 

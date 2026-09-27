@@ -4,6 +4,7 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { EditorTopBar } from "@/components/editor-shell";
 import { useBlogForm } from "../context/BlogFormContext";
+import { useNow } from "@/hooks/useNow";
 
 export function BlogFormHeader() {
   const router = useRouter();
@@ -26,6 +27,7 @@ export function BlogFormHeader() {
     watch,
   } = useBlogForm();
 
+  const now = useNow();
   const status = watch("status");
   const scheduledAt = watch("scheduledAt");
 
@@ -35,14 +37,14 @@ export function BlogFormHeader() {
   // 1. Pending Overdue Schedule: target time reached/passed, awaiting scheduler execution
   const isPendingOverdue = Boolean(
     hasValidScheduleDate &&
-      scheduleDate!.getTime() <= Date.now() &&
+      scheduleDate!.getTime() <= now &&
       (status === "scheduled" || hasCloudDraft || loadedFromBackup)
   );
 
   // 2. Upcoming Future Schedule: target time is strictly in the future
   const isUpcoming = Boolean(
     hasValidScheduleDate &&
-      scheduleDate!.getTime() > Date.now() &&
+      scheduleDate!.getTime() > now &&
       (status === "scheduled" || status === "published")
   );
 

@@ -15,7 +15,7 @@ import {
   ExternalLink,
   Undo2,
 } from "lucide-react";
-import { format, formatDistanceToNow, isToday, isTomorrow, isPast } from "date-fns";
+import { format, formatDistanceToNow, isToday, isTomorrow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -56,7 +56,6 @@ export interface ScheduledColumnsProps {
   onCancelSchedule: (item: ScheduledItem) => void;
   actionLoadingId: string | null;
   siteUrl?: string;
-  onNavigateEdit?: (url: string) => void;
 }
 
 export const getScheduledColumns = ({
@@ -65,7 +64,6 @@ export const getScheduledColumns = ({
   onCancelSchedule,
   actionLoadingId,
   siteUrl = "",
-  onNavigateEdit,
 }: ScheduledColumnsProps): ColumnDef<ScheduledItem>[] => [
   {
     accessorKey: "title",
@@ -92,7 +90,7 @@ export const getScheduledColumns = ({
               Img
             </div>
           )}
-          <div className="min-w-0 max-w-[200px] md:max-w-[240px]">
+          <div className="min-w-0 max-w-50 md:max-w-60">
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -336,18 +334,11 @@ export const getScheduledColumns = ({
             <DropdownMenuContent align="end" className="w-44 text-xs">
               <DropdownMenuGroup>
                 <DropdownMenuLabel>Post Actions</DropdownMenuLabel>
-                <DropdownMenuItem
-                  onClick={() => {
-                    if (onNavigateEdit) {
-                      onNavigateEdit(`/blogs/edit/${item.id}`);
-                    } else {
-                      window.location.href = `/blogs/edit/${item.id}`;
-                    }
-                  }}
-                  className="cursor-pointer"
-                >
-                  <PenTool className="w-3.5 h-3.5 mr-2" />
-                  <span>Edit in Builder</span>
+                <DropdownMenuItem className="cursor-pointer p-0">
+                  <Link href={`/blogs/edit/${item.id}`} className="flex items-center w-full px-2 py-1.5">
+                    <PenTool className="w-3.5 h-3.5 mr-2" />
+                    <span>Edit in Builder</span>
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => window.open(`/blogs/preview/${item.id}`, `preview_${item.id}`)}

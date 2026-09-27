@@ -1,15 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Calendar as CalendarIcon,
-  Clock,
   Loader2,
   AlertCircle,
   CheckCircle2,
   Sparkles,
   Undo2,
-  ChevronDown,
 } from "lucide-react";
 import {
   Dialog,
@@ -33,15 +31,14 @@ import {
   formatDistanceToNow,
   isToday,
   isTomorrow,
-  isPast,
   addHours,
-  addMinutes,
   startOfTomorrow,
   startOfToday,
   setHours,
   setMinutes,
   addDays,
 } from "date-fns";
+import { useNow } from "@/hooks/useNow";
 
 export interface SchedulePostModalProps {
   open: boolean;
@@ -74,15 +71,20 @@ export function SchedulePostModal({
   };
 
   // Initialize date & time (strictly future date, never past historical dates)
+  const now = useNow();
+
   const getInitialDate = (): Date => {
     if (currentScheduledAt) {
       const d = new Date(currentScheduledAt);
-      if (!isNaN(d.getTime()) && d.getTime() > Date.now()) {
+      if (!isNaN(d.getTime()) && d.getTime() > now) {
         return d;
       }
     }
     return getDefaultFutureDate();
   };
+
+  const [prevOpen, setPrevOpen] = useState(open);
+  const [prevScheduledAt, setPrevScheduledAt] = useState(currentScheduledAt);
 
   const [date, setDate] = useState<Date>(getInitialDate);
   const [hour, setHour] = useState<number>(() => {
@@ -98,8 +100,10 @@ export function SchedulePostModal({
     return getInitialDate().getHours() >= 12 ? "PM" : "AM";
   });
 
-  // Sync state when modal opens or currentScheduledAt changes
-  useEffect(() => {
+  // Sync state when modal opens or currentScheduledAt changes (render-phase state adjustment)
+  if (open !== prevOpen || currentScheduledAt !== prevScheduledAt) {
+    setPrevOpen(open);
+    setPrevScheduledAt(currentScheduledAt);
     if (open) {
       const initial = getInitialDate();
       setDate(initial);
@@ -109,7 +113,7 @@ export function SchedulePostModal({
       setMinute(initial.getMinutes());
       setPeriod(rawHour >= 12 ? "PM" : "AM");
     }
-  }, [open, currentScheduledAt]);
+  }
 
   // Compute final composite Date object
   const finalScheduledDate = useMemo(() => {
@@ -125,9 +129,7 @@ export function SchedulePostModal({
     return composite;
   }, [date, hour, minute, period]);
 
-  const isInPast = useMemo(() => {
-    return finalScheduledDate.getTime() <= Date.now();
-  }, [finalScheduledDate]);
+  const isInPast = finalScheduledDate.getTime() <= now;
 
   // Clean human-friendly schedule preview
   const previewText = useMemo(() => {
@@ -176,7 +178,7 @@ export function SchedulePostModal({
   const isAlreadyScheduled = Boolean(
     currentScheduledAt &&
       !isNaN(new Date(currentScheduledAt).getTime()) &&
-      new Date(currentScheduledAt).getTime() > Date.now()
+      new Date(currentScheduledAt).getTime() > now
   );
 
   return (
@@ -242,7 +244,7 @@ export function SchedulePostModal({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-1">
           {/* Calendar Picker */}
           <div className="rounded-lg border border-border p-4 bg-muted/20 flex flex-col items-center justify-center">
-            <div className="w-[280px] relative">
+            <div className="w-70 relative">
               <Calendar
                 mode="single"
                 selected={date}

@@ -14,11 +14,11 @@ import {
   Layout,
   Globe,
   Calendar,
-  Clock,
   Undo2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { useNow } from "@/hooks/useNow";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -112,6 +112,7 @@ export function EditorTopBar({
   extraActions,
   className = "",
 }: EditorTopBarProps) {
+  const now = useNow();
   const isPublished = status === "published";
   const scheduleDate = scheduledAt ? new Date(scheduledAt) : null;
   const hasValidScheduleDate = Boolean(scheduleDate && !isNaN(scheduleDate.getTime()));
@@ -119,14 +120,14 @@ export function EditorTopBar({
   // 1. Pending Overdue Schedule: target time reached/passed, awaiting scheduler execution
   const isPendingOverdue = Boolean(
     hasValidScheduleDate &&
-      scheduleDate!.getTime() <= Date.now() &&
+      scheduleDate!.getTime() <= now &&
       (status === "scheduled" || hasCloudDraft || loadedFromBackup)
   );
 
   // 2. Upcoming Future Schedule: target time is strictly in the future
   const isUpcoming = Boolean(
     hasValidScheduleDate &&
-      scheduleDate!.getTime() > Date.now() &&
+      scheduleDate!.getTime() > now &&
       (status === "scheduled" || status === "published")
   );
 

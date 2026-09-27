@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   PenToolIcon,
-  CheckCircleIcon,
   ExternalLink,
   Bell,
   MessageSquare,
@@ -119,7 +118,7 @@ export default function DashboardPage() {
     <>
       <AdminTopBar breadcrumbs="Dashboard" />
 
-      <div className="flex flex-1 flex-col gap-8 py-6 px-[15px] md:px-[20px] lg:px-[30px]">
+      <div className="flex flex-1 flex-col gap-8 py-6 px-3.75 md:px-5 lg:px-7.5">
         {/* Quick Links Block */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
