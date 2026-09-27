@@ -8,6 +8,7 @@ import {
   blogScheduleSchema,
 } from "@/lib/schemas/blog/blog-validation";
 import { revalidateFrontendPath } from "@/lib/revalidate";
+import { serverConfig } from "@/lib/config/server";
 
 // GET /api/blogs/[id] — get a single blog
 export async function GET(
@@ -31,7 +32,7 @@ export async function GET(
 
   return NextResponse.json({
     ...blog,
-    previewSecret: process.env.PREVIEW_SECRET || "",
+    previewSecret: serverConfig.security.previewSecret,
   });
 }
 

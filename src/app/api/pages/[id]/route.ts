@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, requireLiveAdmin } from "@/lib/auth";
 import prisma, { mapDbToPageData } from "@/lib/prisma";
 import { revalidateFrontendPath } from "@/lib/revalidate";
+import { serverConfig } from "@/lib/config/server";
 
 // GET /api/pages/[id] — get a single page
 export async function GET(
@@ -31,7 +32,7 @@ export async function GET(
 
   return NextResponse.json({
     ...mapDbToPageData(page),
-    previewSecret: process.env.PREVIEW_SECRET || "",
+    previewSecret: serverConfig.security.previewSecret,
   });
 }
 
@@ -161,7 +162,7 @@ export async function PUT(
 
   return NextResponse.json({
     ...mapDbToPageData(page),
-    previewSecret: process.env.PREVIEW_SECRET || "",
+    previewSecret: serverConfig.security.previewSecret,
   });
 }
 

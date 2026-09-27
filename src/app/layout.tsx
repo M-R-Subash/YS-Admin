@@ -6,15 +6,16 @@ import { Toaster } from "@/components/ui/toast";
 import { Providers } from "@/components/Providers";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { config } from "@/lib/config";
 
-const appName = process.env.NEXT_PUBLIC_APP_NAME || "YS CMS Admin";
+const appName = config.app.name;
 
 export const metadata: Metadata = {
   title: {
     default: appName,
     template: `%s | ${appName}`,
   },
-  description: "Enterprise content management dashboard",
+  description: config.app.description,
 };
 
 const bricolage = Bricolage_Grotesque({

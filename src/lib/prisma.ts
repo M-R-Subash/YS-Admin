@@ -2,13 +2,15 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
 import { PageData } from "@/types";
 
+import { serverConfig } from "@/lib/config/server";
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
 function createPrismaClient(): PrismaClient {
   const adapter = new PrismaPg({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: serverConfig.database.url,
   });
   return new PrismaClient({ adapter });
 }
@@ -20,7 +22,7 @@ if (!client || !(client as any).formSubmission || !(client as any)._runtimeDataM
   client = createPrismaClient();
 }
 
-if (process.env.NODE_ENV !== "production") {
+if (!serverConfig.isProduction) {
   globalForPrisma.prisma = client;
 }
 
