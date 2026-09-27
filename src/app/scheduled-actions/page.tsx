@@ -59,8 +59,10 @@ export default function ScheduledActionsPage() {
   const { data, isLoading, mutate } = useSWR<ScheduledApiResponse>(
     "/api/scheduled-actions",
     {
-      refreshInterval: 30000, // auto-refresh every 30s
+      refreshInterval: 180000, // 3 minutes - smart background polling
       revalidateOnFocus: true,
+      revalidateIfStale: false,
+      dedupingInterval: 10000,
     }
   );
 

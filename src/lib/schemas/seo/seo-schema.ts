@@ -5,12 +5,10 @@ export const seoMetadataSchema = z.object({
   id: z.string().optional(),
   metaTitle: z
     .string()
-    .max(70, "Meta Title should ideally not exceed 70 characters")
     .optional()
     .nullable(),
   metaDesc: z
     .string()
-    .max(170, "Meta Description should ideally not exceed 170 characters")
     .optional()
     .nullable(),
   focusKeyword: z.string().optional().nullable(),
@@ -61,8 +59,8 @@ export const universalSeoFormSchema = z.object({
     .min(1, "URL Slug is required")
     .regex(/^[a-z0-9-\/_]+$/, "Slug can only contain lowercase letters, numbers, hyphens, and slashes"),
   
-  metaTitle: z.string().max(70, "Meta Title should not exceed 70 characters").optional().nullable(),
-  metaDesc: z.string().max(170, "Meta Description should not exceed 170 characters").optional().nullable(),
+  metaTitle: z.string().optional().nullable(),
+  metaDesc: z.string().optional().nullable(),
   focusKeyword: z.string().optional().nullable(),
   ogImage: z.string().optional().nullable(),
   ogTitle: z.string().optional().nullable(),

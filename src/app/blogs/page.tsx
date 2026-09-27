@@ -105,6 +105,15 @@ export default function BlogsPage() {
     { id: "trash", label: "Trash", count: trashedCount, color: "red" },
   ], [totalCount, publishedCount, scheduledCount, draftCount, trashedCount]);
 
+  const handleDataChange = useMemo(() => {
+    return () => {
+      mutate();
+      globalMutate("/api/dashboard/stats");
+    };
+  }, [mutate]);
+
+  const columns = useMemo(() => getBlogsColumns(handleDataChange), [handleDataChange]);
+
   return (
     <>
       <AdminTopBar breadcrumbs="Blogs" />
@@ -155,10 +164,7 @@ export default function BlogsPage() {
           </div>
         ) : (
           <DataTable
-            columns={getBlogsColumns(() => {
-              mutate();
-              globalMutate("/api/dashboard/stats");
-            })}
+            columns={columns}
             data={filteredBlogs}
           />
         )}

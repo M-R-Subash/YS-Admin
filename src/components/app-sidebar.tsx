@@ -81,8 +81,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     pendingComments: number;
     upcomingScheduled: number;
   }>("/api/badges", {
-    refreshInterval: 60000,
-    revalidateOnFocus: true,
+    refreshInterval: 180000, // 3 minutes - smart background polling
+    revalidateOnFocus: true, // fresh data immediately when tab is active
+    revalidateIfStale: false,
+    dedupingInterval: 10000,
   });
 
   const unreadSubmissionsCount = badges?.unreadSubmissions || 0;

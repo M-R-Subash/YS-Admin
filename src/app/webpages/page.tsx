@@ -94,6 +94,15 @@ export default function WebpagesPage() {
     { id: "trash", label: "Trash", count: trashedCount, color: "red" },
   ], [totalCount, publishedCount, draftCount, trashedCount]);
 
+  const handleDataChange = useMemo(() => {
+    return () => {
+      mutate();
+      globalMutate("/api/dashboard/stats");
+    };
+  }, [mutate]);
+
+  const columns = useMemo(() => getWebpagesColumns(handleDataChange), [handleDataChange]);
+
   return (
     <>
       <AdminTopBar breadcrumbs="Webpages" />
@@ -190,10 +199,7 @@ export default function WebpagesPage() {
           </div>
         ) : (
           <DataTable
-            columns={getWebpagesColumns(() => {
-              mutate();
-              globalMutate("/api/dashboard/stats");
-            })}
+            columns={columns}
             data={filteredPages}
           />
         )}

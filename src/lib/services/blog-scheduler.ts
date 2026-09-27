@@ -150,7 +150,7 @@ export async function publishOverdueBlogs(): Promise<ScheduledExecutionResult> {
           status: "published",
           publishedAt: blog.status === "scheduled" ? now : undefined, // only update publishedAt if first time
           draftContent: null as any,
-          scheduledAt: null, // clear schedule timestamp now that it has been executed
+          // Retain scheduledAt timestamp so historical release record remains in Scheduled Actions
         },
       });
       publishedBlogsList.push({
@@ -165,7 +165,7 @@ export async function publishOverdueBlogs(): Promise<ScheduledExecutionResult> {
         data: {
           status: "published",
           publishedAt: now,
-          scheduledAt: null,
+          // Retain scheduledAt timestamp so historical release record remains in Scheduled Actions
         },
       });
       publishedBlogsList.push({

@@ -139,7 +139,10 @@ export async function PUT(
     // Keep scheduledAt intact for scheduling
   } else if (status === "published" || action === "publish" || action === "publish-now") {
     body.publishedAt = new Date().toISOString();
-    body.scheduledAt = null;
+    // Preserve scheduledAt if this was an existing scheduled blog being published, so history remains in Scheduled Actions
+    body.scheduledAt = (existingBlog.status === "scheduled" || existingBlog.scheduledAt)
+      ? existingBlog.scheduledAt
+      : null;
   } else if (status === "draft" || action === "cancel-schedule") {
     body.publishedAt = null;
     body.scheduledAt = null;
@@ -264,7 +267,7 @@ export async function PUT(
       ...updateData,
       status: "published",
       publishedAt: existingBlog.publishedAt || new Date(),
-      scheduledAt: null,
+      scheduledAt: existingBlog.scheduledAt || null,
       draftContent: null,
     };
     if (stagedDraft && typeof stagedDraft === "object") {
