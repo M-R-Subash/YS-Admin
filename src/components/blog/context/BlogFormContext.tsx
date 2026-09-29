@@ -82,6 +82,8 @@ export interface BlogFormContextValue {
   setShowExitConfirm: (show: boolean) => void;
   showDiscardConfirm: boolean;
   setShowDiscardConfirm: (show: boolean) => void;
+  showHistoryDrawer: boolean;
+  setShowHistoryDrawer: (show: boolean) => void;
 }
 
 const BlogFormContext = createContext<BlogFormContextValue | null>(null);

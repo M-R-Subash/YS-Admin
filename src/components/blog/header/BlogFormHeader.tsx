@@ -22,6 +22,7 @@ export function BlogFormHeader() {
     isPreviewSaving,
     setShowExitConfirm,
     setShowScheduleModal,
+    setShowHistoryDrawer,
     handlePublishNow,
     handleCancelSchedule,
     watch,
@@ -98,6 +99,7 @@ export function BlogFormHeader() {
       isPreviewSaving={isPreviewSaving}
       isFullscreen={isFullscreen}
       onToggleFullscreen={() => setIsFullscreen((prev) => !prev)}
+      onOpenHistory={() => setShowHistoryDrawer(true)}
       onPublish={() => {
         if (isActivelyScheduled) {
           handleSave("scheduled");

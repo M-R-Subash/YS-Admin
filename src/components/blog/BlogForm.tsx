@@ -39,6 +39,8 @@ import {
 import { ExitConfirmDialog } from "./dialogs/ExitConfirmDialog";
 import { DiscardDraftDialog } from "./dialogs/DiscardDraftDialog";
 import { SchedulePostModal } from "./dialogs/SchedulePostModal";
+import { RevisionHistoryDrawer } from "./dialogs/RevisionHistoryDrawer";
+import { BlogSnapshotData } from "@/lib/types/revision";
 import { BlogDraftBanner } from "./header/BlogDraftBanner";
 import { BlogFormHeader } from "./header/BlogFormHeader";
 import { BlogFullscreenToolbar } from "./header/BlogFullscreenToolbar";
@@ -69,6 +71,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   const [discarding, setDiscarding] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
 
   // Tabs & Fullscreen state
   const [editorTab, setEditorTab] = useState<BlogEditorTab>("general");
@@ -943,6 +946,89 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     }
   };
 
+  const handleRestoreRevision = useCallback(
+    (snapshotData: BlogSnapshotData, versionNumber: number) => {
+      const restoredValues: BlogFormData = {
+        title: snapshotData.title || "",
+        slug: getValues("slug") || snapshotData.slug || "",
+        featuredImage: snapshotData.featuredImage || null,
+        allowComments: snapshotData.allowComments ?? true,
+        status: getValues("status") || "draft",
+        scheduledAt: getValues("scheduledAt") || null,
+        content: snapshotData.content || null,
+        excerpt: snapshotData.excerpt || "",
+        tags: snapshotData.tags || [],
+        categories: snapshotData.categories || [],
+        faqs: snapshotData.faqs || [],
+        metaTitle: snapshotData.seo?.metaTitle || "",
+        metaDesc: snapshotData.seo?.metaDesc || "",
+        focusKeyword: snapshotData.seo?.focusKeyword || "",
+        ogImage: snapshotData.seo?.ogImage || "",
+        ogTitle: snapshotData.seo?.ogTitle || "",
+        ogDesc: snapshotData.seo?.ogDesc || "",
+        canonicalUrl: snapshotData.seo?.canonicalUrl || "",
+        noIndex: Boolean(snapshotData.seo?.noIndex),
+      };
+
+      reset(restoredValues, {
+        keepDirty: false,
+        keepValues: false,
+      });
+
+      // Mark key fields dirty so unsaved changes alert triggers
+      setValue("title", restoredValues.title, { shouldDirty: true });
+      setValue("content", restoredValues.content, { shouldDirty: true });
+      setValue("excerpt", restoredValues.excerpt, { shouldDirty: true });
+      setValue("featuredImage", restoredValues.featuredImage, { shouldDirty: true });
+      setValue("tags", restoredValues.tags, { shouldDirty: true });
+      setValue("categories", restoredValues.categories, { shouldDirty: true });
+      setValue("faqs", restoredValues.faqs, { shouldDirty: true });
+      setValue("metaTitle", restoredValues.metaTitle, { shouldDirty: true });
+      setValue("metaDesc", restoredValues.metaDesc, { shouldDirty: true });
+      setValue("focusKeyword", restoredValues.focusKeyword, { shouldDirty: true });
+
+      toast.add({
+        title: "Revision Restored",
+        description: `Version ${versionNumber} restored to editor. Review your changes and publish when ready.`,
+        type: "success",
+      });
+    },
+    [getValues, reset, setValue]
+  );
+
+  // Check if navigating back from comparison page with ?restoreRevision=<id>
+  useEffect(() => {
+    if (!blogId || typeof window === "undefined") return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const restoreId = urlParams.get("restoreRevision");
+    if (!restoreId) return;
+
+    let isMounted = true;
+    async function loadRestoredRevision() {
+      try {
+        const res = await fetch(`/api/blogs/${blogId}/revisions/${restoreId}`);
+        if (!res.ok) throw new Error("Could not find requested revision to restore");
+        const json = await res.json();
+        if (json.revision?.snapshotData && isMounted) {
+          handleRestoreRevision(json.revision.snapshotData, json.revision.versionNumber);
+          window.history.replaceState({}, "", `/blogs/edit/${blogId}`);
+        }
+      } catch (err: any) {
+        console.error("[BlogForm] Restore revision URL param error:", err);
+        toast.add({
+          title: "Restore Failed",
+          description: err?.message || "Could not restore requested revision",
+          type: "error",
+        });
+      }
+    }
+
+    loadRestoredRevision();
+    return () => {
+      isMounted = false;
+    };
+  }, [blogId, handleRestoreRevision]);
+
   const contextValue: BlogFormContextValue = {
     control,
     errors,
@@ -998,6 +1084,8 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     setShowExitConfirm,
     showDiscardConfirm,
     setShowDiscardConfirm,
+    showHistoryDrawer,
+    setShowHistoryDrawer,
   };
 
   return (
@@ -1019,6 +1107,14 @@ export default function BlogForm({ blogId }: BlogFormProps) {
             onCancelSchedule={handleCancelSchedule}
             isSubmitting={isSubmitting}
           />
+          {isEditMode && blogId && (
+            <RevisionHistoryDrawer
+              blogId={blogId}
+              open={showHistoryDrawer}
+              onOpenChange={setShowHistoryDrawer}
+              onRestore={handleRestoreRevision}
+            />
+          )}
 
           {/* Normal Top Header & Banner Wrapper (smooth collapse on fullscreen) */}
           <div

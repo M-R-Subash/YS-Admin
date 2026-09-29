@@ -30,6 +30,7 @@ model User {
 
   pages          Page[]    @relation("PageAuthor")
   blogs          Blog[]    @relation("BlogAuthor")
+  blogRevisions  BlogRevision[] @relation("RevisionAuthor")
   refreshTokens  RefreshToken[]
 }
 
@@ -113,6 +114,7 @@ model Blog {
   author        User?     @relation("BlogAuthor", fields: [authorId], references: [id], onDelete: SetNull)
   
   comments      Comment[]
+  revisions     BlogRevision[]
 
   @@index([status, isTrashed, scheduledAt, publishedAt])
 }
@@ -181,4 +183,32 @@ model RefreshToken {
 
   @@index([userId])
   @@index([tokenHash])
+}
+
+model BlogRevision {
+  id             String    @id @default(cuid())
+  blogId         String
+  blog           Blog      @relation(fields: [blogId], references: [id], onDelete: Cascade)
+
+  // Sequential version identifier per blog (1, 2, 3...)
+  versionNumber  Int
+
+  // Universal JSON snapshot capturing all blog attributes at publish time
+  snapshotData   Json
+
+  // Triggering action: "published" | "updated" | "scheduled-publish" | "restored"
+  action         String
+
+  // Metadata summary for rapid list rendering without parsing full TipTap tree
+  wordCount      Int       @default(0)
+  readingTime    Int       @default(1)
+
+  // Author association (Set null if user is deleted)
+  savedById      String?
+  savedBy        User?     @relation("RevisionAuthor", fields: [savedById], references: [id], onDelete: SetNull)
+
+  createdAt      DateTime  @default(now())
+
+  @@unique([blogId, versionNumber])
+  @@index([blogId, createdAt(sort: Desc)])
 }

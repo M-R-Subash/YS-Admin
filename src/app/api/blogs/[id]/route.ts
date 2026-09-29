@@ -9,6 +9,7 @@ import {
 } from "@/lib/schemas/blog/blog-validation";
 import { revalidateFrontendPath } from "@/lib/revalidate";
 import { serverConfig } from "@/lib/config/server";
+import { createBlogRevisionSnapshot } from "@/lib/server/revision-utils";
 
 // GET /api/blogs/[id] — get a single blog
 export async function GET(
@@ -378,6 +379,43 @@ export async function PUT(
     data: updateData,
     include: { seo: true }
   });
+
+  // Create Revision History Snapshot ONLY if published or updated while live
+  const isPublishAction =
+    action === "publish" ||
+    action === "publish-now" ||
+    (action === "schedule" && blog.status === "published") ||
+    (action === undefined && blog.status === "published");
+
+  if (isPublishAction && blog.status === "published") {
+    try {
+      await createBlogRevisionSnapshot({
+        blogId: id,
+        payload: {
+          title: blog.title,
+          slug: blog.slug,
+          content: blog.content,
+          excerpt: blog.excerpt,
+          featuredImage: blog.featuredImage,
+          allowComments: blog.allowComments,
+          readingTime: blog.readingTime,
+          tags: blog.tags,
+          categories: blog.categories,
+          faqs: (blog.content as any)?.faqs || [],
+          seo: blog.seo,
+        },
+        action:
+          action === "publish-now"
+            ? "scheduled-publish"
+            : existingBlog.status === "published"
+            ? "updated"
+            : "published",
+        savedById: session.user.id,
+      });
+    } catch (revErr) {
+      console.error("[BlogRevision] Snapshot creation error:", revErr);
+    }
+  }
 
   // Revalidate blog listing and blog single page
   if (shouldRevalidate) {

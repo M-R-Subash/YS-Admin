@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { revalidateFrontendPath } from "@/lib/revalidate";
 import { serverConfig } from "@/lib/config/server";
+import { createBlogRevisionSnapshot } from "@/lib/server/revision-utils";
 
 export interface ScheduledExecutionResult {
   success: boolean;
@@ -131,7 +132,7 @@ export async function publishOverdueBlogs(): Promise<ScheduledExecutionResult> {
 
     if (stagedDraft && typeof stagedDraft === "object") {
       // Staged changes exist: apply them to live content
-      await prisma.blog.update({
+      const updated = await prisma.blog.update({
         where: { id: blog.id },
         data: {
           ...(stagedDraft.title && { title: stagedDraft.title }),
@@ -153,7 +154,32 @@ export async function publishOverdueBlogs(): Promise<ScheduledExecutionResult> {
           draftContent: null as any,
           // Retain scheduledAt timestamp so historical release record remains in Scheduled Actions
         },
+        include: { seo: true },
       });
+
+      try {
+        await createBlogRevisionSnapshot({
+          blogId: updated.id,
+          payload: {
+            title: updated.title,
+            slug: updated.slug,
+            content: updated.content,
+            excerpt: updated.excerpt,
+            featuredImage: updated.featuredImage,
+            allowComments: updated.allowComments,
+            readingTime: updated.readingTime,
+            tags: updated.tags,
+            categories: updated.categories,
+            faqs: (updated.content as any)?.faqs || [],
+            seo: updated.seo,
+          },
+          action: "scheduled-publish",
+          savedById: updated.authorId,
+        });
+      } catch (revError) {
+        console.warn("[SCHEDULER] Failed to create revision snapshot:", revError);
+      }
+
       publishedBlogsList.push({
         id: blog.id,
         title: stagedDraft.title || blog.title,
@@ -161,14 +187,39 @@ export async function publishOverdueBlogs(): Promise<ScheduledExecutionResult> {
       });
     } else {
       // Standard new scheduled post without separate draftContent
-      await prisma.blog.update({
+      const updated = await prisma.blog.update({
         where: { id: blog.id },
         data: {
           status: "published",
           publishedAt: now,
           // Retain scheduledAt timestamp so historical release record remains in Scheduled Actions
         },
+        include: { seo: true },
       });
+
+      try {
+        await createBlogRevisionSnapshot({
+          blogId: updated.id,
+          payload: {
+            title: updated.title,
+            slug: updated.slug,
+            content: updated.content,
+            excerpt: updated.excerpt,
+            featuredImage: updated.featuredImage,
+            allowComments: updated.allowComments,
+            readingTime: updated.readingTime,
+            tags: updated.tags,
+            categories: updated.categories,
+            faqs: (updated.content as any)?.faqs || [],
+            seo: updated.seo,
+          },
+          action: "scheduled-publish",
+          savedById: updated.authorId,
+        });
+      } catch (revError) {
+        console.warn("[SCHEDULER] Failed to create revision snapshot:", revError);
+      }
+
       publishedBlogsList.push({
         id: blog.id,
         title: blog.title,

@@ -15,6 +15,7 @@ import {
   Globe,
   Calendar,
   Undo2,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -58,6 +59,9 @@ export interface EditorTopBarProps {
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
 
+  // Revision History
+  onOpenHistory?: () => void;
+
   // Save / Publish / Schedule
   onPublish: () => void;
   isPublishing?: boolean;
@@ -97,6 +101,7 @@ export function EditorTopBar({
   previewTooltip,
   isFullscreen,
   onToggleFullscreen,
+  onOpenHistory,
   onPublish,
   isPublishing = false,
   canPublish = true,
@@ -389,6 +394,27 @@ export function EditorTopBar({
               <p className="text-xs">
                 {isFullscreen ? "Exit fullscreen (Esc)" : "Enter fullscreen"}
               </p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+
+        {/* Revision History Clock Button */}
+        {isEditMode && onOpenHistory && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={onOpenHistory}
+                  className="h-9 w-9 p-0 rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer flex items-center justify-center"
+                >
+                  <History className="w-4 h-4 text-muted-foreground" />
+                </Button>
+              }
+            />
+            <TooltipContent side="bottom">
+              <p className="text-xs">Revision History</p>
             </TooltipContent>
           </Tooltip>
         )}

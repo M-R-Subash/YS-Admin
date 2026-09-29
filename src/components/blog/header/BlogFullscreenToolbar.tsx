@@ -165,21 +165,23 @@ export function BlogFullscreenToolbar() {
 
           {/* Preview */}
           <Tooltip>
-            <TooltipTrigger>
-              <Button
-                variant="outline"
-                type="button"
-                disabled={isPreviewSaving || isSubmitting}
-                onClick={handlePreview}
-                className="h-8 w-8 p-0 rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
-              >
-                {isPreviewSaving ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
-                ) : (
-                  <Eye className="w-3.5 h-3.5 text-muted-foreground" />
-                )}
-              </Button>
-            </TooltipTrigger>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="outline"
+                  type="button"
+                  disabled={isPreviewSaving || isSubmitting}
+                  onClick={handlePreview}
+                  className="h-8 w-8 p-0 rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
+                >
+                  {isPreviewSaving ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                  ) : (
+                    <Eye className="w-3.5 h-3.5 text-muted-foreground" />
+                  )}
+                </Button>
+              }
+            />
             <TooltipContent side="bottom">
               <p className="text-xs">
                 {isPreviewSaving ? "Saving draft for live preview..." : "Live preview (auto-saves draft)"}
@@ -189,16 +191,18 @@ export function BlogFullscreenToolbar() {
 
           {/* Exit Fullscreen */}
           <Tooltip>
-            <TooltipTrigger>
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() => setIsFullscreen(false)}
-                className="h-8 w-8 p-0 rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer flex items-center justify-center"
-              >
-                <Minimize2 className="w-3.5 h-3.5 text-muted-foreground" />
-              </Button>
-            </TooltipTrigger>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => setIsFullscreen(false)}
+                  className="h-8 w-8 p-0 rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer flex items-center justify-center"
+                >
+                  <Minimize2 className="w-3.5 h-3.5 text-muted-foreground" />
+                </Button>
+              }
+            />
             <TooltipContent side="bottom">
               <p className="text-xs">Exit fullscreen (Esc)</p>
             </TooltipContent>
