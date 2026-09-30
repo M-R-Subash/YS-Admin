@@ -38,12 +38,12 @@ export function WordDiffViewer({
         if (part.removed) {
           if (mode === "new") return null; // New version doesn't have removed words
           return (
-            <del
+            <span
               key={index}
-              className="bg-red-500/20 text-red-800 dark:text-red-300 dark:bg-red-950/70 line-through px-0.5 rounded-xs decoration-red-500/80 decoration-2"
+              className="bg-red-500/20 text-red-900 dark:text-red-300 dark:bg-red-950/70 font-semibold px-0.5 rounded-xs no-underline border-b border-red-500/40"
             >
               {part.value}
-            </del>
+            </span>
           );
         }
 

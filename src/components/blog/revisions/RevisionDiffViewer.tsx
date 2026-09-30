@@ -28,10 +28,12 @@ import {
   ExternalLink,
   Loader2,
   Info,
+  Folder,
+  MessageSquare,
 } from "lucide-react";
 import { TipTapDiffReader } from "./TipTapDiffReader";
 import { WordDiffViewer } from "./WordDiffViewer";
-import { UnifiedDiffViewer } from "./UnifiedDiffViewer";
+import { UnifiedDiffViewer, extractTipTapLines } from "./UnifiedDiffViewer";
 import { TipTapDiffHighlighter } from "./TipTapDiffHighlighter";
 import { RestoreConfirmDialog } from "../dialogs/RestoreConfirmDialog";
 import { RevisionDetailResponse } from "@/lib/types/revision";
@@ -166,7 +168,33 @@ export function RevisionDiffViewer({ blogId, revisionId }: RevisionDiffViewerPro
     !isExcerptDifferent &&
     !isImageDifferent &&
     JSON.stringify(snapshot?.content || {}) === JSON.stringify(currentBlog.content || {});
-  const wordDiff = (currentBlog.readingTime || 1) - (snapshot?.readingTime || 1);
+
+  // Symmetrical metadata calculations
+  const snapshotPlainText = extractTipTapLines(snapshot?.content).join(" ");
+  const currentPlainText = extractTipTapLines(currentBlog?.content).join(" ");
+
+  const snapshotWordCount =
+    snapshot?.wordCount ??
+    (snapshotPlainText ? snapshotPlainText.split(/\s+/).filter(Boolean).length : 0);
+
+  const currentWordCount =
+    currentPlainText ? currentPlainText.split(/\s+/).filter(Boolean).length : 0;
+
+  const wordCountDiff = currentWordCount - snapshotWordCount;
+
+  const snapshotReadingTime =
+    snapshot?.readingTime ?? Math.max(1, Math.ceil(snapshotWordCount / 200));
+
+  const currentReadingTime =
+    currentBlog?.readingTime ?? Math.max(1, Math.ceil(currentWordCount / 200));
+
+  const readingTimeDiff = currentReadingTime - snapshotReadingTime;
+
+  const snapshotTags: string[] = snapshot?.tags || [];
+  const currentTags: string[] = currentBlog?.tags || [];
+
+  const snapshotCategories: string[] = snapshot?.categories || [];
+  const currentCategories: string[] = currentBlog?.categories || [];
 
   return (
     <div className="h-screen w-full flex flex-col bg-background overflow-hidden">
@@ -333,46 +361,108 @@ export function RevisionDiffViewer({ blogId, revisionId }: RevisionDiffViewerPro
         </button>
       </div>
 
-      {/* Optional Metadata Comparison Header Strip */}
+      {/* Symmetrical Metadata Comparison Header Strip */}
       {showMetadataDetails && (
         <div className="border-b border-border bg-muted/20 p-4 shrink-0 overflow-x-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-full">
             {/* Snapshot Metadata Box */}
-            <div className="p-3 rounded-lg border border-border/70 bg-card text-xs space-y-2">
-              <div className="flex items-center justify-between pb-1 border-b border-border/40">
+            <div className="p-3.5 rounded-lg border border-border/70 bg-card text-xs space-y-2.5">
+              <div className="flex items-center justify-between pb-1.5 border-b border-border/40">
                 <span className="font-bold flex items-center gap-1.5 text-foreground">
-                  <Badge variant="outline" className="text-[10px] px-1 py-0">v{revision.versionNumber}</Badge>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-muted">
+                    v{revision.versionNumber}
+                  </Badge>
                   Historical Snapshot Metadata
                 </span>
                 <span className="text-[11px] text-muted-foreground">{formattedSnapshotDate}</span>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-[11px]">
+              {/* Symmetrical 3-Column Metrics Grid */}
+              <div className="grid grid-cols-3 gap-2 text-[11px]">
                 <div>
-                  <span className="text-muted-foreground block">Word Count</span>
-                  <span className="font-semibold text-foreground">{snapshot?.wordCount?.toLocaleString() || 0} words</span>
+                  <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Word Count</span>
+                  <span className="font-semibold text-foreground">
+                    {snapshotWordCount.toLocaleString()} words
+                  </span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground block">Reading Time</span>
-                  <span className="font-semibold text-foreground">{snapshot?.readingTime || 1} min</span>
+                  <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Reading Time</span>
+                  <span className="font-semibold text-foreground">
+                    {snapshotReadingTime} min
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Status</span>
+                  <span className="font-semibold text-foreground">
+                    Published
+                  </span>
                 </div>
               </div>
 
-              {snapshot?.tags && snapshot.tags.length > 0 && (
-                <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                  <Tag className="w-3 h-3 text-muted-foreground shrink-0" />
-                  {snapshot.tags.map((tag) => (
-                    <Badge key={tag} variant="secondary" className="text-[10px] py-0 px-1.5">
-                      {tag}
-                    </Badge>
-                  ))}
+              {/* Categories */}
+              {(snapshotCategories.length > 0 || currentCategories.length > 0) && (
+                <div className="flex items-center gap-1.5 flex-wrap pt-1.5 border-t border-border/40">
+                  <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
+                    <Folder className="w-3 h-3" /> Categories:
+                  </span>
+                  {snapshotCategories.length > 0 ? (
+                    snapshotCategories.map((cat) => {
+                      const wasRemoved = !currentCategories.includes(cat);
+                      return (
+                        <Badge
+                          key={cat}
+                          variant={wasRemoved ? "outline" : "secondary"}
+                          className={`text-[10px] py-0 px-1.5 ${
+                            wasRemoved
+                              ? "border-red-500/50 bg-red-500/10 text-red-700 dark:text-red-400 font-semibold"
+                              : ""
+                          }`}
+                        >
+                          {wasRemoved && <span className="mr-0.5">-</span>}
+                          {cat}
+                        </Badge>
+                      );
+                    })
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground italic">None</span>
+                  )}
+                </div>
+              )}
+
+              {/* Tags */}
+              {(snapshotTags.length > 0 || currentTags.length > 0) && (
+                <div className="flex items-center gap-1.5 flex-wrap pt-1.5 border-t border-border/40">
+                  <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
+                    <Tag className="w-3 h-3" /> Tags:
+                  </span>
+                  {snapshotTags.length > 0 ? (
+                    snapshotTags.map((tag) => {
+                      const wasRemoved = !currentTags.includes(tag);
+                      return (
+                        <Badge
+                          key={tag}
+                          variant={wasRemoved ? "outline" : "secondary"}
+                          className={`text-[10px] py-0 px-1.5 ${
+                            wasRemoved
+                              ? "border-red-500/50 bg-red-500/10 text-red-700 dark:text-red-400 font-semibold"
+                              : ""
+                          }`}
+                        >
+                          {wasRemoved && <span className="mr-0.5">-</span>}
+                          {tag}
+                        </Badge>
+                      );
+                    })
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground italic">None</span>
+                  )}
                 </div>
               )}
             </div>
 
             {/* Current Metadata Box */}
-            <div className="p-3 rounded-lg border border-border/70 bg-card text-xs space-y-2">
-              <div className="flex items-center justify-between pb-1 border-b border-border/40">
+            <div className="p-3.5 rounded-lg border border-border/70 bg-card text-xs space-y-2.5">
+              <div className="flex items-center justify-between pb-1.5 border-b border-border/40">
                 <span className="font-bold flex items-center gap-1.5 text-foreground">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   Current Live Post Metadata
@@ -380,25 +470,117 @@ export function RevisionDiffViewer({ blogId, revisionId }: RevisionDiffViewerPro
                 <span className="text-[11px] text-muted-foreground">Active in database</span>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-[11px]">
+              {/* Symmetrical 3-Column Metrics Grid */}
+              <div className="grid grid-cols-3 gap-2 text-[11px]">
                 <div>
-                  <span className="text-muted-foreground block">Reading Time</span>
-                  <span className="font-semibold text-foreground">{currentBlog.readingTime || 1} min</span>
+                  <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Word Count</span>
+                  <div className="flex items-center flex-wrap gap-1">
+                    <span className="font-semibold text-foreground">
+                      {currentWordCount.toLocaleString()} words
+                    </span>
+                    {wordCountDiff > 0 && (
+                      <Badge variant="outline" className="text-[10px] py-0 px-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-bold">
+                        +{wordCountDiff}
+                      </Badge>
+                    )}
+                    {wordCountDiff < 0 && (
+                      <Badge variant="outline" className="text-[10px] py-0 px-1 text-red-600 dark:text-red-400 border-red-500/30 font-bold">
+                        {wordCountDiff}
+                      </Badge>
+                    )}
+                    {wordCountDiff === 0 && (
+                      <span className="text-[10px] text-muted-foreground">(Same)</span>
+                    )}
+                  </div>
                 </div>
+
                 <div>
-                  <span className="text-muted-foreground block">Status</span>
-                  <span className="font-semibold capitalize text-foreground">{currentBlog.status}</span>
+                  <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Reading Time</span>
+                  <div className="flex items-center flex-wrap gap-1">
+                    <span className="font-semibold text-foreground">
+                      {currentReadingTime} min
+                    </span>
+                    {readingTimeDiff > 0 && (
+                      <Badge variant="outline" className="text-[10px] py-0 px-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-bold">
+                        +{readingTimeDiff}m
+                      </Badge>
+                    )}
+                    {readingTimeDiff < 0 && (
+                      <Badge variant="outline" className="text-[10px] py-0 px-1 text-red-600 dark:text-red-400 border-red-500/30 font-bold">
+                        {readingTimeDiff}m
+                      </Badge>
+                    )}
+                    {readingTimeDiff === 0 && (
+                      <span className="text-[10px] text-muted-foreground">(Same)</span>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Status</span>
+                  <span className="font-semibold capitalize text-foreground">
+                    {currentBlog.status || "Published"}
+                  </span>
                 </div>
               </div>
 
-              {currentBlog.tags && currentBlog.tags.length > 0 && (
-                <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                  <Tag className="w-3 h-3 text-muted-foreground shrink-0" />
-                  {currentBlog.tags.map((tag: string) => (
-                    <Badge key={tag} variant="secondary" className="text-[10px] py-0 px-1.5">
-                      {tag}
-                    </Badge>
-                  ))}
+              {/* Categories */}
+              {(snapshotCategories.length > 0 || currentCategories.length > 0) && (
+                <div className="flex items-center gap-1.5 flex-wrap pt-1.5 border-t border-border/40">
+                  <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
+                    <Folder className="w-3 h-3" /> Categories:
+                  </span>
+                  {currentCategories.length > 0 ? (
+                    currentCategories.map((cat: string) => {
+                      const wasAdded = !snapshotCategories.includes(cat);
+                      return (
+                        <Badge
+                          key={cat}
+                          variant={wasAdded ? "outline" : "secondary"}
+                          className={`text-[10px] py-0 px-1.5 ${
+                            wasAdded
+                              ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-semibold"
+                              : ""
+                          }`}
+                        >
+                          {wasAdded && <span className="mr-0.5">+</span>}
+                          {cat}
+                        </Badge>
+                      );
+                    })
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground italic">None</span>
+                  )}
+                </div>
+              )}
+
+              {/* Tags */}
+              {(snapshotTags.length > 0 || currentTags.length > 0) && (
+                <div className="flex items-center gap-1.5 flex-wrap pt-1.5 border-t border-border/40">
+                  <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
+                    <Tag className="w-3 h-3" /> Tags:
+                  </span>
+                  {currentTags.length > 0 ? (
+                    currentTags.map((tag: string) => {
+                      const wasAdded = !snapshotTags.includes(tag);
+                      return (
+                        <Badge
+                          key={tag}
+                          variant={wasAdded ? "outline" : "secondary"}
+                          className={`text-[10px] py-0 px-1.5 ${
+                            wasAdded
+                              ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-semibold"
+                              : ""
+                          }`}
+                        >
+                          {wasAdded && <span className="mr-0.5">+</span>}
+                          {tag}
+                        </Badge>
+                      );
+                    })
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground italic">None</span>
+                  )}
                 </div>
               )}
             </div>
