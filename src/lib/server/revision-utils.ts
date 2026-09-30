@@ -153,10 +153,10 @@ export function isRevisionDuplicate(
 }
 
 /**
- * Prunes historical revisions to enforce the max limit (e.g. 15 revisions).
+ * Prunes historical revisions to enforce the max limit (e.g. 5 revisions).
  * Deletes oldest revisions by versionNumber ascending.
  */
-export async function pruneRevisions(blogId: string, maxAllowed = 15): Promise<number> {
+export async function pruneRevisions(blogId: string, maxAllowed = 5): Promise<number> {
   const count = await prisma.blogRevision.count({ where: { blogId } });
   if (count <= maxAllowed) return 0;
 
@@ -286,8 +286,8 @@ export async function createBlogRevisionSnapshot(params: {
     },
   });
 
-  // 7. Auto-prune to maintain maximum 15 revisions
-  await pruneRevisions(blogId, 15);
+  // 7. Auto-prune to maintain maximum 5 revisions
+  await pruneRevisions(blogId, 5);
 
   return revision;
 }

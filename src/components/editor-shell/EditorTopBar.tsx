@@ -237,9 +237,7 @@ export function EditorTopBar({
                 />
                 {isDirty
                   ? "Unsaved Edits"
-                  : lastSavedAt
-                    ? `Draft · Saved ${lastSavedAt}`
-                    : "Draft Saved"}
+                  : "Draft · Saved"}
               </span>
             ) : isEditMode && status === "published" ? (
               hasCloudDraft || loadedFromBackup ? (
@@ -332,11 +330,6 @@ export function EditorTopBar({
             <span className="flex items-center gap-1.5 text-amber-600">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
               Unsaved changes
-            </span>
-          ) : lastSavedAt ? (
-            <span className="flex items-center gap-1.5 text-emerald-600">
-              <CheckCircle2 className="w-3 h-3" />
-              Saved {lastSavedAt}
             </span>
           ) : null}
         </div>

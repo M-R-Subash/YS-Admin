@@ -305,7 +305,7 @@ export function RevisionHistoryDrawer({
 
           {/* Footer note */}
           <div className="p-3 border-t border-border/50 bg-muted/10 text-center text-[11px] text-muted-foreground">
-            Revisions keep the last 15 published snapshots automatically.
+            Revisions keep the last 5 published snapshots automatically.
           </div>
         </SheetContent>
       </Sheet>
