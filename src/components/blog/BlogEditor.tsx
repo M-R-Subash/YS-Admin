@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import DragHandle from "@tiptap/extension-drag-handle-react";
 import { BubbleMenu, FloatingMenu } from "@tiptap/react/menus";
@@ -146,6 +146,8 @@ export default function BlogEditor({
   const [linkUrl, setLinkUrl] = useState("");
   const [linkOpenInNewTab, setLinkOpenInNewTab] = useState(true);
   const [linkNoFollow, setLinkNoFollow] = useState(true);
+  const [isLinkBubbleDismissed, setIsLinkBubbleDismissed] = useState(false);
+  const dismissedLinkPos = useRef<number | null>(null);
 
   // Table popover state
   const [showTablePopover, setShowTablePopover] = useState(false);
@@ -301,12 +303,18 @@ export default function BlogEditor({
       const anchor = (e.target as HTMLElement)?.closest("a");
       if (anchor) {
         e.preventDefault();
+        setIsLinkBubbleDismissed(false);
+        dismissedLinkPos.current = null;
       }
     };
     dom.addEventListener("click", preventLinkNavigation, true);
 
     const handleSelectionUpdate = () => {
       setTick((t) => t + 1);
+      if (dismissedLinkPos.current !== null && editor.state.selection.from !== dismissedLinkPos.current) {
+        setIsLinkBubbleDismissed(false);
+        dismissedLinkPos.current = null;
+      }
       if (editor.isActive("link")) {
         const attrs = editor.getAttributes("link");
         if (attrs.href) {
@@ -336,9 +344,14 @@ export default function BlogEditor({
 
 
   const addLink = () => {
+    setIsLinkBubbleDismissed(true);
+    setShowLinkPopover(false);
+
     if (!linkUrl.trim()) {
       editor.chain().focus().extendMarkRange("link").unsetLink().run();
-      setShowLinkPopover(false);
+      try {
+        editor.view.dispatch(editor.state.tr.setMeta("linkBubbleMenu", "hide"));
+      } catch (e) {}
       return;
     }
     
@@ -347,13 +360,18 @@ export default function BlogEditor({
       formattedUrl = "https://" + formattedUrl;
     }
 
+    const to = editor.state.selection.to;
+    dismissedLinkPos.current = to;
+
     editor.chain().focus().extendMarkRange("link").setLink({
       href: formattedUrl,
       target: linkOpenInNewTab ? "_blank" : "",
       rel: linkNoFollow ? "noopener noreferrer nofollow" : "noopener noreferrer",
-    }).run();
-    
-    setShowLinkPopover(false);
+    }).setTextSelection(to).run();
+
+    try {
+      editor.view.dispatch(editor.state.tr.setMeta("linkBubbleMenu", "hide"));
+    } catch (e) {}
   };
 
   return (
@@ -877,66 +895,73 @@ export default function BlogEditor({
         {editor && (
           <BubbleMenu 
             editor={editor} 
-            shouldShow={({ editor }) => editor.isActive('link')}
+            pluginKey="linkBubbleMenu"
+            shouldShow={({ editor }) => !isLinkBubbleDismissed && editor.isActive('link')}
           >
-            <div className="flex flex-col gap-2 p-2.5 bg-card border border-border shadow-xl rounded-xl z-50 text-xs w-72">
-              <div className="flex items-center gap-1.5">
-                <div className="relative flex-1">
-                  <LinkIcon className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type="text"
-                    value={linkUrl}
-                    onChange={(e) => setLinkUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="w-full pl-8 pr-2.5 py-1.5 text-xs border border-input rounded bg-background focus:outline-ring"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addLink();
-                      }
+            {!isLinkBubbleDismissed && (
+              <div className="flex flex-col gap-2 p-2.5 bg-card border border-border shadow-xl rounded-xl z-50 text-xs w-72">
+                <div className="flex items-center gap-1.5">
+                  <div className="relative flex-1">
+                    <LinkIcon className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={linkUrl}
+                      onChange={(e) => setLinkUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="w-full pl-8 pr-2.5 py-1.5 text-xs border border-input rounded bg-background focus:outline-ring"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addLink();
+                        }
+                      }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addLink}
+                    className="px-2.5 py-1.5 bg-primary text-primary-foreground rounded text-xs font-semibold cursor-pointer hover:bg-primary/90 flex items-center gap-1 shrink-0"
+                    title="Apply changes"
+                  >
+                    <Check className="w-3 h-3" /> Apply
+                  </button>
+                </div>
+                <div className="flex items-center justify-between pt-3 pb-1 border-t border-border mt-2">
+                  <div className="flex flex-col gap-3 flex-1 pr-6">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[11px] font-medium cursor-pointer text-muted-foreground hover:text-foreground transition-colors">Open in new tab</Label>
+                      <Switch
+                        checked={linkOpenInNewTab}
+                        onCheckedChange={setLinkOpenInNewTab}
+                        className="scale-[0.6] origin-right"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[11px] font-medium cursor-pointer text-muted-foreground hover:text-foreground transition-colors">Add nofollow</Label>
+                      <Switch
+                        checked={linkNoFollow}
+                        onCheckedChange={setLinkNoFollow}
+                        className="scale-[0.6] origin-right"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsLinkBubbleDismissed(true);
+                      editor.chain().focus().extendMarkRange("link").unsetLink().run();
+                      try {
+                        editor.view.dispatch(editor.state.tr.setMeta("linkBubbleMenu", "hide"));
+                      } catch (e) {}
                     }}
-                  />
+                    className="text-destructive hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                    title="Remove link"
+                  >
+                    <Trash2 className="w-3 h-3" /> Remove
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={addLink}
-                  className="px-2.5 py-1.5 bg-primary text-primary-foreground rounded text-xs font-semibold cursor-pointer hover:bg-primary/90 flex items-center gap-1 shrink-0"
-                  title="Apply changes"
-                >
-                  <Check className="w-3 h-3" /> Apply
-                </button>
               </div>
-              <div className="flex items-center justify-between pt-3 pb-1 border-t border-border mt-2">
-                <div className="flex flex-col gap-3 flex-1 pr-6">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-[11px] font-medium cursor-pointer text-muted-foreground hover:text-foreground transition-colors">Open in new tab</Label>
-                    <Switch
-                      checked={linkOpenInNewTab}
-                      onCheckedChange={setLinkOpenInNewTab}
-                      className="scale-[0.6] origin-right"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label className="text-[11px] font-medium cursor-pointer text-muted-foreground hover:text-foreground transition-colors">Add nofollow</Label>
-                    <Switch
-                      checked={linkNoFollow}
-                      onCheckedChange={setLinkNoFollow}
-                      className="scale-[0.6] origin-right"
-                    />
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    editor.chain().focus().extendMarkRange("link").unsetLink().run();
-                  }}
-                  className="text-destructive hover:underline flex items-center gap-1 cursor-pointer font-medium"
-                  title="Remove link"
-                >
-                  <Trash2 className="w-3 h-3" /> Remove
-                </button>
-              </div>
-            </div>
+            )}
           </BubbleMenu>
         )}
 

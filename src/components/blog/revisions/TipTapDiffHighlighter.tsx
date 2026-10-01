@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { diffLines, diffWordsWithSpace, Change } from "diff";
+import { diffLines, diffArrays } from "diff";
 import { extractTipTapLines } from "./UnifiedDiffViewer";
 
 interface TipTapDiffHighlighterProps {
@@ -34,6 +34,95 @@ function parsePrefix(raw: string): ParsedPrefix {
     return { type: "quote", text: line.replace(/^>\s+/, "") };
   }
   return { type: "p", text: line };
+}
+
+function tokenizeWithLinks(text: string): string[] {
+  const regex = /\[[^\]]+\]\([^)]+\)|[\w\d]+|[^\w\s]|[\s]+/g;
+  return text.match(regex) || [];
+}
+
+function renderContentWithLinks(
+  text: string,
+  mode: "normal" | "added" | "removed" = "normal"
+): React.ReactNode {
+  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  if (!linkRegex.test(text)) {
+    return text;
+  }
+
+  linkRegex.lastIndex = 0;
+  const elements: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = linkRegex.exec(text)) !== null) {
+    const [fullMatch, linkText, linkHref] = match;
+    const matchStart = match.index;
+
+    if (matchStart > lastIndex) {
+      elements.push(text.slice(lastIndex, matchStart));
+    }
+
+    const domain = linkHref
+      .replace(/^https?:\/\//i, "")
+      .replace(/^www\./i, "")
+      .split("/")[0];
+
+    if (mode === "added") {
+      elements.push(
+        <span
+          key={`link-${matchStart}`}
+          className="inline-flex items-center gap-1 font-semibold underline decoration-emerald-500/70"
+        >
+          <a
+            href={linkHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline text-emerald-950 dark:text-emerald-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {linkText}
+          </a>
+          <span className="text-[10px] font-mono font-normal opacity-90 bg-emerald-500/25 px-1 py-0.2 rounded border border-emerald-500/40 inline-flex items-center gap-0.5 select-none no-underline">
+            🔗 {domain}
+          </span>
+        </span>
+      );
+    } else if (mode === "removed") {
+      elements.push(
+        <span
+          key={`link-${matchStart}`}
+          className="inline-flex items-center gap-1 font-semibold underline decoration-red-500/70"
+        >
+          <span className="text-red-950 dark:text-red-200">{linkText}</span>
+          <span className="text-[10px] font-mono font-normal opacity-90 bg-red-500/25 px-1 py-0.2 rounded border border-red-500/40 inline-flex items-center gap-0.5 select-none no-underline">
+            🔗 {domain}
+          </span>
+        </span>
+      );
+    } else {
+      elements.push(
+        <a
+          key={`link-${matchStart}`}
+          href={linkHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary underline hover:opacity-80 transition-opacity"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {linkText}
+        </a>
+      );
+    }
+
+    lastIndex = matchStart + fullMatch.length;
+  }
+
+  if (lastIndex < text.length) {
+    elements.push(text.slice(lastIndex));
+  }
+
+  return elements;
 }
 
 function renderElementWrapper(
@@ -155,18 +244,21 @@ export function TipTapDiffHighlighter({
         // 1. UNCHANGED ROW: render normally on both sides
         if (row.type === "unchanged" && row.oldLine !== undefined) {
           const parsed = parsePrefix(row.oldLine);
-          return renderElementWrapper(parsed.type, parsed.text, `row-${rowIdx}`);
+          return renderElementWrapper(parsed.type, renderContentWithLinks(parsed.text, "normal"), `row-${rowIdx}`);
         }
 
-        // 2. MODIFIED ROW: word-level diffing between oldLine and newLine
+        // 2. MODIFIED ROW: token/word-level diffing between oldLine and newLine
         if (row.type === "modified" && row.oldLine !== undefined && row.newLine !== undefined) {
           const parsedOld = parsePrefix(row.oldLine);
           const parsedNew = parsePrefix(row.newLine);
           const elemType = side === "old" ? parsedOld.type : parsedNew.type;
 
-          const wordDiffs = diffWordsWithSpace(parsedOld.text, parsedNew.text);
+          const tokensOld = tokenizeWithLinks(parsedOld.text);
+          const tokensNew = tokenizeWithLinks(parsedNew.text);
+          const wordDiffs = diffArrays(tokensOld, tokensNew);
 
-          const renderedWords = wordDiffs.map((part: Change, partIdx: number) => {
+          const renderedWords = wordDiffs.map((part, partIdx: number) => {
+            const tokenValue = (part.value as string[]).join("");
             if (side === "old") {
               if (part.added) return null; // Old side doesn't have newly added words
               if (part.removed) {
@@ -175,11 +267,15 @@ export function TipTapDiffHighlighter({
                     key={`w-${rowIdx}-${partIdx}`}
                     className="bg-red-500/20 text-red-950 dark:text-red-200 font-semibold px-1 py-0.5 rounded-xs border-b border-red-500/50"
                   >
-                    {part.value}
+                    {renderContentWithLinks(tokenValue, "removed")}
                   </span>
                 );
               }
-              return <span key={`w-${rowIdx}-${partIdx}`}>{part.value}</span>;
+              return (
+                <React.Fragment key={`w-${rowIdx}-${partIdx}`}>
+                  {renderContentWithLinks(tokenValue, "normal")}
+                </React.Fragment>
+              );
             }
 
             // side === "new"
@@ -190,11 +286,15 @@ export function TipTapDiffHighlighter({
                   key={`w-${rowIdx}-${partIdx}`}
                   className="bg-emerald-500/20 text-emerald-950 dark:text-emerald-200 font-semibold px-1 py-0.5 rounded-xs border-b border-emerald-500/50"
                 >
-                  {part.value}
+                  {renderContentWithLinks(tokenValue, "added")}
                 </span>
               );
             }
-            return <span key={`w-${rowIdx}-${partIdx}`}>{part.value}</span>;
+            return (
+              <React.Fragment key={`w-${rowIdx}-${partIdx}`}>
+                {renderContentWithLinks(tokenValue, "normal")}
+              </React.Fragment>
+            );
           });
 
           return renderElementWrapper(elemType, renderedWords, `row-${rowIdx}`);
@@ -217,7 +317,7 @@ export function TipTapDiffHighlighter({
                 <div className="font-medium">
                   {parsed.type === "bullet" && <span className="mr-1.5 select-none">•</span>}
                   {parsed.type === "quote" && <span className="mr-1.5 italic">“</span>}
-                  {parsed.text}
+                  {renderContentWithLinks(parsed.text, "removed")}
                   {parsed.type === "quote" && <span className="ml-1.5 italic">”</span>}
                 </div>
               </div>
@@ -252,7 +352,7 @@ export function TipTapDiffHighlighter({
                 <div className="font-semibold">
                   {parsed.type === "bullet" && <span className="mr-1.5 select-none">•</span>}
                   {parsed.type === "quote" && <span className="mr-1.5 italic">“</span>}
-                  {parsed.text}
+                  {renderContentWithLinks(parsed.text, "added")}
                   {parsed.type === "quote" && <span className="ml-1.5 italic">”</span>}
                 </div>
               </div>

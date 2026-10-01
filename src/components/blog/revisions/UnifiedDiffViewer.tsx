@@ -26,7 +26,13 @@ export function extractTipTapLines(node: any): string[] {
 
   function extractText(n: any): string {
     if (!n) return "";
-    if (n.text) return n.text;
+    if (n.text) {
+      const linkMark = n.marks?.find((m: any) => m.type === "link");
+      if (linkMark && linkMark.attrs?.href) {
+        return `[${n.text}](${linkMark.attrs.href})`;
+      }
+      return n.text;
+    }
     if (Array.isArray(n.content)) return n.content.map(extractText).join("");
     return "";
   }
