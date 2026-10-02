@@ -188,7 +188,7 @@ export function UniversalSeoModal({
       const endpoint =
         entityType === "blog"
           ? `/api/blogs/${entityId}/seo`
-          : `/api/webpages/${entityId}/seo`;
+          : `/api/pages/${entityId}/seo`;
 
       const res = await fetch(endpoint, {
         method: "PUT",
