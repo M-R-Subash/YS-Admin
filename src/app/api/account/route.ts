@@ -7,10 +7,10 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || !session.user?.id) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { message: "Unauthorized access" },
-        { status: 403 }
+        { status: 401 }
       );
     }
 
@@ -28,6 +28,13 @@ export async function GET() {
       },
     });
 
+    if (!user) {
+      return NextResponse.json(
+        { message: "User not found" },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json(user);
   } catch (error) {
     console.error("Account fetch error:", error);
@@ -42,14 +49,14 @@ export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || !session.user?.id) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { message: "Unauthorized access" },
-        { status: 403 }
+        { status: 401 }
       );
     }
 
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const { name, profilePicture, description, authorRole } = body;
 
     const updatedUser = await prisma.user.update({

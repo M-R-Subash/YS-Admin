@@ -1,11 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { getToken } from "next-auth/jwt";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
 // DELETE /api/account/sessions/[id] — Revoke a specific session
 export async function DELETE(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -16,21 +17,34 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const targetSession = await prisma.refreshToken.findUnique({
-      where: { id },
-      select: { id: true, userId: true },
+    // Resolve current session to prevent self-revocation
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
     });
 
-    if (!targetSession || targetSession.userId !== session.user.id) {
+    const currentSessionId = session.sessionId || token?.sessionId;
+    if (currentSessionId && id === currentSessionId) {
+      return NextResponse.json(
+        { error: "Cannot revoke the active current session. Use sign out instead." },
+        { status: 400 }
+      );
+    }
+
+    // Atomic ownership-scoped deletion in 1 query
+    const result = await prisma.refreshToken.deleteMany({
+      where: {
+        id,
+        userId: session.user.id,
+      },
+    });
+
+    if (result.count === 0) {
       return NextResponse.json(
         { error: "Session not found or already revoked" },
         { status: 404 }
       );
     }
-
-    await prisma.refreshToken.delete({
-      where: { id },
-    });
 
     return NextResponse.json({
       success: true,

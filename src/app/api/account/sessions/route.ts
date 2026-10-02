@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { getToken } from "next-auth/jwt";
 import { authOptions } from "@/lib/auth";
@@ -6,7 +6,7 @@ import prisma from "@/lib/prisma";
 import { parseUserAgent } from "@/lib/ua-parser";
 
 // GET /api/account/sessions — Get all active logged-in devices/sessions for the current user
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 
     // Read token from cookie for direct access to sessionId / sessionTokenHash
     const token = await getToken({
-      req: request as any,
+      req: request,
       secret: process.env.NEXTAUTH_SECRET,
     });
 
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
 }
 
 // POST /api/account/sessions — Actions like revoking all other sessions
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
     }
 
     const token = await getToken({
-      req: request as any,
+      req: request,
       secret: process.env.NEXTAUTH_SECRET,
     });
 
