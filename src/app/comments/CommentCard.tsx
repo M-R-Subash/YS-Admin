@@ -74,16 +74,9 @@ export function CommentCard({
 
             {/* Context Line: Shown ONLY when viewing all discussions */}
             {selectedBlogId === "all" && comment.blog && (
-              <div className="flex items-center gap-1 text-[11px] text-muted-foreground pt-0.5">
+              <div className="flex items-center gap-1 text-[11px]  pt-0.5">
                 <span>Posted on:</span>
-                <a
-                  href={`/blogs/edit/${comment.blog.id}`}
-                  className="font-bold text-foreground hover:underline flex items-center gap-1 truncate max-w-50"
-                  title="Edit blog post in admin"
-                >
-                  <span className="truncate">{comment.blog.title}</span>
-                  <ExternalLink className="w-3 h-3 text-muted-foreground shrink-0" />
-                </a>
+                  <span className="truncate font-bold">{comment.blog.title}</span>
               </div>
             )}
           </div>
