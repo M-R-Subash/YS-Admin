@@ -46,7 +46,7 @@ export function ContentFilterBar({
   return (
     <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 ${className}`}>
       {/* Filter Tabs on Left */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none no-scrollbar -mx-[15px] px-[15px] md:mx-0 md:px-0">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none no-scrollbar -mx-3.75 px-3.75 md:mx-0 md:px-0">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const activeClass = tab.color ? colorMap[tab.color] : colorMap.primary;

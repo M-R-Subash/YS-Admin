@@ -662,7 +662,7 @@ export function RevisionDiffViewer({ blogId, revisionId }: RevisionDiffViewerPro
               {/* Featured Image */}
               {snapshot?.featuredImage && (
                 <div className="rounded-lg overflow-hidden border border-border/80 bg-muted/20">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  { }
                   <img
                     src={snapshot.featuredImage}
                     alt={snapshot.title || ""}
@@ -743,7 +743,7 @@ export function RevisionDiffViewer({ blogId, revisionId }: RevisionDiffViewerPro
               {/* Current Featured Image */}
               {currentBlog.featuredImage && (
                 <div className="rounded-lg overflow-hidden border border-border/80 bg-muted/20">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  { }
                   <img
                     src={currentBlog.featuredImage}
                     alt={currentBlog.title || ""}

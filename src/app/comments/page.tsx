@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/tooltip";
 import { TrashConfirmationModal } from "@/components/ui/trash-confirmation-modal";
 import {
-  BlogSummary,
   CommentItem,
   ModalActionType,
   ModalState,
@@ -132,7 +131,7 @@ function CarouselTitle({ title }: { title: string }) {
               : undefined
           }
           className={`text-lg sm:text-xl font-extrabold text-foreground tracking-tight whitespace-nowrap inline-block ${
-            overflowDistance > 0 ? "group-hover:[animation-play-state:paused]" : ""
+            overflowDistance > 0 ? "group-hover:paused" : ""
           }`}
           title={title}
         >
@@ -201,8 +200,14 @@ function CommentsPageContent() {
     mutate,
   } = useSWR<CommentsResponse>(endpoint);
 
-  const comments = commentsData?.comments ?? [];
-  const blogsSummary = commentsData?.blogsSummary ?? [];
+  const comments = useMemo(
+    () => commentsData?.comments ?? [],
+    [commentsData?.comments],
+  );
+  const blogsSummary = useMemo(
+    () => commentsData?.blogsSummary ?? [],
+    [commentsData?.blogsSummary],
+  );
   const totalCount = commentsData?.totalCount ?? 0;
   const unapprovedCount = commentsData?.unapprovedCount ?? 0;
   const trashedCount = commentsData?.trashedCount ?? 0;

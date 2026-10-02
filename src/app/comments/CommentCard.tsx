@@ -78,7 +78,7 @@ export function CommentCard({
                 <span>Posted on:</span>
                 <a
                   href={`/blogs/edit/${comment.blog.id}`}
-                  className="font-bold text-foreground hover:underline flex items-center gap-1 truncate max-w-[200px]"
+                  className="font-bold text-foreground hover:underline flex items-center gap-1 truncate max-w-50"
                   title="Edit blog post in admin"
                 >
                   <span className="truncate">{comment.blog.title}</span>

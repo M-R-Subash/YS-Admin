@@ -17,7 +17,7 @@ interface ParsedPrefix {
 }
 
 function parsePrefix(raw: string): ParsedPrefix {
-  let line = raw;
+  const line = raw;
   if (line.startsWith("### ")) {
     return { type: "h3", text: line.replace(/^###\s+/, "") };
   }
