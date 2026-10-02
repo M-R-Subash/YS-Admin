@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
+import { ColumnDef } from "@tanstack/react-table";
 import { MessageSquare, CalendarClock } from "lucide-react";
 import { UniversalSeoModal } from "@/components/admin/UniversalSeoModal";
 import { SchedulePostModal } from "@/components/blog/dialogs/SchedulePostModal";
@@ -125,12 +125,9 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
             <Tooltip>
               <TooltipTrigger
                 render={
-                  <Link
-                    href={`/blogs/edit/${blog.id}`}
-                    className="font-bold text-foreground hover:text-primary transition-colors truncate block text-xs"
-                  >
+                  <span className="font-bold text-foreground truncate block text-xs select-text">
                     {blog.title}
-                  </Link>
+                  </span>
                 }
               />
               <TooltipContent side="top" className="text-xs max-w-sm font-medium">

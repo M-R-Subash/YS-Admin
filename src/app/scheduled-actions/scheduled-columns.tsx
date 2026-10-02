@@ -94,12 +94,9 @@ export const getScheduledColumns = ({
             <Tooltip>
               <TooltipTrigger
                 render={
-                  <Link
-                    href={`/blogs/edit/${item.id}`}
-                    className="font-bold text-foreground hover:text-primary transition-colors truncate block text-xs"
-                  >
+                  <span className="font-bold text-foreground truncate block text-xs select-text">
                     {item.title}
-                  </Link>
+                  </span>
                 }
               />
               <TooltipContent side="top" className="text-xs max-w-sm font-medium">

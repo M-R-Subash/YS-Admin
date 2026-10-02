@@ -225,7 +225,7 @@ export function UniversalSeoModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="fixed inset-0 top-0 left-0 right-0 bottom-0 translate-x-0 translate-y-0 w-full max-w-full h-[100dvh] max-h-none duration-300 ease-in-out transition-transform data-open:animate-in data-open:slide-in-from-right data-closed:animate-out data-closed:slide-out-to-right data-starting-style:translate-x-full data-ending-style:translate-x-full sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[96vw] sm:max-w-4xl md:max-w-5xl lg:max-w-6xl xl:max-w-7xl sm:h-[88vh] sm:max-h-[880px] sm:min-h-[600px] sm:duration-150 sm:data-open:slide-in-from-right-0 sm:data-closed:slide-out-to-right-0 sm:data-open:zoom-in-95 sm:data-closed:zoom-out-95 sm:data-starting-style:translate-x-[-50%] sm:data-ending-style:translate-x-[-50%] flex flex-col p-0 overflow-hidden bg-card border-0 sm:border border-border rounded-none sm:rounded-xl shadow-2xl">
+      <DialogContent className="fixed inset-0 top-0 left-0 right-0 bottom-0 translate-x-0 translate-y-0 w-full max-w-full h-dvh max-h-none duration-300 ease-in-out transition-transform data-open:animate-in data-open:slide-in-from-right data-closed:animate-out data-closed:slide-out-to-right data-starting-style:translate-x-full data-ending-style:translate-x-full sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[96vw] sm:max-w-4xl md:max-w-5xl lg:max-w-6xl xl:max-w-7xl sm:h-[88vh] sm:max-h-220 sm:min-h-150 sm:duration-150 sm:data-open:slide-in-from-right-0 sm:data-closed:slide-out-to-right-0 sm:data-open:zoom-in-95 sm:data-closed:zoom-out-95 sm:data-starting-style:translate-x-[-50%] sm:data-ending-style:translate-x-[-50%] flex flex-col p-0 overflow-hidden bg-card border-0 sm:border border-border rounded-none sm:rounded-xl shadow-2xl">
         {/* Header - Fixed at Top */}
         <div className="shrink-0 px-4 py-3 sm:px-6 sm:py-5 border-b border-border bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 pr-12 sm:pr-14">
           <div className="space-y-0.5 min-w-0">
@@ -899,7 +899,7 @@ export function UniversalSeoModal({
                                 align="start"
                                 sideOffset={6}
                                 alignItemWithTrigger={false}
-                                className="w-[var(--anchor-width)] min-w-[320px] max-h-72"
+                                className="w-(--anchor-width) min-w-[320px] max-h-72"
                               >
                                 <SelectItem value="none" label="No specific author (Company default)" className="text-xs py-2">
                                   <div className="flex items-center gap-2.5">

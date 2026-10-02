@@ -35,7 +35,7 @@ export type User = {
 
 const EmailCell = ({ email }: { email: string }) => {
   return (
-    <div className="flex items-center gap-1.5 group/email inline-flex">
+    <div className="inline-flex items-center gap-1.5 group/email">
       <span className="text-muted-foreground">{email}</span>
       <CopyButton
         value={email}
@@ -101,7 +101,7 @@ export const ActionCell = ({
             className="cursor-pointer flex items-center whitespace-nowrap py-2.5 px-3 font-medium transition-colors"
             onClick={() => setIsEditOpen(true)}
           >
-            <Pencil className="mr-2 h-4 w-4 flex-shrink-0" />
+            <Pencil className="mr-2 h-4 w-4 shrink-0" />
             Edit User
           </DropdownMenuItem>
           {!isCurrentUser && (
@@ -109,7 +109,7 @@ export const ActionCell = ({
               className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/50 cursor-pointer flex items-center whitespace-nowrap py-2.5 px-3 font-medium transition-colors"
               onClick={() => setIsDeleteOpen(true)}
             >
-              <Trash className="mr-2 h-4 w-4 flex-shrink-0" />
+              <Trash className="mr-2 h-4 w-4 shrink-0" />
               Delete User
             </DropdownMenuItem>
           )}

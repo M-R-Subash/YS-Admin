@@ -542,7 +542,7 @@ function UserForm({ user, onClose, onSuccess }: UserFormProps) {
                   placeholder="Short bio displayed on author cards on blog posts..."
                   rows={3}
                   disabled={loading}
-                  className="flex-1 min-h-[96px] resize-none text-sm bg-background/50 focus:bg-background leading-relaxed"
+                  className="flex-1 min-h-24 resize-none text-sm bg-background/50 focus:bg-background leading-relaxed"
                 />
               </div>
             </div>
@@ -850,8 +850,8 @@ export function UserModal({
         className={cn(
           "rounded-2xl border-border/80 shadow-2xl transition-all",
           isEdit
-            ? "sm:max-w-[960px] p-7 sm:p-8 max-h-[94vh] overflow-y-auto"
-            : "sm:max-w-[620px] p-6 max-h-[92vh] overflow-y-auto"
+            ? "sm:max-w-240 p-7 sm:p-8 max-h-[94vh] overflow-y-auto"
+            : "sm:max-w-155 p-6 max-h-[92vh] overflow-y-auto"
         )}
       >
         <DialogHeader className="pb-3 border-b border-border/60">

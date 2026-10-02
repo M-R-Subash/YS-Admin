@@ -146,7 +146,7 @@ export default function MediaPage() {
 
   return (
     <>
-      <div className="flex flex-col h-[100dvh] w-full overflow-hidden bg-background">
+      <div className="flex flex-col h-dvh w-full overflow-hidden bg-background">
         <AdminTopBar breadcrumbs="Media Library" />
 
         {/* Responsive Header Bar */}
@@ -282,7 +282,7 @@ export default function MediaPage() {
           {/* Right Sidebar: Attachment Details (Drawer on mobile/tablet, Sidebar on desktop) */}
           <aside
             className={`
-              fixed inset-y-0 right-0 z-50 w-full sm:w-[360px] md:w-[380px] bg-card border-l border-border shadow-2xl flex flex-col h-full overflow-hidden transition-transform duration-300 ease-in-out
+              fixed inset-y-0 right-0 z-50 w-full sm:w-90 md:w-95 bg-card border-l border-border shadow-2xl flex flex-col h-full overflow-hidden transition-transform duration-300 ease-in-out
               lg:static lg:z-auto lg:shadow-none lg:w-[320px] lg:shrink-0 lg:border-l lg:border-border
               ${selectedMedia ? "translate-x-0" : "translate-x-full lg:hidden"}
             `}
@@ -402,7 +402,7 @@ export default function MediaPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="p-4 sm:p-6">
-            <div className="h-[220px] sm:h-[280px] flex flex-col items-center justify-center">
+            <div className="h-55 sm:h-70 flex flex-col items-center justify-center">
               <input
                 type="file"
                 accept="image/*"

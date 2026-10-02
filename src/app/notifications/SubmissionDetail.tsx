@@ -174,7 +174,7 @@ export function SubmissionDetail({
                     <Tooltip>
                       <TooltipTrigger
                         render={
-                          <span className="text-xs text-muted-foreground flex items-center gap-1 bg-muted px-2 py-0.5 rounded-md cursor-help truncate max-w-[240px] sm:max-w-none" />
+                          <span className="text-xs text-muted-foreground flex items-center gap-1 bg-muted px-2 py-0.5 rounded-md cursor-help truncate max-w-60 sm:max-w-none" />
                         }
                       >
                         <Globe className="w-3 h-3 shrink-0" />
@@ -414,7 +414,7 @@ export function SubmissionDetail({
                             />
                           )}
                         </div>
-                        <p className="text-sm font-semibold text-foreground break-words pt-0.5">
+                        <p className="text-sm font-semibold text-foreground wrap-break-word pt-0.5">
                           {stringValue || "—"}
                         </p>
                       </div>
@@ -436,7 +436,7 @@ export function SubmissionDetail({
                       label="Message"
                     />
                   </div>
-                  <div className="p-4 sm:p-5 rounded-sm border border-border bg-card text-foreground text-sm font-medium leading-relaxed whitespace-pre-wrap shadow-xs break-words">
+                  <div className="p-4 sm:p-5 rounded-sm border border-border bg-card text-foreground text-sm font-medium leading-relaxed whitespace-pre-wrap shadow-xs wrap-break-word">
                     {selectedSubmission.payload.message}
                   </div>
                 </div>

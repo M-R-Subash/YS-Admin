@@ -50,7 +50,7 @@ export function SubmissionsSidebar({
 }: SubmissionsSidebarProps) {
   return (
     <aside
-      className={`w-full shrink-0 md:w-80 lg:w-96 xl:w-[400px] md:shrink-0 border-r border-border bg-card/30 flex flex-col h-full overflow-hidden transition-opacity ${
+      className={`w-full shrink-0 md:w-80 lg:w-96 xl:w-100 md:shrink-0 border-r border-border bg-card/30 flex flex-col h-full overflow-hidden transition-opacity ${
         mobileView !== "list" ? "pointer-events-none md:pointer-events-auto" : ""
       } ${!isSidebarOpen ? "md:hidden" : ""}`}
     >
@@ -205,7 +205,7 @@ export function SubmissionsSidebar({
                     )}
                     <Badge
                       variant="outline"
-                      className="text-[10px] font-bold uppercase tracking-wider py-0.5 px-2 bg-background shrink-0 truncate max-w-[140px]"
+                      className="text-[10px] font-bold uppercase tracking-wider py-0.5 px-2 bg-background shrink-0 truncate max-w-35"
                     >
                       {item.formName}
                     </Badge>

@@ -307,7 +307,7 @@ export default function RedirectionsPage() {
       <AdminTopBar breadcrumbs="Redirections" />
 
       {/* Main Content Area */}
-      <div className="py-6 lg:py-8 px-[15px] md:px-[20px] lg:px-[30px] space-y-6 w-full flex-1">
+      <div className="py-6 lg:py-8 px-3.75 md:px-5 lg:px-7.5 space-y-6 w-full flex-1">
         {/* Header Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
