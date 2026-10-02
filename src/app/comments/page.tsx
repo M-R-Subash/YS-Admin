@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import useSWR, { mutate as globalMutate } from "swr";
@@ -22,6 +22,8 @@ import {
   FileText,
   Layers,
   ChevronRight,
+  PanelLeft,
+  ArrowLeft,
 } from "lucide-react";
 import { AdminTopBar } from "@/components/AdminTopBar";
 import { Separator } from "@/components/ui/separator";
@@ -88,6 +90,117 @@ interface CommentsResponse {
   blogsSummary?: BlogSummary[];
 }
 
+function CarouselTitle({ title }: { title: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLHeadingElement>(null);
+  const measureRef = useRef<HTMLSpanElement>(null);
+  const [overflowDistance, setOverflowDistance] = useState(0);
+
+  const calculateOverflow = () => {
+    if (!containerRef.current || !measureRef.current) return;
+    const containerWidth = containerRef.current.clientWidth;
+    // Don't calculate if container is currently hidden (e.g. mobile view tab switched)
+    if (containerWidth <= 0) return;
+
+    const textWidth = measureRef.current.offsetWidth;
+    // When stopped at the end, stop cleanly near the right edge (near redirection icon)
+    const diff = textWidth + 8 - containerWidth;
+    setOverflowDistance(diff > 4 ? diff : 0);
+  };
+
+  useEffect(() => {
+    calculateOverflow();
+
+    if (typeof document !== "undefined" && document.fonts) {
+      document.fonts.ready.then(calculateOverflow);
+    }
+
+    const t1 = setTimeout(calculateOverflow, 60);
+    const t2 = setTimeout(calculateOverflow, 300);
+
+    const observer = new ResizeObserver(() => {
+      calculateOverflow();
+    });
+
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+    window.addEventListener("resize", calculateOverflow);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      observer.disconnect();
+      window.removeEventListener("resize", calculateOverflow);
+    };
+  }, [title]);
+
+  // Smooth scroll speed (~32px/sec)
+  const scrollDuration = Math.max(2.5, overflowDistance / 32);
+  // Total cycle where smooth scrolling takes 55% of the time (15% to 70%)
+  const totalDuration = Math.max(5.5, Math.round(scrollDuration / 0.55));
+
+  return (
+    <>
+      <style>{`
+        @keyframes carouselTitleScroll {
+          0%, 15% {
+            transform: translateX(0);
+          }
+          70%, 85% {
+            transform: translateX(var(--title-scroll-dist, 0px));
+          }
+          85.01%, 100% {
+            transform: translateX(0);
+          }
+        }
+      `}</style>
+
+      {/* Hidden untransformed element for accurate text measurement */}
+      <span
+        ref={measureRef}
+        aria-hidden="true"
+        className="invisible absolute pointer-events-none whitespace-nowrap text-lg sm:text-xl font-extrabold tracking-tight select-none -z-50"
+      >
+        {title}
+      </span>
+
+      <div
+        ref={containerRef}
+        style={
+          overflowDistance > 0
+            ? {
+                maskImage:
+                  "linear-gradient(to right, black 0%, black calc(100% - 20px), transparent 100%)",
+                WebkitMaskImage:
+                  "linear-gradient(to right, black 0%, black calc(100% - 20px), transparent 100%)",
+              }
+            : undefined
+        }
+        className="overflow-hidden min-w-0 flex-1 group relative"
+      >
+        <h1
+          ref={textRef}
+          style={
+            overflowDistance > 0
+              ? {
+                  animation: `carouselTitleScroll ${totalDuration}s linear infinite`,
+                  ["--title-scroll-dist" as any]: `-${overflowDistance}px`,
+                }
+              : undefined
+          }
+          className={`text-lg sm:text-xl font-extrabold text-foreground tracking-tight whitespace-nowrap inline-block ${
+            overflowDistance > 0 ? "group-hover:[animation-play-state:paused]" : ""
+          }`}
+          title={title}
+        >
+          {title}
+        </h1>
+      </div>
+    </>
+  );
+}
+
 function CommentsPageContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -111,6 +224,12 @@ function CommentsPageContent() {
   const [filter, setFilter] = useState<
     "all" | "pending" | "approved" | "trashed"
   >("all");
+
+  // Mobile View state: "blogs" (master list) or "comments" (detail feed)
+  const [mobileView, setMobileView] = useState<"blogs" | "comments">("comments");
+
+  // Tablet/Desktop sidebar collapsible state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Search queries
   const [searchQuery, setSearchQuery] = useState("");
@@ -412,6 +531,23 @@ function CommentsPageContent() {
           breadcrumbs="Comments"
           actions={
             <div className="flex items-center gap-1.5 sm:gap-2">
+              {/* Tablet/Desktop Sidebar Toggle */}
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      onClick={() => setIsSidebarOpen((prev) => !prev)}
+                      className="hidden md:flex p-1.5 sm:p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    >
+                      <PanelLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    </button>
+                  }
+                />
+                <TooltipContent side="bottom">
+                  {isSidebarOpen ? "Hide blog sidebar" : "Show blog sidebar"}
+                </TooltipContent>
+              </Tooltip>
+
               <Tooltip>
                 <TooltipTrigger
                   render={
@@ -456,7 +592,11 @@ function CommentsPageContent() {
         {/* SPLIT MASTER-DETAIL LAYOUT */}
         <div className="flex-1 flex flex-col md:flex-row w-full overflow-hidden min-h-0">
           {/* LEFT SIDEBAR: BLOGS MASTER LIST */}
-          <aside className="w-full md:w-80 lg:w-96 shrink-0 border-r border-border bg-card/30 flex flex-col h-full overflow-hidden">
+          <aside
+            className={`w-full md:w-72 lg:w-80 xl:w-96 shrink-0 border-r border-border bg-card/30 flex-col h-full overflow-hidden ${
+              mobileView === "blogs" ? "flex" : "hidden md:flex"
+            } ${!isSidebarOpen ? "md:hidden" : ""}`}
+          >
             {/* Sidebar Header & Search */}
             <div className="p-4 border-b border-border space-y-3 shrink-0">
               <div className="flex items-center justify-between">
@@ -464,9 +604,17 @@ function CommentsPageContent() {
                   <Layers className="w-3.5 h-3.5" />
                   <span>Blogs with Comments</span>
                 </span>
-                <span className="text-xs font-bold bg-muted px-2 py-0.5 rounded-full text-foreground">
-                  {blogsSummary.length}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold bg-muted px-2 py-0.5 rounded-full text-foreground">
+                    {blogsSummary.length}
+                  </span>
+                  <button
+                    onClick={() => setMobileView("comments")}
+                    className="md:hidden text-[11px] font-semibold text-primary hover:underline cursor-pointer"
+                  >
+                    Feed &rarr;
+                  </button>
+                </div>
               </div>
 
               <div className="relative w-full">
@@ -485,7 +633,10 @@ function CommentsPageContent() {
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
               {/* All Blogs Master Pill */}
               <button
-                onClick={() => setSelectedBlogId("all")}
+                onClick={() => {
+                  setSelectedBlogId("all");
+                  setMobileView("comments");
+                }}
                 className={`w-full text-left p-3 rounded-sm transition-all flex items-center justify-between cursor-pointer border ${
                   selectedBlogId === "all"
                     ? "bg-black text-white dark:bg-white dark:text-black border-black dark:border-white shadow-xs font-bold"
@@ -561,7 +712,10 @@ function CommentsPageContent() {
                   return (
                     <button
                       key={b.id}
-                      onClick={() => setSelectedBlogId(b.id)}
+                      onClick={() => {
+                        setSelectedBlogId(b.id);
+                        setMobileView("comments");
+                      }}
                       className={`w-full text-left p-3 rounded-sm transition-all flex items-center justify-between cursor-pointer border ${
                         isSelected
                           ? "bg-black text-white dark:bg-white dark:text-black border-black dark:border-white shadow-xs font-bold"
@@ -617,44 +771,61 @@ function CommentsPageContent() {
           </aside>
 
           {/* RIGHT CONTENT PANEL: COMMENTS FEED FOR SELECTED BLOG */}
-          <main className="flex-1 flex flex-col h-full overflow-hidden bg-background min-h-0">
+          <main
+            className={`flex-1 flex-col h-full overflow-hidden bg-background min-h-0 ${
+              mobileView === "comments" ? "flex" : "hidden md:flex"
+            }`}
+          >
             {/* Top Fixed Control Panel */}
-            <div className="p-6 pb-4 border-b border-border space-y-4 shrink-0 bg-background">
+            <div className="p-4 sm:p-6 pb-3 sm:pb-4 border-b border-border space-y-3 sm:space-y-4 shrink-0 bg-background">
+              {/* Mobile Back Button to Blogs List */}
+              <div className="flex items-center justify-between gap-2 md:hidden pb-1">
+                <button
+                  onClick={() => setMobileView("blogs")}
+                  className="flex items-center gap-1.5 text-xs font-bold text-foreground bg-muted hover:bg-muted/80 px-2.5 py-1 rounded-sm transition-colors cursor-pointer border border-border"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Blogs List ({blogsSummary.length})</span>
+                </button>
+
+                {selectedBlogId !== "all" && (
+                  <span className="text-[11px] font-semibold text-muted-foreground truncate max-w-[180px]">
+                    {selectedBlogInfo?.title}
+                  </span>
+                )}
+              </div>
+
               {/* Header for Selected View */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h1 className="text-xl font-extrabold text-foreground tracking-tight line-clamp-1">
-                      {selectedBlogId === "all"
-                        ? "All Blog Discussions"
-                        : selectedBlogInfo?.title || "Selected Blog Comments"}
-                    </h1>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 border-b pb-3 sm:pb-4">
+                <div className="min-w-0 flex-1 w-full">
+                  <div className="flex items-center justify-between gap-2 min-w-0 w-full">
+                    <CarouselTitle
+                      title={
+                        selectedBlogId === "all"
+                          ? "All Blog Discussions"
+                          : selectedBlogInfo?.title || "Selected Blog Comments"
+                      }
+                    />
 
                     {selectedBlogId !== "all" && selectedBlogInfo && (
                       <a
                         href={`/blogs/edit/${selectedBlogInfo.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+                        className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0 flex items-center gap-1"
                         title="Edit blog in new tab"
                       >
                         <ExternalLink className="w-4 h-4" />
                       </a>
                     )}
                   </div>
-
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {selectedBlogId === "all"
-                      ? "Viewing discussions across all published articles."
-                      : `Filtered specifically for "${selectedBlogInfo?.title || "selected post"}".`}
-                  </p>
                 </div>
 
                 {/* Status Filter Pills */}
-                <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none no-scrollbar shrink-0 -mx-1 px-1">
                   <button
                     onClick={() => setFilter("all")}
-                    className={`px-3 py-1.5 text-xs font-semibold cursor-pointer rounded-xs transition-all ${
+                    className={`px-3 py-1.5 text-xs font-semibold cursor-pointer rounded-xs transition-all shrink-0 whitespace-nowrap ${
                       filter === "all"
                         ? "bg-black text-white shadow-sm"
                         : "bg-background border border-border text-muted-foreground hover:text-foreground"
@@ -664,7 +835,7 @@ function CommentsPageContent() {
                   </button>
                   <button
                     onClick={() => setFilter("pending")}
-                    className={`px-3 py-1.5 text-xs font-semibold cursor-pointer rounded-xs transition-all ${
+                    className={`px-3 py-1.5 text-xs font-semibold cursor-pointer rounded-xs transition-all shrink-0 whitespace-nowrap ${
                       filter === "pending"
                         ? "bg-black text-white shadow-sm"
                         : "bg-background border border-border text-muted-foreground hover:text-foreground"
@@ -674,7 +845,7 @@ function CommentsPageContent() {
                   </button>
                   <button
                     onClick={() => setFilter("approved")}
-                    className={`px-3 py-1.5 text-xs font-semibold cursor-pointer rounded-xs transition-all ${
+                    className={`px-3 py-1.5 text-xs font-semibold cursor-pointer rounded-xs transition-all shrink-0 whitespace-nowrap ${
                       filter === "approved"
                         ? "bg-black text-white shadow-sm"
                         : "bg-background border border-border text-muted-foreground hover:text-foreground"
@@ -684,7 +855,7 @@ function CommentsPageContent() {
                   </button>
                   <button
                     onClick={() => setFilter("trashed")}
-                    className={`px-3 py-1.5 text-xs font-semibold cursor-pointer rounded-xs transition-all ${
+                    className={`px-3 py-1.5 text-xs font-semibold cursor-pointer rounded-xs transition-all shrink-0 whitespace-nowrap ${
                       filter === "trashed"
                         ? "bg-red-600 text-white shadow-sm"
                         : "bg-background border border-border text-muted-foreground hover:text-foreground"
@@ -709,7 +880,7 @@ function CommentsPageContent() {
             </div>
 
             {/* Moderation Cards Scrollable Feed */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-3.5 sm:p-6 space-y-3 sm:space-y-4">
               {/* Moderation Cards Feed */}
               {loading && comments.length === 0 ? (
                 <div className="space-y-4">
@@ -780,7 +951,7 @@ function CommentsPageContent() {
                     return (
                       <div
                         key={comment.id}
-                        className={`bg-card border rounded-sm p-5 shadow-xs transition-all space-y-4 relative ${
+                        className={`bg-card border rounded-sm p-3.5 sm:p-5 shadow-xs transition-all space-y-3 sm:space-y-4 relative ${
                           comment.isTrashed
                             ? "border-red-200 dark:border-red-900/40 bg-red-50/10 dark:bg-red-950/10"
                             : !comment.isApproved
@@ -869,52 +1040,28 @@ function CommentsPageContent() {
                                 return (
                                   <div
                                     key={reply.id}
-                                    className={`ml-4 sm:ml-8 p-4 rounded-sm border border-border/80 space-y-2 relative ${
+                                    className={`ml-2.5 sm:ml-8 p-3 sm:p-4 rounded-sm border-l-2 sm:border border-border/80 space-y-2 relative ${
                                       isAdminReply
                                         ? "bg-muted/40 border-l-4 border-l-black dark:border-l-white"
                                         : "bg-background"
                                     }`}
                                   >
-                                    <div className="flex items-center justify-between gap-2">
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2">
+                                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 min-w-0">
+                                        <span className="text-xs font-bold text-foreground flex items-center gap-1.5 shrink-0">
                                           {isAdminReply && (
-                                            <ShieldCheck className="w-3.5 h-3.5 text-black dark:text-white" />
+                                            <ShieldCheck className="w-3.5 h-3.5 text-black dark:text-white shrink-0" />
                                           )}
                                           {reply.name}
                                         </span>
-                                        <span className="text-[11px] text-muted-foreground font-medium">
+                                        <span className="text-[11px] text-muted-foreground font-medium truncate">
                                           &lt;{reply.email}&gt;
                                         </span>
                                       </div>
 
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-[10px] text-muted-foreground">
-                                          {replyTime}
-                                        </span>
-                                        {/* Action button for reply */}
-                                        {filter === "trashed" ? (
-                                          <button
-                                            onClick={() =>
-                                              openConfirmModal("delete", reply)
-                                            }
-                                            className="p-1 text-muted-foreground hover:text-red-600 transition-colors cursor-pointer"
-                                            title="Delete reply permanently"
-                                          >
-                                            <Trash2 className="w-3 h-3" />
-                                          </button>
-                                        ) : (
-                                          <button
-                                            onClick={() =>
-                                              openConfirmModal("trash", reply)
-                                            }
-                                            className="p-1 text-muted-foreground hover:text-red-600 transition-colors cursor-pointer"
-                                            title="Move reply to trash"
-                                          >
-                                            <Trash2 className="w-3 h-3" />
-                                          </button>
-                                        )}
-                                      </div>
+                                      <span className="text-[10px] sm:text-[11px] text-muted-foreground shrink-0">
+                                        {replyTime}
+                                      </span>
                                     </div>
 
                                     <p className="text-xs text-foreground/90 font-medium leading-relaxed whitespace-pre-wrap">
@@ -969,11 +1116,12 @@ function CommentsPageContent() {
                           </div>
                         )}
 
-                        {/* Footer Action Buttons */}
-                        <div className="flex items-center justify-end gap-2 pt-1">
-                          {filter === "trashed" ? (
-                            <>
-                              {/* Restore Button */}
+                        {/* Footer Action Buttons: Space-Between for Safety */}
+                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/40">
+                          {/* Left Actions: Approve/Pending & Reply (or Restore) */}
+                          <div className="flex items-center gap-1.5 sm:gap-2">
+                            {filter === "trashed" ? (
+                              /* Restore Button */
                               <Tooltip>
                                 <TooltipTrigger
                                   render={
@@ -992,8 +1140,80 @@ function CommentsPageContent() {
                                   Restore comment from trash
                                 </TooltipContent>
                               </Tooltip>
+                            ) : (
+                              <>
+                                {/* Approve / Unapprove Button */}
+                                <Tooltip>
+                                  <TooltipTrigger
+                                    render={
+                                      <button
+                                        onClick={() =>
+                                          openConfirmModal(
+                                            comment.isApproved
+                                              ? "unapprove"
+                                              : "approve",
+                                            comment,
+                                          )
+                                        }
+                                        className={`px-3 py-1.5 rounded-sm text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                                          comment.isApproved
+                                            ? "bg-background border-border text-foreground hover:bg-muted"
+                                            : "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-xs"
+                                        }`}
+                                      />
+                                    }
+                                  >
+                                    {comment.isApproved ? (
+                                      <>
+                                        <Circle className="w-3.5 h-3.5 text-muted-foreground" />
+                                        <span>Mark Pending</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <CheckCircle className="w-3.5 h-3.5" />
+                                        <span>Approve</span>
+                                      </>
+                                    )}
+                                  </TooltipTrigger>
+                                  <TooltipContent side="bottom">
+                                    {comment.isApproved
+                                      ? "Unapprove comment and hide from site"
+                                      : "Approve comment to publish on main site"}
+                                  </TooltipContent>
+                                </Tooltip>
 
-                              {/* Delete Permanently Button */}
+                                {/* Reply Button */}
+                                <Tooltip>
+                                  <TooltipTrigger
+                                    render={
+                                      <button
+                                        onClick={() => {
+                                          setReplyingToId(
+                                            replyingToId === comment.id
+                                              ? null
+                                              : comment.id,
+                                          );
+                                          setReplyText("");
+                                        }}
+                                        className="px-3 py-1.5 rounded-sm border border-border bg-background hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                                      />
+                                    }
+                                  >
+                                    <Reply className="w-3.5 h-3.5" />
+                                    <span>Reply</span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="bottom">
+                                    Post an official admin response
+                                  </TooltipContent>
+                                </Tooltip>
+                              </>
+                            )}
+                          </div>
+
+                          {/* Right Action: Delete Button (separated to avoid misclicks) */}
+                          <div>
+                            {filter === "trashed" ? (
+                              /* Delete Permanently Button */
                               <Tooltip>
                                 <TooltipTrigger
                                   render={
@@ -1012,75 +1232,8 @@ function CommentsPageContent() {
                                   Permanently remove comment from database
                                 </TooltipContent>
                               </Tooltip>
-                            </>
-                          ) : (
-                            <>
-                              {/* Approve / Unapprove Button */}
-                              <Tooltip>
-                                <TooltipTrigger
-                                  render={
-                                    <button
-                                      onClick={() =>
-                                        openConfirmModal(
-                                          comment.isApproved
-                                            ? "unapprove"
-                                            : "approve",
-                                          comment,
-                                        )
-                                      }
-                                      className={`px-3 py-1.5 rounded-sm text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
-                                        comment.isApproved
-                                          ? "bg-background border-border text-foreground hover:bg-muted"
-                                          : "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-xs"
-                                      }`}
-                                    />
-                                  }
-                                >
-                                  {comment.isApproved ? (
-                                    <>
-                                      <Circle className="w-3.5 h-3.5 text-muted-foreground" />
-                                      <span>Mark Pending</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <CheckCircle className="w-3.5 h-3.5" />
-                                      <span>Approve</span>
-                                    </>
-                                  )}
-                                </TooltipTrigger>
-                                <TooltipContent side="bottom">
-                                  {comment.isApproved
-                                    ? "Unapprove comment and hide from site"
-                                    : "Approve comment to publish on main site"}
-                                </TooltipContent>
-                              </Tooltip>
-
-                              {/* Reply Button */}
-                              <Tooltip>
-                                <TooltipTrigger
-                                  render={
-                                    <button
-                                      onClick={() => {
-                                        setReplyingToId(
-                                          replyingToId === comment.id
-                                            ? null
-                                            : comment.id,
-                                        );
-                                        setReplyText("");
-                                      }}
-                                      className="px-3 py-1.5 rounded-sm border border-border bg-background hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                                    />
-                                  }
-                                >
-                                  <Reply className="w-3.5 h-3.5" />
-                                  <span>Reply</span>
-                                </TooltipTrigger>
-                                <TooltipContent side="bottom">
-                                  Post an official admin response
-                                </TooltipContent>
-                              </Tooltip>
-
-                              {/* Move to Trash Button */}
+                            ) : (
+                              /* Move to Trash Button */
                               <Tooltip>
                                 <TooltipTrigger
                                   render={
@@ -1088,18 +1241,19 @@ function CommentsPageContent() {
                                       onClick={() =>
                                         openConfirmModal("trash", comment)
                                       }
-                                      className="p-1.5 rounded-sm border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 transition-all cursor-pointer"
+                                      className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-sm border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
                                     />
                                   }
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
+                                  <span className="hidden sm:inline">Trash</span>
                                 </TooltipTrigger>
                                 <TooltipContent side="bottom">
                                   Move comment to trash
                                 </TooltipContent>
                               </Tooltip>
-                            </>
-                          )}
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
