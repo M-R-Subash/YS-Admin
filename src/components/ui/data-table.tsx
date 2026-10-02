@@ -176,6 +176,8 @@ export function DataTable<TData, TValue>({
                   "type",
                   "priority",
                   "state",
+                  "schedulestate",
+                  "schedulestatus",
                 ].includes(c.column.id.toLowerCase())
             );
 

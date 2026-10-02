@@ -1,5 +1,4 @@
 import {
-  ExternalLink,
   CornerDownRight,
   ShieldCheck,
   Reply,
@@ -52,52 +51,59 @@ export function CommentCard({
       }`}
     >
       {/* Header: Author Info + Status Badge */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-full bg-black text-white dark:bg-white dark:text-black flex items-center justify-center text-xs font-extrabold uppercase shrink-0">
-            {comment.name.charAt(0)}
+      <div className="space-y-1.5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-9 h-9 rounded-full bg-black text-white dark:bg-white dark:text-black flex items-center justify-center text-xs font-extrabold uppercase shrink-0">
+              {comment.name.charAt(0)}
+            </div>
+
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
+                <span className="text-sm font-bold text-foreground">
+                  {comment.name}
+                </span>
+                <span className="text-[11px] text-muted-foreground font-medium shrink-0">
+                  &bull; {formatCompactTime(comment.createdAt)}
+                </span>
+              </div>
+
+              <div className="text-xs text-muted-foreground font-medium truncate">
+                &lt;{comment.email}&gt;
+              </div>
+            </div>
           </div>
 
-          <div className="min-w-0 space-y-0.5">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
-              <span className="text-sm font-bold text-foreground">
-                {comment.name}
-              </span>
-              <span className="text-[11px] text-muted-foreground font-medium shrink-0">
-                &bull; {formatCompactTime(comment.createdAt)}
-              </span>
-            </div>
-
-            <div className="text-xs text-muted-foreground font-medium truncate">
-              &lt;{comment.email}&gt;
-            </div>
-
-            {/* Context Line: Shown ONLY when viewing all discussions */}
-            {selectedBlogId === "all" && comment.blog && (
-              <div className="flex items-center gap-1 text-[11px]  pt-0.5">
-                <span>Posted on:</span>
-                  <span className="truncate font-bold">{comment.blog.title}</span>
-              </div>
+          {/* Status Badge */}
+          <div className="shrink-0 pt-0.5">
+            {comment.isTrashed ? (
+              <Badge className="bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800 text-[11px] font-bold px-2.5 py-0.5">
+                Trashed
+              </Badge>
+            ) : comment.isApproved ? (
+              <Badge className="bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-[11px] font-bold px-2.5 py-0.5">
+                Approved
+              </Badge>
+            ) : (
+              <Badge className="bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800 text-[11px] font-bold px-2.5 py-0.5">
+                Pending Approval
+              </Badge>
             )}
           </div>
         </div>
 
-        {/* Status Badge */}
-        <div className="shrink-0 pt-0.5">
-          {comment.isTrashed ? (
-            <Badge className="bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800 text-[11px] font-bold px-2.5 py-0.5">
-              Trashed
-            </Badge>
-          ) : comment.isApproved ? (
-            <Badge className="bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-[11px] font-bold px-2.5 py-0.5">
-              Approved
-            </Badge>
-          ) : (
-            <Badge className="bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800 text-[11px] font-bold px-2.5 py-0.5">
-              Pending Approval
-            </Badge>
-          )}
-        </div>
+        {/* Context Line: Shown ONLY when viewing all discussions */}
+        {selectedBlogId === "all" && comment.blog && (
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground min-w-0 w-full pl-12">
+            <span className="whitespace-nowrap shrink-0">Posted on:</span>
+            <span
+              className="truncate font-bold text-foreground min-w-0 flex-1"
+              title={comment.blog.title}
+            >
+              {comment.blog.title}
+            </span>
+          </div>
+        )}
       </div>
 
       <Separator />

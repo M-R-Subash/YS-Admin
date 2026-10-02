@@ -184,7 +184,7 @@ export const getScheduledColumns = ({
       const scheduledDate = item.scheduledAt ? new Date(item.scheduledAt) : null;
 
       return (
-        <div className="flex flex-col gap-1 items-start">
+        <div className="flex flex-wrap items-center gap-1.5 sm:flex-col sm:items-start sm:gap-1">
           {item.scheduleState === "success" && (
             <>
               <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-sm border bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30">
@@ -286,7 +286,7 @@ export const getScheduledColumns = ({
                 size="sm"
                 disabled={actionLoadingId === item.id}
                 onClick={() => onPublishNow(item)}
-                className={`h-7 px-2.5 text-[11px] font-semibold gap-1 cursor-pointer ${
+                className={`h-7 px-2.5 text-[11px] font-semibold gap-1 cursor-pointer hidden sm:inline-flex ${
                   item.scheduleState === "failed"
                     ? "border-red-500/40 text-red-600 dark:text-red-400 hover:bg-red-500/10"
                     : "border-purple-500/30 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10"
@@ -300,7 +300,7 @@ export const getScheduledColumns = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => onOpenReschedule(item)}
-                className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
+                className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer hidden sm:inline-flex"
               >
                 Reschedule
               </Button>
@@ -310,8 +310,11 @@ export const getScheduledColumns = ({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => window.open(publicUrl, "_blank")}
-                className="h-7 px-2.5 text-[11px] font-semibold gap-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 cursor-pointer"
+                onClick={() => {
+                  const separator = publicUrl.includes("?") ? "&" : "?";
+                  window.open(`${publicUrl}${separator}nocache=${Date.now()}`, "_blank");
+                }}
+                className="h-7 px-2.5 text-[11px] font-semibold gap-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 cursor-pointer hidden sm:inline-flex"
               >
                 <Globe className="w-3 h-3" />
                 <span>View Live</span>
@@ -359,6 +362,21 @@ export const getScheduledColumns = ({
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuGroup>
+                    <DropdownMenuItem
+                      onClick={() => onPublishNow(item)}
+                      disabled={actionLoadingId === item.id}
+                      className="cursor-pointer sm:hidden text-purple-600 font-semibold"
+                    >
+                      <Play className="w-3.5 h-3.5 mr-2 fill-current" />
+                      <span>Publish Now</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => onOpenReschedule(item)}
+                      className="cursor-pointer sm:hidden"
+                    >
+                      <Clock className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
+                      <span>Reschedule</span>
+                    </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => onCancelSchedule(item)}
                       className="text-amber-600 focus:text-amber-600 cursor-pointer"
