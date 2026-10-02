@@ -90,6 +90,24 @@ interface CommentsResponse {
   blogsSummary?: BlogSummary[];
 }
 
+function formatCompactTime(dateInput: Date | string): string {
+  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+  const now = new Date();
+  const diffInSeconds = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 1000));
+
+  if (diffInSeconds < 60) return "just now";
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) return `${diffInMinutes}min ago`;
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) return `${diffInHours}hr${diffInHours > 1 ? "s" : ""} ago`;
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 30) return `${diffInDays}day${diffInDays > 1 ? "s" : ""} ago`;
+  const diffInMonths = Math.floor(diffInDays / 30);
+  if (diffInMonths < 12) return `${diffInMonths}month${diffInMonths > 1 ? "s" : ""} ago`;
+  const diffInYears = Math.floor(diffInDays / 365);
+  return `${diffInYears}yr${diffInYears > 1 ? "s" : ""} ago`;
+}
+
 function CarouselTitle({ title }: { title: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLHeadingElement>(null);
@@ -787,12 +805,6 @@ function CommentsPageContent() {
                   <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Blogs List ({blogsSummary.length})</span>
                 </button>
-
-                {selectedBlogId !== "all" && (
-                  <span className="text-[11px] font-semibold text-muted-foreground truncate max-w-[180px]">
-                    {selectedBlogInfo?.title}
-                  </span>
-                )}
               </div>
 
               {/* Header for Selected View */}
@@ -960,53 +972,55 @@ function CommentsPageContent() {
                         }`}
                       >
                         {/* Header: Author Info + Status Badge */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <div className="flex items-center gap-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
                             <div className="w-9 h-9 rounded-full bg-black text-white dark:bg-white dark:text-black flex items-center justify-center text-xs font-extrabold uppercase shrink-0">
                               {comment.name.charAt(0)}
                             </div>
 
-                            <div>
-                              <div className="flex items-center gap-2">
+                            <div className="min-w-0 space-y-0.5">
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
                                 <span className="text-sm font-bold text-foreground">
                                   {comment.name}
                                 </span>
-                                <span className="text-xs text-muted-foreground font-medium">
-                                  &lt;{comment.email}&gt;
+                                <span className="text-[11px] text-muted-foreground font-medium shrink-0">
+                                  &bull; {formatCompactTime(comment.createdAt)}
                                 </span>
                               </div>
 
-                              {/* Context Line: Blog Link */}
-                              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground pt-0.5">
-                                <span>Posted on:</span>
-                                <a
-                                  href={`/blogs/edit/${comment.blog?.id}`}
-                                  className="font-bold text-foreground hover:underline flex items-center gap-1"
-                                  title="Edit blog post in admin"
-                                >
-                                  <span>
-                                    {comment.blog?.title || "Unknown Blog"}
-                                  </span>
-                                  <ExternalLink className="w-3 h-3 text-muted-foreground" />
-                                </a>
-
-                                <span>&bull; {relativeTime}</span>
+                              <div className="text-xs text-muted-foreground font-medium truncate">
+                                &lt;{comment.email}&gt;
                               </div>
+
+                              {/* Context Line: Shown ONLY when viewing all discussions */}
+                              {selectedBlogId === "all" && comment.blog && (
+                                <div className="flex items-center gap-1 text-[11px] text-muted-foreground pt-0.5">
+                                  <span>Posted on:</span>
+                                  <a
+                                    href={`/blogs/edit/${comment.blog.id}`}
+                                    className="font-bold text-foreground hover:underline flex items-center gap-1 truncate max-w-[200px]"
+                                    title="Edit blog post in admin"
+                                  >
+                                    <span className="truncate">{comment.blog.title}</span>
+                                    <ExternalLink className="w-3 h-3 text-muted-foreground shrink-0" />
+                                  </a>
+                                </div>
+                              )}
                             </div>
                           </div>
 
                           {/* Status Badge */}
-                          <div className="shrink-0">
+                          <div className="shrink-0 pt-0.5">
                             {comment.isTrashed ? (
-                              <Badge className="bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800 text-xs font-bold px-2.5 py-0.5">
+                              <Badge className="bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800 text-[11px] font-bold px-2.5 py-0.5">
                                 Trashed
                               </Badge>
                             ) : comment.isApproved ? (
-                              <Badge className="bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-xs font-bold px-2.5 py-0.5">
+                              <Badge className="bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-[11px] font-bold px-2.5 py-0.5">
                                 Approved
                               </Badge>
                             ) : (
-                              <Badge className="bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800 text-xs font-bold px-2.5 py-0.5">
+                              <Badge className="bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800 text-[11px] font-bold px-2.5 py-0.5">
                                 Pending Approval
                               </Badge>
                             )}
@@ -1030,10 +1044,6 @@ function CommentsPageContent() {
 
                             <div className="space-y-3">
                               {commentReplies.map((reply) => {
-                                const replyTime = formatDistanceToNow(
-                                  new Date(reply.createdAt),
-                                  { addSuffix: true },
-                                );
                                 const isAdminReply =
                                   reply.name.includes("(Admin)");
 
@@ -1046,22 +1056,22 @@ function CommentsPageContent() {
                                         : "bg-background"
                                     }`}
                                   >
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2">
-                                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 min-w-0">
+                                    <div className="space-y-0.5">
+                                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
                                         <span className="text-xs font-bold text-foreground flex items-center gap-1.5 shrink-0">
                                           {isAdminReply && (
                                             <ShieldCheck className="w-3.5 h-3.5 text-black dark:text-white shrink-0" />
                                           )}
                                           {reply.name}
                                         </span>
-                                        <span className="text-[11px] text-muted-foreground font-medium truncate">
-                                          &lt;{reply.email}&gt;
+                                        <span className="text-[11px] text-muted-foreground font-medium shrink-0">
+                                          &bull; {formatCompactTime(reply.createdAt)}
                                         </span>
                                       </div>
 
-                                      <span className="text-[10px] sm:text-[11px] text-muted-foreground shrink-0">
-                                        {replyTime}
-                                      </span>
+                                      <div className="text-[11px] text-muted-foreground font-medium truncate">
+                                        &lt;{reply.email}&gt;
+                                      </div>
                                     </div>
 
                                     <p className="text-xs text-foreground/90 font-medium leading-relaxed whitespace-pre-wrap">
