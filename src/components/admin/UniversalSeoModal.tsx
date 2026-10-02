@@ -31,7 +31,7 @@ import {
 } from "@/lib/schemas/seo-validation";
 import { calculateQuickSeoScore } from "@/lib/seo/seo-engine";
 import { toast } from "@/components/ui/toast";
-import { Loader2, Globe, Share2, Code2, Sparkles, UserCheck, Search, Building2, User } from "lucide-react";
+import { Loader2, Globe, Share2, Code2, Sparkles, UserCheck, Search, Building2, User, Pencil, Eye, ArrowLeft } from "lucide-react";
 import type { SeoEntityType } from "@/types/seo";
 
 interface UniversalSeoModalProps {
@@ -52,6 +52,7 @@ export function UniversalSeoModal({
   initialData,
 }: UniversalSeoModalProps) {
   const [activeTab, setActiveTab] = useState<"search" | "social" | "indexing">("search");
+  const [mobileSubTab, setMobileSubTab] = useState<"edit" | "preview">("edit");
   const [isSaving, setIsSaving] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
 
@@ -136,6 +137,7 @@ export function UniversalSeoModal({
     if (isOpen) {
       reset(defaultValues);
       setActiveTab("search");
+      setMobileSubTab("edit");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, entityId]);
@@ -223,26 +225,36 @@ export function UniversalSeoModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-[96vw] sm:max-w-4xl md:max-w-5xl lg:max-w-6xl xl:max-w-7xl h-[88vh] max-h-[880px] min-h-[600px] flex flex-col p-0 overflow-hidden bg-card border-border shadow-2xl">
+      <DialogContent className="fixed inset-0 top-0 left-0 right-0 bottom-0 translate-x-0 translate-y-0 w-full max-w-full h-[100dvh] max-h-none duration-300 ease-in-out transition-transform data-open:animate-in data-open:slide-in-from-right data-closed:animate-out data-closed:slide-out-to-right data-starting-style:translate-x-full data-ending-style:translate-x-full sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[96vw] sm:max-w-4xl md:max-w-5xl lg:max-w-6xl xl:max-w-7xl sm:h-[88vh] sm:max-h-[880px] sm:min-h-[600px] sm:duration-150 sm:data-open:slide-in-from-right-0 sm:data-closed:slide-out-to-right-0 sm:data-open:zoom-in-95 sm:data-closed:zoom-out-95 sm:data-starting-style:translate-x-[-50%] sm:data-ending-style:translate-x-[-50%] flex flex-col p-0 overflow-hidden bg-card border-0 sm:border border-border rounded-none sm:rounded-xl shadow-2xl">
         {/* Header - Fixed at Top */}
-        <div className="shrink-0 px-6 py-5 border-b border-border bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2.5">
-              <div className="p-1.5 rounded-md bg-primary/10 text-primary">
+        <div className="shrink-0 px-4 py-3 sm:px-6 sm:py-5 border-b border-border bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 pr-12 sm:pr-14">
+          <div className="space-y-0.5 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              {/* Mobile Back Arrow Button */}
+              <button
+                type="button"
+                onClick={onClose}
+                className="sm:hidden p-1 -ml-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors cursor-pointer shrink-0"
+                title="Go back"
+              >
+                <ArrowLeft className="size-4" />
+              </button>
+
+              <div className="p-1.5 rounded-md bg-primary/10 text-primary shrink-0 hidden sm:flex">
                 <Globe className="size-4" />
               </div>
-              <DialogTitle className="text-base font-extrabold text-foreground tracking-tight">
+              <DialogTitle className="text-sm sm:text-base font-extrabold text-foreground tracking-tight truncate">
                 SEO Quick Edit &bull; {entityType === "blog" ? "Blog Article" : "Webpage"}
               </DialogTitle>
             </div>
-            <p className="text-xs text-muted-foreground truncate max-w-xl font-medium">
+            <p className="text-xs text-muted-foreground truncate max-w-xl font-medium sm:pl-0 pl-1">
               {watchedTitle || "Editing SEO metadata"}
             </p>
           </div>
 
           {/* Real-time Health Badge */}
           <div
-            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-bold self-start sm:self-auto font-mono shadow-xs ${
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-full border text-[11px] sm:text-xs font-bold self-start sm:self-auto font-mono shrink-0 shadow-xs ${
               health.score >= 80
                 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
                 : health.score >= 50
@@ -250,18 +262,21 @@ export function UniversalSeoModal({
                 : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
             }`}
           >
-            <Sparkles className="size-3.5" />
+            <Sparkles className="size-3 sm:size-3.5" />
             <span>SEO Score: {health.score}/100</span>
-            <span className="opacity-80 font-normal">({health.label})</span>
+            <span className="opacity-80 font-normal hidden sm:inline">({health.label})</span>
           </div>
         </div>
 
         {/* Tab Navigation - Fixed Below Header */}
-        <div className="shrink-0 flex border-b border-border bg-muted/40 px-6 gap-1 overflow-x-auto no-scrollbar">
+        <div className="shrink-0 flex border-b border-border bg-muted/40 px-3 sm:px-6 gap-1 overflow-x-auto no-scrollbar">
           <button
             type="button"
-            onClick={() => setActiveTab("search")}
-            className={`px-4 py-2.5 text-xs font-bold border-b-2 flex items-center gap-2 transition-colors cursor-pointer ${
+            onClick={() => {
+              setActiveTab("search");
+              setMobileSubTab("edit");
+            }}
+            className={`px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-bold border-b-2 flex items-center gap-1.5 sm:gap-2 transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
               activeTab === "search"
                 ? "border-primary text-foreground font-extrabold"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -272,8 +287,11 @@ export function UniversalSeoModal({
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("social")}
-            className={`px-4 py-2.5 text-xs font-bold border-b-2 flex items-center gap-2 transition-colors cursor-pointer ${
+            onClick={() => {
+              setActiveTab("social");
+              setMobileSubTab("edit");
+            }}
+            className={`px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-bold border-b-2 flex items-center gap-1.5 sm:gap-2 transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
               activeTab === "social"
                 ? "border-primary text-foreground font-extrabold"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -284,8 +302,10 @@ export function UniversalSeoModal({
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("indexing")}
-            className={`px-4 py-2.5 text-xs font-bold border-b-2 flex items-center gap-2 transition-colors cursor-pointer ${
+            onClick={() => {
+              setActiveTab("indexing");
+            }}
+            className={`px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-bold border-b-2 flex items-center gap-1.5 sm:gap-2 transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
               activeTab === "indexing"
                 ? "border-primary text-foreground font-extrabold"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -299,184 +319,248 @@ export function UniversalSeoModal({
         {/* Form Container - Fixed Height with Independent Scrollable Body and Docked Footer */}
         <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Scrollable Tab Content */}
-          <div className="flex-1 min-h-0 overflow-y-auto p-6 sm:p-8 custom-scrollbar">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-8 custom-scrollbar">
             {/* TAB 1: Search */}
             {activeTab === "search" && (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                {/* Left Column: Live Google SERP Snippet Preview */}
-                <div className="lg:col-span-6 space-y-4">
-                  <div>
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <Search className="size-3.5 text-primary" />
-                      Live Google SERP Snippet
-                    </h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      How this {entityType === "blog" ? "article" : "page"} appears in Google search engine result pages.
-                    </p>
-                  </div>
-
-                  <GoogleSearchPreview
-                    title={watchedMetaTitle || watchedTitle}
-                    slug={watchedSlug}
-                    description={
-                      watchedMetaDesc ||
-                      "Write an engaging meta description that encourages clicks from Google."
-                    }
-                    pathPrefix={pathPrefix}
-                  />
-
-                  <div className="p-4 rounded-xl bg-muted/40 border border-border/80 space-y-2 text-xs text-muted-foreground">
-                    <p className="font-bold text-foreground flex items-center gap-1.5">
-                      <Sparkles className="size-3.5 text-amber-500" />
-                      Snippet Optimization Tips
-                    </p>
-                    <ul className="space-y-1 list-disc list-inside text-[11px] leading-relaxed">
-                      <li>Keep Meta Title between <strong>50–60 characters</strong> to prevent truncation.</li>
-                      <li>Place your <strong>Focus Keyword</strong> near the beginning of the title.</li>
-                      <li>Meta Descriptions between <strong>120–160 characters</strong> earn the highest click-through rates.</li>
-                    </ul>
-                  </div>
+              <div>
+                {/* Mobile Sub-Toggle for Edit vs Preview (Visible on < lg screens) */}
+                <div className="lg:hidden flex items-center p-1 bg-muted/60 rounded-lg mb-4 border border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => setMobileSubTab("edit")}
+                    className={`flex-1 py-1.5 px-3 text-xs font-bold rounded-md flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      mobileSubTab === "edit"
+                        ? "bg-card text-foreground shadow-xs border border-border/60"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Pencil className="size-3.5" />
+                    <span>Edit Fields</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMobileSubTab("preview")}
+                    className={`flex-1 py-1.5 px-3 text-xs font-bold rounded-md flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      mobileSubTab === "preview"
+                        ? "bg-card text-foreground shadow-xs border border-border/60"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Eye className="size-3.5" />
+                    <span>Live Preview</span>
+                  </button>
                 </div>
 
-                {/* Right Column: Search Inputs */}
-                <div className="lg:col-span-6 space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+                  {/* Left Column: Live Google SERP Snippet Preview */}
+                  <div
+                    className={`lg:col-span-6 space-y-4 ${
+                      mobileSubTab === "preview" ? "block" : "hidden lg:block"
+                    }`}
+                  >
+                    <div>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                        <Search className="size-3.5 text-primary" />
+                        Live Google SERP Snippet
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        How this {entityType === "blog" ? "article" : "page"} appears in Google search engine result pages.
+                      </p>
+                    </div>
+
+                    <GoogleSearchPreview
+                      title={watchedMetaTitle || watchedTitle}
+                      slug={watchedSlug}
+                      description={
+                        watchedMetaDesc ||
+                        "Write an engaging meta description that encourages clicks from Google."
+                      }
+                      pathPrefix={pathPrefix}
+                    />
+
+                    <div className="p-4 rounded-xl bg-muted/40 border border-border/80 space-y-2 text-xs text-muted-foreground">
+                      <p className="font-bold text-foreground flex items-center gap-1.5">
+                        <Sparkles className="size-3.5 text-amber-500" />
+                        Snippet Optimization Tips
+                      </p>
+                      <ul className="space-y-1 list-disc list-inside text-[11px] leading-relaxed">
+                        <li>Keep Meta Title between <strong>50–60 characters</strong> to prevent truncation.</li>
+                        <li>Place your <strong>Focus Keyword</strong> near the beginning of the title.</li>
+                        <li>Meta Descriptions between <strong>120–160 characters</strong> earn the highest click-through rates.</li>
+                      </ul>
+                    </div>
+
+                    <div className="lg:hidden pt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setMobileSubTab("edit")}
+                        className="w-full text-xs font-bold flex items-center justify-center gap-1.5 h-9"
+                      >
+                        <Pencil className="size-3.5" />
+                        <span>Back to Edit Fields</span>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Search Inputs */}
+                  <div
+                    className={`lg:col-span-6 space-y-4 ${
+                      mobileSubTab === "edit" ? "block" : "hidden lg:block"
+                    }`}
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="quick-title" className="text-xs font-bold text-foreground">
+                          Title <span className="text-destructive">*</span>
+                        </Label>
+                        <Controller
+                          name="title"
+                          control={control}
+                          render={({ field }) => (
+                            <Input
+                              id="quick-title"
+                              value={field.value}
+                              onChange={field.onChange}
+                              className="text-xs h-9"
+                            />
+                          )}
+                        />
+                        {errors.title && (
+                          <span className="text-[11px] text-destructive font-semibold">
+                            {errors.title.message}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="quick-slug" className="text-xs font-bold text-foreground">
+                          URL Slug <span className="text-destructive">*</span>
+                        </Label>
+                        <div className="flex rounded-md border border-border overflow-hidden">
+                          {pathPrefix && (
+                            <span className="inline-flex items-center px-2.5 text-xs text-muted-foreground bg-muted border-r border-border select-none font-mono">
+                              {pathPrefix}
+                            </span>
+                          )}
+                          <Controller
+                            name="slug"
+                            control={control}
+                            render={({ field }) => (
+                              <Input
+                                id="quick-slug"
+                                value={field.value}
+                                onChange={field.onChange}
+                                className="border-0 rounded-none text-xs h-9 font-mono focus-visible:ring-0"
+                              />
+                            )}
+                          />
+                        </div>
+                        {errors.slug && (
+                          <span className="text-[11px] text-destructive font-semibold">
+                            {errors.slug.message}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
                     <div className="space-y-1.5">
-                      <Label htmlFor="quick-title" className="text-xs font-bold text-foreground">
-                        Title <span className="text-destructive">*</span>
+                      <Label htmlFor="quick-focusKeyword" className="text-xs font-bold text-foreground">
+                        Focus Target Keyword
                       </Label>
                       <Controller
-                        name="title"
+                        name="focusKeyword"
                         control={control}
                         render={({ field }) => (
                           <Input
-                            id="quick-title"
-                            value={field.value}
+                            id="quick-focusKeyword"
+                            value={field.value || ""}
                             onChange={field.onChange}
+                            placeholder="e.g. Next.js consulting"
                             className="text-xs h-9"
                           />
                         )}
                       />
-                      {errors.title && (
-                        <span className="text-[11px] text-destructive font-semibold">
-                          {errors.title.message}
-                        </span>
-                      )}
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label htmlFor="quick-slug" className="text-xs font-bold text-foreground">
-                        URL Slug <span className="text-destructive">*</span>
-                      </Label>
-                      <div className="flex rounded-md border border-border overflow-hidden">
-                        {pathPrefix && (
-                          <span className="inline-flex items-center px-2.5 text-xs text-muted-foreground bg-muted border-r border-border select-none font-mono">
-                            {pathPrefix}
-                          </span>
-                        )}
-                        <Controller
-                          name="slug"
-                          control={control}
-                          render={({ field }) => (
-                            <Input
-                              id="quick-slug"
-                              value={field.value}
-                              onChange={field.onChange}
-                              className="border-0 rounded-none text-xs h-9 font-mono focus-visible:ring-0"
-                            />
-                          )}
-                        />
-                      </div>
-                      {errors.slug && (
-                        <span className="text-[11px] text-destructive font-semibold">
-                          {errors.slug.message}
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="quick-metaTitle" className="text-xs font-bold text-foreground">
+                          Meta Title
+                        </Label>
+                        <span
+                          className={`text-[11px] font-mono ${
+                            watchedMetaTitle.length > 70
+                              ? "text-destructive font-bold"
+                              : watchedMetaTitle.length >= 50
+                              ? "text-emerald-500 font-bold"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {watchedMetaTitle.length} / 70
                         </span>
-                      )}
+                      </div>
+                      <Controller
+                        name="metaTitle"
+                        control={control}
+                        render={({ field }) => (
+                          <Input
+                            id="quick-metaTitle"
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            placeholder="SEO Title (50–60 characters recommended)"
+                            className="text-xs h-9"
+                          />
+                        )}
+                      />
                     </div>
-                  </div>
 
-                  <div className="space-y-1.5">
-                    <Label htmlFor="quick-focusKeyword" className="text-xs font-bold text-foreground">
-                      Focus Target Keyword
-                    </Label>
-                    <Controller
-                      name="focusKeyword"
-                      control={control}
-                      render={({ field }) => (
-                        <Input
-                          id="quick-focusKeyword"
-                          value={field.value || ""}
-                          onChange={field.onChange}
-                          placeholder="e.g. Next.js consulting"
-                          className="text-xs h-9"
-                        />
-                      )}
-                    />
-                  </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="quick-metaDesc" className="text-xs font-bold text-foreground">
+                          Meta Description
+                        </Label>
+                        <span
+                          className={`text-[11px] font-mono ${
+                            watchedMetaDesc.length > 170
+                              ? "text-destructive font-bold"
+                              : watchedMetaDesc.length >= 120
+                              ? "text-emerald-500 font-bold"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {watchedMetaDesc.length} / 170
+                        </span>
+                      </div>
+                      <Controller
+                        name="metaDesc"
+                        control={control}
+                        render={({ field }) => (
+                          <textarea
+                            id="quick-metaDesc"
+                            rows={4}
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            placeholder="Compelling overview for search engines (120–160 characters)"
+                            className="w-full rounded-md border border-input bg-card p-2.5 text-xs shadow-2xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          />
+                        )}
+                      />
+                    </div>
 
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="quick-metaTitle" className="text-xs font-bold text-foreground">
-                        Meta Title
-                      </Label>
-                      <span
-                        className={`text-[11px] font-mono ${
-                          watchedMetaTitle.length > 70
-                            ? "text-destructive font-bold"
-                            : watchedMetaTitle.length >= 50
-                            ? "text-emerald-500 font-bold"
-                            : "text-muted-foreground"
-                        }`}
+                    <div className="lg:hidden pt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setMobileSubTab("preview")}
+                        className="w-full text-xs font-bold flex items-center justify-center gap-1.5 h-9"
                       >
-                        {watchedMetaTitle.length} / 70
-                      </span>
+                        <Eye className="size-3.5" />
+                        <span>Check Live Google Preview</span>
+                      </Button>
                     </div>
-                    <Controller
-                      name="metaTitle"
-                      control={control}
-                      render={({ field }) => (
-                        <Input
-                          id="quick-metaTitle"
-                          value={field.value || ""}
-                          onChange={field.onChange}
-                          placeholder="SEO Title (50–60 characters recommended)"
-                          className="text-xs h-9"
-                        />
-                      )}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="quick-metaDesc" className="text-xs font-bold text-foreground">
-                        Meta Description
-                      </Label>
-                      <span
-                        className={`text-[11px] font-mono ${
-                          watchedMetaDesc.length > 170
-                            ? "text-destructive font-bold"
-                            : watchedMetaDesc.length >= 120
-                            ? "text-emerald-500 font-bold"
-                            : "text-muted-foreground"
-                        }`}
-                      >
-                        {watchedMetaDesc.length} / 170
-                      </span>
-                    </div>
-                    <Controller
-                      name="metaDesc"
-                      control={control}
-                      render={({ field }) => (
-                        <textarea
-                          id="quick-metaDesc"
-                          rows={4}
-                          value={field.value || ""}
-                          onChange={field.onChange}
-                          placeholder="Compelling overview for search engines (120–160 characters)"
-                          className="w-full rounded-md border border-input bg-card p-2.5 text-xs shadow-2xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        />
-                      )}
-                    />
                   </div>
                 </div>
               </div>
@@ -484,85 +568,149 @@ export function UniversalSeoModal({
 
             {/* TAB 2: Social */}
             {activeTab === "social" && (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                {/* Left Column: Social Share Preview Card */}
-                <div className="lg:col-span-6 space-y-4">
-                  <div>
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <Share2 className="size-3.5 text-primary" />
-                      Social Media Card Preview
-                    </h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      How your link appears when shared on Facebook, LinkedIn, Twitter, and Slack.
-                    </p>
-                  </div>
-
-                  <SocialSharePreview
-                    title={watchedOgTitle || watchedMetaTitle || watchedTitle}
-                    description={watchedOgDesc || watchedMetaDesc}
-                    imageUrl={watchedOgImage || initialData.featuredImage}
-                  />
+              <div>
+                {/* Mobile Sub-Toggle for Edit vs Preview (Visible on < lg screens) */}
+                <div className="lg:hidden flex items-center p-1 bg-muted/60 rounded-lg mb-4 border border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => setMobileSubTab("edit")}
+                    className={`flex-1 py-1.5 px-3 text-xs font-bold rounded-md flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      mobileSubTab === "edit"
+                        ? "bg-card text-foreground shadow-xs border border-border/60"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Pencil className="size-3.5" />
+                    <span>Edit Fields</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMobileSubTab("preview")}
+                    className={`flex-1 py-1.5 px-3 text-xs font-bold rounded-md flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      mobileSubTab === "preview"
+                        ? "bg-card text-foreground shadow-xs border border-border/60"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Eye className="size-3.5" />
+                    <span>Live Preview</span>
+                  </button>
                 </div>
 
-                {/* Right Column: Social Controls */}
-                <div className="lg:col-span-6 space-y-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="quick-ogTitle" className="text-xs font-bold text-foreground">
-                      Open Graph Title
-                    </Label>
-                    <Controller
-                      name="ogTitle"
-                      control={control}
-                      render={({ field }) => (
-                        <Input
-                          id="quick-ogTitle"
-                          value={field.value || ""}
-                          onChange={field.onChange}
-                          placeholder="Defaults to Meta Title if blank"
-                          className="text-xs h-9"
-                        />
-                      )}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+                  {/* Left Column: Social Share Preview Card */}
+                  <div
+                    className={`lg:col-span-6 space-y-4 ${
+                      mobileSubTab === "preview" ? "block" : "hidden lg:block"
+                    }`}
+                  >
+                    <div>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                        <Share2 className="size-3.5 text-primary" />
+                        Social Media Card Preview
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        How your link appears when shared on Facebook, LinkedIn, Twitter, and Slack.
+                      </p>
+                    </div>
+
+                    <SocialSharePreview
+                      title={watchedOgTitle || watchedMetaTitle || watchedTitle}
+                      description={watchedOgDesc || watchedMetaDesc}
+                      imageUrl={watchedOgImage || initialData.featuredImage}
                     />
+
+                    <div className="lg:hidden pt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setMobileSubTab("edit")}
+                        className="w-full text-xs font-bold flex items-center justify-center gap-1.5 h-9"
+                      >
+                        <Pencil className="size-3.5" />
+                        <span>Back to Edit Fields</span>
+                      </Button>
+                    </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label htmlFor="quick-ogDesc" className="text-xs font-bold text-foreground">
-                      Open Graph Description
-                    </Label>
-                    <Controller
-                      name="ogDesc"
-                      control={control}
-                      render={({ field }) => (
-                        <textarea
-                          id="quick-ogDesc"
-                          rows={3}
-                          value={field.value || ""}
-                          onChange={field.onChange}
-                          placeholder="Defaults to Meta Description if blank"
-                          className="w-full rounded-md border border-input bg-card p-2.5 text-xs shadow-2xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        />
-                      )}
-                    />
-                  </div>
+                  {/* Right Column: Social Controls */}
+                  <div
+                    className={`lg:col-span-6 space-y-4 ${
+                      mobileSubTab === "edit" ? "block" : "hidden lg:block"
+                    }`}
+                  >
+                    <div className="space-y-1.5">
+                      <Label htmlFor="quick-ogTitle" className="text-xs font-bold text-foreground">
+                        Open Graph Title
+                      </Label>
+                      <Controller
+                        name="ogTitle"
+                        control={control}
+                        render={({ field }) => (
+                          <Input
+                            id="quick-ogTitle"
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            placeholder="Defaults to Meta Title if blank"
+                            className="text-xs h-9"
+                          />
+                        )}
+                      />
+                    </div>
 
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-foreground block">
-                      Social Share Image (1200 &times; 630 recommended)
-                    </Label>
-                    <Controller
-                      name="ogImage"
-                      control={control}
-                      render={({ field }) => (
-                        <ImageUploadBlock
-                          value={field.value || ""}
-                          onChange={(val) =>
-                            field.onChange(
-                              typeof val === "object" ? val?.url || "" : val || ""
-                            )
-                          }
-                        />
-                      )}
-                    />
+                    <div className="space-y-1.5">
+                      <Label htmlFor="quick-ogDesc" className="text-xs font-bold text-foreground">
+                        Open Graph Description
+                      </Label>
+                      <Controller
+                        name="ogDesc"
+                        control={control}
+                        render={({ field }) => (
+                          <textarea
+                            id="quick-ogDesc"
+                            rows={3}
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            placeholder="Defaults to Meta Description if blank"
+                            className="w-full rounded-md border border-input bg-card p-2.5 text-xs shadow-2xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          />
+                        )}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-foreground block">
+                        Social Share Image (1200 &times; 630 recommended)
+                      </Label>
+                      <Controller
+                        name="ogImage"
+                        control={control}
+                        render={({ field }) => (
+                          <ImageUploadBlock
+                            value={field.value || ""}
+                            onChange={(val) =>
+                              field.onChange(
+                                typeof val === "object" ? val?.url || "" : val || ""
+                              )
+                            }
+                          />
+                        )}
+                      />
+                    </div>
+
+                    <div className="lg:hidden pt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setMobileSubTab("preview")}
+                        className="w-full text-xs font-bold flex items-center justify-center gap-1.5 h-9"
+                      >
+                        <Eye className="size-3.5" />
+                        <span>Check Social Card Preview</span>
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -900,35 +1048,35 @@ export function UniversalSeoModal({
           </div>
 
           {/* Footer Actions - Docked at Bottom, Never shifts height */}
-          <DialogFooter className="shrink-0 px-6 sm:px-8 py-4 border-t border-border bg-card/95 backdrop-blur-xs flex items-center justify-between gap-3 m-0">
-            <div className="flex items-center gap-2 text-xs">
+          <DialogFooter className="shrink-0 px-4 sm:px-8 py-3 sm:py-4 border-t border-border bg-card/95 backdrop-blur-xs flex flex-row items-center justify-between gap-3 m-0 rounded-none sm:rounded-b-xl pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <div className="flex items-center gap-2 text-xs min-w-0">
               {dirtyManager.isDirty ? (
-                <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-medium">
-                  <span className="size-2 rounded-full bg-amber-500 animate-pulse" />
-                  Unsaved changes
+                <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-medium truncate">
+                  <span className="size-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                  <span className="truncate">Unsaved changes</span>
                 </span>
               ) : (
-                <span className="flex items-center gap-1.5 text-muted-foreground">
-                  <span className="size-2 rounded-full bg-emerald-500/60" />
-                  No changes made
+                <span className="flex items-center gap-1.5 text-muted-foreground truncate">
+                  <span className="size-2 rounded-full bg-emerald-500/60 shrink-0" />
+                  <span className="truncate">No changes made</span>
                 </span>
               )}
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               <Button
                 type="button"
                 variant="outline"
                 onClick={onClose}
                 disabled={isSaving}
-                className="h-10 px-5 text-xs font-semibold cursor-pointer rounded-lg hover:bg-muted/80 transition-colors"
+                className="h-9 sm:h-10 px-3.5 sm:px-5 text-xs font-semibold cursor-pointer rounded-lg hover:bg-muted/80 transition-colors"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={dirtyManager.isSaveDisabled(isSaving)}
-                className={`h-10 px-6 text-xs font-bold cursor-pointer rounded-lg flex items-center gap-2 transition-all ${
+                className={`h-9 sm:h-10 px-4 sm:px-6 text-xs font-bold cursor-pointer rounded-lg flex items-center gap-1.5 sm:gap-2 transition-all ${
                   dirtyManager.isSaveDisabled(isSaving)
                     ? "opacity-50 cursor-not-allowed bg-muted text-muted-foreground"
                     : "bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
@@ -936,7 +1084,7 @@ export function UniversalSeoModal({
               >
                 {isSaving ? (
                   <>
-                    <Loader2 className="size-4 animate-spin" />
+                    <Loader2 className="size-3.5 sm:size-4 animate-spin" />
                     <span>Saving...</span>
                   </>
                 ) : (
