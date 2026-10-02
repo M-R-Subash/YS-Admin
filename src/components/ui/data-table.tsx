@@ -43,6 +43,7 @@ function getColumnLabel(columnId: string): string {
     email: "Email",
     role: "Role",
     lastLogin: "Last Login",
+    destinationUrl: "Destination",
   };
   if (map[columnId]) return map[columnId];
   return columnId

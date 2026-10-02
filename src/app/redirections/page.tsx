@@ -4,18 +4,24 @@ import { useState, useMemo } from "react";
 import { 
   ArrowRightLeft, 
   Plus, 
-  ExternalLink, 
   Trash2, 
   CheckCircle2, 
   AlertCircle,
-  MoreVertical,
   Link2,
-  Search,
 } from "lucide-react";
 import useSWR from "swr";
-import { CopyButton } from "@/components/ui/copy-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
+import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/ui/data-table";
+import {
+  ContentMetricCards,
+  MetricCardItem,
+} from "@/components/admin/ContentMetricCards";
+import {
+  ContentFilterBar,
+  ContentFilterTab,
+} from "@/components/admin/ContentFilterBar";
 import {
   Dialog,
   DialogContent,
@@ -24,15 +30,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
 import { AdminTopBar } from "@/components/AdminTopBar";
 import {
   Select,
@@ -43,16 +40,10 @@ import {
 } from "@/components/ui/select";
 import { TrashConfirmationModal } from "@/components/ui/trash-confirmation-modal";
 import { useTrashManager } from "@/hooks/useTrashManager";
-
-interface RedirectionItem {
-  id: string;
-  sourceUrl: string;
-  destinationUrl: string;
-  statusCode: number;
-  status: "active" | "inactive" | "trashed";
-  createdAt: string;
-  updatedAt: string;
-}
+import {
+  getRedirectionColumns,
+  RedirectionItem,
+} from "./redirection-columns";
 
 export default function RedirectionsPage() {
   const { data: redirectionsData, isLoading: loading, mutate } = useSWR("/api/redirection?status=all");
@@ -89,8 +80,6 @@ export default function RedirectionsPage() {
     loading: false,
   });
 
-  // Removed manual fetchRedirections
-
   // Stats
   const stats = useMemo(() => {
     const total = redirections.length;
@@ -99,6 +88,60 @@ export default function RedirectionsPage() {
     const trashed = redirections.filter((r) => r.status === "trashed").length;
     return { total, active, inactive, trashed };
   }, [redirections]);
+
+  // Metric Cards
+  const metricCards = useMemo<MetricCardItem[]>(
+    () => [
+      {
+        id: "all",
+        label: "Total Redirects",
+        count: stats.total - stats.trashed,
+        icon: Link2,
+        color: "primary",
+        isActive: activeTab === "all",
+        onClick: () => setActiveTab("all"),
+      },
+      {
+        id: "active",
+        label: "Active",
+        count: stats.active,
+        icon: CheckCircle2,
+        color: "emerald",
+        isActive: activeTab === "active",
+        onClick: () => setActiveTab("active"),
+      },
+      {
+        id: "inactive",
+        label: "Inactive",
+        count: stats.inactive,
+        icon: AlertCircle,
+        color: "amber",
+        isActive: activeTab === "inactive",
+        onClick: () => setActiveTab("inactive"),
+      },
+      {
+        id: "trashed",
+        label: "Trashed",
+        count: stats.trashed,
+        icon: Trash2,
+        color: "red",
+        isActive: activeTab === "trashed",
+        onClick: () => setActiveTab("trashed"),
+      },
+    ],
+    [stats, activeTab]
+  );
+
+  // Filter Tabs
+  const filterTabs = useMemo<ContentFilterTab[]>(
+    () => [
+      { id: "all", label: "All", count: stats.total - stats.trashed, color: "primary" },
+      { id: "active", label: "Active", count: stats.active, color: "emerald" },
+      { id: "inactive", label: "Inactive", count: stats.inactive, color: "amber" },
+      { id: "trashed", label: "Trash", count: stats.trashed, color: "red" },
+    ],
+    [stats]
+  );
 
   // Filtered List
   const filteredList = useMemo(() => {
@@ -158,6 +201,8 @@ export default function RedirectionsPage() {
         if (!res.ok) throw new Error(data.error || "Failed to update redirect");
 
         toast.add({ title: "Redirect updated successfully", type: "success" });
+        mutate();
+        setIsModalOpen(false);
       } else {
         // Create mode
         const res = await fetch("/api/redirection", {
@@ -243,13 +288,25 @@ export default function RedirectionsPage() {
     });
   };
 
+  // TanStack Columns
+  const columns = useMemo(
+    () =>
+      getRedirectionColumns({
+        onEdit: handleOpenEdit,
+        onToggleStatus: openStatusConfirmModal,
+        onTrash: (item) => openTrashModal("trash", item, item.id, item.sourceUrl),
+        onRestore: (item) => openTrashModal("restore", item, item.id, item.sourceUrl),
+        onDelete: (item) => openTrashModal("delete", item, item.id, item.sourceUrl),
+      }),
+    [openTrashModal]
+  );
 
   return (
     <div className="w-full flex-1 flex flex-col min-h-screen bg-background">
       {/* Top Header Bar */}
       <AdminTopBar breadcrumbs="Redirections" />
 
-      {/* Main Content Area - Full Width */}
+      {/* Main Content Area */}
       <div className="py-6 lg:py-8 px-[15px] md:px-[20px] lg:px-[30px] space-y-6 w-full flex-1">
         {/* Header Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -268,280 +325,56 @@ export default function RedirectionsPage() {
               </div>
             </div>
           </div>
-          <button
+          <Button
             onClick={handleOpenCreate}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-extrabold bg-black text-white hover:bg-black/80 dark:bg-white dark:text-black dark:hover:bg-white/90 rounded-sm shadow-xs transition-all cursor-pointer"
+            className="h-10 px-5 text-xs font-extrabold cursor-pointer self-start sm:self-auto"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 mr-1.5" />
             Create Redirect
-          </button>
+          </Button>
         </div>
 
-        {/* Stats Cards Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {/* Total Card */}
-          <div className="p-4 rounded-sm bg-card border border-border/80 shadow-xs flex flex-col justify-between space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                Total Redirects
-              </span>
-              <Link2 className="w-4 h-4 text-muted-foreground" />
-            </div>
-            <div className="text-3xl font-black tracking-tight text-foreground">
-              {stats.total}
-            </div>
+        {/* 4 Status Metric Filter Cards */}
+        <ContentMetricCards cards={metricCards} loading={loading} />
+
+        {/* Global Filter & Search Bar */}
+        <ContentFilterBar
+          tabs={filterTabs}
+          activeTab={activeTab}
+          onTabChange={(id) => setActiveTab(id as any)}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchPlaceholder="Search source or destination..."
+        />
+
+        {/* Redirections Data Table / Responsive Cards */}
+        {loading ? (
+          <div className="rounded-md border bg-card p-4 space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
           </div>
-
-          {/* Active Card */}
-          <div className="p-4 rounded-sm bg-card border border-border/80 shadow-xs flex flex-col justify-between space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-                Active
-              </span>
-              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+        ) : filteredList.length === 0 ? (
+          <div className="text-center py-16 bg-card border border-border rounded-sm p-6">
+            <div className="w-12 h-12 rounded-2xl bg-border/40 text-muted flex items-center justify-center mx-auto mb-3">
+              <ArrowRightLeft className="w-6 h-6 text-muted-foreground" strokeWidth={2} />
             </div>
-            <div className="text-3xl font-black tracking-tight text-emerald-600 dark:text-emerald-400">
-              {stats.active}
+            <div className="text-foreground font-semibold text-base mb-1">
+              No matching redirections found
             </div>
+            <p className="text-muted-foreground text-xs max-w-sm mx-auto">
+              {searchQuery || activeTab !== "all"
+                ? "Try adjusting your search terms or filters."
+                : "No redirection rules exist in the database."}
+            </p>
           </div>
-
-          {/* Inactive Card */}
-          <div className="p-4 rounded-sm bg-card border border-border/80 shadow-xs flex flex-col justify-between space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
-                Inactive
-              </span>
-              <AlertCircle className="w-4 h-4 text-amber-500" />
-            </div>
-            <div className="text-3xl font-black tracking-tight text-amber-600 dark:text-amber-400">
-              {stats.inactive}
-            </div>
-          </div>
-
-          {/* Trashed Card */}
-          <div className="p-4 rounded-sm bg-card border border-border/80 shadow-xs flex flex-col justify-between space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">
-                Trashed
-              </span>
-              <Trash2 className="w-4 h-4 text-rose-500" />
-            </div>
-            <div className="text-3xl font-black tracking-tight text-rose-600 dark:text-rose-400">
-              {stats.trashed}
-            </div>
-          </div>
-        </div>
-
-        {/* Filter Bar matching other CMS modules */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 pt-1">
-          {/* Status Filter Buttons */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              onClick={() => setActiveTab("all")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer border ${
-                activeTab === "all"
-                  ? "bg-black text-white border-black dark:bg-white dark:text-black dark:border-white shadow-xs"
-                  : "bg-background border-border text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              All ({stats.total - stats.trashed})
-            </button>
-            <button
-              onClick={() => setActiveTab("active")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer border ${
-                activeTab === "active"
-                  ? "bg-black text-white border-black dark:bg-white dark:text-black dark:border-white shadow-xs"
-                  : "bg-background border-border text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Active ({stats.active})
-            </button>
-            <button
-              onClick={() => setActiveTab("inactive")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer border ${
-                activeTab === "inactive"
-                  ? "bg-black text-white border-black dark:bg-white dark:text-black dark:border-white shadow-xs"
-                  : "bg-background border-border text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Inactive ({stats.inactive})
-            </button>
-            <button
-              onClick={() => setActiveTab("trashed")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer border ${
-                activeTab === "trashed"
-                  ? "bg-red-600 text-white border-red-600 shadow-xs"
-                  : "bg-background border-border text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Trash ({stats.trashed})
-            </button>
-          </div>
-
-          {/* Search Bar */}
-          <div className="relative max-w-xs w-full">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search source or destination..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-1.5 text-xs font-medium bg-card border border-border rounded-sm focus:outline-none focus:border-accent transition-all"
-            />
-          </div>
-        </div>
-
-        {/* Data Table */}
-        <div className="rounded-sm border border-border bg-card overflow-hidden shadow-xs">
-          {loading ? (
-            <div className="p-6 space-y-4">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-16 w-full" />
-              <Skeleton className="h-16 w-full" />
-              <Skeleton className="h-16 w-full" />
-            </div>
-          ) : filteredList.length === 0 ? (
-            <div className="p-12 text-center space-y-3">
-              <ArrowRightLeft className="w-8 h-8 text-muted-foreground mx-auto opacity-40" />
-              <p className="text-xs font-semibold text-muted-foreground">
-                No redirection rules found.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40 text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
-                    <th className="py-3.5 px-5">Source URL</th>
-                    <th className="py-3.5 px-5">Destination URL</th>
-                    <th className="py-3.5 px-4 text-center">HTTP Status</th>
-                    <th className="py-3.5 px-4 text-center">State</th>
-                    <th className="py-3.5 px-5 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/50 text-xs font-medium">
-                  {filteredList.map((item) => (
-                    <tr key={item.id} className="hover:bg-muted/30 transition-colors">
-                      {/* Source URL */}
-                      <td className="py-3.5 px-5">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-foreground bg-muted/60 px-2 py-0.5 rounded-sm">
-                            {item.sourceUrl}
-                          </span>
-                          <CopyButton value={item.sourceUrl} label="Source URL" />
-                        </div>
-                      </td>
-
-                      {/* Destination URL */}
-                      <td className="py-3.5 px-5">
-                        <a
-                          href={item.destinationUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1.5 font-mono text-muted-foreground hover:text-foreground hover:underline transition-colors max-w-xs truncate"
-                        >
-                          <span className="truncate">{item.destinationUrl}</span>
-                          <ExternalLink className="w-3 h-3 shrink-0 opacity-60" />
-                        </a>
-                      </td>
-
-                      {/* HTTP Code Badge */}
-                      <td className="py-3.5 px-4 text-center">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] font-extrabold tracking-wide ${
-                            item.statusCode === 301
-                              ? "bg-blue-100 text-blue-800 dark:bg-blue-950/80 dark:text-blue-300"
-                              : "bg-purple-100 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300"
-                          }`}
-                        >
-                          {item.statusCode} {item.statusCode === 301 ? "Permanent" : "Temporary"}
-                        </span>
-                      </td>
-
-                      {/* State Badge */}
-                      <td className="py-3.5 px-4 text-center">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-[10px] font-extrabold capitalize ${
-                            item.status === "active"
-                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300"
-                              : item.status === "inactive"
-                              ? "bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300"
-                              : "bg-rose-100 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300"
-                          }`}
-                        >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              item.status === "active"
-                                ? "bg-emerald-500"
-                                : item.status === "inactive"
-                                ? "bg-amber-500"
-                                : "bg-rose-500"
-                            }`}
-                          />
-                          {item.status}
-                        </span>
-                      </td>
-
-                      {/* Actions Dropdown Menu */}
-                      <td className="py-3.5 px-5 text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger className="p-1 rounded-sm hover:bg-muted transition-colors text-muted-foreground cursor-pointer">
-                            <MoreVertical className="w-4 h-4" />
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-44 rounded-sm border border-border">
-                            <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground font-extrabold">
-                              Actions
-                            </DropdownMenuLabel>
-                            {item.status !== "trashed" && (
-                              <>
-                                <DropdownMenuItem
-                                  onClick={() => handleOpenEdit(item)}
-                                  className="text-xs font-semibold cursor-pointer rounded-xs"
-                                >
-                                  Edit Redirect
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => openStatusConfirmModal(item)}
-                                  className="text-xs font-semibold cursor-pointer rounded-xs"
-                                >
-                                  Mark as {item.status === "active" ? "Inactive" : "Active"}
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                            <DropdownMenuSeparator />
-                            {item.status !== "trashed" ? (
-                              <DropdownMenuItem
-                                onClick={() => openTrashModal("trash", item, item.id, item.sourceUrl)}
-                                className="text-xs font-semibold cursor-pointer rounded-xs text-rose-600 dark:text-rose-400"
-                              >
-                                Move to Trash
-                              </DropdownMenuItem>
-                            ) : (
-                              <>
-                                <DropdownMenuItem
-                                  onClick={() => openTrashModal("restore", item, item.id, item.sourceUrl)}
-                                  className="text-xs font-semibold cursor-pointer rounded-xs"
-                                >
-                                  Restore Redirect
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => openTrashModal("delete", item, item.id, item.sourceUrl)}
-                                  className="text-xs font-semibold text-rose-600 dark:text-rose-400 cursor-pointer rounded-xs"
-                                >
-                                  Delete Permanently
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        ) : (
+          <DataTable
+            columns={columns}
+            data={filteredList}
+          />
+        )}
       </div>
 
       {/* Create / Edit Dialog Modal */}
@@ -675,5 +508,3 @@ export default function RedirectionsPage() {
     </div>
   );
 }
-
-
