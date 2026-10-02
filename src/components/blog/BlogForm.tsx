@@ -40,7 +40,7 @@ import { ExitConfirmDialog } from "./dialogs/ExitConfirmDialog";
 import { DiscardDraftDialog } from "./dialogs/DiscardDraftDialog";
 import { SchedulePostModal } from "./dialogs/SchedulePostModal";
 import { RevisionHistoryDrawer } from "./dialogs/RevisionHistoryDrawer";
-import { BlogSnapshotData } from "@/lib/types/revision";
+import { BlogSnapshotData } from "@/types/revision";
 import { BlogDraftBanner } from "./header/BlogDraftBanner";
 import { BlogFormHeader } from "./header/BlogFormHeader";
 import { BlogFullscreenToolbar } from "./header/BlogFullscreenToolbar";

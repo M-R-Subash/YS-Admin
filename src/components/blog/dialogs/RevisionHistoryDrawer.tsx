@@ -32,7 +32,7 @@ import {
   RevisionSummaryItem,
   RevisionsListResponse,
   RevisionDetailResponse,
-} from "@/lib/types/revision";
+} from "@/types/revision";
 
 interface RevisionHistoryDrawerProps {
   blogId?: string;

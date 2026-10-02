@@ -12,7 +12,7 @@ import {
   Plus,
   Layers,
 } from "lucide-react";
-import { AdminTopBar } from "@/components/AdminTopBar";
+import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";

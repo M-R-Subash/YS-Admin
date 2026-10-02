@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import useSWR, { mutate as globalMutate } from "swr";
 import { RefreshCw, PanelLeft } from "lucide-react";
-import { AdminTopBar } from "@/components/AdminTopBar";
+import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -23,7 +23,7 @@ import {
 import { SubmissionsSidebar } from "./SubmissionsSidebar";
 import { SubmissionDetail } from "./SubmissionDetail";
 
-export default function NotificationsPage() {
+export default function SubmissionsPage() {
   const [selectedSubmissionState, setSelectedSubmission] =
     useState<FormSubmission | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -181,7 +181,7 @@ export default function NotificationsPage() {
       <div className="h-screen flex flex-col bg-background overflow-hidden">
         {/* Top Bar Header */}
         <AdminTopBar
-          breadcrumbs="Notifications"
+          breadcrumbs="Submissions"
           actions={
             <div className="flex items-center gap-1.5 sm:gap-2">
               {/* Tablet/Desktop Sidebar Toggle */}

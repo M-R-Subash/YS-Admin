@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { Trash2Icon, RefreshCcwIcon, PlusIcon, Loader2, X, UploadCloud, DownloadIcon } from "lucide-react";
 import Image from "next/image";
 import { toast } from "@/components/ui/toast";
-import { AdminTopBar } from "@/components/AdminTopBar";
+import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { CopyButton } from "@/components/ui/copy-button";
 import {
   Dialog,

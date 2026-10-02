@@ -36,7 +36,7 @@ import { WordDiffViewer } from "./WordDiffViewer";
 import { UnifiedDiffViewer, extractTipTapLines } from "./UnifiedDiffViewer";
 import { TipTapDiffHighlighter } from "./TipTapDiffHighlighter";
 import { RestoreConfirmDialog } from "../dialogs/RestoreConfirmDialog";
-import { RevisionDetailResponse } from "@/lib/types/revision";
+import { RevisionDetailResponse } from "@/types/revision";
 
 interface RevisionDiffViewerProps {
   blogId: string;

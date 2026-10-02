@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { UniversalSeoModal } from "./UniversalSeoModal";
+import { UniversalSeoModal } from "@/components/seo/UniversalSeoModal";
 
 export interface BlogQuickEditModalProps {
   blogId: string;

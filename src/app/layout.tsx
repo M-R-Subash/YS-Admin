@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
-import { AdminLayoutWrapper } from "@/components/AdminLayoutWrapper";
+import { AdminLayoutWrapper } from "@/components/layout/AdminLayoutWrapper";
 import { Toaster } from "@/components/ui/toast";
 import { Providers } from "@/components/Providers";
 

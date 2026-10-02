@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { RotateCw } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import type { PageData } from "@/types";
-import SchemaEditor, { SchemaEditorRef } from "@/components/admin/SchemaEditor";
+import SchemaEditor, { SchemaEditorRef } from "@/components/editor-shell/SchemaEditor";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { homepageUiSchema } from "@/lib/schemas/homepage/homepage-ui-schema";
 import { homepageSchema } from "@/lib/schemas/homepage/homepage-validation";

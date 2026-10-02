@@ -25,3 +25,6 @@ export interface Page {
 }
 
 export type PageData = Page;
+
+export * from "./seo";
+export * from "./revision";

@@ -24,6 +24,15 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: "/notifications",
+        destination: "/submissions",
+        permanent: true,
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       {

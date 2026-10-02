@@ -12,7 +12,7 @@ import {
   PanelLeft,
   ArrowLeft,
 } from "lucide-react";
-import { AdminTopBar } from "@/components/AdminTopBar";
+import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";

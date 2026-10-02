@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { BlogSnapshotData } from "@/lib/types/revision";
+import { BlogSnapshotData } from "@/types/revision";
 
 /**
  * Extracts plain text from a TipTap JSON node tree.

@@ -30,7 +30,7 @@ import { toast } from "@/components/ui/toast";
 import { useDirtyManager } from "@/hooks/useDirtyManager";
 import Image from "next/image";
 import { format } from "date-fns";
-import { AdminTopBar } from "@/components/AdminTopBar";
+import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import {
   AlertDialog,
   AlertDialogContent,

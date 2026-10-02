@@ -7,7 +7,7 @@ import { Menu, FileText, Globe, CheckCircle2, FileEdit, Trash2, Plus } from "luc
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Page } from "@/types";
-import { AdminTopBar } from "@/components/AdminTopBar";
+import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { ContentMetricCards, MetricCardItem } from "@/components/admin/ContentMetricCards";
 import { ContentFilterBar, ContentFilterTab } from "@/components/admin/ContentFilterBar";
 

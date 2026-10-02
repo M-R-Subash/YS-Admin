@@ -8,9 +8,9 @@ import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AdminTopBar } from "@/components/AdminTopBar";
+import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { getUsersColumns } from "./users-columns";
-import { UserModal } from "@/components/admin/UserModal";
+import { UserModal } from "@/components/users/UserModal";
 
 export default function UsersPage() {
   const { data: session, status } = useSession();

@@ -14,8 +14,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { UserModal } from "@/components/admin/UserModal";
-import { UserDeleteModal } from "@/components/admin/UserDeleteModal";
+import { UserModal } from "@/components/users/UserModal";
+import { UserDeleteModal } from "@/components/users/UserDeleteModal";
 
 export type User = {
   id: string;

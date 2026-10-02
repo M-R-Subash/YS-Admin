@@ -8,17 +8,17 @@ import { useSession } from "next-auth/react";
 import {
   PenToolIcon,
   ExternalLink,
-  Bell,
   MessageSquare,
   LineChart,
   Search,
   Server,
   Mail,
   Globe,
+  Inbox,
 } from "lucide-react";
 
 import { Page } from "@/types";
-import { AdminTopBar } from "@/components/AdminTopBar";
+import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ContentMetricCards, MetricCardItem } from "@/components/admin/ContentMetricCards";
 
@@ -70,14 +70,14 @@ export default function DashboardPage() {
   const metricCards = useMemo<MetricCardItem[]>(() => {
     const list: MetricCardItem[] = [
       {
-        id: "notifications",
-        label: "Notifications",
+        id: "submissions",
+        label: "Submissions",
         count: notificationsCount,
-        icon: Bell,
+        icon: Inbox,
         color: "primary",
         badgeLabel: unreadNotifications > 0 ? `${unreadNotifications} unread` : undefined,
         isActive: unreadNotifications > 0,
-        onClick: () => router.push("/notifications"),
+        onClick: () => router.push("/submissions"),
       },
       {
         id: "pages",

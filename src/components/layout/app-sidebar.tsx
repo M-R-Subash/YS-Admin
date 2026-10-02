@@ -2,10 +2,10 @@
 
 import * as React from "react"
 import useSWR from "swr"
-import { FileTextIcon, UsersIcon, PenToolIcon, ImageIcon, WavesHorizontalIcon, Bell, MessageSquare, CalendarClock } from "lucide-react"
+import { FileTextIcon, UsersIcon, PenToolIcon, ImageIcon, WavesHorizontalIcon, MessageSquare, CalendarClock, Inbox } from "lucide-react"
 
-import { NavMain } from "@/components/nav-main"
-import { NavUser } from "@/components/nav-user"
+import { NavMain } from "@/components/layout/nav-main"
+import { NavUser } from "@/components/layout/nav-user"
 import { useSession } from "next-auth/react"
 import {
   Sidebar,
@@ -58,9 +58,9 @@ const navItems = [
     icon: <WavesHorizontalIcon />,
   },
   {
-    title: "Notifications",
-    url: "/notifications",
-    icon: <Bell />,
+    title: "Submissions",
+    url: "/submissions",
+    icon: <Inbox />,
   },
 ]
 
@@ -100,7 +100,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         return true
       })
       .map((item) => {
-        if (item.title === "Notifications") {
+        if (item.title === "Submissions") {
           return { ...item, badge: unreadSubmissionsCount }
         }
         if (item.title === "Comments") {

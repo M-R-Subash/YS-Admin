@@ -3,10 +3,10 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Globe } from "lucide-react";
 import { Page } from "@/types";
-import { UniversalSeoModal } from "@/components/admin/UniversalSeoModal";
+import { UniversalSeoModal } from "@/components/seo/UniversalSeoModal";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import { SeoStatusBadge } from "@/components/admin/SeoStatusBadge";
+import { SeoStatusBadge } from "@/components/seo/SeoStatusBadge";
 import { ContentActionCell } from "@/components/admin/ContentActionCell";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDate } from "@/lib/utils";
