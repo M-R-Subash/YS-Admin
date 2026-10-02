@@ -1,27 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, useRef, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import useSWR, { mutate as globalMutate } from "swr";
-import { formatDistanceToNow } from "date-fns";
 import {
-  MessageSquare,
   Search,
-  CheckCircle,
-  Circle,
-  Trash2,
-  Reply,
   ExternalLink,
   RefreshCw,
   Inbox,
-  Send,
-  CornerDownRight,
-  ShieldCheck,
-  RotateCcw,
-  FileText,
-  Layers,
-  ChevronRight,
   PanelLeft,
   ArrowLeft,
 } from "lucide-react";
@@ -37,80 +24,18 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { TrashConfirmationModal } from "@/components/ui/trash-confirmation-modal";
-
-interface BlogSummary {
-  id: string;
-  title: string;
-  slug: string;
-  totalComments: number;
-  pendingComments: number;
-  trashedComments: number;
-}
-
-interface CommentItem {
-  id: string;
-  content: string;
-  isApproved: boolean;
-  isTrashed: boolean;
-  name: string;
-  email: string;
-  blogId: string;
-  blog: {
-    id: string;
-    title: string;
-    slug: string;
-  };
-  parentId?: string | null;
-  parent?: {
-    id: string;
-    name: string;
-  } | null;
-  createdAt: string;
-}
-
-type ModalActionType =
-  | "approve"
-  | "unapprove"
-  | "trash"
-  | "restore"
-  | "delete"
-  | "reply";
-
-interface ModalState {
-  isOpen: boolean;
-  type: ModalActionType | null;
-  targetComment: CommentItem | null;
-}
-
-interface CommentsResponse {
-  comments?: CommentItem[];
-  totalCount?: number;
-  unapprovedCount?: number;
-  trashedCount?: number;
-  blogsSummary?: BlogSummary[];
-}
-
-function formatCompactTime(dateInput: Date | string): string {
-  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
-  const now = new Date();
-  const diffInSeconds = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 1000));
-
-  if (diffInSeconds < 60) return "just now";
-  const diffInMinutes = Math.floor(diffInSeconds / 60);
-  if (diffInMinutes < 60) return `${diffInMinutes}min ago`;
-  const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) return `${diffInHours}hr${diffInHours > 1 ? "s" : ""} ago`;
-  const diffInDays = Math.floor(diffInHours / 24);
-  if (diffInDays < 30) return `${diffInDays}day${diffInDays > 1 ? "s" : ""} ago`;
-  const diffInMonths = Math.floor(diffInDays / 30);
-  if (diffInMonths < 12) return `${diffInMonths}month${diffInMonths > 1 ? "s" : ""} ago`;
-  const diffInYears = Math.floor(diffInDays / 365);
-  return `${diffInYears}yr${diffInYears > 1 ? "s" : ""} ago`;
-}
+import {
+  BlogSummary,
+  CommentItem,
+  ModalActionType,
+  ModalState,
+  CommentsResponse,
+} from "./types";
+import { CommentsSidebar } from "./CommentsSidebar";
+import { CommentCard } from "./CommentCard";
 
 function CarouselTitle({ title }: { title: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const textRef = useRef<HTMLHeadingElement>(null);
   const measureRef = useRef<HTMLSpanElement>(null);
   const [overflowDistance, setOverflowDistance] = useState(0);
 
@@ -198,7 +123,6 @@ function CarouselTitle({ title }: { title: string }) {
         className="overflow-hidden min-w-0 flex-1 group relative"
       >
         <h1
-          ref={textRef}
           style={
             overflowDistance > 0
               ? {
@@ -441,31 +365,52 @@ function CommentsPageContent() {
     }
   };
 
-  // Search Filter for Comments
-  const filteredComments = comments.filter((c) => {
+  // Search Filter for Comments (memoized to prevent recomputation on unrelated state changes)
+  const filteredComments = useMemo(() => {
+    if (!searchQuery.trim()) return comments;
     const query = searchQuery.toLowerCase();
-    const name = (c.name || "").toLowerCase();
-    const email = (c.email || "").toLowerCase();
-    const content = (c.content || "").toLowerCase();
+    return comments.filter((c) => {
+      const name = (c.name || "").toLowerCase();
+      const email = (c.email || "").toLowerCase();
+      const content = (c.content || "").toLowerCase();
+      return (
+        name.includes(query) || email.includes(query) || content.includes(query)
+      );
+    });
+  }, [comments, searchQuery]);
 
-    return (
-      name.includes(query) || email.includes(query) || content.includes(query)
+  // Filter for Left Blog Sidebar (memoized)
+  const filteredBlogs = useMemo(() => {
+    if (!blogSearchQuery.trim()) return blogsSummary;
+    const query = blogSearchQuery.toLowerCase();
+    return blogsSummary.filter((b) =>
+      b.title.toLowerCase().includes(query),
     );
-  });
+  }, [blogsSummary, blogSearchQuery]);
 
-  // Filter for Left Blog Sidebar
-  const filteredBlogs = blogsSummary.filter((b) =>
-    b.title.toLowerCase().includes(blogSearchQuery.toLowerCase()),
-  );
+  const selectedBlogInfo = useMemo(() => {
+    return blogsSummary.find((b) => b.id === selectedBlogId);
+  }, [blogsSummary, selectedBlogId]);
 
-  const selectedBlogInfo = blogsSummary.find((b) => b.id === selectedBlogId);
+  // Partition into root comments and an O(1) replies lookup Map in a single O(N) pass
+  const { rootComments, repliesByParent } = useMemo(() => {
+    const roots: CommentItem[] = [];
+    const repliesMap = new Map<string, CommentItem[]>();
 
-  const rootComments = filteredComments.filter((c) => !c.parentId);
-  const replies = filteredComments.filter((c) => !!c.parentId);
-
-  const getRepliesForComment = (parentId: string) => {
-    return replies.filter((r) => r.parentId === parentId);
-  };
+    for (const c of filteredComments) {
+      if (!c.parentId) {
+        roots.push(c);
+      } else {
+        const list = repliesMap.get(c.parentId);
+        if (list) {
+          list.push(c);
+        } else {
+          repliesMap.set(c.parentId, [c]);
+        }
+      }
+    }
+    return { rootComments: roots, repliesByParent: repliesMap };
+  }, [filteredComments]);
 
   // Modal configuration based on active type
   const getModalConfig = () => {
@@ -566,43 +511,46 @@ function CommentsPageContent() {
                 </TooltipContent>
               </Tooltip>
 
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      onClick={handleRefresh}
-                      className="p-1.5 sm:p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              {/* Desktop-only action badges and refresh (moved beside Blogs List button on mobile) */}
+              <div className="hidden md:flex items-center gap-1.5 sm:gap-2">
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        onClick={handleRefresh}
+                        className="p-1.5 sm:p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      />
+                    }
+                  >
+                    <RefreshCw
+                      className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isRefreshing || loading ? "animate-spin" : ""}`}
                     />
-                  }
-                >
-                  <RefreshCw
-                    className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isRefreshing || loading ? "animate-spin" : ""}`}
-                  />
-                </TooltipTrigger>
-                <TooltipContent side="bottom">Refresh Comments</TooltipContent>
-              </Tooltip>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Refresh Comments</TooltipContent>
+                </Tooltip>
 
-              <Badge variant="outline" className="text-xs bg-card px-2.5 py-1">
-                Total:{" "}
-                <span className="font-bold ml-1 text-foreground">
-                  {totalCount}
-                </span>
-              </Badge>
-
-              {unapprovedCount > 0 && (
-                <Badge className="text-xs bg-amber-500 text-white px-2.5 py-1 font-bold">
-                  {unapprovedCount} Pending
+                <Badge variant="outline" className="text-xs bg-card px-2.5 py-1">
+                  Total:{" "}
+                  <span className="font-bold ml-1 text-foreground">
+                    {totalCount}
+                  </span>
                 </Badge>
-              )}
 
-              {trashedCount > 0 && (
-                <Badge
-                  variant="outline"
-                  className="text-xs border-red-300 text-red-600 dark:text-red-400 px-2.5 py-1 font-bold"
-                >
-                  {trashedCount} Trashed
-                </Badge>
-              )}
+                {unapprovedCount > 0 && (
+                  <Badge className="text-xs bg-amber-500 text-white px-2.5 py-1 font-bold">
+                    {unapprovedCount} Pending
+                  </Badge>
+                )}
+
+                {trashedCount > 0 && (
+                  <Badge
+                    variant="outline"
+                    className="text-xs border-red-300 text-red-600 dark:text-red-400 px-2.5 py-1 font-bold"
+                  >
+                    {trashedCount} Trashed
+                  </Badge>
+                )}
+              </div>
             </div>
           }
         />
@@ -610,183 +558,19 @@ function CommentsPageContent() {
         {/* SPLIT MASTER-DETAIL LAYOUT */}
         <div className="flex-1 flex flex-col md:flex-row w-full overflow-hidden min-h-0">
           {/* LEFT SIDEBAR: BLOGS MASTER LIST */}
-          <aside
-            className={`w-full md:w-72 lg:w-80 xl:w-96 shrink-0 border-r border-border bg-card/30 flex-col h-full overflow-hidden ${
-              mobileView === "blogs" ? "flex" : "hidden md:flex"
-            } ${!isSidebarOpen ? "md:hidden" : ""}`}
-          >
-            {/* Sidebar Header & Search */}
-            <div className="p-4 border-b border-border space-y-3 shrink-0">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5" />
-                  <span>Blogs with Comments</span>
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold bg-muted px-2 py-0.5 rounded-full text-foreground">
-                    {blogsSummary.length}
-                  </span>
-                  <button
-                    onClick={() => setMobileView("comments")}
-                    className="md:hidden text-[11px] font-semibold text-primary hover:underline cursor-pointer"
-                  >
-                    Feed &rarr;
-                  </button>
-                </div>
-              </div>
-
-              <div className="relative w-full">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-3.5 h-3.5" />
-                <input
-                  type="text"
-                  placeholder="Filter blog titles..."
-                  value={blogSearchQuery}
-                  onChange={(e) => setBlogSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 bg-background border border-border rounded-sm text-xs font-medium text-foreground focus:outline-none focus:border-accent transition-colors"
-                />
-              </div>
-            </div>
-
-            {/* Blogs List */}
-            <div className="flex-1 overflow-y-auto p-2 space-y-1">
-              {/* All Blogs Master Pill */}
-              <button
-                onClick={() => {
-                  setSelectedBlogId("all");
-                  setMobileView("comments");
-                }}
-                className={`w-full text-left p-3 rounded-sm transition-all flex items-center justify-between cursor-pointer border ${
-                  selectedBlogId === "all"
-                    ? "bg-black text-white dark:bg-white dark:text-black border-black dark:border-white shadow-xs font-bold"
-                    : "bg-background/60 hover:bg-muted border-border/60 text-foreground"
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div
-                    className={`w-8 h-8 rounded-sm flex items-center justify-center shrink-0 ${
-                      selectedBlogId === "all"
-                        ? "bg-white/20 text-white dark:bg-black/20 dark:text-black"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold truncate">
-                      All Blog Comments
-                    </p>
-                    <p
-                      className={`text-[11px] truncate ${selectedBlogId === "all" ? "opacity-80" : "text-muted-foreground"}`}
-                    >
-                      All discussions across site
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1 shrink-0 ml-2">
-                  {unapprovedCount > 0 && (
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold transition-colors ${
-                        selectedBlogId === "all"
-                          ? "bg-white text-black dark:bg-black dark:text-white shadow-xs"
-                          : "bg-black text-white dark:bg-white dark:text-black"
-                      }`}
-                    >
-                      {unapprovedCount}
-                    </span>
-                  )}
-                  <ChevronRight className="w-4 h-4 opacity-50" />
-                </div>
-              </button>
-
-              <Separator className="my-2" />
-
-              {/* Individual Blog Items */}
-              {loading && blogsSummary.length === 0 ? (
-                <div className="space-y-1.5 p-1">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <div
-                      key={i}
-                      className="p-3 rounded-sm border border-border/50 bg-card/30 flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                        <Skeleton className="w-8 h-8 rounded-sm shrink-0" />
-                        <div className="space-y-1.5 flex-1">
-                          <Skeleton className="h-3.5 w-3/4" />
-                          <Skeleton className="h-2.5 w-16" />
-                        </div>
-                      </div>
-                      <Skeleton className="w-4 h-4 rounded-full ml-2 shrink-0" />
-                    </div>
-                  ))}
-                </div>
-              ) : filteredBlogs.length === 0 ? (
-                <div className="p-6 text-center text-xs text-muted-foreground">
-                  No blogs match filter
-                </div>
-              ) : (
-                filteredBlogs.map((b) => {
-                  const isSelected = selectedBlogId === b.id;
-                  return (
-                    <button
-                      key={b.id}
-                      onClick={() => {
-                        setSelectedBlogId(b.id);
-                        setMobileView("comments");
-                      }}
-                      className={`w-full text-left p-3 rounded-sm transition-all flex items-center justify-between cursor-pointer border ${
-                        isSelected
-                          ? "bg-black text-white dark:bg-white dark:text-black border-black dark:border-white shadow-xs font-bold"
-                          : "bg-background/40 hover:bg-muted border-border/50 text-foreground"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div
-                          className={`w-8 h-8 rounded-sm flex items-center justify-center shrink-0 ${
-                            isSelected
-                              ? "bg-white/20 text-white dark:bg-black/20 dark:text-black"
-                              : "bg-muted text-muted-foreground"
-                          }`}
-                        >
-                          <FileText className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold line-clamp-1 leading-snug">
-                            {b.title}
-                          </p>
-                          <p
-                            className={`text-[11px] ${
-                              isSelected
-                                ? "opacity-80"
-                                : "text-muted-foreground"
-                            }`}
-                          >
-                            {b.totalComments} comment
-                            {b.totalComments === 1 ? "" : "s"}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                        {b.pendingComments > 0 && (
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold transition-colors ${
-                              isSelected
-                                ? "bg-white text-black dark:bg-black dark:text-white shadow-xs"
-                                : "bg-black text-white dark:bg-white dark:text-black"
-                            }`}
-                          >
-                            {b.pendingComments}
-                          </span>
-                        )}
-                        <ChevronRight className="w-4 h-4 opacity-50" />
-                      </div>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </aside>
+          <CommentsSidebar
+            blogsSummary={blogsSummary}
+            filteredBlogs={filteredBlogs}
+            selectedBlogId={selectedBlogId}
+            setSelectedBlogId={setSelectedBlogId}
+            blogSearchQuery={blogSearchQuery}
+            setBlogSearchQuery={setBlogSearchQuery}
+            mobileView={mobileView}
+            setMobileView={setMobileView}
+            isSidebarOpen={isSidebarOpen}
+            unapprovedCount={unapprovedCount}
+            loading={loading}
+          />
 
           {/* RIGHT CONTENT PANEL: COMMENTS FEED FOR SELECTED BLOG */}
           <main
@@ -796,15 +580,47 @@ function CommentsPageContent() {
           >
             {/* Top Fixed Control Panel */}
             <div className="p-4 sm:p-6 pb-3 sm:pb-4 border-b border-border space-y-3 sm:space-y-4 shrink-0 bg-background">
-              {/* Mobile Back Button to Blogs List */}
+              {/* Mobile Back Button to Blogs List & Toolbar Badges */}
               <div className="flex items-center justify-between gap-2 md:hidden pb-1">
                 <button
                   onClick={() => setMobileView("blogs")}
-                  className="flex items-center gap-1.5 text-xs font-bold text-foreground bg-muted hover:bg-muted/80 px-2.5 py-1 rounded-sm transition-colors cursor-pointer border border-border"
+                  className="flex items-center gap-1.5 text-xs font-bold text-foreground bg-muted hover:bg-muted/80 px-2.5 py-1 rounded-sm transition-colors cursor-pointer border border-border shrink-0"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Blogs List ({blogsSummary.length})</span>
                 </button>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={handleRefresh}
+                    disabled={isRefreshing || loading}
+                    className="p-1.5 rounded-sm hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer border border-border bg-background"
+                    title="Refresh Comments"
+                  >
+                    <RefreshCw
+                      className={`w-3.5 h-3.5 ${isRefreshing || loading ? "animate-spin" : ""}`}
+                    />
+                  </button>
+
+                  <Badge variant="outline" className="text-[11px] bg-card px-2 py-0.5 shrink-0 font-medium">
+                    Total: <span className="font-bold ml-1 text-foreground">{totalCount}</span>
+                  </Badge>
+
+                  {unapprovedCount > 0 && (
+                    <Badge className="text-[11px] bg-amber-500 text-white px-2 py-0.5 font-bold shrink-0">
+                      {unapprovedCount} Pending
+                    </Badge>
+                  )}
+
+                  {trashedCount > 0 && (
+                    <Badge
+                      variant="outline"
+                      className="text-[11px] border-red-300 text-red-600 dark:text-red-400 px-2 py-0.5 font-bold shrink-0"
+                    >
+                      {trashedCount} Trashed
+                    </Badge>
+                  )}
+                </div>
               </div>
 
               {/* Header for Selected View */}
@@ -953,321 +769,20 @@ function CommentsPageContent() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {rootComments.map((comment) => {
-                    const relativeTime = formatDistanceToNow(
-                      new Date(comment.createdAt),
-                      { addSuffix: true },
-                    );
-                    const commentReplies = getRepliesForComment(comment.id);
-
-                    return (
-                      <div
-                        key={comment.id}
-                        className={`bg-card border rounded-sm p-3.5 sm:p-5 shadow-xs transition-all space-y-3 sm:space-y-4 relative ${
-                          comment.isTrashed
-                            ? "border-red-200 dark:border-red-900/40 bg-red-50/10 dark:bg-red-950/10"
-                            : !comment.isApproved
-                              ? "border-amber-200 dark:border-amber-900/50 bg-amber-50/20 dark:bg-amber-950/10"
-                              : "hover:border-primary/30"
-                        }`}
-                      >
-                        {/* Header: Author Info + Status Badge */}
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-9 h-9 rounded-full bg-black text-white dark:bg-white dark:text-black flex items-center justify-center text-xs font-extrabold uppercase shrink-0">
-                              {comment.name.charAt(0)}
-                            </div>
-
-                            <div className="min-w-0 space-y-0.5">
-                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
-                                <span className="text-sm font-bold text-foreground">
-                                  {comment.name}
-                                </span>
-                                <span className="text-[11px] text-muted-foreground font-medium shrink-0">
-                                  &bull; {formatCompactTime(comment.createdAt)}
-                                </span>
-                              </div>
-
-                              <div className="text-xs text-muted-foreground font-medium truncate">
-                                &lt;{comment.email}&gt;
-                              </div>
-
-                              {/* Context Line: Shown ONLY when viewing all discussions */}
-                              {selectedBlogId === "all" && comment.blog && (
-                                <div className="flex items-center gap-1 text-[11px] text-muted-foreground pt-0.5">
-                                  <span>Posted on:</span>
-                                  <a
-                                    href={`/blogs/edit/${comment.blog.id}`}
-                                    className="font-bold text-foreground hover:underline flex items-center gap-1 truncate max-w-[200px]"
-                                    title="Edit blog post in admin"
-                                  >
-                                    <span className="truncate">{comment.blog.title}</span>
-                                    <ExternalLink className="w-3 h-3 text-muted-foreground shrink-0" />
-                                  </a>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Status Badge */}
-                          <div className="shrink-0 pt-0.5">
-                            {comment.isTrashed ? (
-                              <Badge className="bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800 text-[11px] font-bold px-2.5 py-0.5">
-                                Trashed
-                              </Badge>
-                            ) : comment.isApproved ? (
-                              <Badge className="bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-[11px] font-bold px-2.5 py-0.5">
-                                Approved
-                              </Badge>
-                            ) : (
-                              <Badge className="bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800 text-[11px] font-bold px-2.5 py-0.5">
-                                Pending Approval
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-
-                        <Separator />
-
-                        {/* Comment Body Content */}
-                        <div className="text-sm text-foreground/90 font-medium leading-relaxed whitespace-pre-wrap">
-                          {comment.content}
-                        </div>
-
-                        {/* NESTED CHILD REPLIES (Threaded UI) */}
-                        {commentReplies.length > 0 && (
-                          <div className="pt-2 space-y-3">
-                            <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                              <CornerDownRight className="w-3.5 h-3.5" />
-                              <span>Replies ({commentReplies.length})</span>
-                            </div>
-
-                            <div className="space-y-3">
-                              {commentReplies.map((reply) => {
-                                const isAdminReply =
-                                  reply.name.includes("(Admin)");
-
-                                return (
-                                  <div
-                                    key={reply.id}
-                                    className={`ml-2.5 sm:ml-8 p-3 sm:p-4 rounded-sm border-l-2 sm:border border-border/80 space-y-2 relative ${
-                                      isAdminReply
-                                        ? "bg-muted/40 border-l-4 border-l-black dark:border-l-white"
-                                        : "bg-background"
-                                    }`}
-                                  >
-                                    <div className="space-y-0.5">
-                                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
-                                        <span className="text-xs font-bold text-foreground flex items-center gap-1.5 shrink-0">
-                                          {isAdminReply && (
-                                            <ShieldCheck className="w-3.5 h-3.5 text-black dark:text-white shrink-0" />
-                                          )}
-                                          {reply.name}
-                                        </span>
-                                        <span className="text-[11px] text-muted-foreground font-medium shrink-0">
-                                          &bull; {formatCompactTime(reply.createdAt)}
-                                        </span>
-                                      </div>
-
-                                      <div className="text-[11px] text-muted-foreground font-medium truncate">
-                                        &lt;{reply.email}&gt;
-                                      </div>
-                                    </div>
-
-                                    <p className="text-xs text-foreground/90 font-medium leading-relaxed whitespace-pre-wrap">
-                                      {reply.content}
-                                    </p>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Inline Reply Form */}
-                        {replyingToId === comment.id && (
-                          <div className="p-4 rounded-sm border border-border bg-muted/30 space-y-3">
-                            <div className="flex items-center justify-between text-xs font-bold text-foreground">
-                              <span className="flex items-center gap-1.5">
-                                <Reply className="w-3.5 h-3.5" />
-                                <span>Reply to {comment.name} as Admin</span>
-                              </span>
-                              <button
-                                onClick={() => {
-                                  setReplyingToId(null);
-                                  setReplyText("");
-                                }}
-                                className="text-muted-foreground hover:text-foreground text-xs"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-
-                            <textarea
-                              rows={3}
-                              placeholder="Type your official response..."
-                              value={replyText}
-                              onChange={(e) => setReplyText(e.target.value)}
-                              className="w-full p-3 bg-background border border-border rounded-sm text-xs font-medium focus:outline-none focus:border-accent transition-colors"
-                            />
-
-                            <div className="flex justify-end">
-                              <button
-                                onClick={() =>
-                                  openConfirmModal("reply", comment)
-                                }
-                                disabled={!replyText.trim()}
-                                className="px-4 py-2 bg-black hover:bg-black/90 text-white text-xs font-bold rounded-sm flex items-center gap-1.5 transition-all cursor-pointer shadow-xs disabled:opacity-50"
-                              >
-                                <Send className="w-3.5 h-3.5" />
-                                <span>Publish Reply</span>
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Footer Action Buttons: Space-Between for Safety */}
-                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/40">
-                          {/* Left Actions: Approve/Pending & Reply (or Restore) */}
-                          <div className="flex items-center gap-1.5 sm:gap-2">
-                            {filter === "trashed" ? (
-                              /* Restore Button */
-                              <Tooltip>
-                                <TooltipTrigger
-                                  render={
-                                    <button
-                                      onClick={() =>
-                                        openConfirmModal("restore", comment)
-                                      }
-                                      className="px-3 py-1.5 rounded-sm border border-border bg-background hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                                    />
-                                  }
-                                >
-                                  <RotateCcw className="w-3.5 h-3.5" />
-                                  <span>Restore</span>
-                                </TooltipTrigger>
-                                <TooltipContent side="bottom">
-                                  Restore comment from trash
-                                </TooltipContent>
-                              </Tooltip>
-                            ) : (
-                              <>
-                                {/* Approve / Unapprove Button */}
-                                <Tooltip>
-                                  <TooltipTrigger
-                                    render={
-                                      <button
-                                        onClick={() =>
-                                          openConfirmModal(
-                                            comment.isApproved
-                                              ? "unapprove"
-                                              : "approve",
-                                            comment,
-                                          )
-                                        }
-                                        className={`px-3 py-1.5 rounded-sm text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
-                                          comment.isApproved
-                                            ? "bg-background border-border text-foreground hover:bg-muted"
-                                            : "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-xs"
-                                        }`}
-                                      />
-                                    }
-                                  >
-                                    {comment.isApproved ? (
-                                      <>
-                                        <Circle className="w-3.5 h-3.5 text-muted-foreground" />
-                                        <span>Mark Pending</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <CheckCircle className="w-3.5 h-3.5" />
-                                        <span>Approve</span>
-                                      </>
-                                    )}
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom">
-                                    {comment.isApproved
-                                      ? "Unapprove comment and hide from site"
-                                      : "Approve comment to publish on main site"}
-                                  </TooltipContent>
-                                </Tooltip>
-
-                                {/* Reply Button */}
-                                <Tooltip>
-                                  <TooltipTrigger
-                                    render={
-                                      <button
-                                        onClick={() => {
-                                          setReplyingToId(
-                                            replyingToId === comment.id
-                                              ? null
-                                              : comment.id,
-                                          );
-                                          setReplyText("");
-                                        }}
-                                        className="px-3 py-1.5 rounded-sm border border-border bg-background hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                                      />
-                                    }
-                                  >
-                                    <Reply className="w-3.5 h-3.5" />
-                                    <span>Reply</span>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom">
-                                    Post an official admin response
-                                  </TooltipContent>
-                                </Tooltip>
-                              </>
-                            )}
-                          </div>
-
-                          {/* Right Action: Delete Button (separated to avoid misclicks) */}
-                          <div>
-                            {filter === "trashed" ? (
-                              /* Delete Permanently Button */
-                              <Tooltip>
-                                <TooltipTrigger
-                                  render={
-                                    <button
-                                      onClick={() =>
-                                        openConfirmModal("delete", comment)
-                                      }
-                                      className="px-3 py-1.5 rounded-sm border border-red-200 bg-red-600 hover:bg-red-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
-                                    />
-                                  }
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                  <span>Delete Permanently</span>
-                                </TooltipTrigger>
-                                <TooltipContent side="bottom">
-                                  Permanently remove comment from database
-                                </TooltipContent>
-                              </Tooltip>
-                            ) : (
-                              /* Move to Trash Button */
-                              <Tooltip>
-                                <TooltipTrigger
-                                  render={
-                                    <button
-                                      onClick={() =>
-                                        openConfirmModal("trash", comment)
-                                      }
-                                      className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-sm border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                                    />
-                                  }
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                  <span className="hidden sm:inline">Trash</span>
-                                </TooltipTrigger>
-                                <TooltipContent side="bottom">
-                                  Move comment to trash
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {rootComments.map((comment) => (
+                    <CommentCard
+                      key={comment.id}
+                      comment={comment}
+                      replies={repliesByParent.get(comment.id) ?? []}
+                      selectedBlogId={selectedBlogId}
+                      filter={filter}
+                      replyingToId={replyingToId}
+                      setReplyingToId={setReplyingToId}
+                      replyText={replyText}
+                      setReplyText={setReplyText}
+                      openConfirmModal={openConfirmModal}
+                    />
+                  ))}
                 </div>
               )}
             </div>
