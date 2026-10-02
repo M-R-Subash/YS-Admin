@@ -32,8 +32,8 @@ export function CommentsSidebar({
 }: CommentsSidebarProps) {
   return (
     <aside
-      className={`w-full md:w-72 lg:w-80 xl:w-96 shrink-0 border-r border-border bg-card/30 flex-col h-full overflow-hidden ${
-        mobileView === "blogs" ? "flex" : "hidden md:flex"
+      className={`w-full shrink-0 md:w-72 lg:w-80 xl:w-96 md:shrink-0 border-r border-border bg-card/30 flex flex-col h-full overflow-hidden transition-opacity ${
+        mobileView !== "blogs" ? "pointer-events-none md:pointer-events-auto" : ""
       } ${!isSidebarOpen ? "md:hidden" : ""}`}
     >
       {/* Sidebar Header & Search */}

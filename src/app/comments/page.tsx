@@ -560,29 +560,36 @@ function CommentsPageContent() {
           }
         />
 
-        {/* SPLIT MASTER-DETAIL LAYOUT */}
-        <div className="flex-1 flex flex-col md:flex-row w-full overflow-hidden min-h-0">
-          {/* LEFT SIDEBAR: BLOGS MASTER LIST */}
-          <CommentsSidebar
-            blogsSummary={blogsSummary}
-            filteredBlogs={filteredBlogs}
-            selectedBlogId={selectedBlogId}
-            setSelectedBlogId={setSelectedBlogId}
-            blogSearchQuery={blogSearchQuery}
-            setBlogSearchQuery={setBlogSearchQuery}
-            mobileView={mobileView}
-            setMobileView={setMobileView}
-            isSidebarOpen={isSidebarOpen}
-            unapprovedCount={unapprovedCount}
-            loading={loading}
-          />
-
-          {/* RIGHT CONTENT PANEL: COMMENTS FEED FOR SELECTED BLOG */}
-          <main
-            className={`flex-1 flex-col h-full overflow-hidden bg-background min-h-0 ${
-              mobileView === "comments" ? "flex" : "hidden md:flex"
+        {/* SPLIT MASTER-DETAIL LAYOUT WITH MOBILE SLIDE ANIMATION */}
+        <div className="flex-1 w-full overflow-hidden min-h-0 relative">
+          <div
+            className={`flex w-full h-full transition-transform duration-300 ease-in-out md:transition-none md:translate-x-0 ${
+              mobileView === "comments"
+                ? "-translate-x-full md:translate-x-0"
+                : "translate-x-0"
             }`}
           >
+            {/* LEFT SIDEBAR: BLOGS MASTER LIST */}
+            <CommentsSidebar
+              blogsSummary={blogsSummary}
+              filteredBlogs={filteredBlogs}
+              selectedBlogId={selectedBlogId}
+              setSelectedBlogId={setSelectedBlogId}
+              blogSearchQuery={blogSearchQuery}
+              setBlogSearchQuery={setBlogSearchQuery}
+              mobileView={mobileView}
+              setMobileView={setMobileView}
+              isSidebarOpen={isSidebarOpen}
+              unapprovedCount={unapprovedCount}
+              loading={loading}
+            />
+
+            {/* RIGHT CONTENT PANEL: COMMENTS FEED FOR SELECTED BLOG */}
+            <main
+              className={`w-full shrink-0 md:w-auto md:flex-1 h-full flex flex-col overflow-hidden bg-background min-h-0 transition-opacity ${
+                mobileView !== "comments" ? "pointer-events-none md:pointer-events-auto" : ""
+              }`}
+            >
             {/* Top Fixed Control Panel */}
             <div className="p-4 sm:p-6 pb-3 sm:pb-4 border-b border-border space-y-3 sm:space-y-4 shrink-0 bg-background">
               {/* Mobile Back Button to Blogs List & Toolbar Badges */}
@@ -794,6 +801,7 @@ function CommentsPageContent() {
           </main>
         </div>
       </div>
+    </div>
 
       {/* Centralized Trash & Action Confirmation Modal */}
       <TrashConfirmationModal
