@@ -38,7 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TrashConfirmationModal } from "@/components/ui/trash-confirmation-modal";
+import { TrashConfirmationModal } from "@/components/global-modal";
 import { useTrashManager } from "@/hooks/useTrashManager";
 import {
   getRedirectionColumns,

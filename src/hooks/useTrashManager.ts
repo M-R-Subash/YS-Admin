@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "@/components/ui/toast";
-import { TrashActionType } from "@/components/ui/trash-confirmation-modal";
+import { TrashActionType } from "@/components/global-modal";
 
 interface TrashModalState<T = any> {
   isOpen: boolean;
