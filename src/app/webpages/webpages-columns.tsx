@@ -53,11 +53,11 @@ export const getWebpagesColumns = (onDataChange: () => void): ColumnDef<Page>[] 
       const page = row.original;
       const pageSlug = page.slug === "/" ? "/" : page.slug.startsWith("/") ? page.slug : `/${page.slug}`;
       return (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full min-w-0">
           <div className="w-10 h-10 rounded-sm bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 text-primary">
             <Globe className="w-4 h-4" />
           </div>
-          <div className="min-w-0 max-w-[200px] md:max-w-[240px]">
+          <div className="min-w-0 flex-1 w-full">
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -73,8 +73,8 @@ export const getWebpagesColumns = (onDataChange: () => void): ColumnDef<Page>[] 
                 {page.title}
               </TooltipContent>
             </Tooltip>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[11px] text-muted-foreground truncate font-mono">
+            <div className="flex items-center gap-2 mt-0.5 min-w-0 w-full">
+              <span className="text-[11px] text-muted-foreground truncate font-mono min-w-0 flex-1">
                 {pageSlug}
               </span>
             </div>

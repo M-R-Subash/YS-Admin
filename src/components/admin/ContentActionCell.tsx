@@ -162,7 +162,7 @@ export function ContentActionCell<T extends ContentActionItem = ContentActionIte
               const separator = publicUrl.includes("?") ? "&" : "?";
               window.open(`${publicUrl}${separator}nocache=${Date.now()}`, "_blank");
             }}
-            className="h-7 px-2.5 text-[11px] font-semibold gap-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 cursor-pointer"
+            className="h-7 px-2.5 text-[11px] font-semibold gap-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 cursor-pointer hidden sm:inline-flex"
           >
             <Globe className="w-3 h-3" />
             <span>{publicUrlLabel}</span>
@@ -175,7 +175,7 @@ export function ContentActionCell<T extends ContentActionItem = ContentActionIte
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 w-7 p-0 cursor-pointer text-muted-foreground hover:text-foreground"
+                className="h-8 w-8 p-0 cursor-pointer text-muted-foreground hover:text-foreground"
               >
                 <span className="sr-only">Open menu</span>
                 <MoreHorizontal className="h-4 w-4" />

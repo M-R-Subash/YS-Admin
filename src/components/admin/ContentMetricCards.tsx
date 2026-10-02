@@ -68,6 +68,7 @@ export function ContentMetricCards({
   loading = false,
   className = "",
 }: ContentMetricCardsProps) {
+  const isOddFive = cards.length === 5;
   const gridLayout =
     cards.length >= 5
       ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"
@@ -75,20 +76,26 @@ export function ContentMetricCards({
 
   if (loading) {
     return (
-      <div className={`grid ${gridLayout} gap-3.5 ${className}`}>
+      <div className={`grid ${gridLayout} gap-2.5 sm:gap-3.5 ${className}`}>
         {Array.from({ length: cards.length || 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-24 w-full rounded-sm" />
+          <Skeleton
+            key={i}
+            className={`h-20 sm:h-24 w-full rounded-sm ${
+              isOddFive && i === cards.length - 1 ? "col-span-2 sm:col-span-1" : ""
+            }`}
+          />
         ))}
       </div>
     );
   }
 
   return (
-    <div className={`grid ${gridLayout} gap-3.5 ${className}`}>
-      {cards.map((card) => {
+    <div className={`grid ${gridLayout} gap-2.5 sm:gap-3.5 ${className}`}>
+      {cards.map((card, index) => {
         const color = card.color || "primary";
         const style = colorStyles[color];
         const IconComponent = card.icon;
+        const isLastOdd = isOddFive && index === cards.length - 1;
 
         return (
           <div
@@ -96,7 +103,9 @@ export function ContentMetricCards({
             role={card.onClick ? "button" : undefined}
             tabIndex={card.onClick ? 0 : undefined}
             onClick={card.onClick}
-            className={`rounded-sm border p-4 shadow-xs transition-all select-none flex flex-col justify-between ${
+            className={`rounded-sm border p-3 sm:p-4 shadow-xs transition-all select-none flex flex-col justify-between ${
+              isLastOdd ? "col-span-2 sm:col-span-1" : ""
+            } ${
               card.onClick ? "cursor-pointer" : ""
             } ${
               card.isActive
@@ -104,17 +113,17 @@ export function ContentMetricCards({
                 : `bg-card border-border ${style.inactiveHover} hover:shadow-xs`
             }`}
           >
-            <div className="flex items-center justify-between pb-2">
-              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            <div className="flex items-center justify-between pb-1.5 sm:pb-2">
+              <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 {card.label}
               </p>
-              <div className={`p-1.5 rounded-sm ${style.iconBox}`}>
-                <IconComponent className="size-4" />
+              <div className={`p-1 sm:p-1.5 rounded-sm ${style.iconBox}`}>
+                <IconComponent className="size-3.5 sm:size-4" />
               </div>
             </div>
 
             <div className="flex items-baseline justify-between pt-1">
-              <div className="text-2xl font-extrabold text-foreground">
+              <div className="text-xl sm:text-2xl font-extrabold text-foreground">
                 {card.count}
               </div>
               {card.isActive && (

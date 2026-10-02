@@ -46,7 +46,7 @@ export function ContentFilterBar({
   return (
     <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 ${className}`}>
       {/* Filter Tabs on Left */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none no-scrollbar -mx-[15px] px-[15px] md:mx-0 md:px-0">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const activeClass = tab.color ? colorMap[tab.color] : colorMap.primary;
@@ -55,7 +55,7 @@ export function ContentFilterBar({
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`px-3 py-1.5 rounded-sm text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap ${
+              className={`px-3 py-1.5 rounded-sm text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap shrink-0 ${
                 isActive
                   ? activeClass
                   : "bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -69,15 +69,15 @@ export function ContentFilterBar({
       </div>
 
       {/* Right Side: Search Input + Optional Actions */}
-      <div className="flex items-center gap-3">
-        <div className="relative w-full md:w-72">
+      <div className="flex items-center gap-2.5 sm:gap-3 w-full md:w-auto">
+        <div className="relative flex-1 md:w-72">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="text"
             placeholder={searchPlaceholder}
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-9 h-9 text-xs"
+            className="pl-9 h-9 text-xs w-full"
           />
         </div>
         {extraRightContent}

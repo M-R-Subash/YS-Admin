@@ -78,7 +78,7 @@ export const getScheduledColumns = ({
       const cleanSlug = item.slug?.startsWith("/") ? item.slug.slice(1) : (item.slug || "");
 
       return (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full min-w-0">
           {item.featuredImage ? (
             <img
               src={item.featuredImage}
@@ -90,7 +90,7 @@ export const getScheduledColumns = ({
               Img
             </div>
           )}
-          <div className="min-w-0 max-w-50 md:max-w-60">
+          <div className="min-w-0 flex-1 w-full">
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -106,12 +106,12 @@ export const getScheduledColumns = ({
                 {item.title}
               </TooltipContent>
             </Tooltip>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[11px] text-muted-foreground truncate font-mono">
+            <div className="flex items-center gap-2 mt-0.5 min-w-0 w-full">
+              <span className="text-[11px] text-muted-foreground truncate font-mono min-w-0 flex-1">
                 /blogs/{cleanSlug}
               </span>
               {item.categories?.length > 0 && (
-                <span className="px-1.5 py-0.2 bg-secondary text-secondary-foreground text-[9px] font-semibold uppercase rounded-xs">
+                <span className="px-1.5 py-0.2 bg-secondary text-secondary-foreground text-[9px] font-semibold uppercase rounded-xs shrink-0">
                   {item.categories[0]}
                 </span>
               )}

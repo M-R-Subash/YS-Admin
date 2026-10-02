@@ -109,7 +109,7 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
       const blog = row.original as any;
       const cleanSlug = blog.slug?.startsWith("/") ? blog.slug.slice(1) : (blog.slug || "");
       return (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full min-w-0">
           {blog.featuredImage ? (
             <img
               src={blog.featuredImage}
@@ -121,7 +121,7 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
               Img
             </div>
           )}
-          <div className="min-w-0 max-w-[200px] md:max-w-[240px]">
+          <div className="min-w-0 flex-1 w-full">
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -137,12 +137,12 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
                 {blog.title}
               </TooltipContent>
             </Tooltip>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[11px] text-muted-foreground truncate font-mono">
+            <div className="flex items-center gap-2 mt-0.5 min-w-0 w-full">
+              <span className="text-[11px] text-muted-foreground truncate font-mono min-w-0 flex-1">
                 /blogs/{cleanSlug}
               </span>
               {blog.categories?.length > 0 && (
-                <span className="px-1.5 py-0.2 bg-secondary text-secondary-foreground text-[9px] font-semibold uppercase rounded-xs">
+                <span className="px-1.5 py-0.2 bg-secondary text-secondary-foreground text-[9px] font-semibold uppercase rounded-xs shrink-0">
                   {blog.categories[0]}
                 </span>
               )}
