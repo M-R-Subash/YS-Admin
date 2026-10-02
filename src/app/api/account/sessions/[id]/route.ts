@@ -18,6 +18,7 @@ export async function DELETE(
 
     const targetSession = await prisma.refreshToken.findUnique({
       where: { id },
+      select: { id: true, userId: true },
     });
 
     if (!targetSession || targetSession.userId !== session.user.id) {
@@ -35,10 +36,10 @@ export async function DELETE(
       success: true,
       message: "Session revoked successfully",
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Revoke session error:", error);
     return NextResponse.json(
-      { error: "Failed to revoke session", details: error.message },
+      { error: "Failed to revoke session" },
       { status: 500 }
     );
   }

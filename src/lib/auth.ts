@@ -59,27 +59,43 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
         return { ...token, error: "RefreshAccessTokenError" };
       }
 
-      // 2. Look up the refresh token in PostgreSQL by its SHA-256 hash
-      const existingToken = await prisma.refreshToken.findUnique({
-        where: { tokenHash: oldHash },
-      });
+      // 2. Look up the refresh token in PostgreSQL by sessionId or SHA-256 hash
+      let existingToken = token.sessionId
+        ? await prisma.refreshToken.findUnique({ where: { id: token.sessionId } })
+        : await prisma.refreshToken.findUnique({ where: { tokenHash: oldHash } });
+
+      // Self-heal: If tokenHash or sessionId desynced, recover active session for this user
+      if (!existingToken) {
+        existingToken = await prisma.refreshToken.findFirst({
+          where: {
+            userId: liveUser.id,
+            expiresAt: { gt: new Date() },
+          },
+          orderBy: { updatedAt: "desc" },
+        });
+
+        if (existingToken) {
+          await prisma.refreshToken.update({
+            where: { id: existingToken.id },
+            data: { tokenHash: oldHash },
+          }).catch((err) => console.error("Session re-link error:", err));
+        }
+      }
 
       if (!existingToken || existingToken.expiresAt < new Date()) {
         // Token doesn't exist or has expired beyond the sliding window
         return { ...token, error: "RefreshAccessTokenError" };
       }
 
-      // 3. Generate new rolling refresh token and calculate new hash
-      const newRawToken = generateRawToken();
-      const newHash = hashToken(newRawToken);
+      // 3. Extend sliding window by 7 days
       const newExpiresAt = new Date(Date.now() + REFRESH_TOKEN_LIFETIME_MS);
 
-      // 4. Update the token in DB and extend the sliding window by 7 days
+      // 4. Update the token in DB and extend the sliding window (updating updatedAt to reflect activity)
       await prisma.$transaction([
         prisma.refreshToken.update({
           where: { id: existingToken.id },
           data: {
-            tokenHash: newHash,
+            tokenHash: oldHash,
             expiresAt: newExpiresAt,
           },
         }),
@@ -97,8 +113,9 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
         role: liveUser.role, // Live role update if changed in DB!
         picture: liveUser.profilePicture || token.picture,
         name: liveUser.name || token.name,
-        refreshToken: newRawToken,
-        sessionTokenHash: newHash,
+        sessionId: existingToken.id,
+        refreshToken: oldRawToken,
+        sessionTokenHash: oldHash,
         accessTokenExpires: Date.now() + ACCESS_TOKEN_LIFETIME_MS,
         error: undefined,
       };
@@ -201,11 +218,11 @@ export const authOptions: NextAuthOptions = {
           }).catch(() => {});
         }
 
-        const userAgent = (user as any).userAgent || null;
-        const ipAddress = (user as any).ipAddress || null;
+        const userAgent = user.userAgent || null;
+        const ipAddress = user.ipAddress || null;
 
         // Save new hashed refresh token in DB with device metadata
-        await prisma.refreshToken.create({
+        const createdSession = await prisma.refreshToken.create({
           data: {
             tokenHash,
             userId: user.id,
@@ -218,6 +235,7 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = user.role;
         token.picture = user.image;
+        token.sessionId = createdSession.id;
         token.refreshToken = rawRefreshToken;
         token.sessionTokenHash = tokenHash;
         token.accessTokenExpires = Date.now() + ACCESS_TOKEN_LIFETIME_MS;
@@ -250,9 +268,10 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id;
         session.user.role = token.role;
         session.user.image = token.picture;
-        (session as any).sessionTokenHash = token.sessionTokenHash;
+        session.sessionId = token.sessionId;
+        session.sessionTokenHash = token.sessionTokenHash;
         if (token.error) {
-          (session as any).error = token.error;
+          session.error = token.error;
         }
       }
       return session;
@@ -261,11 +280,19 @@ export const authOptions: NextAuthOptions = {
   events: {
     async signOut({ token }) {
       // Explicit user sign out: instantly delete their refresh token from DB
-      if (token?.refreshToken) {
-        const hash = hashToken(token.refreshToken as string);
-        await prisma.refreshToken.deleteMany({
-          where: { tokenHash: hash },
-        }).catch(() => {});
+      try {
+        if (token?.sessionId) {
+          await prisma.refreshToken.deleteMany({
+            where: { id: token.sessionId },
+          });
+        } else if (token?.refreshToken) {
+          const hash = hashToken(token.refreshToken as string);
+          await prisma.refreshToken.deleteMany({
+            where: { tokenHash: hash },
+          });
+        }
+      } catch (err) {
+        console.error("SignOut session delete error:", err);
       }
     },
   },

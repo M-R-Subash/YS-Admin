@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, generateRawToken, hashToken } from "@/lib/auth";
+import { getToken } from "next-auth/jwt";
+import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { parseUserAgent } from "@/lib/ua-parser";
 
@@ -12,9 +13,17 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    let currentTokenHash = (session as any).sessionTokenHash;
+    // Read token from cookie for direct access to sessionId / sessionTokenHash
+    const token = await getToken({
+      req: request as any,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
 
-    let rawSessions = await prisma.refreshToken.findMany({
+    const currentSessionId = session.sessionId || token?.sessionId;
+    const currentTokenHash = session.sessionTokenHash || token?.sessionTokenHash;
+
+    // Pure read-only query: active sessions for the authenticated user
+    const rawSessions = await prisma.refreshToken.findMany({
       where: {
         userId: session.user.id,
         expiresAt: { gt: new Date() },
@@ -22,40 +31,12 @@ export async function GET(request: Request) {
       orderBy: { updatedAt: "desc" },
     });
 
-    // Enforce max 3 active sessions: prune excess if any exist
-    if (rawSessions.length > 3) {
-      const excess = rawSessions.slice(3);
-      await prisma.refreshToken.deleteMany({
-        where: { id: { in: excess.map((s) => s.id) } },
-      }).catch(() => {});
-      rawSessions = rawSessions.slice(0, 3);
-    }
-
-    // Self-healing: If user logged in before the RefreshToken table was created,
-    // automatically register their current device on the fly!
-    if (rawSessions.length === 0) {
-      const userAgent = request.headers.get("user-agent") || null;
-      const ipAddress =
-        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-        request.headers.get("x-real-ip") ||
-        null;
-
-      const rawRefreshToken = generateRawToken();
-      const tokenHash = hashToken(rawRefreshToken);
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-
-      const created = await prisma.refreshToken.create({
-        data: {
-          tokenHash,
-          userId: session.user.id,
-          userAgent,
-          ipAddress,
-          expiresAt,
-        },
-      });
-
-      rawSessions = [created];
-      currentTokenHash = tokenHash;
+    // Authoritative resolution of current session:
+    // 1. Direct primary key match (sessionId)
+    // 2. Token hash match (backward compatibility for sessions logged in before sessionId was introduced)
+    let currentId = currentSessionId;
+    if (!currentId && currentTokenHash) {
+      currentId = rawSessions.find((s) => s.tokenHash === currentTokenHash)?.id;
     }
 
     const sessions = rawSessions.map((s) => ({
@@ -65,19 +46,17 @@ export async function GET(request: Request) {
       createdAt: s.createdAt.toISOString(),
       lastActive: s.updatedAt.toISOString(),
       expiresAt: s.expiresAt.toISOString(),
-      isCurrent: currentTokenHash ? s.tokenHash === currentTokenHash : false,
+      isCurrent: Boolean(currentId && s.id === currentId),
     }));
 
-    // If none matched current explicitly, mark the most recently active one as current
-    if (sessions.length > 0 && !sessions.some((s) => s.isCurrent)) {
-      sessions[0].isCurrent = true;
-    }
+    // Pin current active session to top for optimal UX
+    sessions.sort((a, b) => (b.isCurrent ? 1 : 0) - (a.isCurrent ? 1 : 0));
 
     return NextResponse.json({ sessions });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Fetch sessions error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch active sessions", details: error.message },
+      { error: "Failed to fetch active sessions" },
       { status: 500 }
     );
   }
@@ -91,20 +70,42 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const token = await getToken({
+      req: request as any,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+
+    const currentSessionId = session.sessionId || token?.sessionId;
+    const currentTokenHash = session.sessionTokenHash || token?.sessionTokenHash;
+
     const body = await request.json().catch(() => ({}));
-    const currentTokenHash = (session as any).sessionTokenHash;
 
     if (body.action === "revoke_others") {
-      const deleteFilter: any = {
-        userId: session.user.id,
-      };
-
-      if (currentTokenHash) {
-        deleteFilter.tokenHash = { not: currentTokenHash };
+      // Deterministically resolve the current session to ensure it is never deleted
+      let currentId = currentSessionId;
+      if (!currentId && currentTokenHash) {
+        const found = await prisma.refreshToken.findUnique({
+          where: { tokenHash: currentTokenHash },
+          select: { id: true, userId: true },
+        });
+        if (found && found.userId === session.user.id) {
+          currentId = found.id;
+        }
       }
 
+      if (!currentId) {
+        return NextResponse.json(
+          { error: "Cannot identify current session. Please log in again." },
+          { status: 400 }
+        );
+      }
+
+      // Atomically delete all other sessions belonging to this user
       const result = await prisma.refreshToken.deleteMany({
-        where: deleteFilter,
+        where: {
+          userId: session.user.id,
+          id: { not: currentId },
+        },
       });
 
       return NextResponse.json({
@@ -115,10 +116,10 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Revoke sessions error:", error);
     return NextResponse.json(
-      { error: "Failed to revoke sessions", details: error.message },
+      { error: "Failed to revoke sessions" },
       { status: 500 }
     );
   }

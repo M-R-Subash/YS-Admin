@@ -13,10 +13,21 @@ export async function POST() {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
+    const sessionId = session?.sessionId;
+
     await prisma.user.update({
       where: userId ? { id: userId } : { email: userEmail! },
       data: { lastLogin: new Date() },
     });
+
+    if (sessionId) {
+      await prisma.refreshToken.update({
+        where: { id: sessionId },
+        data: { updatedAt: new Date() },
+      }).catch((err) => {
+        console.error("Update active session timestamp error:", err);
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
