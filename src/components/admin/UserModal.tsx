@@ -5,8 +5,6 @@ import Image from "next/image";
 import { useDirtyManager, deepEqual } from "@/hooks/useDirtyManager";
 import {
   Camera,
-  Check,
-  Copy,
   Eye,
   EyeOff,
   KeyRound,
@@ -32,6 +30,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toast";
+import { CopyButton } from "@/components/ui/copy-button";
 import { cn } from "@/lib/utils";
 import type { User } from "@/app/users/users-columns";
 import { useSession } from "next-auth/react";
@@ -78,7 +77,6 @@ function UserForm({ user, onClose, onSuccess }: UserFormProps) {
   const [loading, setLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   // Form states initialized directly from props
   const [name, setName] = useState(user?.name || "");
@@ -134,17 +132,6 @@ function UserForm({ user, onClose, onSuccess }: UserFormProps) {
     });
   };
 
-  const handleCopyPassword = () => {
-    if (!password) return;
-    navigator.clipboard.writeText(password);
-    setCopied(true);
-    toast.add({
-      title: "Copied",
-      description: "Password copied to clipboard.",
-      type: "success",
-    });
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   // Cloudinary Direct Unsigned Upload
   const handleImageUpload = async (file: File) => {
@@ -499,14 +486,12 @@ function UserForm({ user, onClose, onSuccess }: UserFormProps) {
                 />
                 <div className="absolute inset-y-0 right-0 flex items-center pr-2 gap-0.5">
                   {password && (
-                    <button
-                        type="button"
+                    <CopyButton
+                      value={password}
+                      label="Password"
                       className="p-1 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-                        onClick={handleCopyPassword}
-                      title="Copy password"
-                      >
-                        {copied ? <Check className="size-4 text-emerald-500" /> : <Copy className="size-4" />}
-                    </button>
+                      iconClassName="size-4"
+                    />
                   )}
                   <button
                     type="button"
@@ -803,14 +788,12 @@ function UserForm({ user, onClose, onSuccess }: UserFormProps) {
           />
           <div className="absolute inset-y-0 right-0 flex items-center pr-2 gap-1">
             {password && (
-              <button
-                type="button"
+              <CopyButton
+                value={password}
+                label="Password"
                 className="p-1 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-                onClick={handleCopyPassword}
-                title="Copy password"
-              >
-                {copied ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
-              </button>
+                iconClassName="size-3.5"
+              />
             )}
             <button
               type="button"

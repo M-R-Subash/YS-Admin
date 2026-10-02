@@ -25,7 +25,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { CopyButton } from "./CopyButton";
+import { CopyButton } from "@/components/ui/copy-button";
 import {
   FormSubmission,
   MobileView,

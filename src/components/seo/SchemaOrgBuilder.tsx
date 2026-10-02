@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Code2, Wand2, Check, AlertCircle, Copy } from "lucide-react";
+import { Code2, Wand2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CopyButton } from "@/components/ui/copy-button";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/toast";
@@ -28,7 +28,6 @@ export function SchemaOrgBuilder({
   imageUrl = "",
   authorName = "",
 }: SchemaOrgBuilderProps) {
-  const [copied, setCopied] = useState(false);
 
   // Format value into pretty string
   const stringValue = typeof value === "object" && value !== null
@@ -107,17 +106,6 @@ export function SchemaOrgBuilder({
     });
   };
 
-  const handleCopy = () => {
-    if (!stringValue) return;
-    navigator.clipboard.writeText(stringValue);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-    toast.add({
-      title: "Copied to Clipboard",
-      description: "Structured JSON-LD schema copied.",
-      type: "success",
-    });
-  };
 
   return (
     <div className="space-y-2">
@@ -148,24 +136,12 @@ export function SchemaOrgBuilder({
           </Tooltip>
 
           {stringValue && (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleCopy}
-                    className="h-7 px-2 text-[11px] font-semibold cursor-pointer text-muted-foreground hover:text-foreground"
-                  >
-                    {copied ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
-                  </Button>
-                }
-              />
-              <TooltipContent side="top" className="text-xs font-medium">
-                {copied ? "Copied!" : "Copy JSON-LD"}
-              </TooltipContent>
-            </Tooltip>
+            <CopyButton
+              value={stringValue}
+              label="JSON-LD Schema"
+              iconClassName="size-3"
+              className="h-7 px-2 text-[11px] font-semibold cursor-pointer text-muted-foreground hover:text-foreground"
+            />
           )}
         </div>
       </div>

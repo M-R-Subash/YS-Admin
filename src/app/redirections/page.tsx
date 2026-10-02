@@ -11,10 +11,9 @@ import {
   MoreVertical,
   Link2,
   Search,
-  Check,
-  Copy
 } from "lucide-react";
 import useSWR from "swr";
+import { CopyButton } from "@/components/ui/copy-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import {
@@ -33,11 +32,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 import { AdminTopBar } from "@/components/AdminTopBar";
 import {
@@ -75,7 +69,6 @@ export default function RedirectionsPage() {
   const [statusCode, setStatusCode] = useState<number>(301);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Trash Manager Hook for confirmations
   const { modal: trashModal, loading: trashLoading, openTrashModal, closeModal: closeTrashModal, handleConfirm: handleTrashConfirm } = useTrashManager<RedirectionItem>({
@@ -250,12 +243,6 @@ export default function RedirectionsPage() {
     });
   };
 
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-    toast.add({ title: "URL copied to clipboard", type: "success" });
-  };
 
   return (
     <div className="w-full flex-1 flex flex-col min-h-screen bg-background">
@@ -441,22 +428,7 @@ export default function RedirectionsPage() {
                           <span className="font-mono font-bold text-foreground bg-muted/60 px-2 py-0.5 rounded-sm">
                             {item.sourceUrl}
                           </span>
-                          <Tooltip>
-                            <TooltipTrigger
-                              onClick={() => copyToClipboard(item.sourceUrl, item.id)}
-                              className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-xs cursor-pointer inline-flex items-center justify-center"
-                              aria-label="Copy source URL"
-                            >
-                              {copiedId === item.id ? (
-                                <Check className="w-3.5 h-3.5 text-emerald-500" />
-                              ) : (
-                                <Copy className="w-3.5 h-3.5" />
-                              )}
-                            </TooltipTrigger>
-                            <TooltipContent side="top">
-                              {copiedId === item.id ? "Copied!" : "Copy URL"}
-                            </TooltipContent>
-                          </Tooltip>
+                          <CopyButton value={item.sourceUrl} label="Source URL" />
                         </div>
                       </td>
 

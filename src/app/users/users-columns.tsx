@@ -2,14 +2,10 @@
 
 import { useState } from "react";
 import { ColumnDef } from "@tanstack/react-table";
-import { Check, Copy, MoreHorizontal, Pencil, Trash } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { CopyButton } from "@/components/ui/copy-button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +14,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { toast } from "@/components/ui/toast";
 import { UserModal } from "@/components/admin/UserModal";
 import { UserDeleteModal } from "@/components/admin/UserDeleteModal";
 
@@ -39,41 +34,14 @@ export type User = {
 };
 
 const EmailCell = ({ email }: { email: string }) => {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!email) return;
-    navigator.clipboard.writeText(email);
-    setCopied(true);
-    toast.add({
-      title: "Copied to clipboard",
-      description: email,
-      type: "success",
-    });
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   return (
     <div className="flex items-center gap-1.5 group/email inline-flex">
       <span className="text-muted-foreground">{email}</span>
-      <Tooltip>
-        <TooltipTrigger
-          type="button"
-          onClick={handleCopy}
-          className="p-1 text-muted-foreground/60 hover:text-foreground opacity-70 hover:opacity-100 transition-opacity cursor-pointer rounded-xs inline-flex items-center justify-center"
-          aria-label="Copy email"
-        >
-          {copied ? (
-            <Check className="size-3.5 text-emerald-500" />
-          ) : (
-            <Copy className="size-3.5" />
-          )}
-        </TooltipTrigger>
-        <TooltipContent side="top">
-          {copied ? "Copied!" : "Copy email"}
-        </TooltipContent>
-      </Tooltip>
+      <CopyButton
+        value={email}
+        label="Email"
+        className="p-1 text-muted-foreground/60 hover:text-foreground opacity-70 hover:opacity-100 transition-opacity rounded-xs inline-flex items-center justify-center"
+      />
     </div>
   );
 };
