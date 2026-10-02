@@ -238,10 +238,12 @@ export const homepageUiSchema: FieldSchema[] = [
           { name: "title", label: "Title", type: "text" },
           { name: "desc", label: "Description", type: "textarea" },
           { name: "badge", label: "Badge", type: "text" },
+          { name: "url", label: "Product URL", type: "text" },
           { name: "logo", label: "Logo URL", type: "image" },
           { name: "headline", label: "Headline", type: "text" },
           { name: "text", label: "Text", type: "textarea" },
           { name: "img", label: "Image URL", type: "image" },
+          { name: "comingSoon", label: "Coming Soon", type: "boolean" },
         ]
       }
     ]

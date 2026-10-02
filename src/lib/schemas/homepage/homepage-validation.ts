@@ -129,6 +129,7 @@ export const homepageSchema = z.object({
       text: z.string().optional(),
       img: imageSchema,
       comingSoon: z.boolean().optional(),
+      url: z.string().optional(),
     })
   ).optional(),
   
