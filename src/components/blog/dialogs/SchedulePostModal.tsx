@@ -471,7 +471,7 @@ export function SchedulePostModal({
               size="sm"
               onClick={handleConfirm}
               disabled={isSubmitting || isInPast}
-              className="h-10 px-6 text-xs font-bold gap-2 cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
+              className="h-10 px-6 text-xs font-bold gap-2 cursor-pointer bg-black hover:bg-black/90 text-white dark:bg-white dark:text-black"
             >
               {isSubmitting ? (
                 <>
