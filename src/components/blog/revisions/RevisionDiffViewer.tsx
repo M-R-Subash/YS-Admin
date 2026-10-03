@@ -1,39 +1,28 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "@/components/ui/toast";
 import {
   ArrowLeft,
   RotateCcw,
-  GitCompare,
-  Clock,
-  FileText,
   CheckCircle2,
-  Calendar,
-  Layers,
   ArrowRightLeft,
   SlidersHorizontal,
   ChevronDown,
   ChevronUp,
-  Image as ImageIcon,
   Tag,
-  HelpCircle,
-  Search,
-  ExternalLink,
   Loader2,
   Info,
   Folder,
-  MessageSquare,
 } from "lucide-react";
 import { TipTapDiffReader } from "./TipTapDiffReader";
 import { WordDiffViewer } from "./WordDiffViewer";
-import { UnifiedDiffViewer, extractTipTapLines } from "./UnifiedDiffViewer";
+import { UnifiedDiffViewer } from "./UnifiedDiffViewer";
 import { TipTapDiffHighlighter } from "./TipTapDiffHighlighter";
 import { RestoreConfirmDialog } from "../dialogs/RestoreConfirmDialog";
 import { RevisionDetailResponse } from "@/types/revision";
@@ -234,6 +223,11 @@ export function RevisionDiffViewer({ blogId, revisionId }: RevisionDiffViewerPro
               <Badge variant="secondary" className="text-[11px] font-semibold px-2 py-0.5 bg-muted">
                 v{revision.versionNumber} Snapshot
               </Badge>
+              {revision.action?.startsWith("restored:") && (
+                <Badge variant="outline" className="text-[11px] font-semibold px-2 py-0.5 text-blue-600 dark:text-blue-400 border-blue-500/30">
+                  Restored from v{revision.action.split(":")[1]}
+                </Badge>
+              )}
               <Badge variant="outline" className="text-[11px] font-semibold px-2 py-0.5 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
                 Live Current
               </Badge>
@@ -387,6 +381,11 @@ export function RevisionDiffViewer({ blogId, revisionId }: RevisionDiffViewerPro
                     v{revision.versionNumber}
                   </Badge>
                   Historical Snapshot Metadata
+                  {revision.action?.startsWith("restored:") && (
+                    <span className="text-[10px] text-blue-600 dark:text-blue-400 font-normal">
+                      (Restored from v{revision.action.split(":")[1]})
+                    </span>
+                  )}
                 </span>
                 <span className="text-[11px] text-muted-foreground">{formattedSnapshotDate}</span>
               </div>

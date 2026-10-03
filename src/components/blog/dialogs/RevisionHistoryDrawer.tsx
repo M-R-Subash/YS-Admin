@@ -21,10 +21,8 @@ import {
   RotateCcw,
   Clock,
   FileText,
-  User as UserIcon,
   Loader2,
   CheckCircle2,
-  ChevronRight,
 } from "lucide-react";
 import { RestoreConfirmDialog } from "./RestoreConfirmDialog";
 import {
@@ -102,6 +100,10 @@ export function RevisionHistoryDrawer({
   };
 
   const formatAction = (action: string, isLatest: boolean) => {
+    if (action?.startsWith("restored:")) {
+      const ver = action.split(":")[1];
+      return `Restored from v${ver}`;
+    }
     if (isLatest) return "Current Live Version";
     switch (action) {
       case "published":

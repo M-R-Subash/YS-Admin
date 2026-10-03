@@ -389,6 +389,13 @@ export async function PUT(
 
   if (isPublishAction && blog.status === "published") {
     try {
+      const restoredFromVersion =
+        typeof body.restoredFromVersion === "number"
+          ? body.restoredFromVersion
+          : typeof body.restoredFromVersion === "string" && !isNaN(Number(body.restoredFromVersion))
+          ? Number(body.restoredFromVersion)
+          : null;
+
       await createBlogRevisionSnapshot({
         blogId: id,
         payload: {
@@ -405,12 +412,15 @@ export async function PUT(
           seo: blog.seo,
         },
         action:
-          action === "publish-now"
+          restoredFromVersion
+            ? `restored:${restoredFromVersion}`
+            : action === "publish-now"
             ? "scheduled-publish"
             : existingBlog.status === "published"
             ? "updated"
             : "published",
         savedById: session.user.id,
+        force: Boolean(restoredFromVersion),
       });
     } catch (revErr) {
       console.error("[BlogRevision] Snapshot creation error:", revErr);

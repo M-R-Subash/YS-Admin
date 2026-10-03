@@ -85,6 +85,10 @@ export interface BlogFormContextValue {
   setShowDiscardConfirm: (show: boolean) => void;
   showHistoryDrawer: boolean;
   setShowHistoryDrawer: (show: boolean) => void;
+
+  // Restored Revision Tracking
+  restoredFromVersion: number | null;
+  setRestoredFromVersion: (v: number | null) => void;
 }
 
 const BlogFormContext = createContext<BlogFormContextValue | null>(null);

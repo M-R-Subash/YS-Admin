@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { CalendarClock, AlertCircle } from "lucide-react";
+import { CalendarClock, AlertCircle, RotateCcw } from "lucide-react";
 import { format, formatDistanceToNow, isToday, isTomorrow } from "date-fns";
 import { EditorDraftBanner } from "@/components/editor-shell";
 import { useBlogForm } from "../context/BlogFormContext";
@@ -18,6 +18,9 @@ export function BlogDraftBanner() {
     setShowScheduleModal,
     handleCancelSchedule,
     handlePublishNow,
+    restoredFromVersion,
+    setRestoredFromVersion,
+    handleSave,
     watch,
   } = useBlogForm();
 
@@ -58,6 +61,34 @@ export function BlogDraftBanner() {
 
   return (
     <>
+      {restoredFromVersion && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-6 py-2 bg-blue-500/10 border-b border-blue-500/30 text-blue-950 dark:text-blue-200 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <RotateCcw className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+            <p className="text-xs font-semibold">
+              <span className="font-bold text-blue-700 dark:text-blue-300">Restored from Version {restoredFromVersion}:</span>{" "}
+              This historical version is loaded in your editor. Click &quot;Update Live Post&quot; to make it the active live version.
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => handleSave("published")}
+              className="px-3 py-1 text-[11px] font-bold text-white bg-black hover:bg-black/90 dark:bg-white dark:text-black dark:hover:bg-white/90 rounded-sm shadow-xs transition-all cursor-pointer"
+            >
+              Update Live Post
+            </button>
+            <button
+              type="button"
+              onClick={() => setRestoredFromVersion(null)}
+              className="px-2.5 py-1 text-[11px] font-bold text-muted-foreground hover:text-foreground rounded-sm border border-border transition-all cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       {isPendingOverdue && (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-6 py-2.5 bg-amber-500/10 border-b border-amber-500/30 text-amber-950 dark:text-amber-200 shrink-0">
           <div className="flex items-center gap-2.5">

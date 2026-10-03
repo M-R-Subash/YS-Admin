@@ -207,7 +207,7 @@ export async function createBlogRevisionSnapshot(params: {
     authorRole?: string | null;
     authorDescription?: string | null;
   };
-  action: "published" | "updated" | "scheduled-publish" | "restored";
+  action: "published" | "updated" | "scheduled-publish" | "restored" | string;
   savedById?: string | null;
   force?: boolean; // If true, bypasses duplicate check (e.g. on explicit restore)
 }) {

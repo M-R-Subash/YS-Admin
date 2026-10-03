@@ -25,6 +25,7 @@ export function BlogFormHeader() {
     setShowHistoryDrawer,
     handlePublishNow,
     handleCancelSchedule,
+    restoredFromVersion,
     watch,
   } = useBlogForm();
 
@@ -52,7 +53,9 @@ export function BlogFormHeader() {
   const isActivelyScheduled = isUpcoming || isPendingOverdue;
   const isPublished = status === "published";
 
-  const publishLabel = isActivelyScheduled
+  const publishLabel = restoredFromVersion
+    ? "Update Live Post"
+    : isActivelyScheduled
     ? isDirtyOrFilled
       ? isPendingOverdue
         ? "Save to Pending Release"
@@ -109,11 +112,12 @@ export function BlogFormHeader() {
       }}
       canPublish={
         !isSubmitting &&
-        (isEditMode
-          ? isActivelyScheduled
-            ? isDirtyOrFilled
-            : status !== "published" || hasCloudDraft || loadedFromBackup || isDirtyOrFilled
-          : isDirtyOrFilled)
+        (Boolean(restoredFromVersion) ||
+          (isEditMode
+            ? isActivelyScheduled
+              ? isDirtyOrFilled
+              : status !== "published" || hasCloudDraft || loadedFromBackup || isDirtyOrFilled
+            : isDirtyOrFilled))
       }
       publishLabel={publishLabel}
       onSaveDraft={() => handleSave("draft")}

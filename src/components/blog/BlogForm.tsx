@@ -73,6 +73,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
+  const [restoredFromVersion, setRestoredFromVersion] = useState<number | null>(null);
 
   // Tabs & Fullscreen state
   const [editorTab, setEditorTab] = useState<BlogEditorTab>("general");
@@ -736,11 +737,14 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           ? new Date(initialData.scheduledAt).toISOString()
           : null);
 
+    const isRestoringVersion = Boolean(restoredFromVersion && publishStatus === "published");
+
     if (
       !isDirtyOrFilled &&
       !isStatusChanged &&
       !isPublishingStagedDraft &&
-      !isScheduleDateChanged
+      !isScheduleDateChanged &&
+      !isRestoringVersion
     ) {
       toast.add({ title: "No Changes", description: "No changes detected to save.", type: "info" });
       return true;
@@ -833,6 +837,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       canonicalUrl: currentValues.canonicalUrl || "",
       noIndex: Boolean(currentValues.noIndex),
       readingTime: calculatedTime,
+      restoredFromVersion: publishStatus === "published" ? restoredFromVersion : null,
       action:
         publishStatus === "draft"
           ? "save-draft"
@@ -910,11 +915,19 @@ export default function BlogForm({ blogId }: BlogFormProps) {
 
       setLastSavedAt(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
 
+      const wasRestored = publishStatus === "published" && Boolean(restoredFromVersion);
+      const prevRestoredVer = restoredFromVersion;
+      if (wasRestored) {
+        setRestoredFromVersion(null);
+      }
+
       toast.add({
         title: "Success",
         description:
           publishStatus === "published"
-            ? "Blog published successfully."
+            ? wasRestored
+              ? `Published new live version (restored from v${prevRestoredVer}).`
+              : "Blog published successfully."
             : publishStatus === "scheduled"
             ? `Blog scheduled for ${format(targetScheduledAt!, "MMM d, h:mm a")}.`
             : "Blog saved as draft successfully.",
@@ -1028,6 +1041,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
 
   const handleRestoreRevision = useCallback(
     (snapshotData: BlogSnapshotData, versionNumber: number) => {
+      setRestoredFromVersion(versionNumber);
       const restoredValues: BlogFormData = {
         title: snapshotData.title || "",
         slug: getValues("slug") || snapshotData.slug || "",
@@ -1166,6 +1180,9 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     setShowDiscardConfirm,
     showHistoryDrawer,
     setShowHistoryDrawer,
+
+    restoredFromVersion,
+    setRestoredFromVersion,
   };
 
   return (

@@ -42,6 +42,7 @@ export function BlogFullscreenToolbar() {
     handleSave,
     handlePreview,
     isPreviewSaving,
+    restoredFromVersion,
     watch,
   } = useBlogForm();
 
@@ -214,11 +215,12 @@ export function BlogFullscreenToolbar() {
               onClick={() => handleSave(isActivelyScheduled ? "scheduled" : "published")}
               disabled={
                 isSubmitting ||
-                (isEditMode
-                  ? isActivelyScheduled
-                    ? !isDirtyOrFilled
-                    : status === "published" && !hasCloudDraft && !loadedFromBackup && !isDirtyOrFilled
-                  : !isDirtyOrFilled)
+                (!restoredFromVersion &&
+                  (isEditMode
+                    ? isActivelyScheduled
+                      ? !isDirtyOrFilled
+                      : status === "published" && !hasCloudDraft && !loadedFromBackup && !isDirtyOrFilled
+                    : !isDirtyOrFilled))
               }
               className={`flex items-center gap-1.5 h-8 px-3 text-xs font-bold rounded-sm rounded-r-none shadow-md ${
                 isActivelyScheduled
@@ -231,7 +233,9 @@ export function BlogFullscreenToolbar() {
               ) : (
                 <Send className="w-3.5 h-3.5" />
               )}
-              {isActivelyScheduled
+              {restoredFromVersion
+                ? "Update Live Post"
+                : isActivelyScheduled
                 ? isDirtyOrFilled
                   ? "Save to Schedule"
                   : "Update Scheduled Post"

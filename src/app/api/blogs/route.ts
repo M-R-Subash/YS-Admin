@@ -8,6 +8,7 @@ import {
   blogPublishSchema,
   blogScheduleSchema,
 } from "@/lib/schemas/blog/blog-validation";
+import { createBlogRevisionSnapshot } from "@/lib/server/revision-utils";
 
 export async function GET(req: Request) {
   try {
@@ -194,6 +195,29 @@ export async function POST(req: Request) {
     });
 
     if (newBlog.status === "published") {
+      try {
+        await createBlogRevisionSnapshot({
+          blogId: newBlog.id,
+          payload: {
+            title: newBlog.title,
+            slug: newBlog.slug,
+            content: newBlog.content,
+            excerpt: newBlog.excerpt,
+            featuredImage: newBlog.featuredImage,
+            allowComments: newBlog.allowComments,
+            readingTime: newBlog.readingTime,
+            tags: newBlog.tags,
+            categories: newBlog.categories,
+            faqs: (newBlog.content as any)?.faqs || [],
+            seo: newBlog.seo,
+          },
+          action: "published",
+          savedById: session.user.id,
+        });
+      } catch (revErr) {
+        console.error("[BlogRevision] Initial snapshot creation error:", revErr);
+      }
+
       revalidateFrontendPath("/blogs");
       if (newBlog.slug) {
         revalidateFrontendPath(`/blogs/${newBlog.slug}`);
