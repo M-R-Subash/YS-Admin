@@ -387,6 +387,7 @@ export default function ScheduledActionsPage() {
             if (!open) setSelectedPost(null);
           }}
           currentScheduledAt={selectedPost.scheduledAt}
+          postTitle={selectedPost.title}
           onConfirmSchedule={handleConfirmReschedule}
           onCancelSchedule={async () => {
             if (selectedPost) await handleCancelSchedule(selectedPost);

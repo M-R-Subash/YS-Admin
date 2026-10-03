@@ -39,23 +39,28 @@ import {
   addDays,
 } from "date-fns";
 import { useNow } from "@/hooks/useNow";
+import { ConfirmModal } from "@/components/global-modal";
 
 export interface SchedulePostModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentScheduledAt?: string | Date | null;
+  postTitle?: string;
   onConfirmSchedule: (date: Date) => Promise<boolean | void>;
   onCancelSchedule?: () => Promise<boolean | void>;
   isSubmitting?: boolean;
+  skipInternalConfirm?: boolean;
 }
 
 export function SchedulePostModal({
   open,
   onOpenChange,
   currentScheduledAt,
+  postTitle,
   onConfirmSchedule,
   onCancelSchedule,
   isSubmitting = false,
+  skipInternalConfirm = false,
 }: SchedulePostModalProps) {
   // Helper to compute default future date: Current date + 10 mins (rounded to next 5 minutes)
   const getDefaultFutureDate = (): Date => {
@@ -99,12 +104,17 @@ export function SchedulePostModal({
   const [period, setPeriod] = useState<"AM" | "PM">(() => {
     return getInitialDate().getHours() >= 12 ? "PM" : "AM";
   });
+  const [showConfirm, setShowConfirm] = useState(false);
 
   // Sync state when modal opens or currentScheduledAt changes (render-phase state adjustment)
   if (open !== prevOpen || currentScheduledAt !== prevScheduledAt) {
     setPrevOpen(open);
     setPrevScheduledAt(currentScheduledAt);
+    if (!open) {
+      setShowConfirm(false);
+    }
     if (open) {
+      setShowConfirm(false);
       const initial = getInitialDate();
       setDate(initial);
       const rawHour = initial.getHours();
@@ -169,8 +179,20 @@ export function SchedulePostModal({
 
   const handleConfirm = async () => {
     if (isInPast) return;
+    if (!skipInternalConfirm) {
+      setShowConfirm(true);
+      return;
+    }
     const ok = await onConfirmSchedule(finalScheduledDate);
     if (ok !== false) {
+      onOpenChange(false);
+    }
+  };
+
+  const handleInternalConfirm = async () => {
+    const ok = await onConfirmSchedule(finalScheduledDate);
+    if (ok !== false) {
+      setShowConfirm(false);
       onOpenChange(false);
     }
   };
@@ -466,6 +488,24 @@ export function SchedulePostModal({
           </div>
         </DialogFooter>
       </DialogContent>
+
+      {/* Confirmation Modal before Scheduling */}
+      <ConfirmModal
+        open={showConfirm}
+        onOpenChange={setShowConfirm}
+        variant="neutral"
+        title={isAlreadyScheduled ? "Reschedule Blog Post?" : "Schedule Blog Post?"}
+        description={
+          postTitle
+            ? `Are you sure you want to schedule "${postTitle}" for publication on ${previewText}? It will automatically go live at that time.`
+            : `Are you sure you want to schedule this post for publication on ${previewText}? It will automatically go live at that time.`
+        }
+        confirmText={isAlreadyScheduled ? "Confirm Reschedule" : "Confirm Schedule"}
+        cancelText="Cancel"
+        loading={isSubmitting}
+        onConfirm={handleInternalConfirm}
+        onCancel={() => setShowConfirm(false)}
+      />
     </Dialog>
   );
 }

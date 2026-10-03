@@ -68,6 +68,9 @@ export const getScheduledColumns = ({
   {
     accessorKey: "title",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Post & Title" />,
+    meta: {
+      className: "w-[240px] md:w-[260px] max-w-[260px]",
+    },
     sortingFn: (rowA, rowB, columnId) => {
       const valA = (rowA.getValue(columnId) as string || "").toLowerCase();
       const valB = (rowB.getValue(columnId) as string || "").toLowerCase();
@@ -78,7 +81,7 @@ export const getScheduledColumns = ({
       const cleanSlug = item.slug?.startsWith("/") ? item.slug.slice(1) : (item.slug || "");
 
       return (
-        <div className="flex items-center gap-3 w-full min-w-0">
+        <div className="flex items-center gap-3 w-full max-w-[240px] md:max-w-[260px] min-w-0">
           {item.featuredImage ? (
             <img
               src={item.featuredImage}
@@ -90,7 +93,7 @@ export const getScheduledColumns = ({
               Img
             </div>
           )}
-          <div className="min-w-0 flex-1 w-full">
+          <div className="min-w-0 flex-1 overflow-hidden">
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -103,7 +106,7 @@ export const getScheduledColumns = ({
                 {item.title}
               </TooltipContent>
             </Tooltip>
-            <div className="flex items-center gap-2 mt-0.5 min-w-0 w-full">
+            <div className="flex items-center gap-2 mt-0.5 min-w-0 w-full overflow-hidden">
               <span className="text-[11px] text-muted-foreground truncate font-mono min-w-0 flex-1">
                 /blogs/{cleanSlug}
               </span>

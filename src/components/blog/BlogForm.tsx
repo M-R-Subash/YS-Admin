@@ -40,6 +40,7 @@ import { ExitConfirmDialog } from "./dialogs/ExitConfirmDialog";
 import { DiscardDraftDialog } from "./dialogs/DiscardDraftDialog";
 import { SchedulePostModal } from "./dialogs/SchedulePostModal";
 import { RevisionHistoryDrawer } from "./dialogs/RevisionHistoryDrawer";
+import { ConfirmModal } from "@/components/global-modal";
 import { BlogSnapshotData } from "@/types/revision";
 import { BlogDraftBanner } from "./header/BlogDraftBanner";
 import { BlogFormHeader } from "./header/BlogFormHeader";
@@ -79,6 +80,27 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   const [editorWordCount, setEditorWordCount] = useState<number | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPreviewSaving, setIsPreviewSaving] = useState(false);
+
+  // Publish / Update / Schedule Confirmation Modal State
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    publishStatus: "published" | "scheduled";
+    shouldExit: boolean;
+    targetScheduledAt?: Date | null;
+    title: string;
+    description: string;
+    variant: "success" | "warning" | "neutral" | "default";
+    confirmText: string;
+  }>({
+    open: false,
+    publishStatus: "published",
+    shouldExit: false,
+    targetScheduledAt: null,
+    title: "",
+    description: "",
+    variant: "default",
+    confirmText: "Confirm",
+  });
 
   const {
     control,
@@ -601,7 +623,8 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   const handleSave = async (
     publishStatus: "draft" | "published" | "scheduled",
     shouldExit: boolean = false,
-    overrideScheduledAt?: Date | null
+    overrideScheduledAt?: Date | null,
+    skipConfirm: boolean = false
   ): Promise<boolean> => {
     clearErrors();
 
@@ -721,6 +744,62 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     ) {
       toast.add({ title: "No Changes", description: "No changes detected to save.", type: "info" });
       return true;
+    }
+
+    // Intercept with confirmation modal for Publish, Update, and Schedule actions
+    if (publishStatus !== "draft" && !skipConfirm) {
+      const isAlreadyPublished = status === "published" || initialData?.status === "published";
+      const isAlreadyScheduled = status === "scheduled" || initialData?.status === "scheduled";
+      const postTitle = currentValues.title?.trim() || "this blog post";
+
+      if (publishStatus === "published") {
+        if (isAlreadyPublished) {
+          // Action: Updating an existing published blog
+          setConfirmDialog({
+            open: true,
+            publishStatus: "published",
+            shouldExit,
+            targetScheduledAt,
+            title: "Update Live Blog Post?",
+            description: `Are you sure you want to update "${postTitle}"? Your changes will immediately update the live post on the website.`,
+            variant: "warning",
+            confirmText: "Update Live Post",
+          });
+          return true;
+        } else {
+          // Action: Publishing a blog live for the first time / from draft
+          setConfirmDialog({
+            open: true,
+            publishStatus: "published",
+            shouldExit,
+            targetScheduledAt,
+            title: "Publish Blog Post Live?",
+            description: `Are you sure you want to publish "${postTitle}"? This blog post will immediately become visible to all visitors on the website.`,
+            variant: "success",
+            confirmText: "Publish Live",
+          });
+          return true;
+        }
+      } else if (publishStatus === "scheduled") {
+        // Action: Scheduling or rescheduling a blog post
+        setShowScheduleModal(false);
+        const formattedDate = targetScheduledAt
+          ? format(targetScheduledAt, "MMM d, yyyy 'at' h:mm a")
+          : "";
+        setConfirmDialog({
+          open: true,
+          publishStatus: "scheduled",
+          shouldExit,
+          targetScheduledAt,
+          title: isAlreadyScheduled ? "Reschedule Blog Post?" : "Schedule Blog Post?",
+          description: targetScheduledAt
+            ? `Are you sure you want to schedule "${postTitle}" for release on ${formattedDate}? It will automatically go live at that time.`
+            : `Are you sure you want to schedule "${postTitle}"? It will automatically go live at the scheduled time.`,
+          variant: "neutral",
+          confirmText: isAlreadyScheduled ? "Confirm Reschedule" : "Confirm Schedule",
+        });
+        return true;
+      }
     }
 
     setIsSubmitting(true);
@@ -883,6 +962,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   };
 
   const handleSchedule = async (date: Date): Promise<boolean> => {
+    setShowScheduleModal(false);
     return handleSave("scheduled", false, date);
   };
 
@@ -1103,9 +1183,38 @@ export default function BlogForm({ blogId }: BlogFormProps) {
             open={showScheduleModal}
             onOpenChange={setShowScheduleModal}
             currentScheduledAt={watch("scheduledAt")}
+            postTitle={watch("title")}
             onConfirmSchedule={handleSchedule}
             onCancelSchedule={handleCancelSchedule}
             isSubmitting={isSubmitting}
+            skipInternalConfirm={true}
+          />
+          {/* Publish / Update / Schedule Confirmation Dialog */}
+          <ConfirmModal
+            open={confirmDialog.open}
+            onOpenChange={(open) =>
+              setConfirmDialog((prev) => ({ ...prev, open }))
+            }
+            variant={confirmDialog.variant}
+            title={confirmDialog.title}
+            description={confirmDialog.description}
+            confirmText={confirmDialog.confirmText}
+            cancelText="Cancel"
+            loading={isSubmitting}
+            onConfirm={async () => {
+              const success = await handleSave(
+                confirmDialog.publishStatus,
+                confirmDialog.shouldExit,
+                confirmDialog.targetScheduledAt,
+                true // skipConfirm
+              );
+              if (success) {
+                setConfirmDialog((prev) => ({ ...prev, open: false }));
+              }
+            }}
+            onCancel={() =>
+              setConfirmDialog((prev) => ({ ...prev, open: false }))
+            }
           />
           {isEditMode && blogId && (
             <RevisionHistoryDrawer

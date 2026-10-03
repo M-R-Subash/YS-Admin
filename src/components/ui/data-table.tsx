@@ -10,6 +10,7 @@ import {
   getSortedRowModel,
   SortingState,
   Row,
+  RowData,
 } from "@tanstack/react-table";
 
 import {
@@ -21,6 +22,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+declare module "@tanstack/react-table" {
+  interface ColumnMeta<TData extends RowData, TValue> {
+    className?: string;
+    headerClassName?: string;
+    cellClassName?: string;
+  }
+}
 
 export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -90,7 +100,11 @@ export function DataTable<TData, TValue>({
                   return (
                     <TableHead
                       key={header.id}
-                      className="py-3 px-4 text-xs font-semibold text-muted-foreground"
+                      className={cn(
+                        "py-3 px-4 text-xs font-semibold text-muted-foreground",
+                        header.column.columnDef.meta?.headerClassName ||
+                          header.column.columnDef.meta?.className
+                      )}
                     >
                       {header.isPlaceholder
                         ? null
@@ -113,7 +127,14 @@ export function DataTable<TData, TValue>({
                   className="hover:bg-muted/30 transition-colors"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="py-3 px-4 text-xs">
+                    <TableCell
+                      key={cell.id}
+                      className={cn(
+                        "py-3 px-4 text-xs",
+                        cell.column.columnDef.meta?.cellClassName ||
+                          cell.column.columnDef.meta?.className
+                      )}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}

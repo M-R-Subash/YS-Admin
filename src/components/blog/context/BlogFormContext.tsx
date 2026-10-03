@@ -70,7 +70,8 @@ export interface BlogFormContextValue {
   handleSave: (
     publishStatus: "draft" | "published" | "scheduled",
     shouldExit?: boolean,
-    overrideScheduledAt?: Date | null
+    overrideScheduledAt?: Date | null,
+    skipConfirm?: boolean
   ) => Promise<boolean>;
   handlePreview: () => Promise<void>;
   isPreviewSaving: boolean;

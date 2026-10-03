@@ -21,6 +21,7 @@ import {
   ExitConfirmModal,
   DiscardDraftModal,
 } from "@/components/editor-shell";
+import { ConfirmModal } from "@/components/global-modal";
 import { ScreenLoader } from "@/components/ui/screen-loader";
 import { useEmergencyDraft, getEmergencyBackup } from "@/hooks/useEmergencyDraft";
 import { useDirtyManager } from "@/hooks/useDirtyManager";
@@ -111,6 +112,7 @@ export default function EditorPage({
 
   // Dialog states
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [showPublishConfirm, setShowPublishConfirm] = useState(false);
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const schemaEditorRef = useRef<SchemaEditorRef>(null);
@@ -331,7 +333,7 @@ export default function EditorPage({
     router.push("/webpages");
   }
 
-  // Action 2: Publish Changes Live
+  // Action 2: Publish Changes Live (Opens Confirmation Modal)
   async function handlePublish() {
     if (!page) return;
 
@@ -348,6 +350,12 @@ export default function EditorPage({
       }
     }
 
+    setShowPublishConfirm(true);
+  }
+
+  // Executed once user confirms in the Publish confirmation modal
+  async function executePublish() {
+    if (!page) return;
     setPublishing(true);
     const contentPayload = schemaEditorRef.current?.getData() ?? schemaData;
 
@@ -379,6 +387,7 @@ export default function EditorPage({
       dirtyManager.markClean();
       setLastSavedAt(null);
       clearBackup();
+      setShowPublishConfirm(false);
 
       toast.add({
         title: "Page is now live!",
@@ -723,6 +732,19 @@ export default function EditorPage({
         onCancel={() => setShowDiscardConfirm(false)}
         onConfirmDiscard={handleDiscardDraft}
         isDiscarding={discarding}
+      />
+
+      {/* Publish Live Confirmation Modal */}
+      <ConfirmModal
+        open={showPublishConfirm}
+        onOpenChange={setShowPublishConfirm}
+        variant="success"
+        title="Publish Page Live?"
+        description={`Are you sure you want to publish "${page?.title || "this page"}"? Your changes will immediately become live and visible to visitors on the website.`}
+        confirmText="Publish Live"
+        cancelText="Cancel"
+        loading={publishing}
+        onConfirm={executePublish}
       />
     </div>
   );
