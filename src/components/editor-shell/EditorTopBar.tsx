@@ -193,7 +193,7 @@ export function EditorTopBar({
 
         <div className="min-w-0">
           <div className="flex items-center gap-2 sm:gap-3">
-            <h1 className="text-xs sm:text-sm font-bold text-black tracking-tight truncate max-w-27.5 xs:max-w-40 sm:max-w-65 md:max-w-100">
+            <h1 className="text-xs sm:text-sm font-bold text-black tracking-tight truncate max-w-22 xs:max-w-36 sm:max-w-60 md:max-w-96">
               {title || "Untitled"}
             </h1>
 
@@ -203,7 +203,7 @@ export function EditorTopBar({
                 <TooltipTrigger
                   render={
                     <span
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border shadow-xs shrink-0 cursor-default ${
+                      className={`inline-flex items-center gap-1.5 px-2 xs:px-2.5 py-0.5 rounded-full text-[10px] font-bold border shadow-xs shrink-0 cursor-default ${
                         isOverdue
                           ? "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800"
                           : "bg-purple-100 text-purple-900 border-purple-300 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800"
@@ -218,7 +218,7 @@ export function EditorTopBar({
                             : "bg-purple-500"
                         }`}
                       />
-                      {scheduleBadgeText}
+                      <span className="hidden xs:inline">{scheduleBadgeText}</span>
                     </span>
                   }
                 />
@@ -227,39 +227,45 @@ export function EditorTopBar({
                 </TooltipContent>
               </Tooltip>
             ) : isEditMode && status === "draft" ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-xs shrink-0">
+              <span className="inline-flex items-center gap-1.5 px-2 xs:px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-xs shrink-0">
                 <span
                   className={`w-1.5 h-1.5 rounded-full bg-amber-500 ${
                     isDirty ? "animate-pulse" : ""
                   }`}
                 />
-                {isDirty
-                  ? "Unsaved Edits"
-                  : "Draft · Saved"}
+                <span className="hidden xs:inline">
+                  {isDirty
+                    ? "Unsaved Edits"
+                    : "Draft · Saved"}
+                </span>
               </span>
             ) : isEditMode && status === "published" ? (
               hasCloudDraft || loadedFromBackup ? (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-xs shrink-0">
+                <span className="inline-flex items-center gap-1.5 px-2 xs:px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-xs shrink-0">
                   <span
                     className={`w-1.5 h-1.5 rounded-full bg-amber-500 ${
                       isDirty ? "animate-pulse" : ""
                     }`}
                   />
-                  {isDirty ? "Live · Unsaved Edits" : "Live · Draft Staged"}
+                  <span className="hidden xs:inline">
+                    {isDirty ? "Live · Unsaved Edits" : "Live · Draft Staged"}
+                  </span>
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-xs shrink-0">
+                <span className="inline-flex items-center gap-1.5 px-2 xs:px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-xs shrink-0">
                   <span
                     className={`w-1.5 h-1.5 rounded-full bg-emerald-500 ${
                       isDirty ? "animate-pulse" : ""
                     }`}
                   />
-                  {isDirty ? "Unsaved Changes" : "Live Published"}
+                  <span className="hidden xs:inline">
+                    {isDirty ? "Unsaved Changes" : "Live Published"}
+                  </span>
                 </span>
               )
             ) : !isEditMode ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-zinc-100 text-zinc-700 border border-zinc-300 shadow-xs shrink-0">
-                Draft
+              <span className="inline-flex items-center gap-1.5 px-2 xs:px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-zinc-100 text-zinc-700 border border-zinc-300 shadow-xs shrink-0">
+                <span className="hidden xs:inline">Draft</span>
               </span>
             ) : null}
           </div>
@@ -274,33 +280,35 @@ export function EditorTopBar({
 
       {/* Center: Segmented View Switcher (Visual Editor vs SEO Suite) */}
       {onViewChange && (
-        <div className="flex items-center bg-zinc-100 dark:bg-zinc-800/80 p-1 rounded-lg border border-border shadow-xs">
+        <div className="flex items-center bg-zinc-100 dark:bg-zinc-800/80 p-0.5 sm:p-1 rounded-lg border border-border shadow-xs shrink-0">
           <button
             type="button"
             onClick={() => onViewChange("editor")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs rounded-md transition-all cursor-pointer ${
+            className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1 sm:py-1.5 text-xs rounded-md transition-all cursor-pointer ${
               activeView === "editor"
                 ? "bg-white dark:bg-zinc-900 text-foreground shadow-sm font-bold border border-border/80"
                 : "text-muted-foreground hover:text-foreground font-medium hover:bg-black/5 dark:hover:bg-white/5"
             }`}
           >
             <Layout className="w-3.5 h-3.5" />
-            <span>Visual Editor</span>
+            <span className="hidden sm:inline">Visual Editor</span>
+            <span className="sm:hidden text-[11px]">Editor</span>
           </button>
           <button
             type="button"
             onClick={() => onViewChange("seo")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs rounded-md transition-all cursor-pointer ${
+            className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1 sm:py-1.5 text-xs rounded-md transition-all cursor-pointer ${
               activeView === "seo"
                 ? "bg-white dark:bg-zinc-900 text-foreground shadow-sm font-bold border border-border/80"
                 : "text-muted-foreground hover:text-foreground font-medium hover:bg-black/5 dark:hover:bg-white/5"
             }`}
           >
             <Globe className="w-3.5 h-3.5 text-primary" />
-            <span>SEO Suite</span>
+            <span className="hidden sm:inline">SEO Suite</span>
+            <span className="sm:hidden text-[11px]">SEO</span>
             {typeof seoScore === "number" && (
               <span
-                className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                className={`ml-0.5 sm:ml-1 px-1 sm:px-1.5 py-0.2 rounded-full text-[9px] sm:text-[10px] font-bold ${
                   seoScore >= 80
                     ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300/60"
                     : seoScore >= 50

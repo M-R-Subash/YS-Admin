@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { RotateCw } from "lucide-react";
+import { RotateCw, PenLine, Eye, Layout, Globe } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import type { PageData } from "@/types";
 import SchemaEditor, { SchemaEditorRef } from "@/components/editor-shell/SchemaEditor";
@@ -82,6 +82,9 @@ export default function EditorPage({
 
   // Active view: Visual Editor vs SEO Suite
   const [activeView, setActiveView] = useState<"editor" | "seo">("editor");
+
+  // Mobile / Tablet Canvas Viewport Mode: "form" (Schema fields) vs "preview" (Live Website)
+  const [mobileCanvasMode, setMobileCanvasMode] = useState<"form" | "preview">("form");
 
   // SEO Suite State
   const [seoData, setSeoData] = useState<SeoMetadata>({
@@ -531,6 +534,19 @@ export default function EditorPage({
     }
   }, []);
 
+  // Immediate synchronization when switching to live preview on mobile/tablet
+  const handleSwitchToPreview = useCallback(() => {
+    setMobileCanvasMode("preview");
+    const config = getSchemaConfig(page?.slug);
+    if (config) {
+      const currentData = schemaEditorRef.current?.getData() ?? schemaData;
+      iframeRef.current?.contentWindow?.postMessage(
+        { type: config.previewType, content: currentData },
+        targetOrigin,
+      );
+    }
+  }, [page?.slug, schemaData, targetOrigin]);
+
   // Send initial data when iframe loads (delay to let React mount inside iframe)
   function handleIframeLoad() {
     setIframeLoading(false);
@@ -578,9 +594,6 @@ export default function EditorPage({
         hasCloudDraft={hasCloudDraft}
         isDirty={dirtyManager.isDirty}
         lastSavedAt={lastSavedAt}
-        activeView={activeView}
-        onViewChange={setActiveView}
-        seoScore={seoScore}
         onBack={() => {
           dirtyManager.confirmExit(() => router.push("/webpages"));
         }}
@@ -612,13 +625,17 @@ export default function EditorPage({
               : "z-0 opacity-0 invisible pointer-events-none"
           }`}
         >
-          <ResizablePanelGroup orientation="horizontal" className="flex-1 overflow-hidden">
-            {/* Left: Schema Editor Panel */}
+          <ResizablePanelGroup orientation="horizontal" className="flex-1 overflow-hidden relative">
+            {/* Left: Schema Editor Panel (Full-width on mobile/tablet when in 'form' mode) */}
             <ResizablePanel
               defaultSize="25"
               minSize="20"
               maxSize="60"
-              className="overflow-y-auto border-r border-border bg-black/3 dark:bg-white/3 flex flex-col"
+              className={`overflow-y-auto border-r border-border bg-black/3 dark:bg-white/3 flex flex-col transition-all duration-200 ${
+                mobileCanvasMode === "form"
+                  ? "max-lg:!absolute max-lg:!inset-0 max-lg:!w-full max-lg:!h-full max-lg:!z-10 max-lg:!visible max-lg:!opacity-100 max-lg:!pointer-events-auto"
+                  : "max-lg:!absolute max-lg:!inset-0 max-lg:!w-full max-lg:!h-full max-lg:!z-0 max-lg:!invisible max-lg:!opacity-0 max-lg:!pointer-events-none"
+              }`}
             >
               {schemaConfig ? (
                 <SchemaEditor
@@ -631,6 +648,9 @@ export default function EditorPage({
                   zodSchema={schemaConfig.schema}
                   previewEventType={schemaConfig.previewType}
                   title={page.title}
+                  activeView={activeView}
+                  onViewChange={setActiveView}
+                  seoScore={seoScore}
                 />
               ) : (
                 <div className="p-6 text-sm text-zinc-500">
@@ -639,15 +659,19 @@ export default function EditorPage({
               )}
             </ResizablePanel>
 
-            {/* Resizer Handle */}
-            <ResizableHandle withHandle />
+            {/* Resizer Handle — Hidden on mobile & tablet touchscreens to prevent scroll interference */}
+            <ResizableHandle withHandle className="hidden lg:flex" />
 
-            {/* Right: Live Preview Panel */}
+            {/* Right: Live Preview Panel (Full-width on mobile/tablet when in 'preview' mode) */}
             <ResizablePanel
               defaultSize="75"
-              className="overflow-hidden bg-zinc-950 relative flex items-center justify-center p-4"
+              className={`overflow-hidden bg-zinc-950 relative flex items-center justify-center p-4 transition-all duration-200 ${
+                mobileCanvasMode === "preview"
+                  ? "max-lg:!absolute max-lg:!inset-0 max-lg:!w-full max-lg:!h-full max-lg:!z-10 max-lg:!visible max-lg:!opacity-100 max-lg:!pointer-events-auto max-lg:!p-0"
+                  : "max-lg:!absolute max-lg:!inset-0 max-lg:!w-full max-lg:!h-full max-lg:!z-0 max-lg:!invisible max-lg:!opacity-0 max-lg:!pointer-events-none max-lg:!p-0"
+              }`}
             >
-              <div className="w-full h-full bg-zinc-900 shadow-2xl rounded-xl overflow-hidden ring-1 ring-border relative">
+              <div className="w-full h-full bg-zinc-900 max-lg:rounded-none max-lg:ring-0 max-lg:shadow-none lg:shadow-2xl lg:rounded-xl overflow-hidden lg:ring-1 lg:ring-border relative">
                 {/* Minimal Iframe Toolbar (ONLY Reload, per instructions) */}
                 <div className="absolute top-3 right-3 z-20 flex items-center bg-black/80 backdrop-blur-md px-2.5 py-1.5 rounded-md border border-white/10 shadow-lg">
                   <button
@@ -692,29 +716,109 @@ export default function EditorPage({
               </div>
             </ResizablePanel>
           </ResizablePanelGroup>
+
+          {/* Mobile & Tablet Bottom Floating Dock: Single-line pill switcher */}
+          <div className="lg:hidden fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center bg-zinc-950/90 dark:bg-black/90 backdrop-blur-md border border-white/15 p-1 rounded-full shadow-2xl transition-all whitespace-nowrap">
+            <button
+              type="button"
+              onClick={() => setMobileCanvasMode("form")}
+              className={`flex items-center gap-1.5 px-3.5 sm:px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                mobileCanvasMode === "form"
+                  ? "bg-white text-black shadow-md"
+                  : "text-zinc-300 hover:text-white"
+              }`}
+            >
+              <PenLine className="w-3.5 h-3.5 shrink-0" />
+              <span className="whitespace-nowrap">Edit Fields</span>
+              {isSchemaDirty && (
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={handleSwitchToPreview}
+              className={`flex items-center gap-1.5 px-3.5 sm:px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                mobileCanvasMode === "preview"
+                  ? "bg-white text-black shadow-md"
+                  : "text-zinc-300 hover:text-white"
+              }`}
+            >
+              <Eye className="w-3.5 h-3.5 shrink-0" />
+              <span className="whitespace-nowrap">Live Preview</span>
+            </button>
+          </div>
         </div>
 
         {/* Panel 2: SEO Suite Panel */}
         <div
-          className={`absolute inset-0 overflow-y-auto bg-card ${
+          className={`absolute inset-0 flex flex-col bg-card ${
             activeView === "seo"
               ? "z-10 opacity-100 visible"
               : "z-0 opacity-0 invisible pointer-events-none"
           }`}
         >
-          <SeoEditorSuite
-            values={{
-              title: page.title || "",
-              slug: page.slug || "",
-              ...seoData,
-            }}
-            onChange={(field, value) => {
-              setSeoData((prev) => ({ ...prev, [field]: value }));
-            }}
-            entityType="page"
-            content={schemaData}
-            slugPrefix=""
-          />
+          {/* Sub-header Bar in SEO Suite matching SchemaEditor */}
+          <div className="flex items-center justify-between px-3 sm:px-5 py-2 sm:py-2.5 border-b border-border/60 bg-black/3 dark:bg-white/3 backdrop-blur z-10 shrink-0 gap-2">
+            <div className="flex items-center bg-zinc-200/80 dark:bg-zinc-800 p-0.5 rounded-lg border border-border shadow-2xs shrink-0">
+              <button
+                type="button"
+                onClick={() => setActiveView("editor")}
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 text-xs rounded-md transition-all cursor-pointer ${
+                  activeView === "editor"
+                    ? "bg-white dark:bg-zinc-900 text-foreground shadow-xs font-bold border border-border/80"
+                    : "text-muted-foreground hover:text-foreground font-medium"
+                }`}
+              >
+                <Layout className="w-3.5 h-3.5" />
+                <span>Editor</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveView("seo")}
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 text-xs rounded-md transition-all cursor-pointer ${
+                  activeView === "seo"
+                    ? "bg-white dark:bg-zinc-900 text-foreground shadow-xs font-bold border border-border/80"
+                    : "text-muted-foreground hover:text-foreground font-medium"
+                }`}
+              >
+                <Globe className="w-3.5 h-3.5 text-primary" />
+                <span>SEO</span>
+                {typeof seoScore === "number" && (
+                  <span
+                    className={`ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                      seoScore >= 80
+                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                        : seoScore >= 50
+                        ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
+                        : "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300"
+                    }`}
+                  >
+                    {seoScore}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            <div className="text-xs font-bold text-muted-foreground">
+              SEO Suite
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto">
+            <SeoEditorSuite
+              values={{
+                title: page.title || "",
+                slug: page.slug || "",
+                ...seoData,
+              }}
+              onChange={(field, value) => {
+                setSeoData((prev) => ({ ...prev, [field]: value }));
+              }}
+              entityType="page"
+              content={schemaData}
+              slugPrefix=""
+            />
+          </div>
         </div>
       </div>
 

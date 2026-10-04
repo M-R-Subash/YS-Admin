@@ -10,7 +10,7 @@ import {
 } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Layout, Globe } from "lucide-react";
 import { EditorRenderer } from "@/components/EditorRenderer";
 import type { FieldSchema } from "@/lib/schemas/global-schema";
 import { ZodSchema } from "zod";
@@ -24,6 +24,9 @@ interface SchemaEditorProps {
   zodSchema: ZodSchema<any>;
   previewEventType: string;
   title?: string;
+  activeView?: "editor" | "seo";
+  onViewChange?: (view: "editor" | "seo") => void;
+  seoScore?: number | null;
 }
 
 export interface SchemaEditorRef {
@@ -42,6 +45,9 @@ const SchemaEditor = forwardRef<SchemaEditorRef, SchemaEditorProps>(
       uiSchema,
       zodSchema,
       previewEventType,
+      activeView = "editor",
+      onViewChange,
+      seoScore = null,
     }: SchemaEditorProps,
     ref,
   ) {
@@ -270,15 +276,56 @@ const SchemaEditor = forwardRef<SchemaEditorRef, SchemaEditorProps>(
         onSubmit={(e) => e.preventDefault()}
         className="flex flex-col h-full bg-transparent overflow-hidden"
       >
-        <div className="flex items-center justify-end px-5 py-4 border-b border-border/60 bg-black/3 dark:bg-white/3 backdrop-blur z-10 shrink-0">
-          {/* <span className="text-xs font-bold text-black uppercase tracking-wider">
-            {title ? `${title} Page Editor` : "Page Editor"}
-          </span> */}
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between px-3 sm:px-5 py-2 sm:py-2.5 border-b border-border/60 bg-black/3 dark:bg-white/3 backdrop-blur z-10 shrink-0 gap-2">
+          {/* Left: Editor vs SEO View Switcher */}
+          {onViewChange ? (
+            <div className="flex items-center bg-zinc-200/80 dark:bg-zinc-800 p-0.5 rounded-lg border border-border shadow-2xs shrink-0">
+              <button
+                type="button"
+                onClick={() => onViewChange("editor")}
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 text-xs rounded-md transition-all cursor-pointer ${
+                  activeView === "editor"
+                    ? "bg-white dark:bg-zinc-900 text-foreground shadow-xs font-bold border border-border/80"
+                    : "text-muted-foreground hover:text-foreground font-medium"
+                }`}
+              >
+                <Layout className="w-3.5 h-3.5" />
+                <span>Editor</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onViewChange("seo")}
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 text-xs rounded-md transition-all cursor-pointer ${
+                  activeView === "seo"
+                    ? "bg-white dark:bg-zinc-900 text-foreground shadow-xs font-bold border border-border/80"
+                    : "text-muted-foreground hover:text-foreground font-medium"
+                }`}
+              >
+                <Globe className="w-3.5 h-3.5 text-primary" />
+                <span>SEO</span>
+                {typeof seoScore === "number" && (
+                  <span
+                    className={`ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                      seoScore >= 80
+                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                        : seoScore >= 50
+                        ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
+                        : "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300"
+                    }`}
+                  >
+                    {seoScore}
+                  </span>
+                )}
+              </button>
+            </div>
+          ) : <div />}
+
+          {/* Right: Expand All / Collapse All */}
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={expandAll}
-              className="text-[11px] font-bold text-black hover:underline bg-transparent cursor-pointer"
+              className="text-[11px] font-bold text-black hover:underline bg-transparent cursor-pointer whitespace-nowrap"
             >
               Expand All
             </button>
@@ -286,14 +333,14 @@ const SchemaEditor = forwardRef<SchemaEditorRef, SchemaEditorProps>(
             <button
               type="button"
               onClick={collapseAll}
-              className="text-[11px] font-bold text-black hover:underline bg-transparent cursor-pointer"
+              className="text-[11px] font-bold text-black hover:underline bg-transparent cursor-pointer whitespace-nowrap"
             >
               Collapse All
             </button>
           </div>
         </div>
 
-        <div className="p-5 flex-1 overflow-y-auto pb-20 space-y-4">
+        <div className="p-3.5 sm:p-5 flex-1 overflow-y-auto pb-28 sm:pb-24 space-y-4">
           {uiSchema.map((section) => {
             const rootField = section.fields?.[0];
             const isSingleObject =
