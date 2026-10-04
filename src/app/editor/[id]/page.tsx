@@ -633,8 +633,8 @@ export default function EditorPage({
               maxSize="60"
               className={`overflow-y-auto border-r border-border bg-black/3 dark:bg-white/3 flex flex-col transition-all duration-200 ${
                 mobileCanvasMode === "form"
-                  ? "max-lg:!absolute max-lg:!inset-0 max-lg:!w-full max-lg:!h-full max-lg:!z-10 max-lg:!visible max-lg:!opacity-100 max-lg:!pointer-events-auto"
-                  : "max-lg:!absolute max-lg:!inset-0 max-lg:!w-full max-lg:!h-full max-lg:!z-0 max-lg:!invisible max-lg:!opacity-0 max-lg:!pointer-events-none"
+                  ? "max-lg:absolute! max-lg:inset-0! max-lg:w-full! max-lg:h-full! max-lg:z-10! max-lg:visible! max-lg:opacity-100! max-lg:pointer-events-auto!"
+                  : "max-lg:absolute! max-lg:inset-0! max-lg:w-full! max-lg:h-full! max-lg:z-0! max-lg:invisible! max-lg:opacity-0! max-lg:pointer-events-none!"
               }`}
             >
               {schemaConfig ? (
@@ -667,8 +667,8 @@ export default function EditorPage({
               defaultSize="75"
               className={`overflow-hidden bg-zinc-950 relative flex items-center justify-center p-4 transition-all duration-200 ${
                 mobileCanvasMode === "preview"
-                  ? "max-lg:!absolute max-lg:!inset-0 max-lg:!w-full max-lg:!h-full max-lg:!z-10 max-lg:!visible max-lg:!opacity-100 max-lg:!pointer-events-auto max-lg:!p-0"
-                  : "max-lg:!absolute max-lg:!inset-0 max-lg:!w-full max-lg:!h-full max-lg:!z-0 max-lg:!invisible max-lg:!opacity-0 max-lg:!pointer-events-none max-lg:!p-0"
+                  ? "max-lg:absolute! max-lg:inset-0! max-lg:w-full! max-lg:h-full! max-lg:z-10! max-lg:visible! max-lg:opacity-100! max-lg:pointer-events-auto! max-lg:p-0!"
+                  : "max-lg:absolute! max-lg:inset-0! max-lg:w-full! max-lg:h-full! max-lg:z-0! max-lg:invisible! max-lg:opacity-0! max-lg:pointer-events-none! max-lg:p-0!"
               }`}
             >
               <div className="w-full h-full bg-zinc-900 max-lg:rounded-none max-lg:ring-0 max-lg:shadow-none lg:shadow-2xl lg:rounded-xl overflow-hidden lg:ring-1 lg:ring-border relative">
