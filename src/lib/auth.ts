@@ -344,3 +344,35 @@ export async function requireLiveAdmin(userId?: string): Promise<{
 
   return { authorized: true, status: 200 };
 }
+
+/**
+ * Live Database Write-Guard for any active user (ADMIN or EDITOR):
+ * Ensures the user still exists in the PostgreSQL database and has not
+ * been deactivated or deleted before allowing write operations.
+ */
+export async function requireLiveUser(userId?: string): Promise<{
+  authorized: boolean;
+  status: number;
+  error?: string;
+  user?: { id: string; role: "ADMIN" | "EDITOR" };
+}> {
+  if (!userId) {
+    return { authorized: false, status: 401, error: "Unauthorized" };
+  }
+
+  const liveUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, role: true },
+  });
+
+  if (!liveUser) {
+    return {
+      authorized: false,
+      status: 403,
+      error: "Unauthorized: Account no longer exists or has been deactivated",
+    };
+  }
+
+  return { authorized: true, status: 200, user: liveUser };
+}
+

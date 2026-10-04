@@ -1,7 +1,39 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, requireLiveAdmin } from "@/lib/auth";
+import { authOptions, requireLiveUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { z } from "zod";
+
+function normalizeUrl(url: string): string {
+  let cleaned = url.trim();
+  if (!cleaned) return "/";
+
+  if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
+    try {
+      const parsed = new URL(cleaned);
+      cleaned = parsed.pathname;
+    } catch {
+      // Fallback
+    }
+  }
+
+  if (!cleaned.startsWith("/")) {
+    cleaned = `/${cleaned}`;
+  }
+
+  if (cleaned.length > 1 && cleaned.endsWith("/")) {
+    cleaned = cleaned.slice(0, -1);
+  }
+  return cleaned;
+}
+
+const updateRedirectionSchema = z.object({
+  status: z.enum(["active", "inactive"]).optional(),
+  statusCode: z.number().int().refine((val) => val === 301 || val === 302, {
+    message: "Status code must be 301 or 302",
+  }).optional(),
+  destinationUrl: z.string().trim().min(1, "Destination URL cannot be empty").max(500).optional(),
+});
 
 // PATCH /api/redirection/[id] - Update status or edit fields
 export async function PATCH(
@@ -14,8 +46,21 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const guard = await requireLiveUser(session.user?.id);
+    if (!guard.authorized) {
+      return NextResponse.json({ error: guard.error }, { status: guard.status });
+    }
+
     const { id } = await params;
     const body = await request.json();
+
+    const parsed = updateRedirectionSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message || "Validation failed" },
+        { status: 400 }
+      );
+    }
 
     const existing = await prisma.redirection.findUnique({
       where: { id },
@@ -28,13 +73,34 @@ export async function PATCH(
       );
     }
 
+    const updateData: {
+      status?: string;
+      statusCode?: number;
+      destinationUrl?: string;
+    } = {};
+
+    if (parsed.data.status !== undefined) {
+      updateData.status = parsed.data.status;
+    }
+
+    if (parsed.data.statusCode !== undefined) {
+      updateData.statusCode = parsed.data.statusCode;
+    }
+
+    if (parsed.data.destinationUrl !== undefined) {
+      const normalizedDest = normalizeUrl(parsed.data.destinationUrl);
+      if (existing.sourceUrl.toLowerCase() === normalizedDest.toLowerCase()) {
+        return NextResponse.json(
+          { error: "Self-loop blocked: Destination URL cannot be identical to Source URL." },
+          { status: 400 }
+        );
+      }
+      updateData.destinationUrl = normalizedDest;
+    }
+
     const updated = await prisma.redirection.update({
       where: { id },
-      data: {
-        ...(body.status && { status: body.status }),
-        ...(body.statusCode && { statusCode: body.statusCode }),
-        ...(body.destinationUrl && { destinationUrl: body.destinationUrl }),
-      },
+      data: updateData,
     });
 
     return NextResponse.json(updated);
@@ -58,7 +124,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const guard = await requireLiveAdmin(session.user.id);
+    const guard = await requireLiveUser(session.user?.id);
     if (!guard.authorized) {
       return NextResponse.json({ error: guard.error }, { status: guard.status });
     }

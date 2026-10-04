@@ -91,27 +91,28 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const unapprovedCommentsCount = badges?.pendingComments || 0;
   const upcomingScheduledCount = badges?.upcomingScheduled || 0;
 
+  const userRole = session?.user?.role;
   const filteredNavMain = React.useMemo(() => {
     return navItems
       .filter((item) => {
-        if (item.title === "Users" || item.title === "Comments") {
-          return session?.user?.role === "ADMIN"
+        if (item.title === "Users" || item.title === "Comments" || item.title === "Submissions") {
+          return userRole === "ADMIN";
         }
-        return true
+        return true;
       })
       .map((item) => {
         if (item.title === "Submissions") {
-          return { ...item, badge: unreadSubmissionsCount }
+          return { ...item, badge: unreadSubmissionsCount };
         }
         if (item.title === "Comments") {
-          return { ...item, badge: unapprovedCommentsCount }
+          return { ...item, badge: unapprovedCommentsCount };
         }
         if (item.title === "Scheduled Actions") {
-          return { ...item, badge: upcomingScheduledCount }
+          return { ...item, badge: upcomingScheduledCount };
         }
-        return item
-      })
-  }, [session, unreadSubmissionsCount, unapprovedCommentsCount, upcomingScheduledCount])
+        return item;
+      });
+  }, [userRole, unreadSubmissionsCount, unapprovedCommentsCount, upcomingScheduledCount]);
 
   return (
     <Sidebar collapsible="icon" {...props}>

@@ -38,8 +38,16 @@ import {
 
 import { ExitConfirmDialog } from "./dialogs/ExitConfirmDialog";
 import { DiscardDraftDialog } from "./dialogs/DiscardDraftDialog";
-import { SchedulePostModal } from "./dialogs/SchedulePostModal";
-import { RevisionHistoryDrawer } from "./dialogs/RevisionHistoryDrawer";
+import dynamic from "next/dynamic";
+
+const SchedulePostModal = dynamic(
+  () => import("./dialogs/SchedulePostModal").then((m) => m.SchedulePostModal),
+  { ssr: false }
+);
+const RevisionHistoryDrawer = dynamic(
+  () => import("./dialogs/RevisionHistoryDrawer").then((m) => m.RevisionHistoryDrawer),
+  { ssr: false }
+);
 import { ConfirmModal } from "@/components/global-modal";
 import { BlogSnapshotData } from "@/types/revision";
 import { BlogDraftBanner } from "./header/BlogDraftBanner";
@@ -140,28 +148,51 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     mode: "onChange",
   });
 
-  // Real-time watched form values
-  const watchedValues = useWatch({ control });
-  const title = watchedValues.title ?? "";
-  const slug = watchedValues.slug ?? "";
-  const featuredImage = watchedValues.featuredImage ?? null;
-  const allowComments = watchedValues.allowComments ?? true;
-  const status = watchedValues.status ?? "draft";
-  const rawTags = watchedValues.tags;
+  // Targeted watched form values (subscribes only to declared fields)
+  const [
+    title = "",
+    slug = "",
+    featuredImage = null,
+    allowComments = true,
+    status = "draft",
+    rawTags,
+    rawCategories,
+    excerpt = "",
+    metaTitle = "",
+    metaDesc = "",
+    focusKeyword = "",
+    ogImage = "",
+    ogTitle = "",
+    ogDesc = "",
+    canonicalUrl = "",
+    noIndex = false,
+    content,
+    rawFaqs,
+  ] = useWatch({
+    control,
+    name: [
+      "title",
+      "slug",
+      "featuredImage",
+      "allowComments",
+      "status",
+      "tags",
+      "categories",
+      "excerpt",
+      "metaTitle",
+      "metaDesc",
+      "focusKeyword",
+      "ogImage",
+      "ogTitle",
+      "ogDesc",
+      "canonicalUrl",
+      "noIndex",
+      "content",
+      "faqs",
+    ],
+  });
   const tags = useMemo(() => rawTags ?? [], [rawTags]);
-  const rawCategories = watchedValues.categories;
   const categories = useMemo(() => rawCategories ?? [], [rawCategories]);
-  const excerpt = watchedValues.excerpt ?? "";
-  const metaTitle = watchedValues.metaTitle ?? "";
-  const metaDesc = watchedValues.metaDesc ?? "";
-  const focusKeyword = watchedValues.focusKeyword ?? "";
-  const ogImage = watchedValues.ogImage ?? "";
-  const ogTitle = watchedValues.ogTitle ?? "";
-  const ogDesc = watchedValues.ogDesc ?? "";
-  const canonicalUrl = watchedValues.canonicalUrl ?? "";
-  const noIndex = watchedValues.noIndex ?? false;
-  const content = watchedValues.content;
-  const rawFaqs = watchedValues.faqs;
   const faqs = useMemo(() => rawFaqs ?? [], [rawFaqs]);
 
   // Deferred values for non-blocking background SEO calculation

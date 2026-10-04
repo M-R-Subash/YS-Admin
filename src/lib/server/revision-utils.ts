@@ -156,11 +156,12 @@ export function isRevisionDuplicate(
  * Prunes historical revisions to enforce the max limit (e.g. 5 revisions).
  * Deletes oldest revisions by versionNumber ascending.
  */
-export async function pruneRevisions(blogId: string, maxAllowed = 5): Promise<number> {
-  const count = await prisma.blogRevision.count({ where: { blogId } });
+export async function pruneRevisions(blogId: string, maxAllowed = 5, tx?: any): Promise<number> {
+  const client = tx || prisma;
+  const count = await client.blogRevision.count({ where: { blogId } });
   if (count <= maxAllowed) return 0;
 
-  const toDelete = await prisma.blogRevision.findMany({
+  const toDelete = await client.blogRevision.findMany({
     where: { blogId },
     orderBy: { versionNumber: "asc" },
     take: count - maxAllowed,
@@ -168,8 +169,8 @@ export async function pruneRevisions(blogId: string, maxAllowed = 5): Promise<nu
   });
 
   if (toDelete.length > 0) {
-    const result = await prisma.blogRevision.deleteMany({
-      where: { id: { in: toDelete.map((r) => r.id) } },
+    const result = await client.blogRevision.deleteMany({
+      where: { id: { in: toDelete.map((r: any) => r.id) } },
     });
     return result.count;
   }
@@ -210,11 +211,13 @@ export async function createBlogRevisionSnapshot(params: {
   action: "published" | "updated" | "scheduled-publish" | "restored" | string;
   savedById?: string | null;
   force?: boolean; // If true, bypasses duplicate check (e.g. on explicit restore)
+  tx?: any;
 }) {
-  const { blogId, payload, action, savedById, force } = params;
+  const { blogId, payload, action, savedById, force, tx } = params;
+  const client = tx || prisma;
 
   // 1. Fetch latest revision to check for deduplication
-  const latestRevision = await prisma.blogRevision.findFirst({
+  const latestRevision = await client.blogRevision.findFirst({
     where: { blogId },
     orderBy: { versionNumber: "desc" },
     select: {
@@ -274,7 +277,7 @@ export async function createBlogRevisionSnapshot(params: {
   };
 
   // 6. Create revision record
-  const revision = await prisma.blogRevision.create({
+  const revision = await client.blogRevision.create({
     data: {
       blogId,
       versionNumber: nextVersionNumber,
@@ -287,7 +290,7 @@ export async function createBlogRevisionSnapshot(params: {
   });
 
   // 7. Auto-prune to maintain maximum 5 revisions
-  await pruneRevisions(blogId, 5);
+  await pruneRevisions(blogId, 5, client);
 
   return revision;
 }

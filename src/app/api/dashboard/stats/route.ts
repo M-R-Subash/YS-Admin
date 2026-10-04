@@ -37,12 +37,16 @@ export async function GET() {
             where: { isTrashed: false, isApproved: false },
           })
         : Promise.resolve(0),
-      prisma.formSubmission.count({
-        where: { isTrashed: false },
-      }),
-      prisma.formSubmission.count({
-        where: { isTrashed: false, isRead: false },
-      }),
+      isUserAdmin
+        ? prisma.formSubmission.count({
+            where: { isTrashed: false },
+          })
+        : Promise.resolve(0),
+      isUserAdmin
+        ? prisma.formSubmission.count({
+            where: { isTrashed: false, isRead: false },
+          })
+        : Promise.resolve(0),
       prisma.page.findMany({
         where: { isTrashed: false },
         select: {

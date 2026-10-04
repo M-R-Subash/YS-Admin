@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions, requireLiveAdmin } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
 export async function GET(request: Request) {
@@ -14,9 +14,20 @@ export async function GET(request: Request) {
       );
     }
 
+    const guard = await requireLiveAdmin(session.user?.id);
+    if (!guard.authorized) {
+      return NextResponse.json(
+        { message: guard.error || "Forbidden: Admin access required" },
+        { status: guard.status }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
     const filter = searchParams.get("filter") || "all";
+    const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "100", 10), 1), 250);
+    const page = Math.max(parseInt(searchParams.get("page") || "1", 10), 1);
+    const skip = (page - 1) * limit;
 
     const whereClause: any = {};
 
@@ -42,6 +53,8 @@ export async function GET(request: Request) {
       prisma.formSubmission.findMany({
         where: whereClause,
         orderBy: { createdAt: "desc" },
+        take: limit,
+        skip: skip,
       }),
       prisma.formSubmission.count({ where: { isTrashed: false } }),
       prisma.formSubmission.count({ where: { isTrashed: false, isRead: false } }),

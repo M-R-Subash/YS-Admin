@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions, requireLiveUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { revalidateFrontendPath } from "@/lib/revalidate";
 import {
@@ -8,6 +8,7 @@ import {
   blogPublishSchema,
   blogScheduleSchema,
 } from "@/lib/schemas/blog/blog-validation";
+import { handleApiError } from "@/lib/server/prisma-errors";
 import { createBlogRevisionSnapshot } from "@/lib/server/revision-utils";
 
 export async function GET(req: Request) {
@@ -88,6 +89,14 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { message: "Unauthorized. Please log in." },
         { status: 401 }
+      );
+    }
+
+    const guard = await requireLiveUser(session.user.id);
+    if (!guard.authorized) {
+      return NextResponse.json(
+        { message: guard.error },
+        { status: guard.status }
       );
     }
 
@@ -226,10 +235,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json(newBlog, { status: 201 });
   } catch (error: any) {
-    console.error("CREATE_BLOG_ERROR:", error);
-    return NextResponse.json(
-      { message: "An error occurred while creating the blog.", error: error.message },
-      { status: 500 }
-    );
+    return handleApiError(error, "An error occurred while creating the blog.");
   }
 }

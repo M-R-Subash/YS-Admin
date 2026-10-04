@@ -17,45 +17,58 @@ export async function GET() {
     // 1. Currently scheduled (status: "scheduled")
     // 2. Previously scheduled and released (scheduledAt != null)
     // 3. Staged updates awaiting scheduled publish
-    const blogs = await prisma.blog.findMany({
-      where: {
-        isTrashed: false,
-        OR: [
-          { status: "scheduled" },
-          { scheduledAt: { not: null } },
-        ],
-      },
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        featuredImage: true,
-        status: true,
-        draftContent: true,
-        scheduledAt: true,
-        publishedAt: true,
-        updatedAt: true,
-        categories: true,
-        tags: true,
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            profilePicture: true,
+    // Fetch non-trashed blogs that actually involve scheduling without transferring heavy draftContent
+    const [blogs, stagedBlogRecords] = await Promise.all([
+      prisma.blog.findMany({
+        where: {
+          isTrashed: false,
+          OR: [
+            { status: "scheduled" },
+            { scheduledAt: { not: null } },
+          ],
+        },
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          featuredImage: true,
+          status: true,
+          scheduledAt: true,
+          publishedAt: true,
+          updatedAt: true,
+          categories: true,
+          tags: true,
+          author: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              profilePicture: true,
+            },
           },
         },
-      },
-      orderBy: [
-        { updatedAt: "desc" },
-      ],
-      take: 100,
-    });
+        orderBy: [
+          { updatedAt: "desc" },
+        ],
+        take: 100,
+      }),
+      prisma.blog.findMany({
+        where: {
+          isTrashed: false,
+          status: "published",
+          scheduledAt: { not: null },
+          draftContent: { not: null as any },
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    const stagedBlogIds = new Set(stagedBlogRecords.map((b) => b.id));
 
     // Annotate items with accurate schedule category and status
     const items = blogs.map((blog) => {
       let scheduleState: "upcoming" | "pending" | "failed" | "success" = "upcoming";
-      const hasStagedUpdate = blog.status === "published" && Boolean(blog.draftContent) && Boolean(blog.scheduledAt);
+      const hasStagedUpdate = blog.status === "published" && stagedBlogIds.has(blog.id) && Boolean(blog.scheduledAt);
 
       if (blog.status === "scheduled" || hasStagedUpdate) {
         if (!blog.scheduledAt) {

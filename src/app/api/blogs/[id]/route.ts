@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, requireLiveAdmin } from "@/lib/auth";
+import { authOptions, requireLiveAdmin, requireLiveUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import {
   blogDraftSchema,
@@ -10,6 +10,7 @@ import {
 import { revalidateFrontendPath } from "@/lib/revalidate";
 import { serverConfig } from "@/lib/config/server";
 import { createBlogRevisionSnapshot } from "@/lib/server/revision-utils";
+import { handleApiError } from "@/lib/server/prisma-errors";
 
 // GET /api/blogs/[id] — get a single blog
 export async function GET(
@@ -42,9 +43,15 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+  const guard = await requireLiveUser(session.user?.id);
+  if (!guard.authorized) {
+    return NextResponse.json({ error: guard.error }, { status: guard.status });
   }
 
   const { id } = await params;
@@ -374,58 +381,63 @@ export async function PUT(
     }
   }
 
-  const blog = await prisma.blog.update({
-    where: { id },
-    data: updateData,
-    include: { seo: true }
-  });
+  // Atomic update: execute blog update and revision snapshot within a transaction
+  const blog = await prisma.$transaction(async (tx) => {
+    const updated = await tx.blog.update({
+      where: { id },
+      data: updateData,
+      include: { seo: true },
+    });
 
-  // Create Revision History Snapshot ONLY if published or updated while live
-  const isPublishAction =
-    action === "publish" ||
-    action === "publish-now" ||
-    (action === "schedule" && blog.status === "published") ||
-    (action === undefined && blog.status === "published");
+    const isPublishAction =
+      action === "publish" ||
+      action === "publish-now" ||
+      (action === "schedule" && updated.status === "published") ||
+      (action === undefined && updated.status === "published");
 
-  if (isPublishAction && blog.status === "published") {
-    try {
-      const restoredFromVersion =
-        typeof body.restoredFromVersion === "number"
-          ? body.restoredFromVersion
-          : typeof body.restoredFromVersion === "string" && !isNaN(Number(body.restoredFromVersion))
-          ? Number(body.restoredFromVersion)
-          : null;
+    if (isPublishAction && updated.status === "published") {
+      try {
+        const restoredFromVersion =
+          typeof body.restoredFromVersion === "number"
+            ? body.restoredFromVersion
+            : typeof body.restoredFromVersion === "string" && !isNaN(Number(body.restoredFromVersion))
+            ? Number(body.restoredFromVersion)
+            : null;
 
-      await createBlogRevisionSnapshot({
-        blogId: id,
-        payload: {
-          title: blog.title,
-          slug: blog.slug,
-          content: blog.content,
-          excerpt: blog.excerpt,
-          featuredImage: blog.featuredImage,
-          allowComments: blog.allowComments,
-          readingTime: blog.readingTime,
-          tags: blog.tags,
-          categories: blog.categories,
-          faqs: (blog.content as any)?.faqs || [],
-          seo: blog.seo,
-        },
-        action:
-          restoredFromVersion
-            ? `restored:${restoredFromVersion}`
-            : action === "publish-now"
-            ? "scheduled-publish"
-            : existingBlog.status === "published"
-            ? "updated"
-            : "published",
-        savedById: session.user.id,
-        force: Boolean(restoredFromVersion),
-      });
-    } catch (revErr) {
-      console.error("[BlogRevision] Snapshot creation error:", revErr);
+        await createBlogRevisionSnapshot({
+          blogId: id,
+          payload: {
+            title: updated.title,
+            slug: updated.slug,
+            content: updated.content,
+            excerpt: updated.excerpt,
+            featuredImage: updated.featuredImage,
+            allowComments: updated.allowComments,
+            readingTime: updated.readingTime,
+            tags: updated.tags,
+            categories: updated.categories,
+            faqs: (updated.content as any)?.faqs || [],
+            seo: updated.seo,
+          },
+          action:
+            restoredFromVersion
+              ? `restored:${restoredFromVersion}`
+              : action === "publish-now"
+              ? "scheduled-publish"
+              : existingBlog.status === "published"
+              ? "updated"
+              : "published",
+          savedById: session.user.id,
+          force: Boolean(restoredFromVersion),
+          tx,
+        });
+      } catch (revErr) {
+        console.error("[BlogRevision] Snapshot creation error in transaction:", revErr);
+      }
     }
-  }
+
+    return updated;
+  });
 
   // Revalidate blog listing and blog single page
   if (shouldRevalidate) {
@@ -435,7 +447,10 @@ export async function PUT(
     }
   }
 
-  return NextResponse.json(blog);
+    return NextResponse.json(blog);
+  } catch (error: any) {
+    return handleApiError(error, "Failed to update blog");
+  }
 }
 
 // DELETE /api/blogs/[id] — delete a blog
@@ -443,10 +458,11 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
   const { id } = await params;
   
@@ -475,5 +491,8 @@ export async function DELETE(
     revalidateFrontendPath(`/blogs/${blog.slug}`);
   }
 
-  return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return handleApiError(error, "Failed to delete blog");
+  }
 }

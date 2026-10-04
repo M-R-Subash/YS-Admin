@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, requireLiveAdmin } from "@/lib/auth";
+import { authOptions, requireLiveAdmin, requireLiveUser } from "@/lib/auth";
 import prisma, { mapDbToPageData } from "@/lib/prisma";
 import { revalidateFrontendPath } from "@/lib/revalidate";
 import { serverConfig } from "@/lib/config/server";
+import { handleApiError } from "@/lib/server/prisma-errors";
 
 // GET /api/pages/[id] — get a single page
 export async function GET(
@@ -41,9 +42,15 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+  const guard = await requireLiveUser(session.user?.id);
+  if (!guard.authorized) {
+    return NextResponse.json({ error: guard.error }, { status: guard.status });
   }
 
   const { id } = await params;
@@ -160,10 +167,13 @@ export async function PUT(
     revalidateFrontendPath(page.slug);
   }
 
-  return NextResponse.json({
-    ...mapDbToPageData(page),
-    previewSecret: serverConfig.security.previewSecret,
-  });
+    return NextResponse.json({
+      ...mapDbToPageData(page),
+      previewSecret: serverConfig.security.previewSecret,
+    });
+  } catch (error: any) {
+    return handleApiError(error, "Failed to update page");
+  }
 }
 
 // DELETE /api/pages/[id] — delete a page
@@ -171,10 +181,11 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
   const { id } = await params;
   
@@ -198,5 +209,8 @@ export async function DELETE(
     revalidateFrontendPath(page.slug);
   }
 
-  return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return handleApiError(error, "Failed to delete page");
+  }
 }

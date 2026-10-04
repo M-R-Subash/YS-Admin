@@ -1,7 +1,16 @@
+import crypto from "crypto";
 import prisma from "@/lib/prisma";
 import { revalidateFrontendPath } from "@/lib/revalidate";
 import { serverConfig } from "@/lib/config/server";
 import { createBlogRevisionSnapshot } from "@/lib/server/revision-utils";
+
+function safeCompareSecret(provided: string | null | undefined, expected: string): boolean {
+  if (!provided || !expected) return false;
+  const bufProvided = Buffer.from(provided);
+  const bufExpected = Buffer.from(expected);
+  if (bufProvided.length !== bufExpected.length) return false;
+  return crypto.timingSafeEqual(bufProvided, bufExpected);
+}
 
 export interface ScheduledExecutionResult {
   success: boolean;
@@ -53,8 +62,8 @@ export function verifyCronAuthorization(req: Request): {
   }
 
   const matches =
-    (headerSecret && headerSecret === cronSecret) ||
-    (querySecret && querySecret === cronSecret);
+    safeCompareSecret(headerSecret, cronSecret) ||
+    safeCompareSecret(querySecret, cronSecret);
 
   if (!matches) {
     return {

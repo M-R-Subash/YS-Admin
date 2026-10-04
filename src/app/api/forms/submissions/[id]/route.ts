@@ -13,6 +13,14 @@ export async function PATCH(
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
+    const guard = await requireLiveAdmin(session.user?.id);
+    if (!guard.authorized) {
+      return NextResponse.json(
+        { message: guard.error || "Forbidden: Admin access required" },
+        { status: guard.status }
+      );
+    }
+
     const { id } = await params;
     const body = await request.json();
 

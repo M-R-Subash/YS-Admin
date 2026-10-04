@@ -1,10 +1,22 @@
 "use client";
 
 import React from "react";
+import dynamic from "next/dynamic";
 import { Controller } from "react-hook-form";
 import { AlertCircle } from "lucide-react";
-import BlogEditor from "../BlogEditor";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useBlogForm } from "../context/BlogFormContext";
+
+const BlogEditor = dynamic(() => import("../BlogEditor"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex-1 flex flex-col gap-4 p-6 bg-card rounded-xl border border-border">
+      <Skeleton className="h-10 w-full rounded-md" />
+      <Skeleton className="h-64 w-full rounded-md" />
+      <Skeleton className="h-32 w-full rounded-md" />
+    </div>
+  ),
+});
 
 export function BlogContentTab() {
   const { editorTab, errors, control, clearErrors, setEditorWordCount } = useBlogForm();

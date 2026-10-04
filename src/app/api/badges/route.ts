@@ -12,9 +12,11 @@ export async function GET() {
 
     const isUserAdmin = session.user.role === "ADMIN";
     const [unreadSubmissions, pendingComments, upcomingScheduled] = await Promise.all([
-      prisma.formSubmission.count({
-        where: { isTrashed: false, isRead: false },
-      }),
+      isUserAdmin
+        ? prisma.formSubmission.count({
+            where: { isTrashed: false, isRead: false },
+          })
+        : Promise.resolve(0),
       isUserAdmin
         ? prisma.comment.count({
             where: { isTrashed: false, isApproved: false },

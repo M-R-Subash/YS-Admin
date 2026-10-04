@@ -1,10 +1,14 @@
 "use client";
 
 import React from "react";
+import dynamic from "next/dynamic";
 import { Controller } from "react-hook-form";
 import { AlertCircle } from "lucide-react";
-import FaqManager from "@/components/faq/FaqManager";
 import { useBlogForm } from "../context/BlogFormContext";
+
+const FaqManager = dynamic(() => import("@/components/faq/FaqManager"), {
+  ssr: false,
+});
 
 export function BlogFaqsTab() {
   const { editorTab, errors, control, clearErrors } = useBlogForm();

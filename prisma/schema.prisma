@@ -51,6 +51,7 @@ model Page {
   author    User?    @relation("PageAuthor", fields: [authorId], references: [id], onDelete: SetNull)
 
   @@index([status, isTrashed])
+  @@index([isTrashed, updatedAt])
 }
 
 model SeoMeta {
@@ -167,6 +168,7 @@ model Redirection {
   updatedAt      DateTime @updatedAt
 
   @@index([sourceUrl, status])
+  @@index([status])
 }
 
 model RefreshToken {

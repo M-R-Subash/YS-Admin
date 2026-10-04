@@ -7,10 +7,14 @@ import { cn } from "@/lib/utils";
 import { ImageUploadBlock } from "@/components/ImageUploadBlock";
 import { MenuBuilderBlock } from "@/components/MenuBuilderBlock";
 import { FooterColumnsBlock } from "@/components/FooterColumnsBlock";
-import FaqManager from "@/components/faq/FaqManager";
+import dynamic from "next/dynamic";
 import { Switch } from "@/components/ui/switch";
 import { TagInput } from "@/components/ui/tag-input";
 import { Trash2, Plus } from "lucide-react";
+
+const FaqManager = dynamic(() => import("@/components/faq/FaqManager"), {
+  ssr: false,
+});
 
 const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 

@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import useSWR, { mutate as globalMutate } from "swr";
 import { RefreshCw, PanelLeft } from "lucide-react";
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
@@ -24,6 +26,18 @@ import { SubmissionsSidebar } from "./SubmissionsSidebar";
 import { SubmissionDetail } from "./SubmissionDetail";
 
 export default function SubmissionsPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  // Security Check: Redirect if not ADMIN
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+    } else if (status === "authenticated" && session?.user?.role !== "ADMIN") {
+      router.push("/webpages");
+    }
+  }, [status, session, router]);
+
   const [selectedSubmissionState, setSelectedSubmission] =
     useState<FormSubmission | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -37,7 +51,9 @@ export default function SubmissionsPage() {
     data: subData,
     isLoading: isSubLoading,
     mutate: mutateSubmissions,
-  } = useSWR<SubmissionsResponse>(endpoint);
+  } = useSWR<SubmissionsResponse>(
+    status === "authenticated" && session?.user?.role === "ADMIN" ? endpoint : null
+  );
 
   const submissions = useMemo(
     () => subData?.submissions ?? [],
