@@ -28,7 +28,7 @@ export function WordDiffViewer({
           return (
             <ins
               key={index}
-              className="bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 dark:bg-emerald-950/70 font-semibold px-0.5 rounded-xs no-underline border-b border-emerald-500/40"
+              className="diff-change-node bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 dark:bg-emerald-950/70 font-semibold px-0.5 rounded-xs no-underline border-b border-emerald-500/40"
             >
               {part.value}
             </ins>
@@ -40,7 +40,7 @@ export function WordDiffViewer({
           return (
             <span
               key={index}
-              className="bg-red-500/20 text-red-900 dark:text-red-300 dark:bg-red-950/70 font-semibold px-0.5 rounded-xs no-underline border-b border-red-500/40"
+              className="diff-change-node bg-red-500/20 text-red-900 dark:text-red-300 dark:bg-red-950/70 font-semibold px-0.5 rounded-xs no-underline border-b border-red-500/40"
             >
               {part.value}
             </span>

@@ -265,7 +265,7 @@ export function TipTapDiffHighlighter({
                 return (
                   <span
                     key={`w-${rowIdx}-${partIdx}`}
-                    className="bg-red-500/20 text-red-950 dark:text-red-200 font-semibold px-1 py-0.5 rounded-xs border-b border-red-500/50"
+                    className="diff-change-node bg-red-500/20 text-red-950 dark:text-red-200 font-semibold px-1 py-0.5 rounded-xs border-b border-red-500/50"
                   >
                     {renderContentWithLinks(tokenValue, "removed")}
                   </span>
@@ -284,7 +284,7 @@ export function TipTapDiffHighlighter({
               return (
                 <span
                   key={`w-${rowIdx}-${partIdx}`}
-                  className="bg-emerald-500/20 text-emerald-950 dark:text-emerald-200 font-semibold px-1 py-0.5 rounded-xs border-b border-emerald-500/50"
+                  className="diff-change-node bg-emerald-500/20 text-emerald-950 dark:text-emerald-200 font-semibold px-1 py-0.5 rounded-xs border-b border-emerald-500/50"
                 >
                   {renderContentWithLinks(tokenValue, "added")}
                 </span>
@@ -307,7 +307,7 @@ export function TipTapDiffHighlighter({
             return (
               <div
                 key={`row-${rowIdx}`}
-                className="p-2.5 my-2 rounded-r-md bg-red-500/10 border-l-4 border-red-500 text-red-950 dark:text-red-200 transition-colors"
+                className="diff-change-node p-2.5 my-2 rounded-r-md bg-red-500/10 border-l-4 border-red-500 text-red-950 dark:text-red-200 transition-colors"
               >
                 <div className="flex items-center gap-1.5 mb-1 select-none">
                   <span className="text-[10px] font-bold uppercase tracking-wider bg-red-500/20 text-red-700 dark:text-red-400 px-1.5 py-0.5 rounded">
@@ -342,7 +342,7 @@ export function TipTapDiffHighlighter({
             return (
               <div
                 key={`row-${rowIdx}`}
-                className="p-2.5 my-2 rounded-r-md bg-emerald-500/10 border-l-4 border-emerald-500 text-emerald-950 dark:text-emerald-200 transition-colors"
+                className="diff-change-node p-2.5 my-2 rounded-r-md bg-emerald-500/10 border-l-4 border-emerald-500 text-emerald-950 dark:text-emerald-200 transition-colors"
               >
                 <div className="flex items-center gap-1.5 mb-1 select-none">
                   <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded">

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -65,10 +65,14 @@ export function RevisionDiffViewer({ blogId, revisionId }: RevisionDiffViewerPro
   const [diffViewMode, setDiffViewMode] = useState<"visual" | "unified" | "clean">("visual");
   const [activeTab, setActiveTab] = useState<"snapshot" | "current">("snapshot");
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [showMetadataDetails, setShowMetadataDetails] = useState(true);
+  const [showMetadataDetails, setShowMetadataDetails] = useState(false);
+
+  const [activeChangeIdx, setActiveChangeIdx] = useState(0);
+  const [diffCount, setDiffCount] = useState(0);
 
   const leftPaneRef = useRef<HTMLDivElement>(null);
   const rightPaneRef = useRef<HTMLDivElement>(null);
+  const unifiedPaneRef = useRef<HTMLDivElement>(null);
   const isSyncingLeft = useRef(false);
   const isSyncingRight = useRef(false);
 
@@ -131,6 +135,59 @@ export function RevisionDiffViewer({ blogId, revisionId }: RevisionDiffViewerPro
     });
     router.push(`/blogs/edit/${blogId}?restoreRevision=${revisionId}`);
   };
+
+  // Active scrollable container depending on mode and tab
+  const getActiveContainer = useCallback(() => {
+    if (diffViewMode === "unified") {
+      return unifiedPaneRef.current;
+    }
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      return activeTab === "snapshot" ? leftPaneRef.current : rightPaneRef.current;
+    }
+    return leftPaneRef.current || rightPaneRef.current;
+  }, [diffViewMode, activeTab]);
+
+  // Recount diff nodes whenever view mode, tab, or data changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const container = getActiveContainer();
+      if (!container) return;
+      const nodes = container.querySelectorAll(".diff-change-node");
+      setDiffCount(nodes.length);
+      setActiveChangeIdx(0);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [diffViewMode, activeTab, revData, currentBlog, getActiveContainer]);
+
+  const handleNextChange = useCallback(() => {
+    const container = getActiveContainer();
+    if (!container) return;
+    const nodes = Array.from(container.querySelectorAll(".diff-change-node"));
+    if (nodes.length === 0) return;
+    const nextIdx = (activeChangeIdx + 1) % nodes.length;
+    setActiveChangeIdx(nextIdx);
+    const target = nodes[nextIdx] as HTMLElement;
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    target.classList.add("ring-2", "ring-primary", "rounded-xs", "transition-all", "duration-300");
+    setTimeout(() => {
+      target.classList.remove("ring-2", "ring-primary", "rounded-xs");
+    }, 1500);
+  }, [activeChangeIdx, getActiveContainer]);
+
+  const handlePrevChange = useCallback(() => {
+    const container = getActiveContainer();
+    if (!container) return;
+    const nodes = Array.from(container.querySelectorAll(".diff-change-node"));
+    if (nodes.length === 0) return;
+    const prevIdx = (activeChangeIdx - 1 + nodes.length) % nodes.length;
+    setActiveChangeIdx(prevIdx);
+    const target = nodes[prevIdx] as HTMLElement;
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    target.classList.add("ring-2", "ring-primary", "rounded-xs", "transition-all", "duration-300");
+    setTimeout(() => {
+      target.classList.remove("ring-2", "ring-primary", "rounded-xs");
+    }, 1500);
+  }, [activeChangeIdx, getActiveContainer]);
 
   const isLoading = revLoading || blogLoading;
   const hasError = revError || blogError || !revision || !currentBlog;
@@ -202,46 +259,76 @@ export function RevisionDiffViewer({ blogId, revisionId }: RevisionDiffViewerPro
   return (
     <div className="h-screen w-full flex flex-col bg-background overflow-hidden">
       {/* Top Bar Header */}
-      <header className="h-16 px-4 md:px-6 border-b border-border/80 bg-card/60 backdrop-blur-md flex items-center justify-between gap-4 shrink-0 z-10">
+      <header className="h-14 sm:h-16 px-3 sm:px-6 border-b border-border/80 bg-card/70 backdrop-blur-md flex items-center justify-between gap-2 sm:gap-4 shrink-0 z-10">
         {/* Left: Back & Title */}
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <Button
             variant="outline"
             size="sm"
             onClick={() => router.push(`/blogs/edit/${blogId}`)}
-            className="h-9 px-3 gap-1.5 cursor-pointer hover:bg-muted"
+            className="h-8 sm:h-9 w-8 sm:w-auto p-0 sm:px-3 gap-1.5 cursor-pointer hover:bg-muted shrink-0"
+            title="Back to Editor"
           >
             <ArrowLeft className="w-4 h-4" />
             <span className="hidden sm:inline text-xs font-semibold">Back to Editor</span>
           </Button>
 
           <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-sm md:text-base font-bold text-foreground truncate">
-                Comparing Version {revision.versionNumber} vs Current
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-nowrap sm:flex-wrap">
+              <h1 className="text-xs sm:text-sm md:text-base font-bold text-foreground truncate">
+                <span className="sm:hidden">v{revision.versionNumber} vs Live</span>
+                <span className="hidden sm:inline">Comparing Version {revision.versionNumber} vs Current</span>
               </h1>
-              <Badge variant="secondary" className="text-[11px] font-semibold px-2 py-0.5 bg-muted">
+              <Badge variant="secondary" className="text-[10px] sm:text-[11px] font-semibold px-1.5 sm:px-2 py-0.5 bg-muted shrink-0">
                 v{revision.versionNumber} Snapshot
               </Badge>
               {revision.action?.startsWith("restored:") && (
-                <Badge variant="outline" className="text-[11px] font-semibold px-2 py-0.5 text-blue-600 dark:text-blue-400 border-blue-500/30">
+                <Badge variant="outline" className="hidden sm:inline-flex text-[10px] sm:text-[11px] font-semibold px-1.5 sm:px-2 py-0.5 text-blue-600 dark:text-blue-400 border-blue-500/30 shrink-0">
                   Restored from v{revision.action.split(":")[1]}
                 </Badge>
               )}
-              <Badge variant="outline" className="text-[11px] font-semibold px-2 py-0.5 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+              <Badge variant="outline" className="hidden xs:inline-flex text-[10px] sm:text-[11px] font-semibold px-1.5 sm:px-2 py-0.5 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 shrink-0">
                 Live Current
               </Badge>
             </div>
-            <p className="text-[11px] text-muted-foreground truncate">
+            <p className="hidden md:block text-[11px] text-muted-foreground truncate">
               Snapshot taken {formattedSnapshotDate} by {author?.name || author?.email || "Author"}
             </p>
           </div>
         </div>
 
         {/* Right: Controls & Restore Button */}
-        <div className="flex items-center gap-2">
-          {/* Diff Mode Selector */}
-          <div className="flex items-center bg-muted/70 p-0.5 rounded-md border border-border/70">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Diff Stepper (md+) */}
+          {diffCount > 0 && (
+            <div className="hidden md:flex items-center gap-1 bg-muted/80 border border-border/70 rounded-md px-2 py-0.5 text-xs">
+              <span className="text-[11px] font-semibold text-foreground">
+                {activeChangeIdx + 1}
+                <span className="text-muted-foreground font-normal">/{diffCount} diffs</span>
+              </span>
+              <div className="flex items-center gap-0.5 ml-1">
+                <button
+                  type="button"
+                  onClick={handlePrevChange}
+                  className="p-1 rounded hover:bg-background text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                  title="Previous change"
+                >
+                  <ChevronUp className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNextChange}
+                  className="p-1 rounded hover:bg-background text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                  title="Next change"
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Diff Mode Selector - Desktop/Tablet (sm+) */}
+          <div className="hidden sm:flex items-center bg-muted/70 p-0.5 rounded-md border border-border/70">
             <button
               type="button"
               onClick={() => setDiffViewMode("visual")}
@@ -301,7 +388,7 @@ export function RevisionDiffViewer({ blogId, revisionId }: RevisionDiffViewerPro
             variant="outline"
             size="sm"
             onClick={() => setShowMetadataDetails((prev) => !prev)}
-            className="h-8 px-2.5 text-xs gap-1.5 cursor-pointer hover:bg-muted"
+            className="h-8 px-2 sm:px-2.5 text-xs gap-1 cursor-pointer hover:bg-muted"
             title="Toggle metadata overview"
           >
             <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -313,17 +400,56 @@ export function RevisionDiffViewer({ blogId, revisionId }: RevisionDiffViewerPro
             )}
           </Button>
 
-          {/* Restore Button */}
+          {/* Restore Button (Desktop / Tablet sm+) */}
           <Button
             size="sm"
             onClick={() => setIsConfirmOpen(true)}
-            className="h-9 px-3.5 text-xs font-bold bg-black hover:bg-black/90 dark:bg-white dark:text-black dark:hover:bg-white/90 gap-1.5 cursor-pointer shadow-sm"
+            className="hidden sm:flex h-8 sm:h-9 px-3 sm:px-3.5 text-xs font-bold bg-black hover:bg-black/90 dark:bg-white dark:text-black dark:hover:bg-white/90 gap-1.5 cursor-pointer shadow-sm text-white shrink-0"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Restore Version {revision.versionNumber}</span>
           </Button>
         </div>
       </header>
+
+      {/* Mobile Mode Switcher (< sm) */}
+      <div className="sm:hidden flex items-center justify-center px-3 py-1.5 bg-muted/30 border-b border-border/60 shrink-0">
+        <div className="flex items-center w-full p-0.5 bg-muted/80 rounded-lg border border-border/80">
+          <button
+            type="button"
+            onClick={() => setDiffViewMode("visual")}
+            className={`flex-1 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer text-center ${
+              diffViewMode === "visual"
+                ? "bg-background text-foreground shadow-xs font-bold"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Visual Diff
+          </button>
+          <button
+            type="button"
+            onClick={() => setDiffViewMode("unified")}
+            className={`flex-1 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer text-center ${
+              diffViewMode === "unified"
+                ? "bg-background text-foreground shadow-xs font-bold"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Unified Lines
+          </button>
+          <button
+            type="button"
+            onClick={() => setDiffViewMode("clean")}
+            className={`flex-1 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer text-center ${
+              diffViewMode === "clean"
+                ? "bg-background text-foreground shadow-xs font-bold"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Clean Read
+          </button>
+        </div>
+      </div>
 
       {/* Identical Versions Notice Banner */}
       {isContentIdentical && (
@@ -345,257 +471,338 @@ export function RevisionDiffViewer({ blogId, revisionId }: RevisionDiffViewerPro
         </div>
       )}
 
-      {/* Mobile Tab Switcher (Visible on < lg screens) */}
-      <div className="lg:hidden flex border-b border-border bg-muted/40 p-1">
-        <button
-          onClick={() => setActiveTab("snapshot")}
-          className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${
-            activeTab === "snapshot"
-              ? "bg-background shadow-xs text-foreground font-bold"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Version {revision.versionNumber} Snapshot
-        </button>
-        <button
-          onClick={() => setActiveTab("current")}
-          className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${
-            activeTab === "current"
-              ? "bg-background shadow-xs text-foreground font-bold"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Current Version
-        </button>
-      </div>
-
-      {/* Compact Symmetrical Metadata Comparison Header Strip */}
-      {showMetadataDetails && (
-        <div className="border-b border-border bg-muted/20 px-4 py-2 shrink-0 overflow-x-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 max-w-full">
-            {/* Snapshot Metadata Box */}
-            <div className="p-2.5 px-3 rounded-lg border border-border/70 bg-card text-xs space-y-1.5">
-              <div className="flex items-center justify-between pb-1 border-b border-border/40">
-                <span className="font-bold flex items-center gap-1.5 text-foreground">
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-muted font-bold">
-                    v{revision.versionNumber}
-                  </Badge>
-                  Historical Snapshot Metadata
-                  {revision.action?.startsWith("restored:") && (
-                    <span className="text-[10px] text-blue-600 dark:text-blue-400 font-normal">
-                      (Restored from v{revision.action.split(":")[1]})
-                    </span>
-                  )}
-                </span>
-                <span className="text-[11px] text-muted-foreground">{formattedSnapshotDate}</span>
-              </div>
-
-              {/* Single Inline Compact Row */}
-              <div className="flex items-center gap-2.5 text-[11px] flex-wrap">
-                <div className="flex items-center gap-1">
-                  <span className="text-muted-foreground text-[10px] uppercase font-semibold">Words:</span>
-                  <span className="font-semibold text-foreground">
-                    {snapshotWordCount.toLocaleString()}
-                  </span>
-                </div>
-
-                <span className="text-border select-none">|</span>
-
-                <div className="flex items-center gap-1">
-                  <span className="text-muted-foreground text-[10px] uppercase font-semibold">Read:</span>
-                  <span className="font-semibold text-foreground">
-                    {snapshotReadingTime} min
-                  </span>
-                </div>
-
-                {/* Categories */}
-                {(snapshotCategories.length > 0 || currentCategories.length > 0) && (
-                  <>
-                    <span className="text-border select-none">|</span>
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <Folder className="w-3 h-3 text-muted-foreground shrink-0" />
-                      {snapshotCategories.length > 0 ? (
-                        snapshotCategories.map((cat) => {
-                          const wasRemoved = !currentCategories.includes(cat);
-                          return (
-                            <Badge
-                              key={cat}
-                              variant={wasRemoved ? "outline" : "secondary"}
-                              className={`text-[10px] py-0 px-1.5 ${
-                                wasRemoved
-                                  ? "border-red-500/50 bg-red-500/10 text-red-700 dark:text-red-400 font-semibold"
-                                  : ""
-                              }`}
-                            >
-                              {wasRemoved && <span className="mr-0.5">-</span>}
-                              {cat}
-                            </Badge>
-                          );
-                        })
-                      ) : (
-                        <span className="text-[10px] text-muted-foreground italic">None</span>
-                      )}
-                    </div>
-                  </>
-                )}
-
-                {/* Tags */}
-                {(snapshotTags.length > 0 || currentTags.length > 0) && (
-                  <>
-                    <span className="text-border select-none">|</span>
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <Tag className="w-3 h-3 text-muted-foreground shrink-0" />
-                      {snapshotTags.length > 0 ? (
-                        snapshotTags.map((tag) => {
-                          const wasRemoved = !currentTags.includes(tag);
-                          return (
-                            <Badge
-                              key={tag}
-                              variant={wasRemoved ? "outline" : "secondary"}
-                              className={`text-[10px] py-0 px-1.5 ${
-                                wasRemoved
-                                  ? "border-red-500/50 bg-red-500/10 text-red-700 dark:text-red-400 font-semibold"
-                                  : ""
-                              }`}
-                            >
-                              {wasRemoved && <span className="mr-0.5">-</span>}
-                              {tag}
-                            </Badge>
-                          );
-                        })
-                      ) : (
-                        <span className="text-[10px] text-muted-foreground italic">None</span>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Current Metadata Box */}
-            <div className="p-2.5 px-3 rounded-lg border border-border/70 bg-card text-xs space-y-1.5">
-              <div className="flex items-center justify-between pb-1 border-b border-border/40">
-                <span className="font-bold flex items-center gap-1.5 text-foreground">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  Current Live Post Metadata
-                </span>
-                <span className="text-[11px] text-muted-foreground">Active in database</span>
-              </div>
-
-              {/* Single Inline Compact Row */}
-              <div className="flex items-center gap-2.5 text-[11px] flex-wrap">
-                <div className="flex items-center gap-1">
-                  <span className="text-muted-foreground text-[10px] uppercase font-semibold">Words:</span>
-                  <span className="font-semibold text-foreground">
-                    {currentWordCount.toLocaleString()}
-                  </span>
-                  {wordCountDiff > 0 && (
-                    <Badge variant="outline" className="text-[10px] py-0 px-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-bold">
-                      +{wordCountDiff}
-                    </Badge>
-                  )}
-                  {wordCountDiff < 0 && (
-                    <Badge variant="outline" className="text-[10px] py-0 px-1 text-red-600 dark:text-red-400 border-red-500/30 font-bold">
-                      {wordCountDiff}
-                    </Badge>
-                  )}
-                  {wordCountDiff === 0 && (
-                    <span className="text-[10px] text-muted-foreground">(Same)</span>
-                  )}
-                </div>
-
-                <span className="text-border select-none">|</span>
-
-                <div className="flex items-center gap-1">
-                  <span className="text-muted-foreground text-[10px] uppercase font-semibold">Read:</span>
-                  <span className="font-semibold text-foreground">
-                    {currentReadingTime} min
-                  </span>
-                  {readingTimeDiff > 0 && (
-                    <Badge variant="outline" className="text-[10px] py-0 px-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-bold">
-                      +{readingTimeDiff}m
-                    </Badge>
-                  )}
-                  {readingTimeDiff < 0 && (
-                    <Badge variant="outline" className="text-[10px] py-0 px-1 text-red-600 dark:text-red-400 border-red-500/30 font-bold">
-                      {readingTimeDiff}m
-                    </Badge>
-                  )}
-                  {readingTimeDiff === 0 && (
-                    <span className="text-[10px] text-muted-foreground">(Same)</span>
-                  )}
-                </div>
-
-                {/* Categories */}
-                {(snapshotCategories.length > 0 || currentCategories.length > 0) && (
-                  <>
-                    <span className="text-border select-none">|</span>
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <Folder className="w-3 h-3 text-muted-foreground shrink-0" />
-                      {currentCategories.length > 0 ? (
-                        currentCategories.map((cat: string) => {
-                          const wasAdded = !snapshotCategories.includes(cat);
-                          return (
-                            <Badge
-                              key={cat}
-                              variant={wasAdded ? "outline" : "secondary"}
-                              className={`text-[10px] py-0 px-1.5 ${
-                                wasAdded
-                                  ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-semibold"
-                                  : ""
-                              }`}
-                            >
-                              {wasAdded && <span className="mr-0.5">+</span>}
-                              {cat}
-                            </Badge>
-                          );
-                        })
-                      ) : (
-                        <span className="text-[10px] text-muted-foreground italic">None</span>
-                      )}
-                    </div>
-                  </>
-                )}
-
-                {/* Tags */}
-                {(snapshotTags.length > 0 || currentTags.length > 0) && (
-                  <>
-                    <span className="text-border select-none">|</span>
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <Tag className="w-3 h-3 text-muted-foreground shrink-0" />
-                      {currentTags.length > 0 ? (
-                        currentTags.map((tag: string) => {
-                          const wasAdded = !snapshotTags.includes(tag);
-                          return (
-                            <Badge
-                              key={tag}
-                              variant={wasAdded ? "outline" : "secondary"}
-                              className={`text-[10px] py-0 px-1.5 ${
-                                wasAdded
-                                  ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-semibold"
-                                  : ""
-                              }`}
-                            >
-                              {wasAdded && <span className="mr-0.5">+</span>}
-                              {tag}
-                            </Badge>
-                          );
-                        })
-                      ) : (
-                        <span className="text-[10px] text-muted-foreground italic">None</span>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
+      {/* Mobile Tab Switcher (Visible on < lg screens when in visual or clean mode) */}
+      {diffViewMode !== "unified" && (
+        <div className="lg:hidden px-3 pt-2 pb-1 bg-background shrink-0">
+          <div className="flex items-center p-0.5 bg-muted/60 border border-border/80 rounded-lg">
+            <button
+              type="button"
+              onClick={() => setActiveTab("snapshot")}
+              className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                activeTab === "snapshot"
+                  ? "bg-background text-foreground shadow-xs font-bold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60" />
+              <span>v{revision.versionNumber} Snapshot</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("current")}
+              className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                activeTab === "current"
+                  ? "bg-background text-foreground shadow-xs font-bold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Current Active</span>
+            </button>
           </div>
         </div>
       )}
 
+      {/* 1-Line Summary Strip (Anchored) with Absolute Floating Dropdown */}
+      <div className="relative shrink-0 z-30">
+        {/* Compact Strip */}
+        <div className="border-b border-border/60 bg-muted/25 px-3 sm:px-6 py-1.5 flex items-center justify-between gap-2 text-xs overflow-x-auto">
+          <div className="flex items-center gap-2 sm:gap-4 text-muted-foreground text-[11px] sm:text-xs truncate">
+            <span className="font-medium text-foreground shrink-0 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary/70" />
+              <span>Snapshot:</span>
+              <strong className="text-foreground">{snapshotWordCount.toLocaleString()} words</strong>
+              <span className="text-muted-foreground">({snapshotReadingTime}m read)</span>
+            </span>
+            <span className="text-border select-none">→</span>
+            <span className="font-medium text-foreground shrink-0 flex items-center gap-1">
+              <span>Live:</span>
+              <strong className="text-foreground">{currentWordCount.toLocaleString()} words</strong>
+              {wordCountDiff !== 0 && (
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] py-0 px-1 font-bold ${
+                    wordCountDiff > 0
+                      ? "text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                      : "text-red-600 dark:text-red-400 border-red-500/30"
+                  }`}
+                >
+                  {wordCountDiff > 0 ? `+${wordCountDiff}` : wordCountDiff}
+                </Badge>
+              )}
+            </span>
+            {(isTitleDifferent || isExcerptDifferent || isImageDifferent) && (
+              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                • Header fields modified
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowMetadataDetails((prev) => !prev)}
+            className="text-[11px] font-semibold text-primary hover:text-primary/80 px-1.5 py-0.5 rounded-sm hover:bg-primary/5 transition-colors flex items-center gap-0.5 shrink-0 cursor-pointer"
+          >
+            <span>{showMetadataDetails ? "Collapse" : "Details"}</span>
+            {showMetadataDetails ? (
+              <ChevronUp className="w-3 h-3" />
+            ) : (
+              <ChevronDown className="w-3 h-3" />
+            )}
+          </button>
+        </div>
+
+        {/* Absolute Floating Dropdown Panel with Bidirectional Smooth Transition */}
+        {/* Transparent click-outside handler (no background blur) */}
+        {showMetadataDetails && (
+          <div
+            className="fixed inset-0 z-30"
+            onClick={() => setShowMetadataDetails(false)}
+          />
+        )}
+
+        {/* Hanging Dropdown Card with Border Radius, Shadow & Bidirectional Transition */}
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className={`absolute top-full left-2 right-2 sm:left-4 sm:right-4 mt-1.5 z-40 bg-card border border-border/80 rounded-2xl shadow-2xl shadow-black/25 p-3.5 sm:p-5 max-h-[75vh] overflow-y-auto transition-all duration-200 ease-in-out ${
+            showMetadataDetails
+              ? "opacity-100 translate-y-0 pointer-events-auto visible"
+              : "opacity-0 -translate-y-2.5 pointer-events-none invisible"
+          }`}
+        >
+          <div className="pb-2 mb-2.5 border-b border-border/50">
+            <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-primary" />
+              Metadata Breakdown & Differences
+            </span>
+          </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 max-w-full">
+                {/* Snapshot Metadata Box */}
+                <div className="p-3 rounded-lg border border-border/70 bg-card/90 text-xs space-y-2 shadow-xs">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-border/40">
+                    <span className="font-bold flex items-center gap-1.5 text-foreground">
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-muted font-bold">
+                        v{revision.versionNumber}
+                      </Badge>
+                      Historical Snapshot Metadata
+                      {revision.action?.startsWith("restored:") && (
+                        <span className="text-[10px] text-blue-600 dark:text-blue-400 font-normal">
+                          (Restored from v{revision.action.split(":")[1]})
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">{formattedSnapshotDate}</span>
+                  </div>
+
+                  {/* Single Inline Compact Row */}
+                  <div className="flex items-center gap-2.5 text-[11px] flex-wrap">
+                    <div className="flex items-center gap-1">
+                      <span className="text-muted-foreground text-[10px] uppercase font-semibold">Words:</span>
+                      <span className="font-semibold text-foreground">
+                        {snapshotWordCount.toLocaleString()}
+                      </span>
+                    </div>
+
+                    <span className="text-border select-none">|</span>
+
+                    <div className="flex items-center gap-1">
+                      <span className="text-muted-foreground text-[10px] uppercase font-semibold">Read:</span>
+                      <span className="font-semibold text-foreground">
+                        {snapshotReadingTime} min
+                      </span>
+                    </div>
+
+                    {/* Categories */}
+                    {(snapshotCategories.length > 0 || currentCategories.length > 0) && (
+                      <>
+                        <span className="text-border select-none">|</span>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <Folder className="w-3 h-3 text-muted-foreground shrink-0" />
+                          {snapshotCategories.length > 0 ? (
+                            snapshotCategories.map((cat) => {
+                              const wasRemoved = !currentCategories.includes(cat);
+                              return (
+                                <Badge
+                                  key={cat}
+                                  variant={wasRemoved ? "outline" : "secondary"}
+                                  className={`text-[10px] py-0 px-1.5 ${
+                                    wasRemoved
+                                      ? "border-red-500/50 bg-red-500/10 text-red-700 dark:text-red-400 font-semibold"
+                                      : ""
+                                  }`}
+                                >
+                                  {wasRemoved && <span className="mr-0.5">-</span>}
+                                  {cat}
+                                </Badge>
+                              );
+                            })
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground italic">None</span>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    {/* Tags */}
+                    {(snapshotTags.length > 0 || currentTags.length > 0) && (
+                      <>
+                        <span className="text-border select-none">|</span>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <Tag className="w-3 h-3 text-muted-foreground shrink-0" />
+                          {snapshotTags.length > 0 ? (
+                            snapshotTags.map((tag) => {
+                              const wasRemoved = !currentTags.includes(tag);
+                              return (
+                                <Badge
+                                  key={tag}
+                                  variant={wasRemoved ? "outline" : "secondary"}
+                                  className={`text-[10px] py-0 px-1.5 ${
+                                    wasRemoved
+                                      ? "border-red-500/50 bg-red-500/10 text-red-700 dark:text-red-400 font-semibold"
+                                      : ""
+                                  }`}
+                                >
+                                  {wasRemoved && <span className="mr-0.5">-</span>}
+                                  {tag}
+                                </Badge>
+                              );
+                            })
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground italic">None</span>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Current Metadata Box */}
+                <div className="p-3 rounded-lg border border-border/70 bg-card/90 text-xs space-y-2 shadow-xs">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-border/40">
+                    <span className="font-bold flex items-center gap-1.5 text-foreground">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      Current Live Post Metadata
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">Active in database</span>
+                  </div>
+
+                  {/* Single Inline Compact Row */}
+                  <div className="flex items-center gap-2.5 text-[11px] flex-wrap">
+                    <div className="flex items-center gap-1">
+                      <span className="text-muted-foreground text-[10px] uppercase font-semibold">Words:</span>
+                      <span className="font-semibold text-foreground">
+                        {currentWordCount.toLocaleString()}
+                      </span>
+                      {wordCountDiff > 0 && (
+                        <Badge variant="outline" className="text-[10px] py-0 px-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-bold">
+                          +{wordCountDiff}
+                        </Badge>
+                      )}
+                      {wordCountDiff < 0 && (
+                        <Badge variant="outline" className="text-[10px] py-0 px-1 text-red-600 dark:text-red-400 border-red-500/30 font-bold">
+                          {wordCountDiff}
+                        </Badge>
+                      )}
+                      {wordCountDiff === 0 && (
+                        <span className="text-[10px] text-muted-foreground">(Same)</span>
+                      )}
+                    </div>
+
+                    <span className="text-border select-none">|</span>
+
+                    <div className="flex items-center gap-1">
+                      <span className="text-muted-foreground text-[10px] uppercase font-semibold">Read:</span>
+                      <span className="font-semibold text-foreground">
+                        {currentReadingTime} min
+                      </span>
+                      {readingTimeDiff > 0 && (
+                        <Badge variant="outline" className="text-[10px] py-0 px-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-bold">
+                          +{readingTimeDiff}m
+                        </Badge>
+                      )}
+                      {readingTimeDiff < 0 && (
+                        <Badge variant="outline" className="text-[10px] py-0 px-1 text-red-600 dark:text-red-400 border-red-500/30 font-bold">
+                          {readingTimeDiff}m
+                        </Badge>
+                      )}
+                      {readingTimeDiff === 0 && (
+                        <span className="text-[10px] text-muted-foreground">(Same)</span>
+                      )}
+                    </div>
+
+                    {/* Categories */}
+                    {(snapshotCategories.length > 0 || currentCategories.length > 0) && (
+                      <>
+                        <span className="text-border select-none">|</span>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <Folder className="w-3 h-3 text-muted-foreground shrink-0" />
+                          {currentCategories.length > 0 ? (
+                            currentCategories.map((cat: string) => {
+                              const wasAdded = !snapshotCategories.includes(cat);
+                              return (
+                                <Badge
+                                  key={cat}
+                                  variant={wasAdded ? "outline" : "secondary"}
+                                  className={`text-[10px] py-0 px-1.5 ${
+                                    wasAdded
+                                      ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-semibold"
+                                      : ""
+                                  }`}
+                                >
+                                  {wasAdded && <span className="mr-0.5">+</span>}
+                                  {cat}
+                                </Badge>
+                              );
+                            })
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground italic">None</span>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    {/* Tags */}
+                    {(snapshotTags.length > 0 || currentTags.length > 0) && (
+                      <>
+                        <span className="text-border select-none">|</span>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <Tag className="w-3 h-3 text-muted-foreground shrink-0" />
+                          {currentTags.length > 0 ? (
+                            currentTags.map((tag: string) => {
+                              const wasAdded = !snapshotTags.includes(tag);
+                              return (
+                                <Badge
+                                  key={tag}
+                                  variant={wasAdded ? "outline" : "secondary"}
+                                  className={`text-[10px] py-0 px-1.5 ${
+                                    wasAdded
+                                      ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-semibold"
+                                      : ""
+                                  }`}
+                                >
+                                  {wasAdded && <span className="mr-0.5">+</span>}
+                                  {tag}
+                                </Badge>
+                              );
+                            })
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground italic">None</span>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
       {/* Main Diff Content Area */}
       {diffViewMode === "unified" ? (
-        <div className="flex-1 min-h-0 overflow-y-auto p-6 bg-background">
+        <div
+          ref={unifiedPaneRef}
+          className="flex-1 min-h-0 overflow-y-auto p-3.5 sm:p-6 bg-background"
+        >
           <div className="max-w-4xl mx-auto space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-border/60">
               <span className="text-xs font-semibold text-muted-foreground">
@@ -619,7 +826,7 @@ export function RevisionDiffViewer({ blogId, revisionId }: RevisionDiffViewerPro
           <div
             ref={leftPaneRef}
             onScroll={handleLeftScroll}
-            className={`flex-1 min-h-0 overflow-y-auto p-6 border-r border-border bg-card/30 ${
+            className={`flex-1 min-h-0 overflow-y-auto p-3.5 sm:p-6 border-r border-border bg-card/30 ${
               activeTab === "snapshot" ? "block" : "hidden lg:block"
             }`}
           >
@@ -703,7 +910,7 @@ export function RevisionDiffViewer({ blogId, revisionId }: RevisionDiffViewerPro
           <div
             ref={rightPaneRef}
             onScroll={handleRightScroll}
-            className={`flex-1 min-h-0 overflow-y-auto p-6 bg-background ${
+            className={`flex-1 min-h-0 overflow-y-auto p-3.5 sm:p-6 bg-background ${
               activeTab === "current" ? "block" : "hidden lg:block"
             }`}
           >
@@ -781,6 +988,53 @@ export function RevisionDiffViewer({ blogId, revisionId }: RevisionDiffViewerPro
           </div>
         </div>
       )}
+
+      {/* Mobile Sticky Bottom Action Bar (< sm) */}
+      <div className="sm:hidden flex items-center justify-between gap-3 px-3.5 py-2.5 border-t border-border/80 bg-card/95 backdrop-blur-md sticky bottom-0 z-20 shrink-0">
+        {/* Left: Change Stepper Navigation */}
+        <div className="flex items-center gap-1.5 min-w-0">
+          {diffCount > 0 ? (
+            <div className="flex items-center gap-1.5 bg-muted/80 border border-border/70 rounded-lg px-2.5 py-1 text-xs">
+              <span className="text-[11px] font-semibold text-foreground">
+                {activeChangeIdx + 1}
+                <span className="text-muted-foreground font-normal">/{diffCount}</span>
+              </span>
+              <div className="flex items-center gap-0.5 ml-1">
+                <button
+                  type="button"
+                  onClick={handlePrevChange}
+                  className="p-1 rounded hover:bg-background text-muted-foreground hover:text-foreground cursor-pointer transition-colors active:scale-90"
+                  title="Previous change"
+                >
+                  <ChevronUp className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNextChange}
+                  className="p-1 rounded hover:bg-background text-muted-foreground hover:text-foreground cursor-pointer transition-colors active:scale-90"
+                  title="Next change"
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <span className="text-[11px] text-muted-foreground italic truncate">
+              No differences
+            </span>
+          )}
+        </div>
+
+        {/* Right: Primary Restore Button */}
+        <Button
+          size="sm"
+          onClick={() => setIsConfirmOpen(true)}
+          className="h-9 px-3.5 text-xs font-bold bg-black hover:bg-black/90 dark:bg-white dark:text-black dark:hover:bg-white/90 gap-1.5 cursor-pointer shadow-sm text-white shrink-0 active:scale-95 transition-all"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          <span>Restore v{revision.versionNumber}</span>
+        </Button>
+      </div>
 
       {/* Confirmation Dialog */}
       <RestoreConfirmDialog

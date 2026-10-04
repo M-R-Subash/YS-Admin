@@ -158,12 +158,12 @@ export function UnifiedDiffViewer({
 
               if (change.added) {
                 lineClasses =
-                  "bg-emerald-500/10 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 border-l-4 border-emerald-500";
+                  "diff-change-node bg-emerald-500/10 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 border-l-4 border-emerald-500";
                 prefix = "+";
                 currentNewLine = String(newLineNum++);
               } else if (change.removed) {
                 lineClasses =
-                  "bg-red-500/10 dark:bg-red-950/40 text-red-900 dark:text-red-200 border-l-4 border-red-500";
+                  "diff-change-node bg-red-500/10 dark:bg-red-950/40 text-red-900 dark:text-red-200 border-l-4 border-red-500";
                 prefix = "-";
                 currentOldLine = String(oldLineNum++);
               } else {
