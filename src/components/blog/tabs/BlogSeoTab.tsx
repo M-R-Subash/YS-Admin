@@ -64,15 +64,18 @@ export function BlogSeoTab() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto custom-scrollbar p-1 sm:p-3.5 md:p-5 bg-card rounded-lg sm:rounded-xl border border-border">
-      <SeoEditorSuite
-        values={values}
-        onChange={handleChange}
-        entityType="blog"
-        content={content}
-        slugPrefix="/blogs"
-        errors={formattedErrors}
-      />
+    <div className="flex-1 min-h-0 bg-card rounded-lg sm:rounded-xl border border-border overflow-hidden flex flex-col">
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1.5 sm:p-3.5 md:p-5">
+        <SeoEditorSuite
+          values={values}
+          onChange={handleChange}
+          entityType="blog"
+          content={content}
+          slugPrefix="/blogs"
+          errors={formattedErrors}
+          className="p-0"
+        />
+      </div>
     </div>
   );
 }
