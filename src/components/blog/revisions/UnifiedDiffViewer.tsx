@@ -190,7 +190,7 @@ export function UnifiedDiffViewer({
                   </span>
 
                   {/* Content line */}
-                  <span className="flex-1 whitespace-pre-wrap break-words pl-1">
+                  <span className="flex-1 whitespace-pre-wrap wrap-break-word pl-1">
                     {line}
                   </span>
                 </div>

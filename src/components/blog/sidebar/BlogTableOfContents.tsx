@@ -42,13 +42,13 @@ export function BlogTableOfContents({ onItemClick }: BlogTableOfContentsProps = 
           <div className="space-y-1">
             {/* Heading Hierarchy Warning Banner */}
             {tocIssues.length > 0 && (
-              <div className="flex items-start gap-2 p-2.5 mb-2 rounded-lg bg-amber-50 border-border border-amber-200 text-amber-900">
+              <div className="flex items-start gap-2 p-2.5 mb-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 text-amber-900 dark:text-amber-200">
                 <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-500" />
                 <div>
                   <p className="text-[11px] font-bold">
                     {tocIssues.length} heading hierarchy {tocIssues.length === 1 ? "issue" : "issues"}
                   </p>
-                  <p className="text-[10px] text-amber-700 mt-0.5 leading-relaxed">
+                  <p className="text-[10px] text-amber-700 dark:text-amber-300 mt-0.5 leading-relaxed">
                     Proper heading order (H2 → H3 → H4) improves SEO and accessibility.
                   </p>
                 </div>
@@ -98,7 +98,7 @@ export function BlogTableOfContents({ onItemClick }: BlogTableOfContentsProps = 
                           <AlertTriangle className="w-3 h-3 text-amber-500" />
                         </span>
                       </TooltipTrigger>
-                      <TooltipContent side="left" className="max-w-[200px]">
+                      <TooltipContent side="left" className="max-w-50">
                         <p className="text-xs">{issue.message}</p>
                       </TooltipContent>
                     </Tooltip>

@@ -193,7 +193,7 @@ export function EditorTopBar({
 
         <div className="min-w-0">
           <div className="flex items-center gap-2 sm:gap-3">
-            <h1 className="text-xs sm:text-sm font-bold text-black tracking-tight truncate max-w-[110px] xs:max-w-[160px] sm:max-w-[260px] md:max-w-[400px]">
+            <h1 className="text-xs sm:text-sm font-bold text-black tracking-tight truncate max-w-27.5 xs:max-w-40 sm:max-w-65 md:max-w-100">
               {title || "Untitled"}
             </h1>
 
@@ -433,7 +433,7 @@ export function EditorTopBar({
             ) : (
               <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             )}
-            <span className="truncate max-w-[75px] xs:max-w-none">{effectivePublishLabel}</span>
+            <span className="truncate max-w-18.75 xs:max-w-none">{effectivePublishLabel}</span>
           </Button>
 
           {(onSaveDraft || onOpenSchedule || isScheduled || onPreview || (isEditMode && onOpenHistory)) && (

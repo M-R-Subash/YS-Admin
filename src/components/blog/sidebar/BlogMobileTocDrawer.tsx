@@ -48,7 +48,7 @@ export function BlogMobileTocDrawer({ open, onOpenChange }: BlogMobileTocDrawerP
           <BlogArticleInsights />
 
           {/* Interactive TOC list */}
-          <div className="min-h-[300px] flex flex-col">
+          <div className="min-h-75 flex flex-col">
             <BlogTableOfContents onItemClick={() => onOpenChange(false)} />
           </div>
         </div>
