@@ -3,7 +3,7 @@
 import React, { useMemo } from "react";
 import { diffLines, Change } from "diff";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Minus, FileText, CheckCircle2 } from "lucide-react";
+import { Plus, Minus, CheckCircle2 } from "lucide-react";
 
 interface UnifiedDiffViewerProps {
   oldContent: any;

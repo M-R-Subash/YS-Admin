@@ -81,12 +81,12 @@ export function SeoEditorSuite({
   }, [focusKeyword, metaTitle, title, slug, metaDesc, content, entityType]);
 
   return (
-    <div className={`w-full p-4 sm:p-6 ${className}`}>
+    <div className={`w-full p-1.5 sm:p-4 md:p-6 ${className}`}>
       {/* 3-Column Layout: Previews/Social | Core/Indexing | Health Advisor */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6 items-start">
         {/* Column 1: Snippet & Social Card Previews */}
-        <div className="space-y-5">
-          <div className="bg-card border border-border rounded-xl p-4 shadow-2xs space-y-3.5">
+        <div className="space-y-3.5 sm:space-y-5">
+          <div className="bg-card border border-border rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-2xs space-y-3.5">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-black uppercase tracking-wider text-muted-foreground font-mono">
                 Snippet Previews
@@ -143,7 +143,7 @@ export function SeoEditorSuite({
           </div>
 
           {/* Social Sharing Overrides */}
-          <div className="bg-card border border-border rounded-xl p-4 shadow-2xs space-y-4">
+          <div className="bg-card border border-border rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-2xs space-y-3.5 sm:space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 font-mono">
                 <Share2 className="size-3.5" />
@@ -213,9 +213,9 @@ export function SeoEditorSuite({
         </div>
 
         {/* Column 2: Core Search Engine Fields & Technical Indexing */}
-        <div className="space-y-5">
+        <div className="space-y-3.5 sm:space-y-5">
           {/* Core Search Details */}
-          <div className="bg-card border border-border rounded-xl p-4 shadow-2xs space-y-4">
+          <div className="bg-card border border-border rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-2xs space-y-3.5 sm:space-y-4">
             <h3 className="text-xs font-black uppercase tracking-wider text-muted-foreground font-mono">
               Core Search Engine Details
             </h3>
@@ -332,7 +332,7 @@ export function SeoEditorSuite({
           </div>
 
           {/* Indexing & Schema.org Structured Data */}
-          <div className="bg-card border border-border rounded-xl p-4 shadow-2xs space-y-4">
+          <div className="bg-card border border-border rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-2xs space-y-3.5 sm:space-y-4">
             <h3 className="text-xs font-black uppercase tracking-wider text-muted-foreground font-mono">
               Indexing &amp; Technical SEO
             </h3>

@@ -13,7 +13,7 @@ export function BlogSidebar() {
   }
 
   return (
-    <div className="shrink-0 h-full w-full lg:w-72 xl:w-80 flex flex-col gap-4 min-h-0">
+    <div className="hidden lg:flex shrink-0 h-full lg:w-72 xl:w-80 flex-col gap-4 min-h-0">
       <BlogTableOfContents />
       <BlogArticleInsights />
     </div>

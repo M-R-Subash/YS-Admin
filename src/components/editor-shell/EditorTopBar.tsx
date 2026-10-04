@@ -9,7 +9,6 @@ import {
   Eye,
   Maximize2,
   Minimize2,
-  CheckCircle2,
   ChevronDown,
   Layout,
   Globe,
@@ -90,7 +89,6 @@ export function EditorTopBar({
   hasCloudDraft = false,
   loadedFromBackup = false,
   isDirty = false,
-  lastSavedAt = null,
   activeView = "editor",
   onViewChange,
   seoScore = null,
@@ -180,22 +178,22 @@ export function EditorTopBar({
 
   return (
     <header
-      className={`flex items-center justify-between px-6 py-4 border-b border-border bg-card shrink-0 shadow-sm z-50 relative ${className}`}
+      className={`flex items-center justify-between px-2.5 sm:px-6 py-2 sm:py-3.5 border-b border-border bg-card shrink-0 shadow-xs z-30 relative ${className}`}
     >
       {/* Left: Back & Title & Draft Status Badge */}
-      <div className="flex items-center gap-4 min-w-0">
+      <div className="flex items-center gap-2.5 sm:gap-4 min-w-0">
         <button
           type="button"
           onClick={onBack}
-          className="p-2 rounded-sm bg-black border border-black hover:bg-zinc-800 transition-all text-white shadow-sm cursor-pointer shrink-0"
+          className="p-1.5 sm:p-2 rounded-sm bg-black border border-black hover:bg-zinc-800 transition-all text-white shadow-sm cursor-pointer shrink-0"
           title={backTitle}
         >
-          <ArrowLeft className="w-4.5 h-4.5" strokeWidth={2.5} />
+          <ArrowLeft className="w-4 h-4 sm:w-4.5 sm:h-4.5" strokeWidth={2.5} />
         </button>
 
         <div className="min-w-0">
-          <div className="flex items-center gap-3">
-            <h1 className="text-sm font-bold text-black tracking-tight truncate max-w-70 sm:max-w-100">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <h1 className="text-xs sm:text-sm font-bold text-black tracking-tight truncate max-w-[110px] xs:max-w-[160px] sm:max-w-[260px] md:max-w-[400px]">
               {title || "Untitled"}
             </h1>
 
@@ -267,7 +265,7 @@ export function EditorTopBar({
           </div>
 
           {subtitle && (
-            <p className="text-xs text-black font-medium mt-1 truncate">
+            <p className="hidden md:block text-xs text-black font-medium mt-0.5 truncate">
               {subtitle}
             </p>
           )}
@@ -334,91 +332,94 @@ export function EditorTopBar({
           ) : null}
         </div>
 
-        {/* Live Preview Button (Icon-Only with Tooltip) */}
-        {onPreview && (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="outline"
-                  type="button"
-                  disabled={isPreviewSaving || isPublishing || isSavingDraft}
-                  onClick={onPreview}
-                  className="h-9 w-9 p-0 rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
-                >
-                  {isPreviewSaving ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                  ) : (
-                    <Eye className="w-4 h-4 text-muted-foreground" />
-                  )}
-                </Button>
-              }
-            />
-            <TooltipContent side="bottom">
-              <p className="text-xs">
-                {isPreviewSaving
-                  ? "Saving draft for live preview..."
-                  : previewTooltip || "Live preview (auto-saves draft)"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        )}
+        {/* Desktop / Tablet Icon Row (sm+) */}
+        <div className="hidden sm:flex items-center gap-1.5 sm:gap-2">
+          {/* Live Preview Button (Icon-Only with Tooltip) */}
+          {onPreview && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    type="button"
+                    disabled={isPreviewSaving || isPublishing || isSavingDraft}
+                    onClick={onPreview}
+                    className="h-9 w-9 p-0 rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
+                  >
+                    {isPreviewSaving ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                    ) : (
+                      <Eye className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </Button>
+                }
+              />
+              <TooltipContent side="bottom">
+                <p className="text-xs">
+                  {isPreviewSaving
+                    ? "Saving draft for live preview..."
+                    : previewTooltip || "Live preview (auto-saves draft)"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          )}
 
-        {/* Fullscreen Toggle Button (Icon-Only, lg+ only) */}
-        {onToggleFullscreen && (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="outline"
-                  type="button"
-                  onClick={onToggleFullscreen}
-                  className="hidden lg:flex h-9 w-9 p-0 rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer items-center justify-center"
-                >
-                  {isFullscreen ? (
-                    <Minimize2 className="w-4 h-4 text-muted-foreground" />
-                  ) : (
-                    <Maximize2 className="w-4 h-4 text-muted-foreground" />
-                  )}
-                </Button>
-              }
-            />
-            <TooltipContent side="bottom">
-              <p className="text-xs">
-                {isFullscreen ? "Exit fullscreen (Esc)" : "Enter fullscreen"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        )}
+          {/* Fullscreen Toggle Button (Icon-Only, lg+ only) */}
+          {onToggleFullscreen && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={onToggleFullscreen}
+                    className="hidden lg:flex h-9 w-9 p-0 rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer items-center justify-center"
+                  >
+                    {isFullscreen ? (
+                      <Minimize2 className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <Maximize2 className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </Button>
+                }
+              />
+              <TooltipContent side="bottom">
+                <p className="text-xs">
+                  {isFullscreen ? "Exit fullscreen (Esc)" : "Enter fullscreen"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          )}
 
-        {/* Revision History Clock Button */}
-        {isEditMode && onOpenHistory && (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="outline"
-                  type="button"
-                  onClick={onOpenHistory}
-                  className="h-9 w-9 p-0 rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer flex items-center justify-center"
-                >
-                  <History className="w-4 h-4 text-muted-foreground" />
-                </Button>
-              }
-            />
-            <TooltipContent side="bottom">
-              <p className="text-xs">Revision History</p>
-            </TooltipContent>
-          </Tooltip>
-        )}
+          {/* Revision History Clock Button */}
+          {isEditMode && onOpenHistory && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={onOpenHistory}
+                    className="h-9 w-9 p-0 rounded-sm border border-border shadow-xs hover:bg-muted transition-all cursor-pointer flex items-center justify-center"
+                  >
+                    <History className="w-4 h-4 text-muted-foreground" />
+                  </Button>
+                }
+              />
+              <TooltipContent side="bottom">
+                <p className="text-xs">Revision History</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
 
-        {/* Split Publish Button with Save Draft & Schedule Dropdown */}
+        {/* Split Publish Button with Save Draft, Preview, History & Schedule Dropdown */}
         <div className="flex items-center">
           <Button
             onClick={onPublish}
             disabled={isPublishing || isSavingDraft || !canPublish}
-            className={`flex items-center gap-2 h-9 px-4 text-xs font-bold rounded-sm ${
-              onSaveDraft || onOpenSchedule || isScheduled ? "rounded-r-none" : ""
+            className={`flex items-center gap-1.5 sm:gap-2 h-8 sm:h-9 px-2.5 sm:px-4 text-[11px] sm:text-xs font-bold rounded-sm ${
+              onSaveDraft || onOpenSchedule || isScheduled || onPreview || (isEditMode && onOpenHistory) ? "rounded-r-none" : ""
             } shadow-md transition-all hover:scale-[1.02] ${
               isScheduled
                 ? "bg-purple-600 hover:bg-purple-700 text-white"
@@ -426,22 +427,22 @@ export function EditorTopBar({
             } disabled:opacity-50 cursor-pointer`}
           >
             {isPublishing ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
             ) : isScheduled ? (
-              <Calendar className="w-4 h-4" />
+              <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             ) : (
-              <Send className="w-4 h-4" />
+              <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             )}
-            {effectivePublishLabel}
+            <span className="truncate max-w-[75px] xs:max-w-none">{effectivePublishLabel}</span>
           </Button>
 
-          {(onSaveDraft || onOpenSchedule || isScheduled) && (
+          {(onSaveDraft || onOpenSchedule || isScheduled || onPreview || (isEditMode && onOpenHistory)) && (
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
                   <Button
                     type="button"
-                    className={`h-9 w-8 p-0 rounded-sm rounded-l-none border-l border-white/20 ${
+                    className={`h-8 sm:h-9 w-7 sm:w-8 p-0 rounded-sm rounded-l-none border-l border-white/20 ${
                       isScheduled
                         ? "bg-purple-600 hover:bg-purple-700"
                         : "bg-black hover:bg-black/90"
@@ -449,15 +450,60 @@ export function EditorTopBar({
                   />
                 }
               >
-                <ChevronDown className="w-4 h-4" />
+                <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
                 side="bottom"
                 sideOffset={6}
-                className="w-60"
+                className="w-56 sm:w-60"
               >
-                {/* 1. Schedule for later / Reschedule */}
+                {/* 1. Save Draft */}
+                {onSaveDraft && (
+                  <DropdownMenuItem
+                    onClick={onSaveDraft}
+                    disabled={isPublishing || isSavingDraft || !canSaveDraft}
+                    className="cursor-pointer"
+                  >
+                    <Save className="w-4 h-4 mr-2 text-muted-foreground" />
+                    <span>Save Draft</span>
+                    <DropdownMenuShortcut>⌘S</DropdownMenuShortcut>
+                  </DropdownMenuItem>
+                )}
+
+                {/* 2. Live Preview */}
+                {onPreview && (
+                  <DropdownMenuItem
+                    onClick={onPreview}
+                    disabled={isPreviewSaving || isPublishing || isSavingDraft}
+                    className="cursor-pointer"
+                  >
+                    {isPreviewSaving ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin text-primary" />
+                    ) : (
+                      <Eye className="w-4 h-4 mr-2 text-muted-foreground" />
+                    )}
+                    <span>{isPreviewSaving ? "Saving for preview..." : "Live Preview"}</span>
+                  </DropdownMenuItem>
+                )}
+
+                {/* 3. Revision History */}
+                {isEditMode && onOpenHistory && (
+                  <DropdownMenuItem
+                    onClick={onOpenHistory}
+                    className="cursor-pointer"
+                  >
+                    <History className="w-4 h-4 mr-2 text-muted-foreground" />
+                    <span>Revision History</span>
+                  </DropdownMenuItem>
+                )}
+
+                {/* Separator if schedule options exist */}
+                {(onOpenSchedule || isScheduled) && (onSaveDraft || onPreview || onOpenHistory) && (
+                  <DropdownMenuSeparator />
+                )}
+
+                {/* 4. Schedule for later / Reschedule */}
                 {onOpenSchedule && (
                   <DropdownMenuItem
                     onClick={onOpenSchedule}
@@ -480,7 +526,7 @@ export function EditorTopBar({
                   </DropdownMenuItem>
                 )}
 
-                {/* 2. Publish Immediately if Scheduled */}
+                {/* 5. Publish Immediately if Scheduled */}
                 {isScheduled && onPublishNow && (
                   <DropdownMenuItem
                     onClick={onPublishNow}
@@ -492,7 +538,7 @@ export function EditorTopBar({
                   </DropdownMenuItem>
                 )}
 
-                {/* 3. Revert Scheduled to Draft */}
+                {/* 6. Revert Scheduled to Draft */}
                 {isScheduled && onCancelSchedule && (
                   <DropdownMenuItem
                     onClick={onCancelSchedule}
@@ -501,23 +547,6 @@ export function EditorTopBar({
                   >
                     <Undo2 className="w-4 h-4 mr-2" />
                     <span>Cancel Schedule (Draft)</span>
-                  </DropdownMenuItem>
-                )}
-
-                {(onOpenSchedule || isScheduled) && onSaveDraft && (
-                  <DropdownMenuSeparator />
-                )}
-
-                {/* 4. Save Draft */}
-                {onSaveDraft && (
-                  <DropdownMenuItem
-                    onClick={onSaveDraft}
-                    disabled={isPublishing || isSavingDraft || !canSaveDraft}
-                    className="cursor-pointer"
-                  >
-                    <Save className="w-4 h-4 mr-2 text-muted-foreground" />
-                    Save Draft
-                    <DropdownMenuShortcut>⌘S</DropdownMenuShortcut>
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>

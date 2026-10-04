@@ -5,7 +5,11 @@ import { ListTree, AlertTriangle } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useBlogForm } from "../context/BlogFormContext";
 
-export function BlogTableOfContents() {
+interface BlogTableOfContentsProps {
+  onItemClick?: () => void;
+}
+
+export function BlogTableOfContents({ onItemClick }: BlogTableOfContentsProps = {}) {
   const { tocItems, tocIssues, handleTocClick } = useBlogForm();
 
   return (
@@ -66,7 +70,10 @@ export function BlogTableOfContents() {
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => handleTocClick(item)}
+                  onClick={() => {
+                    handleTocClick(item);
+                    onItemClick?.();
+                  }}
                   className={`w-full text-left py-1.5 px-2 rounded-md text-xs transition-all flex items-center gap-2 group hover:bg-muted/70 cursor-pointer ${paddingLeft} ${
                     issue ? "bg-amber-50/60 border border-amber-200/50" : ""
                   }`}

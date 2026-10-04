@@ -11,7 +11,7 @@ export function BlogFaqsTab() {
 
   return (
     <div
-      className={`flex-1 overflow-y-auto custom-scrollbar p-6 bg-card rounded-xl border border-border ${
+      className={`flex-1 overflow-y-auto custom-scrollbar p-1.5 sm:p-4 md:p-5 bg-card rounded-lg sm:rounded-xl border border-border ${
         editorTab === "faqs" ? "block" : "hidden"
       }`}
     >

@@ -14,28 +14,28 @@ export function BlogGeneralTab() {
 
   return (
     <div
-      className={`flex-1 overflow-y-auto custom-scrollbar p-6 bg-card rounded-xl border border-border ${
+      className={`flex-1 overflow-y-auto custom-scrollbar p-1.5 sm:p-4 md:p-5 bg-card rounded-lg sm:rounded-xl border border-border ${
         editorTab === "general" ? "block" : "hidden"
       }`}
     >
-      <div className="w-full max-w-7xl mx-auto space-y-5">
+      <div className="w-full max-w-7xl mx-auto space-y-4 sm:space-y-5">
         <div>
-          <h2 className="text-base font-bold text-foreground">General Article Information</h2>
+          <h2 className="text-sm sm:text-base font-bold text-foreground">General Article Information</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
             Configure the core details, featured cover image, taxonomy, and reader interaction settings for this post.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6 items-start">
           {/* Left Column: Title, Excerpt, Categories, Tags, Comments */}
-          <div className="bg-card border border-border/80 rounded-xl p-6 shadow-xs">
+          <div className="bg-card border border-border/80 rounded-lg sm:rounded-xl p-3 sm:p-5 shadow-xs">
             <EditorRenderer schema={blogGeneralLeftUiSchema} control={control} />
           </div>
 
           {/* Right Column: Featured Cover Image & Guidelines */}
-          <div className="bg-card border border-border/80 rounded-xl p-6 shadow-xs space-y-4">
+          <div className="bg-card border border-border/80 rounded-lg sm:rounded-xl p-3 sm:p-5 shadow-xs space-y-4">
             <EditorRenderer schema={blogGeneralRightUiSchema} control={control} />
-            <div className="rounded-lg bg-muted/30 border border-border/60 p-4 text-xs text-muted-foreground space-y-1.5">
+            <div className="rounded-lg bg-muted/30 border border-border/60 p-3 sm:p-4 text-xs text-muted-foreground space-y-1.5">
               <p className="font-semibold text-foreground flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                 Cover Image Guidelines

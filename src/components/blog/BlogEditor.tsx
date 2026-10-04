@@ -223,7 +223,7 @@ export default function BlogEditor({
     },
     editorProps: {
       attributes: {
-        class: "prose prose-sm sm:prose !max-w-full w-full focus:outline-none min-h-full pt-6 px-10 md:px-16 pb-96 [&_p]:my-2 [&_p]:leading-relaxed [&_table]:border-collapse [&_table]:w-full [&_td]:border [&_td]:border-border [&_th]:border [&_th]:border-border [&_td]:p-2 [&_th]:p-2 [&_th]:bg-muted/50 text-sm sm:text-base [&_p.is-empty::before]:content-[attr(data-placeholder)] [&_p.is-empty::before]:float-left [&_p.is-empty::before]:text-muted-foreground/50 [&_p.is-empty::before]:pointer-events-none [&_p.is-empty::before]:h-0 [&_img]:rounded-xl [&_img]:border [&_img]:border-border [&_img]:shadow-md [&_img]:cursor-pointer [&_img]:transition-all [&_img.ProseMirror-selectednode]:ring-2 [&_img.ProseMirror-selectednode]:ring-primary [&_img.ProseMirror-selectednode]:ring-offset-2 [&_img[data-alignment='left']]:mr-auto [&_img[data-alignment='left']]:block [&_img[data-alignment='left']]:max-w-[70%] [&_img[data-alignment='center']]:mx-auto [&_img[data-alignment='center']]:block [&_img:not([data-alignment])]:mx-auto [&_img:not([data-alignment])]:block [&_img[data-alignment='full']]:w-full [&_img[data-alignment='full']]:max-w-full [&_img[data-alignment='full']]:block [&_details]:my-4 [&_details]:rounded-xl [&_details]:border [&_details]:border-border [&_details]:bg-card/60 [&_details]:p-4 [&_details[open]]:shadow-xs [&_summary]:font-bold [&_summary]:text-sm [&_summary]:text-foreground [&_summary]:cursor-pointer [&_summary]:select-none",
+        class: "prose prose-sm sm:prose !max-w-full w-full focus:outline-none min-h-full pt-3 sm:pt-6 px-2 sm:px-5 md:px-10 pb-48 sm:pb-96 [&_p]:my-2 [&_p]:leading-relaxed [&_table]:border-collapse [&_table]:w-full [&_td]:border [&_td]:border-border [&_th]:border [&_th]:border-border [&_td]:p-2 [&_th]:p-2 [&_th]:bg-muted/50 text-sm sm:text-base [&_p.is-empty::before]:content-[attr(data-placeholder)] [&_p.is-empty::before]:float-left [&_p.is-empty::before]:text-muted-foreground/50 [&_p.is-empty::before]:pointer-events-none [&_p.is-empty::before]:h-0 [&_img]:rounded-xl [&_img]:border [&_img]:border-border [&_img]:shadow-md [&_img]:cursor-pointer [&_img]:transition-all [&_img.ProseMirror-selectednode]:ring-2 [&_img.ProseMirror-selectednode]:ring-primary [&_img.ProseMirror-selectednode]:ring-offset-2 [&_img[data-alignment='left']]:mr-auto [&_img[data-alignment='left']]:block [&_img[data-alignment='left']]:max-w-[70%] [&_img[data-alignment='center']]:mx-auto [&_img[data-alignment='center']]:block [&_img:not([data-alignment])]:mx-auto [&_img:not([data-alignment])]:block [&_img[data-alignment='full']]:w-full [&_img[data-alignment='full']]:max-w-full [&_img[data-alignment='full']]:block [&_details]:my-4 [&_details]:rounded-xl [&_details]:border [&_details]:border-border [&_details]:bg-card/60 [&_details]:p-4 [&_details[open]]:shadow-xs [&_summary]:font-bold [&_summary]:text-sm [&_summary]:text-foreground [&_summary]:cursor-pointer [&_summary]:select-none",
       },
       handleClick: (view, pos, event) => {
         const target = event.target as HTMLElement;
@@ -351,7 +351,7 @@ export default function BlogEditor({
       editor.chain().focus().extendMarkRange("link").unsetLink().run();
       try {
         editor.view.dispatch(editor.state.tr.setMeta("linkBubbleMenu", "hide"));
-      } catch (e) {}
+      } catch {}
       return;
     }
     
@@ -371,7 +371,7 @@ export default function BlogEditor({
 
     try {
       editor.view.dispatch(editor.state.tr.setMeta("linkBubbleMenu", "hide"));
-    } catch (e) {}
+    } catch {}
   };
 
   return (
@@ -379,10 +379,10 @@ export default function BlogEditor({
       <div className="flex flex-col h-full border border-border rounded-xl bg-card overflow-hidden relative">
         
         {/* Editor Toolbar */}
-      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-1 p-2 bg-card border-b border-border shadow-sm shrink-0">
+      <div className="sticky top-0 z-10 flex items-center gap-1 p-1.5 sm:p-2 bg-card border-b border-border shadow-xs shrink-0 overflow-x-auto no-scrollbar touch-pan-x flex-nowrap md:flex-wrap">
         
         {/* Undo/Redo Group */}
-        <div className="flex items-center gap-1 pr-2 border-r border-border">
+        <div className="flex items-center gap-1 pr-2 border-r border-border shrink-0">
           <ToolbarButton
             onClick={() => editor.chain().focus().undo().run()}
             disabled={!editor.can().undo()}
@@ -400,7 +400,7 @@ export default function BlogEditor({
         </div>
 
         {/* Formatting Group */}
-        <div className="flex items-center gap-1 px-2 border-r border-border">
+        <div className="flex items-center gap-1 px-2 border-r border-border shrink-0">
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBold().run()}
             isActive={editor.isActive("bold")}
@@ -439,7 +439,7 @@ export default function BlogEditor({
         </div>
 
         {/* Block Group */}
-        <div className="flex items-center gap-1 px-2 border-r border-border">
+        <div className="flex items-center gap-1 px-2 border-r border-border shrink-0">
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBlockquote().run()}
             isActive={editor.isActive("blockquote")}
@@ -463,7 +463,7 @@ export default function BlogEditor({
         </div>
 
         {/* Headings Group */}
-        <div className="flex items-center gap-1 px-2 border-r border-border">
+        <div className="flex items-center gap-1 px-2 border-r border-border shrink-0">
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
             isActive={editor.isActive("heading", { level: 1 })}
@@ -509,7 +509,7 @@ export default function BlogEditor({
         </div>
 
         {/* Alignment Group */}
-        <div className="flex items-center gap-1 px-2 border-r border-border">
+        <div className="flex items-center gap-1 px-2 border-r border-border shrink-0">
           <ToolbarButton
             onClick={() => editor.chain().focus().setTextAlign('left').run()}
             isActive={editor.isActive({ textAlign: 'left' })}
@@ -541,7 +541,7 @@ export default function BlogEditor({
         </div>
 
         {/* Lists Group */}
-        <div className="flex items-center gap-1 px-2 border-r border-border">
+        <div className="flex items-center gap-1 px-2 border-r border-border shrink-0">
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBulletList().run()}
             isActive={editor.isActive("bulletList")}
@@ -566,7 +566,7 @@ export default function BlogEditor({
         </div>
 
         {/* Media & Links Group */}
-        <div className="flex items-center gap-1 px-2 border-r border-border relative">
+        <div className="flex items-center gap-1 px-2 border-r border-border relative shrink-0">
           <div className="relative">
             <ToolbarButton
               onClick={() => {
@@ -693,7 +693,7 @@ export default function BlogEditor({
         </div>
 
         {/* Tables Group */}
-        <div className="flex items-center gap-1 pl-2">
+        <div className="flex items-center gap-1 pl-2 shrink-0">
           <Popover open={showTablePopover} onOpenChange={setShowTablePopover}>
             <Tooltip>
               <TooltipTrigger render={
@@ -812,7 +812,7 @@ export default function BlogEditor({
       >
         <EditorContent 
           editor={editor} 
-          className="min-w-75 h-full cursor-text" 
+          className="min-w-0 w-full h-full cursor-text" 
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               editor?.commands.focus("end");
@@ -952,7 +952,7 @@ export default function BlogEditor({
                       editor.chain().focus().extendMarkRange("link").unsetLink().run();
                       try {
                         editor.view.dispatch(editor.state.tr.setMeta("linkBubbleMenu", "hide"));
-                      } catch (e) {}
+                      } catch {}
                     }}
                     className="text-destructive hover:underline flex items-center gap-1 cursor-pointer font-medium"
                     title="Remove link"
@@ -1096,9 +1096,9 @@ export default function BlogEditor({
         )}
       </div>
 
-      {/* Word Count & Read Time */}
+      {/* Word Count & Read Time (Desktop only - mobile has reading time in Outline button) */}
       {editor && (
-        <div className="absolute bottom-6 right-8 z-10 flex items-center gap-3 bg-card/80 backdrop-blur-md border border-border px-3 py-1.5 rounded-full shadow-sm text-xs font-medium text-muted-foreground opacity-70 hover:opacity-100 transition-opacity pointer-events-none">
+        <div className="hidden md:flex absolute bottom-6 right-8 z-10 items-center gap-3 bg-card/80 backdrop-blur-md border border-border px-3 py-1.5 rounded-full shadow-sm text-xs font-medium text-muted-foreground opacity-70 hover:opacity-100 transition-opacity pointer-events-none">
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             {editor.storage.characterCount.words()} words

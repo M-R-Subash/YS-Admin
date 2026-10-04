@@ -62,7 +62,7 @@ export function BlogDraftBanner() {
   return (
     <>
       {restoredFromVersion && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-6 py-2 bg-blue-500/10 border-b border-blue-500/30 text-blue-950 dark:text-blue-200 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3.5 sm:px-6 py-2 bg-blue-500/10 border-b border-blue-500/30 text-blue-950 dark:text-blue-200 shrink-0">
           <div className="flex items-center gap-2.5">
             <RotateCcw className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
             <p className="text-xs font-semibold">
@@ -90,7 +90,7 @@ export function BlogDraftBanner() {
       )}
 
       {isPendingOverdue && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-6 py-2.5 bg-amber-500/10 border-b border-amber-500/30 text-amber-950 dark:text-amber-200 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3.5 sm:px-6 py-2.5 bg-amber-500/10 border-b border-amber-500/30 text-amber-950 dark:text-amber-200 shrink-0">
           <div className="flex items-center gap-2.5">
             <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
             <p className="text-xs font-semibold">
@@ -125,7 +125,7 @@ export function BlogDraftBanner() {
       )}
 
       {isUpcoming && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-6 py-2 bg-purple-500/10 border-b border-purple-500/30 text-purple-950 dark:text-purple-200 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3.5 sm:px-6 py-2 bg-purple-500/10 border-b border-purple-500/30 text-purple-950 dark:text-purple-200 shrink-0">
           <div className="flex items-center gap-2.5">
             <CalendarClock className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
             <p className="text-xs font-semibold">

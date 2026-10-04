@@ -51,6 +51,8 @@ import { BlogContentTab } from "./tabs/BlogContentTab";
 import { BlogFaqsTab } from "./tabs/BlogFaqsTab";
 import { BlogSeoTab } from "./tabs/BlogSeoTab";
 import { BlogSidebar } from "./sidebar/BlogSidebar";
+import { BlogMobileTocDrawer } from "./sidebar/BlogMobileTocDrawer";
+import { BlogMobileBottomDock } from "./header/BlogMobileBottomDock";
 
 interface BlogFormProps {
   blogId?: string;
@@ -74,6 +76,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
   const [restoredFromVersion, setRestoredFromVersion] = useState<number | null>(null);
+  const [showMobileToc, setShowMobileToc] = useState(false);
 
   // Tabs & Fullscreen state
   const [editorTab, setEditorTab] = useState<BlogEditorTab>("general");
@@ -1242,6 +1245,12 @@ export default function BlogForm({ blogId }: BlogFormProps) {
             />
           )}
 
+          {/* Mobile & Tablet Table of Contents Drawer */}
+          <BlogMobileTocDrawer
+            open={showMobileToc}
+            onOpenChange={setShowMobileToc}
+          />
+
           {/* Normal Top Header & Banner Wrapper (smooth collapse on fullscreen) */}
           <div
             className={`transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden shrink-0 ${
@@ -1260,14 +1269,14 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           {/* Main Content Area */}
           <div
             className={`flex-1 min-h-0 overflow-hidden w-full relative flex flex-col transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-              isFullscreen ? "p-3 md:p-4 gap-2.5" : "p-4 md:p-6 gap-3.5"
+              isFullscreen ? "p-1 sm:p-2.5 md:p-4 gap-1 sm:gap-2" : "p-1 sm:p-3.5 md:p-5 gap-1.5 sm:gap-3"
             }`}
           >
             {/* Editor Top Navigation Tabs (smooth collapse in fullscreen) */}
             <BlogTabNav />
 
             {/* Workspace Row: Form Tabs + Sidebar */}
-            <div className="flex-1 flex gap-6 min-h-0 overflow-hidden">
+            <div className="flex-1 flex gap-3 lg:gap-5 min-h-0 overflow-hidden">
               {isLoading ? (
                 <div className="flex-1 flex items-center justify-center">
                   <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -1283,6 +1292,9 @@ export default function BlogForm({ blogId }: BlogFormProps) {
               )}
             </div>
           </div>
+
+          {/* Sticky Mobile Bottom Dock (Thumb-friendly actions for mobile) */}
+          <BlogMobileBottomDock onOpenToc={() => setShowMobileToc(true)} />
         </div>
       </BlogFormProvider>
     </TooltipProvider>

@@ -64,7 +64,7 @@ export function BlogSeoTab() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 bg-card rounded-xl border border-border">
+    <div className="flex-1 overflow-y-auto custom-scrollbar p-1 sm:p-3.5 md:p-5 bg-card rounded-lg sm:rounded-xl border border-border">
       <SeoEditorSuite
         values={values}
         onChange={handleChange}
