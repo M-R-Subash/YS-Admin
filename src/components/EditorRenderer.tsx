@@ -9,6 +9,7 @@ import { MenuBuilderBlock } from "@/components/MenuBuilderBlock";
 import { FooterColumnsBlock } from "@/components/FooterColumnsBlock";
 import dynamic from "next/dynamic";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { TagInput } from "@/components/ui/tag-input";
 import { CategorySelect } from "@/components/blog/taxonomy/CategorySelect";
 import { TagAutocompleteInput } from "@/components/blog/taxonomy/TagAutocompleteInput";
@@ -219,11 +220,9 @@ export function EditorRenderer({
                   name={`${fieldName}.newTab`}
                   render={({ field: { value, onChange } }) => (
                     <label className="flex items-center gap-2 text-xs font-bold text-black/50 cursor-pointer hover:text-foreground transition-colors">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={!!value}
-                        onChange={(e) => onChange(e.target.checked)}
-                        className="accent-black rounded-sm border-border bg-background text-black h-3.5 w-3.5 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1"
+                        onCheckedChange={(checked) => onChange(Boolean(checked))}
                       />
                       Open in new tab
                     </label>
@@ -234,11 +233,9 @@ export function EditorRenderer({
                   name={`${fieldName}.noFollow`}
                   render={({ field: { value, onChange } }) => (
                     <label className="flex items-center gap-2 text-xs font-bold text-black/50 cursor-pointer hover:text-foreground transition-colors">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={!!value}
-                        onChange={(e) => onChange(e.target.checked)}
-                        className="accent-black rounded-sm border-border bg-background text-black h-3.5 w-3.5 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1"
+                        onCheckedChange={(checked) => onChange(Boolean(checked))}
                       />
                       Nofollow
                     </label>

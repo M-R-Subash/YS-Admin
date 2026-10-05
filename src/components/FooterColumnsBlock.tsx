@@ -3,6 +3,7 @@
 import React from "react";
 import { useFieldArray, Controller, Control } from "react-hook-form";
 import { Trash2, Plus, ChevronDown, ChevronUp } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface FooterColumnsBlockProps {
   control: Control<any>;
@@ -83,11 +84,9 @@ function FlatLinkList({ control, name }: { control: Control<any>; name: string }
               name={`${name}.${index}.newTab`}
               render={({ field: { value, onChange } }) => (
                 <label className="flex items-center gap-2 text-xs font-bold text-black/50 cursor-pointer hover:text-foreground transition-colors">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={!!value}
-                    onChange={(e) => onChange(e.target.checked)}
-                    className="accent-black rounded-sm border-border bg-background text-black h-3.5 w-3.5 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1"
+                    onCheckedChange={(checked) => onChange(Boolean(checked))}
                   />
                   Open in new tab
                 </label>
@@ -98,11 +97,9 @@ function FlatLinkList({ control, name }: { control: Control<any>; name: string }
               name={`${name}.${index}.noFollow`}
               render={({ field: { value, onChange } }) => (
                 <label className="flex items-center gap-2 text-xs font-bold text-black/50 cursor-pointer hover:text-foreground transition-colors">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={!!value}
-                    onChange={(e) => onChange(e.target.checked)}
-                    className="accent-black rounded-sm border-border bg-background text-black h-3.5 w-3.5 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1"
+                    onCheckedChange={(checked) => onChange(Boolean(checked))}
                   />
                   Nofollow
                 </label>

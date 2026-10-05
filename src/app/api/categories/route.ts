@@ -17,10 +17,16 @@ function slugify(text: string): string {
 const createCategorySchema = z.object({
   name: z.string().trim().min(1, "Category name is required").max(60, "Category name too long"),
   slug: z.string().trim().max(80).optional(),
-  description: z.string().trim().max(300).optional().nullable(),
+  description: z.string().trim().max(500).optional().nullable(),
+  metaTitle: z.string().trim().max(100).optional().nullable(),
+  metaDesc: z.string().trim().max(300).optional().nullable(),
+  focusKeyword: z.string().trim().max(100).optional().nullable(),
+  ogImage: z.string().trim().optional().nullable(),
+  canonicalUrl: z.string().trim().optional().nullable(),
+  noIndex: z.boolean().optional().default(false),
 });
 
-// GET /api/categories — List all categories with post counts
+// GET /api/categories — List all categories with post counts and SEO data
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -45,6 +51,12 @@ export async function GET(request: Request) {
         name: true,
         slug: true,
         description: true,
+        metaTitle: true,
+        metaDesc: true,
+        focusKeyword: true,
+        ogImage: true,
+        canonicalUrl: true,
+        noIndex: true,
         createdAt: true,
         updatedAt: true,
         _count: {
@@ -94,6 +106,12 @@ export async function POST(request: Request) {
     const name = parsed.data.name;
     const slug = (parsed.data.slug ? slugify(parsed.data.slug) : slugify(name)) || "category";
     const description = parsed.data.description || null;
+    const metaTitle = parsed.data.metaTitle || null;
+    const metaDesc = parsed.data.metaDesc || null;
+    const focusKeyword = parsed.data.focusKeyword || null;
+    const ogImage = parsed.data.ogImage || null;
+    const canonicalUrl = parsed.data.canonicalUrl || null;
+    const noIndex = Boolean(parsed.data.noIndex);
 
     // Check duplicate
     const existing = await prisma.category.findFirst({
@@ -114,6 +132,12 @@ export async function POST(request: Request) {
         name,
         slug,
         description,
+        metaTitle,
+        metaDesc,
+        focusKeyword,
+        ogImage,
+        canonicalUrl,
+        noIndex,
       },
     });
 

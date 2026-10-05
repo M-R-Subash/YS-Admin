@@ -37,8 +37,12 @@ const navItems = [
         url: "/blogs",
       },
       {
-        title: "Categories & Tags",
+        title: "Categories",
         url: "/categories",
+      },
+      {
+        title: "Tags",
+        url: "/tags",
       },
     ],
   },

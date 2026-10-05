@@ -5,21 +5,22 @@ import useSWR from "swr";
 import Link from "next/link";
 import {
   FolderTree,
-  Tag as TagIcon,
   Plus,
   Search,
   Edit2,
   Trash2,
   Loader2,
   ExternalLink,
-  FileText,
-  Hash,
-  AlertTriangle,
   FolderPlus,
+  Sparkles,
+  Globe,
+  SlidersHorizontal,
+  CheckCircle2,
 } from "lucide-react";
 
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -49,20 +50,17 @@ interface CategoryItem {
   name: string;
   slug: string;
   description: string | null;
-  postCount: number;
-  createdAt: string;
-}
-
-interface TagItem {
-  id: string;
-  name: string;
-  slug: string;
+  metaTitle: string | null;
+  metaDesc: string | null;
+  focusKeyword: string | null;
+  ogImage: string | null;
+  canonicalUrl: string | null;
+  noIndex: boolean;
   postCount: number;
   createdAt: string;
 }
 
 export default function CategoriesPage() {
-  const [activeTab, setActiveTab] = useState<"categories" | "tags">("categories");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Create Category Form State
@@ -70,36 +68,37 @@ export default function CategoriesPage() {
   const [catSlug, setCatSlug] = useState("");
   const [catSlugManual, setCatSlugManual] = useState(false);
   const [catDesc, setCatDesc] = useState("");
+  const [showSeoFields, setShowSeoFields] = useState(false);
+  const [catMetaTitle, setCatMetaTitle] = useState("");
+  const [catMetaDesc, setCatMetaDesc] = useState("");
+  const [catFocusKeyword, setCatFocusKeyword] = useState("");
+  const [catNoIndex, setCatNoIndex] = useState(false);
   const [isCreatingCat, setIsCreatingCat] = useState(false);
-
-  // Create Tag Form State
-  const [tagName, setTagName] = useState("");
-  const [isCreatingTag, setIsCreatingTag] = useState(false);
 
   // Edit Category Modal State
   const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null);
+  const [editTab, setEditTab] = useState<"general" | "seo">("general");
   const [editName, setEditName] = useState("");
   const [editSlug, setEditSlug] = useState("");
   const [editDesc, setEditDesc] = useState("");
+  const [editMetaTitle, setEditMetaTitle] = useState("");
+  const [editMetaDesc, setEditMetaDesc] = useState("");
+  const [editFocusKeyword, setEditFocusKeyword] = useState("");
+  const [editCanonicalUrl, setEditCanonicalUrl] = useState("");
+  const [editNoIndex, setEditNoIndex] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // Delete State
   const [deletingCategory, setDeletingCategory] = useState<CategoryItem | null>(null);
-  const [deletingTag, setDeletingTag] = useState<TagItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // SWR Fetchers
+  // SWR Fetcher
   const {
     data: categories,
+    error: categoriesError,
     isLoading: loadingCategories,
     mutate: mutateCategories,
   } = useSWR<CategoryItem[]>("/api/categories");
-
-  const {
-    data: tags,
-    isLoading: loadingTags,
-    mutate: mutateTags,
-  } = useSWR<TagItem[]>("/api/tags");
 
   // Handle Category Name Change with auto-slugging
   const handleCatNameChange = (val: string) => {
@@ -127,6 +126,10 @@ export default function CategoriesPage() {
           name: cleanName,
           slug: catSlug.trim() || slugify(cleanName),
           description: catDesc.trim() || null,
+          metaTitle: catMetaTitle.trim() || null,
+          metaDesc: catMetaDesc.trim() || null,
+          focusKeyword: catFocusKeyword.trim() || null,
+          noIndex: catNoIndex,
         }),
       });
 
@@ -137,7 +140,7 @@ export default function CategoriesPage() {
 
       toast.add({
         title: "Category Created",
-        description: `"${data.name}" has been created.`,
+        description: `"${data.name}" has been created with SEO settings.`,
         type: "success",
       });
 
@@ -145,10 +148,15 @@ export default function CategoriesPage() {
       setCatSlug("");
       setCatSlugManual(false);
       setCatDesc("");
+      setCatMetaTitle("");
+      setCatMetaDesc("");
+      setCatFocusKeyword("");
+      setCatNoIndex(false);
+      setShowSeoFields(false);
       mutateCategories();
     } catch (err: any) {
       toast.add({
-        title: "Error creating category",
+        title: "Creation Failed",
         description: err.message,
         type: "error",
       });
@@ -157,56 +165,21 @@ export default function CategoriesPage() {
     }
   };
 
-  // Handle Create Tag
-  const handleCreateTag = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanName = tagName.trim();
-    if (!cleanName) {
-      toast.add({ title: "Tag name is required", type: "error" });
-      return;
-    }
-
-    setIsCreatingTag(true);
-    try {
-      const res = await fetch("/api/tags", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: cleanName }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to create tag");
-      }
-
-      toast.add({
-        title: "Tag Created",
-        description: `Tag "${data.name}" is ready to use.`,
-        type: "success",
-      });
-
-      setTagName("");
-      mutateTags();
-    } catch (err: any) {
-      toast.add({
-        title: "Error creating tag",
-        description: err.message,
-        type: "error",
-      });
-    } finally {
-      setIsCreatingTag(false);
-    }
-  };
-
-  // Open Edit Modal
+  // Open Edit Category Modal
   const openEditModal = (cat: CategoryItem) => {
     setEditingCategory(cat);
+    setEditTab("general");
     setEditName(cat.name);
     setEditSlug(cat.slug);
     setEditDesc(cat.description || "");
+    setEditMetaTitle(cat.metaTitle || "");
+    setEditMetaDesc(cat.metaDesc || "");
+    setEditFocusKeyword(cat.focusKeyword || "");
+    setEditCanonicalUrl(cat.canonicalUrl || "");
+    setEditNoIndex(Boolean(cat.noIndex));
   };
 
-  // Handle Save Edit Category
+  // Save Edit Category
   const handleSaveEditCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCategory) return;
@@ -226,6 +199,11 @@ export default function CategoriesPage() {
           name: cleanName,
           slug: editSlug.trim() || slugify(cleanName),
           description: editDesc.trim() || null,
+          metaTitle: editMetaTitle.trim() || null,
+          metaDesc: editMetaDesc.trim() || null,
+          focusKeyword: editFocusKeyword.trim() || null,
+          canonicalUrl: editCanonicalUrl.trim() || null,
+          noIndex: editNoIndex,
         }),
       });
 
@@ -236,7 +214,7 @@ export default function CategoriesPage() {
 
       toast.add({
         title: "Category Updated",
-        description: `"${data.name}" has been updated.`,
+        description: `"${data.name}" updated successfully.`,
         type: "success",
       });
 
@@ -253,11 +231,10 @@ export default function CategoriesPage() {
     }
   };
 
-  // Handle Delete Category
+  // Confirm Delete Category
   const handleConfirmDeleteCategory = async () => {
     if (!deletingCategory) return;
     setIsDeleting(true);
-
     try {
       const res = await fetch(`/api/categories/${deletingCategory.id}`, {
         method: "DELETE",
@@ -269,7 +246,7 @@ export default function CategoriesPage() {
 
       toast.add({
         title: "Category Deleted",
-        description: data.message || `"${deletingCategory.name}" was removed.`,
+        description: data.message || `Category "${deletingCategory.name}" was deleted.`,
         type: "success",
       });
 
@@ -286,508 +263,545 @@ export default function CategoriesPage() {
     }
   };
 
-  // Handle Delete Tag
-  const handleConfirmDeleteTag = async () => {
-    if (!deletingTag) return;
-    setIsDeleting(true);
+  const rawCategories = useMemo(() => (Array.isArray(categories) ? categories : []), [categories]);
 
-    try {
-      const res = await fetch(`/api/tags/${deletingTag.id}`, {
-        method: "DELETE",
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to delete tag");
-      }
-
-      toast.add({
-        title: "Tag Deleted",
-        description: data.message || `Tag "${deletingTag.name}" was removed.`,
-        type: "success",
-      });
-
-      setDeletingTag(null);
-      mutateTags();
-    } catch (err: any) {
-      toast.add({
-        title: "Delete Failed",
-        description: err.message,
-        type: "error",
-      });
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  // Filtered lists
+  // Filter Categories by search
   const filteredCategories = useMemo(() => {
-    if (!categories) return [];
-    if (!searchQuery.trim()) return categories;
-    const q = searchQuery.toLowerCase();
-    return categories.filter(
+    if (!rawCategories.length) return [];
+    if (!searchQuery.trim()) return rawCategories;
+    const q = searchQuery.toLowerCase().trim();
+    return rawCategories.filter(
       (c) =>
         c.name.toLowerCase().includes(q) ||
         c.slug.toLowerCase().includes(q) ||
-        (c.description && c.description.toLowerCase().includes(q))
+        (c.description && c.description.toLowerCase().includes(q)) ||
+        (c.focusKeyword && c.focusKeyword.toLowerCase().includes(q))
     );
-  }, [categories, searchQuery]);
+  }, [rawCategories, searchQuery]);
 
-  const filteredTags = useMemo(() => {
-    if (!tags) return [];
-    if (!searchQuery.trim()) return tags;
-    const q = searchQuery.toLowerCase();
-    return tags.filter(
-      (t) => t.name.toLowerCase().includes(q) || t.slug.toLowerCase().includes(q)
-    );
-  }, [tags, searchQuery]);
-
-  const totalCatCount = categories?.length ?? 0;
-  const totalTagCount = tags?.length ?? 0;
+  const totalCatCount = rawCategories.length;
+  const siteUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || "https://yoursite.com";
 
   return (
-    <>
-      <AdminTopBar breadcrumbs="Categories & Tags" />
+    <div className="flex flex-col min-h-screen bg-background">
+      {/* Top Bar with Breadcrumbs */}
+      <AdminTopBar
+        breadcrumbs={[
+          { label: "Blogs", href: "/blogs" },
+          { label: "Categories" },
+        ]}
+      />
 
-      <div className="flex flex-1 flex-col gap-5 py-5 px-[15px] md:px-[20px] lg:px-[30px] w-full">
+      <div className="flex-1 w-full p-4 sm:p-6 lg:p-8 space-y-6">
+        {/* Header Section */}
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
+            <FolderTree className="size-6 text-primary" />
+            <span>Blog Categories</span>
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-3xl">
+            Organize articles into high-intent topic hubs with custom Meta Titles, Descriptions, and Search Engine Optimization (SEO) landing page metadata.
+          </p>
+        </div>
+
         {/* 2-Column Responsive Layout */}
-        <div className="flex flex-col lg:flex-row gap-6 items-start w-full">
-          {/* Left Column: Create Form */}
-          <div className="w-full lg:w-[340px] xl:w-[380px] shrink-0 bg-card border rounded-xl p-5 shadow-xs lg:sticky lg:top-20">
-            {activeTab === "categories" ? (
-              <form onSubmit={handleCreateCategory} className="space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b">
-                  <div className="flex items-center gap-2">
-                    <FolderPlus className="size-4 text-primary" />
-                    <h2 className="text-sm font-bold text-foreground">Add New Category</h2>
-                  </div>
-                  <Badge variant="secondary" className="text-[10px] font-semibold">
-                    {totalCatCount} total
-                  </Badge>
-                </div>
+        <div className="flex flex-col lg:flex-row items-start gap-6">
+          {/* Left Column: Create Category Card */}
+          <div className="w-full lg:w-[420px] shrink-0 bg-card border rounded-xl p-4 sm:p-5 shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b">
+              <div className="flex items-center gap-2">
+                <FolderPlus className="size-4 text-primary" />
+                <h2 className="text-sm font-bold text-foreground">Add New Category</h2>
+              </div>
+              <Badge variant="outline" className="text-[10px] font-semibold">
+                {totalCatCount} total
+              </Badge>
+            </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-foreground">Name</label>
-                  <Input
-                    placeholder="e.g. Technology"
-                    value={catName}
-                    onChange={(e) => handleCatNameChange(e.target.value)}
-                    className="h-9 text-xs"
-                    disabled={isCreatingCat}
-                    required
-                  />
-                  <p className="text-[11px] text-muted-foreground">The display name of the category.</p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-foreground">Slug</label>
-                    <span className="text-[10px] text-muted-foreground font-mono">auto-generated</span>
-                  </div>
-                  <Input
-                    placeholder="e.g. technology"
-                    value={catSlug}
-                    onChange={(e) => {
-                      setCatSlugManual(true);
-                      setCatSlug(e.target.value);
-                    }}
-                    className="h-9 text-xs font-mono"
-                    disabled={isCreatingCat}
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    URL-friendly slug (e.g. /category/technology).
-                  </p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-foreground">Description (Optional)</label>
-                  <Textarea
-                    placeholder="Brief description for SEO or archives..."
-                    value={catDesc}
-                    onChange={(e) => setCatDesc(e.target.value)}
-                    rows={3}
-                    className="text-xs resize-none"
-                    disabled={isCreatingCat}
-                  />
-                </div>
-
-                <Button
-                  type="submit"
-                  disabled={isCreatingCat || !catName.trim()}
-                  className="w-full h-9 text-xs font-semibold gap-1.5 cursor-pointer"
-                >
-                  {isCreatingCat ? (
-                    <>
-                      <Loader2 className="size-3.5 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="size-3.5" />
-                      Add Category
-                    </>
-                  )}
-                </Button>
-              </form>
-            ) : (
-              <form onSubmit={handleCreateTag} className="space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b">
-                  <div className="flex items-center gap-2">
-                    <TagIcon className="size-4 text-purple-500" />
-                    <h2 className="text-sm font-bold text-foreground">Add New Tag</h2>
-                  </div>
-                  <Badge variant="secondary" className="text-[10px] font-semibold">
-                    {totalTagCount} total
-                  </Badge>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-foreground">Tag Name</label>
-                  <Input
-                    placeholder="e.g. React 19"
-                    value={tagName}
-                    onChange={(e) => setTagName(e.target.value)}
-                    className="h-9 text-xs"
-                    disabled={isCreatingTag}
-                    required
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Tags help readers discover closely related articles and search terms.
-                  </p>
-                </div>
-
-                <Button
-                  type="submit"
-                  disabled={isCreatingTag || !tagName.trim()}
-                  className="w-full h-9 text-xs font-semibold gap-1.5 cursor-pointer bg-purple-600 hover:bg-purple-700 text-white"
-                >
-                  {isCreatingTag ? (
-                    <>
-                      <Loader2 className="size-3.5 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="size-3.5" />
-                      Add Tag
-                    </>
-                  )}
-                </Button>
-              </form>
-            )}
-          </div>
-
-          {/* Right Column: Taxonomy Table & Search */}
-          <div className="flex-1 min-w-0 w-full space-y-4">
-            {/* Tabs & Search Toolbar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card border rounded-xl p-3 shadow-xs">
-              {/* Tab Selector */}
-              <div className="flex items-center gap-1.5 bg-muted p-1 rounded-lg">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab("categories");
-                    setSearchQuery("");
-                  }}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === "categories"
-                      ? "bg-background text-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <FolderTree className="size-3.5 text-primary" />
-                  Categories ({totalCatCount})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab("tags");
-                    setSearchQuery("");
-                  }}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === "tags"
-                      ? "bg-background text-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Hash className="size-3.5 text-purple-500" />
-                  Tags ({totalTagCount})
-                </button>
+            <form onSubmit={handleCreateCategory} className="space-y-3.5">
+              {/* Name */}
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                  <span>Name <span className="text-red-500">*</span></span>
+                </label>
+                <Input
+                  type="text"
+                  placeholder="e.g. Technology, AI Tools"
+                  value={catName}
+                  onChange={(e) => handleCatNameChange(e.target.value)}
+                  className="h-8.5 text-xs"
+                  disabled={isCreatingCat}
+                  required
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  The display name shown on article badges and archive pages.
+                </p>
               </div>
 
-              {/* Right Side: Quick Stats Badges + Search Bar */}
-              <div className="flex items-center gap-2.5 w-full sm:w-auto">
-                <div className="hidden md:flex items-center gap-2">
-                  <div className="h-8.5 text-xs font-semibold px-3 bg-background border border-border rounded-md flex items-center gap-1.5 shadow-2xs">
-                    <FolderTree className="size-3.5 text-primary" />
-                    <span>{totalCatCount} Categories</span>
-                  </div>
-                  <div className="h-8.5 text-xs font-semibold px-3 bg-background border border-border rounded-md flex items-center gap-1.5 shadow-2xs">
-                    <Hash className="size-3.5 text-purple-500" />
-                    <span>{totalTagCount} Tags</span>
-                  </div>
-                </div>
+              {/* Slug */}
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                  <span>Slug</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {catSlugManual ? "manual" : "auto-generated"}
+                  </span>
+                </label>
+                <Input
+                  type="text"
+                  placeholder="e.g. technology"
+                  value={catSlug}
+                  onChange={(e) => {
+                    setCatSlugManual(true);
+                    setCatSlug(e.target.value);
+                  }}
+                  className="h-8.5 text-xs font-mono"
+                  disabled={isCreatingCat}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  URL-friendly slug (e.g. <span className="font-mono">/category/{catSlug || "..."}</span>).
+                </p>
+              </div>
 
-                <div className="relative flex-1 sm:w-64">
-                  <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder={`Search ${activeTab}...`}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-8.5 h-8.5 text-xs w-full"
-                  />
+              {/* Description */}
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">
+                  Description <span className="text-muted-foreground font-normal">(Optional)</span>
+                </label>
+                <Textarea
+                  placeholder="Brief description for header overview and archives..."
+                  value={catDesc}
+                  onChange={(e) => setCatDesc(e.target.value)}
+                  className="text-xs min-h-[64px] resize-y"
+                  disabled={isCreatingCat}
+                />
+              </div>
+
+              {/* Collapsible SEO Section */}
+              <div className="border border-border/80 rounded-lg p-3 bg-muted/20 space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setShowSeoFields(!showSeoFields)}
+                  className="w-full flex items-center justify-between text-xs font-bold text-foreground cursor-pointer"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="size-3.5 text-amber-500" />
+                    <span>Search Engine Optimization (SEO)</span>
+                  </span>
+                  <span className="text-[11px] text-primary hover:underline">
+                    {showSeoFields ? "Hide SEO" : "Customize SEO"}
+                  </span>
+                </button>
+
+                {showSeoFields && (
+                  <div className="space-y-3 pt-2 border-t border-border/60">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <label className="font-semibold text-foreground">Meta Title</label>
+                        <span className={`text-[10px] ${catMetaTitle.length > 60 ? "text-amber-500 font-bold" : "text-muted-foreground"}`}>
+                          {catMetaTitle.length}/60 chars
+                        </span>
+                      </div>
+                      <Input
+                        type="text"
+                        placeholder={catName ? `${catName} Articles & Guides | YS Innovations` : "Custom SEO title..."}
+                        value={catMetaTitle}
+                        onChange={(e) => setCatMetaTitle(e.target.value)}
+                        className="h-8 text-xs"
+                        disabled={isCreatingCat}
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <label className="font-semibold text-foreground">Meta Description</label>
+                        <span className={`text-[10px] ${catMetaDesc.length > 160 ? "text-amber-500 font-bold" : "text-muted-foreground"}`}>
+                          {catMetaDesc.length}/160 chars
+                        </span>
+                      </div>
+                      <Textarea
+                        placeholder="Snippet shown in Google search results (140-160 chars recommended)..."
+                        value={catMetaDesc}
+                        onChange={(e) => setCatMetaDesc(e.target.value)}
+                        className="text-xs min-h-[55px] resize-y"
+                        disabled={isCreatingCat}
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-foreground">Focus Keyword</label>
+                      <Input
+                        type="text"
+                        placeholder="e.g. digital marketing, ai tools"
+                        value={catFocusKeyword}
+                        onChange={(e) => setCatFocusKeyword(e.target.value)}
+                        className="h-8 text-xs"
+                        disabled={isCreatingCat}
+                      />
+                    </div>
+
+                    {/* Live Google Search Preview Card */}
+                    <div className="rounded-lg border border-border/70 p-2.5 bg-background space-y-1 text-left">
+                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground truncate">
+                        <Globe className="size-3 text-emerald-600 shrink-0" />
+                        <span className="truncate">{siteUrl}/category/{catSlug || slugify(catName) || "topic"}</span>
+                      </div>
+                      <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 truncate">
+                        {catMetaTitle || (catName ? `${catName} - Guides & Articles` : "Category Title")}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                        {catMetaDesc || catDesc || "Explore comprehensive articles, tutorials, and latest industry insights in this category."}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <Checkbox
+                        id="cat-noindex-toggle"
+                        checked={catNoIndex}
+                        onCheckedChange={(checked) => setCatNoIndex(Boolean(checked))}
+                      />
+                      <label htmlFor="cat-noindex-toggle" className="text-xs text-foreground cursor-pointer select-none">
+                        NoIndex <span className="text-[10px] text-muted-foreground">(hide category from Google Search)</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Button
+                type="submit"
+                disabled={isCreatingCat || !catName.trim()}
+                className="w-full h-9 text-xs font-semibold gap-1.5 cursor-pointer text-white"
+              >
+                {isCreatingCat ? (
+                  <>
+                    <Loader2 className="size-3.5 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="size-3.5" />
+                    Add Category
+                  </>
+                )}
+              </Button>
+            </form>
+          </div>
+
+          {/* Right Column: Category Table & Search */}
+          <div className="flex-1 min-w-0 w-full space-y-4">
+            {/* Search Toolbar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card border rounded-xl p-3 shadow-xs">
+              <div className="flex items-center gap-2">
+                <div className="h-8.5 text-xs font-semibold px-3 bg-background border border-border rounded-md flex items-center gap-1.5 shadow-2xs">
+                  <FolderTree className="size-3.5 text-primary" />
+                  <span>{totalCatCount} Categories</span>
                 </div>
+              </div>
+
+              <div className="relative flex-1 sm:w-72">
+                <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search categories or keywords..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8.5 h-8.5 text-xs w-full"
+                />
               </div>
             </div>
 
-            {/* Content Lists */}
-            {activeTab === "categories" ? (
-              <div className="bg-card border rounded-xl overflow-hidden shadow-xs">
-                {loadingCategories ? (
-                  <div className="p-6 space-y-3">
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-14 w-full" />
-                    <Skeleton className="h-14 w-full" />
-                    <Skeleton className="h-14 w-full" />
+            {/* Categories Table */}
+            <div className="bg-card border rounded-xl overflow-hidden shadow-xs">
+              {loadingCategories ? (
+                <div className="p-6 space-y-3">
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-14 w-full" />
+                  <Skeleton className="h-14 w-full" />
+                  <Skeleton className="h-14 w-full" />
+                </div>
+              ) : filteredCategories.length === 0 ? (
+                <div className="text-center py-12 px-4">
+                  <div className="size-12 rounded-2xl bg-muted/60 text-muted-foreground flex items-center justify-center mx-auto mb-3">
+                    <FolderTree className="size-6 text-muted-foreground" />
                   </div>
-                ) : filteredCategories.length === 0 ? (
-                  <div className="text-center py-12 px-4">
-                    <div className="size-12 rounded-2xl bg-muted/60 text-muted-foreground flex items-center justify-center mx-auto mb-3">
-                      <FolderTree className="size-6 text-muted-foreground" />
-                    </div>
-                    <h3 className="text-sm font-bold text-foreground">No categories found</h3>
-                    <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                      {searchQuery
-                        ? `No category matches "${searchQuery}".`
-                        : "Create your first category using the form on the left."}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-muted/50 border-b text-muted-foreground font-semibold uppercase tracking-wider text-[11px]">
-                        <tr>
-                          <th className="py-3 px-4">Name</th>
-                          <th className="py-3 px-4">Slug</th>
-                          <th className="py-3 px-4">Description</th>
-                          <th className="py-3 px-4 text-center">Articles</th>
-                          <th className="py-3 px-4 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {filteredCategories.map((cat) => (
+                  <h3 className="text-sm font-bold text-foreground">No categories found</h3>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                    {searchQuery
+                      ? `No category matches "${searchQuery}".`
+                      : "Create your first category using the form on the left."}
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-muted/50 border-b text-muted-foreground font-semibold uppercase tracking-wider text-[11px]">
+                      <tr>
+                        <th className="py-3 px-4">Name</th>
+                        <th className="py-3 px-4">Slug</th>
+                        <th className="py-3 px-4">Description</th>
+                        <th className="py-3 px-4 text-center">SEO</th>
+                        <th className="py-3 px-4 text-center">Articles</th>
+                        <th className="py-3 px-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {filteredCategories.map((cat) => {
+                        const hasCustomSeo = Boolean(cat.metaTitle || cat.metaDesc || cat.focusKeyword);
+                        return (
                           <tr
                             key={cat.id}
-                            className="hover:bg-muted/40 transition-colors group"
+                            className="hover:bg-muted/30 transition-colors group"
                           >
-                            <td className="py-3.5 px-4 font-bold text-foreground">
+                            <td className="py-3 px-4 font-semibold text-foreground">
                               <div className="flex items-center gap-2">
                                 <FolderTree className="size-3.5 text-primary shrink-0" />
                                 <span>{cat.name}</span>
                               </div>
                             </td>
-                            <td className="py-3.5 px-4">
-                              <Badge
-                                variant="outline"
-                                className="font-mono text-[11px] bg-muted/30 text-muted-foreground px-2 py-0.5 rounded"
-                              >
-                                {cat.slug}
-                              </Badge>
+                            <td className="py-3 px-4 font-mono text-[11px] text-muted-foreground">
+                              {cat.slug}
                             </td>
-                            <td className="py-3.5 px-4 text-muted-foreground max-w-xs truncate">
+                            <td className="py-3 px-4 text-muted-foreground max-w-xs truncate">
                               {cat.description || (
                                 <span className="italic text-muted-foreground/60">—</span>
                               )}
                             </td>
-                            <td className="py-3.5 px-4 text-center">
-                              <Link
-                                href={`/blogs?category=${encodeURIComponent(cat.name)}`}
-                                className="inline-flex items-center gap-1.5 font-bold hover:underline text-primary"
-                                title="Filter blogs with this category"
-                              >
+                            <td className="py-3 px-4 text-center">
+                              {hasCustomSeo ? (
                                 <Badge
                                   variant="secondary"
-                                  className="text-[11px] px-2 py-0.5 font-bold cursor-pointer hover:bg-primary/20 transition-colors"
+                                  className="text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20 inline-flex items-center gap-1"
                                 >
-                                  {cat.postCount} {cat.postCount === 1 ? "post" : "posts"}
+                                  <CheckCircle2 className="size-2.5" />
+                                  Custom SEO
                                 </Badge>
-                              </Link>
+                              ) : (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] text-muted-foreground inline-flex items-center gap-1"
+                                >
+                                  Default
+                                </Badge>
+                              )}
                             </td>
-                            <td className="py-3.5 px-4 text-right">
-                              <div className="flex items-center justify-end gap-1">
+                            <td className="py-3 px-4 text-center font-medium">
+                              <Badge
+                                variant="secondary"
+                                className="text-[11px] font-semibold px-2 py-0.5"
+                              >
+                                {cat.postCount} {cat.postCount === 1 ? "post" : "posts"}
+                              </Badge>
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <div className="inline-flex items-center gap-1">
                                 <Button
                                   variant="ghost"
-                                  size="icon"
+                                  size="sm"
                                   onClick={() => openEditModal(cat)}
-                                  className="size-7 cursor-pointer hover:text-primary"
-                                  title="Edit category"
+                                  className="h-7 w-7 p-0 cursor-pointer text-muted-foreground hover:text-foreground"
+                                  title="Edit Category & SEO"
                                 >
                                   <Edit2 className="size-3.5" />
                                 </Button>
                                 <Button
                                   variant="ghost"
-                                  size="icon"
+                                  size="sm"
                                   onClick={() => setDeletingCategory(cat)}
-                                  className="size-7 cursor-pointer hover:text-destructive hover:bg-destructive/10"
-                                  title="Delete category"
+                                  className="h-7 w-7 p-0 cursor-pointer text-destructive hover:bg-destructive/10"
+                                  title="Delete Category"
                                 >
                                   <Trash2 className="size-3.5" />
                                 </Button>
                               </div>
                             </td>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="bg-card border rounded-xl overflow-hidden shadow-xs">
-                {loadingTags ? (
-                  <div className="p-6 space-y-3">
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-14 w-full" />
-                    <Skeleton className="h-14 w-full" />
-                    <Skeleton className="h-14 w-full" />
-                  </div>
-                ) : filteredTags.length === 0 ? (
-                  <div className="text-center py-12 px-4">
-                    <div className="size-12 rounded-2xl bg-muted/60 text-muted-foreground flex items-center justify-center mx-auto mb-3">
-                      <Hash className="size-6 text-muted-foreground" />
-                    </div>
-                    <h3 className="text-sm font-bold text-foreground">No tags found</h3>
-                    <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                      {searchQuery
-                        ? `No tag matches "${searchQuery}".`
-                        : "Tags are automatically created when typed in the Blog Editor or added here."}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-muted/50 border-b text-muted-foreground font-semibold uppercase tracking-wider text-[11px]">
-                        <tr>
-                          <th className="py-3 px-4">Tag</th>
-                          <th className="py-3 px-4">Slug</th>
-                          <th className="py-3 px-4 text-center">Articles</th>
-                          <th className="py-3 px-4 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {filteredTags.map((t) => (
-                          <tr
-                            key={t.id}
-                            className="hover:bg-muted/40 transition-colors group"
-                          >
-                            <td className="py-3.5 px-4 font-bold text-foreground">
-                              <span className="inline-flex items-center gap-1.5 bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20 px-2.5 py-1 rounded-full text-xs font-semibold">
-                                <Hash className="size-3 text-purple-500 shrink-0" />
-                                {t.name}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <Badge
-                                variant="outline"
-                                className="font-mono text-[11px] bg-muted/30 text-muted-foreground px-2 py-0.5 rounded"
-                              >
-                                {t.slug}
-                              </Badge>
-                            </td>
-                            <td className="py-3.5 px-4 text-center">
-                              <Badge
-                                variant="secondary"
-                                className="text-[11px] px-2 py-0.5 font-bold"
-                              >
-                                {t.postCount} {t.postCount === 1 ? "post" : "posts"}
-                              </Badge>
-                            </td>
-                            <td className="py-3.5 px-4 text-right">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setDeletingTag(t)}
-                                className="size-7 cursor-pointer hover:text-destructive hover:bg-destructive/10"
-                                title="Delete tag"
-                              >
-                                <Trash2 className="size-3.5" />
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )}
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Edit Category Modal */}
-      <Dialog
-        open={Boolean(editingCategory)}
-        onOpenChange={(open) => !open && setEditingCategory(null)}
-      >
-        <DialogContent className="sm:max-w-md">
+      {/* Edit Category & SEO Modal */}
+      <Dialog open={!!editingCategory} onOpenChange={(open) => !open && setEditingCategory(null)}>
+        <DialogContent className="sm:max-w-lg text-xs">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <FolderTree className="size-4 text-primary" />
+              <span>Edit Category & SEO</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* Edit Tabs: General & SEO */}
+          <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
+            <button
+              type="button"
+              onClick={() => setEditTab("general")}
+              className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors cursor-pointer ${
+                editTab === "general"
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              General Details
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditTab("seo")}
+              className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors cursor-pointer flex items-center justify-center gap-1 ${
+                editTab === "seo"
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Sparkles className="size-3 text-amber-500" />
+              SEO & Social Preview
+            </button>
+          </div>
+
           <form onSubmit={handleSaveEditCategory} className="space-y-4">
-            <DialogHeader>
-              <DialogTitle className="text-base font-bold flex items-center gap-2">
-                <Edit2 className="size-4 text-primary" />
-                Edit Category
-              </DialogTitle>
-            </DialogHeader>
+            {editTab === "general" ? (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Name</label>
+                  <Input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="h-8.5 text-xs"
+                    disabled={isSavingEdit}
+                    required
+                  />
+                </div>
 
-            <div className="space-y-3 py-2">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-foreground">Category Name</label>
-                <Input
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="h-9 text-xs"
-                  required
-                />
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Slug</label>
+                  <Input
+                    type="text"
+                    value={editSlug}
+                    onChange={(e) => setEditSlug(e.target.value)}
+                    className="h-8.5 text-xs font-mono"
+                    disabled={isSavingEdit}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Description</label>
+                  <Textarea
+                    value={editDesc}
+                    onChange={(e) => setEditDesc(e.target.value)}
+                    className="text-xs min-h-[80px]"
+                    disabled={isSavingEdit}
+                  />
+                </div>
               </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <label className="font-semibold text-foreground">Meta Title</label>
+                    <span className={`text-[10px] ${editMetaTitle.length > 60 ? "text-amber-500 font-bold" : "text-muted-foreground"}`}>
+                      {editMetaTitle.length}/60 chars
+                    </span>
+                  </div>
+                  <Input
+                    type="text"
+                    placeholder="Custom SEO title..."
+                    value={editMetaTitle}
+                    onChange={(e) => setEditMetaTitle(e.target.value)}
+                    className="h-8.5 text-xs"
+                    disabled={isSavingEdit}
+                  />
+                </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-foreground">Slug</label>
-                <Input
-                  value={editSlug}
-                  onChange={(e) => setEditSlug(e.target.value)}
-                  className="h-9 text-xs font-mono"
-                  required
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Updating this slug will safely update URLs across all linked articles.
-                </p>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <label className="font-semibold text-foreground">Meta Description</label>
+                    <span className={`text-[10px] ${editMetaDesc.length > 160 ? "text-amber-500 font-bold" : "text-muted-foreground"}`}>
+                      {editMetaDesc.length}/160 chars
+                    </span>
+                  </div>
+                  <Textarea
+                    placeholder="Snippet shown in search engines..."
+                    value={editMetaDesc}
+                    onChange={(e) => setEditMetaDesc(e.target.value)}
+                    className="text-xs min-h-[60px]"
+                    disabled={isSavingEdit}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-foreground">Focus Keyword</label>
+                    <Input
+                      type="text"
+                      placeholder="e.g. digital marketing"
+                      value={editFocusKeyword}
+                      onChange={(e) => setEditFocusKeyword(e.target.value)}
+                      className="h-8 text-xs"
+                      disabled={isSavingEdit}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-foreground">Canonical URL</label>
+                    <Input
+                      type="text"
+                      placeholder="https://..."
+                      value={editCanonicalUrl}
+                      onChange={(e) => setEditCanonicalUrl(e.target.value)}
+                      className="h-8 text-xs"
+                      disabled={isSavingEdit}
+                    />
+                  </div>
+                </div>
+
+                {/* Google Search Live Preview */}
+                <div className="rounded-lg border border-border/70 p-3 bg-muted/20 space-y-1 text-left">
+                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground truncate">
+                    <Globe className="size-3 text-emerald-600 shrink-0" />
+                    <span className="truncate">{siteUrl}/category/{editSlug || "topic"}</span>
+                  </div>
+                  <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 truncate">
+                    {editMetaTitle || (editName ? `${editName} - Guides & Articles` : "Category Title")}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                    {editMetaDesc || editDesc || "Explore comprehensive articles, tutorials, and latest industry insights in this category."}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <Checkbox
+                    id="edit-cat-noindex"
+                    checked={editNoIndex}
+                    onCheckedChange={(checked) => setEditNoIndex(Boolean(checked))}
+                  />
+                  <label htmlFor="edit-cat-noindex" className="text-xs text-foreground cursor-pointer select-none">
+                    NoIndex <span className="text-[10px] text-muted-foreground">(hide category from Google Search)</span>
+                  </label>
+                </div>
               </div>
+            )}
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-foreground">Description</label>
-                <Textarea
-                  value={editDesc}
-                  onChange={(e) => setEditDesc(e.target.value)}
-                  rows={3}
-                  className="text-xs resize-none"
-                />
-              </div>
-            </div>
-
-            <DialogFooter>
+            <DialogFooter className="pt-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setEditingCategory(null)}
-                className="h-8.5 text-xs cursor-pointer"
                 disabled={isSavingEdit}
+                className="text-xs h-8.5 cursor-pointer"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={isSavingEdit || !editName.trim()}
-                className="h-8.5 text-xs font-semibold cursor-pointer"
+                className="text-xs h-8.5 font-semibold cursor-pointer"
               >
                 {isSavingEdit ? (
                   <>
@@ -803,39 +817,24 @@ export default function CategoriesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Category Confirmation Modal */}
-      <AlertDialog
-        open={Boolean(deletingCategory)}
-        onOpenChange={(open) => !open && setDeletingCategory(null)}
-      >
-        <AlertDialogContent>
+      {/* Delete Category Alert Dialog */}
+      <AlertDialog open={!!deletingCategory} onOpenChange={(open) => !open && setDeletingCategory(null)}>
+        <AlertDialogContent className="text-xs">
           <AlertDialogHeader>
-            <div className="flex items-center gap-2 text-destructive mb-1">
-              <AlertTriangle className="size-5" />
-              <AlertDialogTitle className="text-base font-bold text-foreground">
-                Delete Category?
-              </AlertDialogTitle>
-            </div>
+            <AlertDialogTitle className="text-sm font-bold text-red-600 flex items-center gap-2">
+              <span>Delete Category?</span>
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-muted-foreground space-y-2">
               <p>
-                Are you sure you want to delete category{" "}
-                <span className="font-bold text-foreground">
-                  &ldquo;{deletingCategory?.name}&rdquo;
-                </span>
-                ?
+                Are you sure you want to delete category <strong>&ldquo;{deletingCategory?.name}&rdquo;</strong>?
               </p>
-              <p className="p-2.5 bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 rounded-md font-medium text-[11px]">
-                Articles tagged with this category will <strong>NOT</strong> be deleted.
-                The category reference will simply be unlinked from them.
-              </p>
+              <div className="p-2.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-[11px]">
+                Articles tagged with this category will NOT be deleted. The category reference will simply be unlinked from them.
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel
-              disabled={isDeleting}
-              onClick={() => setDeletingCategory(null)}
-              className="text-xs h-8.5 cursor-pointer"
-            >
+            <AlertDialogCancel disabled={isDeleting} className="text-xs h-8.5 cursor-pointer">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
@@ -855,51 +854,6 @@ export default function CategoriesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Delete Tag Confirmation Modal */}
-      <AlertDialog
-        open={Boolean(deletingTag)}
-        onOpenChange={(open) => !open && setDeletingTag(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <div className="flex items-center gap-2 text-destructive mb-1">
-              <AlertTriangle className="size-5" />
-              <AlertDialogTitle className="text-base font-bold text-foreground">
-                Delete Tag?
-              </AlertDialogTitle>
-            </div>
-            <AlertDialogDescription className="text-xs text-muted-foreground">
-              Are you sure you want to delete tag{" "}
-              <span className="font-bold text-foreground">&ldquo;{deletingTag?.name}&rdquo;</span>?
-              It will be unlinked from all articles.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel
-              disabled={isDeleting}
-              onClick={() => setDeletingTag(null)}
-              className="text-xs h-8.5 cursor-pointer"
-            >
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              disabled={isDeleting}
-              onClick={handleConfirmDeleteTag}
-              className="text-xs h-8.5 bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer shadow-xs"
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="size-3.5 animate-spin mr-1.5" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete Tag"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+    </div>
   );
 }

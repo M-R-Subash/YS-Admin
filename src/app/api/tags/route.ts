@@ -16,6 +16,8 @@ function slugify(text: string): string {
 
 const createTagSchema = z.object({
   name: z.string().trim().min(1, "Tag name is required").max(50, "Tag name too long"),
+  slug: z.string().trim().max(80).optional(),
+  description: z.string().trim().max(300).optional().nullable(),
 });
 
 // GET /api/tags — Search and list tags (for editor autocomplete & management)
@@ -43,7 +45,9 @@ export async function GET(request: Request) {
         id: true,
         name: true,
         slug: true,
+        description: true,
         createdAt: true,
+        updatedAt: true,
         _count: {
           select: {
             blogs: {
@@ -115,6 +119,7 @@ export async function POST(request: Request) {
       data: {
         name,
         slug,
+        description: parsed.data.description || null,
       },
       include: {
         _count: {

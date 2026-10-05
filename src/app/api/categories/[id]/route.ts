@@ -17,7 +17,13 @@ function slugify(text: string): string {
 const updateCategorySchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(60).optional(),
   slug: z.string().trim().max(80).optional(),
-  description: z.string().trim().max(300).optional().nullable(),
+  description: z.string().trim().max(500).optional().nullable(),
+  metaTitle: z.string().trim().max(100).optional().nullable(),
+  metaDesc: z.string().trim().max(300).optional().nullable(),
+  focusKeyword: z.string().trim().max(100).optional().nullable(),
+  ogImage: z.string().trim().optional().nullable(),
+  canonicalUrl: z.string().trim().optional().nullable(),
+  noIndex: z.boolean().optional(),
 });
 
 // PATCH /api/categories/[id] — Update category details
@@ -51,7 +57,17 @@ export async function PATCH(
       return NextResponse.json({ error: "Category not found" }, { status: 404 });
     }
 
-    const updateData: { name?: string; slug?: string; description?: string | null } = {};
+    const updateData: {
+      name?: string;
+      slug?: string;
+      description?: string | null;
+      metaTitle?: string | null;
+      metaDesc?: string | null;
+      focusKeyword?: string | null;
+      ogImage?: string | null;
+      canonicalUrl?: string | null;
+      noIndex?: boolean;
+    } = {};
 
     if (parsed.data.name !== undefined) {
       updateData.name = parsed.data.name;
@@ -61,6 +77,24 @@ export async function PATCH(
     }
     if (parsed.data.description !== undefined) {
       updateData.description = parsed.data.description;
+    }
+    if (parsed.data.metaTitle !== undefined) {
+      updateData.metaTitle = parsed.data.metaTitle;
+    }
+    if (parsed.data.metaDesc !== undefined) {
+      updateData.metaDesc = parsed.data.metaDesc;
+    }
+    if (parsed.data.focusKeyword !== undefined) {
+      updateData.focusKeyword = parsed.data.focusKeyword;
+    }
+    if (parsed.data.ogImage !== undefined) {
+      updateData.ogImage = parsed.data.ogImage;
+    }
+    if (parsed.data.canonicalUrl !== undefined) {
+      updateData.canonicalUrl = parsed.data.canonicalUrl;
+    }
+    if (parsed.data.noIndex !== undefined) {
+      updateData.noIndex = parsed.data.noIndex;
     }
 
     // Check slug conflict if slug or name is being changed

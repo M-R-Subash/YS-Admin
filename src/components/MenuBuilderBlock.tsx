@@ -19,6 +19,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Trash2, Plus } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface MenuBuilderBlockProps {
   control: Control<any>;
@@ -128,11 +129,9 @@ const SortableItem = ({
             name={`${name}.${index}.url.newTab`}
             render={({ field }) => (
               <label className="flex items-center gap-2 text-xs font-bold text-black/50 cursor-pointer hover:text-foreground transition-colors">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={!!field.value}
-                  onChange={(e) => field.onChange(e.target.checked)}
-                  className="accent-black h-3.5 w-3.5 cursor-pointer"
+                  onCheckedChange={(checked) => field.onChange(Boolean(checked))}
                 />
                 Open in new tab
               </label>
@@ -143,11 +142,9 @@ const SortableItem = ({
             name={`${name}.${index}.url.noFollow`}
             render={({ field }) => (
               <label className="flex items-center gap-2 text-xs font-bold text-black/50 cursor-pointer hover:text-foreground transition-colors">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={!!field.value}
-                  onChange={(e) => field.onChange(e.target.checked)}
-                  className="accent-black h-3.5 w-3.5 cursor-pointer"
+                  onCheckedChange={(checked) => field.onChange(Boolean(checked))}
                 />
                 No Follow
               </label>
