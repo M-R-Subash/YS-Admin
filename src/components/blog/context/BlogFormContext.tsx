@@ -110,3 +110,7 @@ export function useBlogForm(): BlogFormContextValue {
   }
   return context;
 }
+
+export function useOptionalBlogForm(): BlogFormContextValue | null {
+  return useContext(BlogFormContext);
+}

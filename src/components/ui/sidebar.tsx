@@ -679,7 +679,7 @@ function SidebarMenuSubButton({
     props: mergeProps<"a">(
       {
         className: cn(
-          "flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground ring-sidebar-ring outline-hidden group-data-[collapsible=icon]:hidden hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[size=md]:text-sm data-[size=sm]:text-xs cursor-pointer data-active:bg-muted data-active:font-bold data-active:text-foreground dark:data-active:bg-neutral-800 dark:data-active:text-neutral-100 hover:bg-muted/70 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
+          "flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground ring-sidebar-ring outline-hidden group-data-[collapsible=icon]:hidden hover:bg-neutral-200/50 hover:text-foreground focus-visible:ring-2 active:bg-neutral-200/70 disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[size=md]:text-sm data-[size=sm]:text-xs cursor-pointer data-active:bg-neutral-200/80 data-active:font-semibold data-active:text-neutral-900 data-active:hover:bg-neutral-200 dark:hover:bg-neutral-800/50 dark:data-active:bg-neutral-800 dark:data-active:text-neutral-100 dark:data-active:hover:bg-neutral-800/80 transition-colors [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
           className,
         ),
       },

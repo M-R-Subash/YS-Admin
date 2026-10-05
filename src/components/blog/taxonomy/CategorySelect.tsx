@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import useSWR from "swr";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   FolderTree,
   Check,
@@ -11,7 +11,7 @@ import {
   X,
   ChevronDown,
   Loader2,
-  ExternalLink,
+  ArrowRight,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import { toast } from "@/components/ui/toast";
+import { useOptionalBlogForm } from "@/components/blog/context/BlogFormContext";
 import { cn } from "@/lib/utils";
 
 interface CategoryData {
@@ -38,6 +39,7 @@ interface CategorySelectProps {
   disabled?: boolean;
   className?: string;
   error?: string;
+  onManageAll?: () => Promise<void> | void;
 }
 
 export function CategorySelect({
@@ -46,10 +48,14 @@ export function CategorySelect({
   disabled = false,
   className = "",
   error,
+  onManageAll,
 }: CategorySelectProps) {
+  const router = useRouter();
+  const blogForm = useOptionalBlogForm();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const [isSavingAndNavigating, setIsSavingAndNavigating] = useState(false);
 
   const { data: categories = [], mutate } = useSWR<CategoryData[]>("/api/categories");
 
@@ -246,14 +252,64 @@ export function CategorySelect({
           {/* Footer with Manage Link */}
           <div className="border-t pt-2 flex items-center justify-between text-[11px] text-muted-foreground px-1">
             <span>{value.length} selected</span>
-            <Link
-              href="/categories"
-              target="_blank"
-              className="inline-flex items-center gap-1 hover:text-primary transition-colors font-medium"
+            <button
+              type="button"
+              disabled={isSavingAndNavigating}
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (onManageAll) {
+                  await onManageAll();
+                  return;
+                }
+
+                if (blogForm) {
+                  try {
+                    setIsSavingAndNavigating(true);
+                    if (blogForm.isDirtyOrFilled) {
+                      toast.add({
+                        title: "Auto-saving Draft",
+                        description: "Saving changes before navigating to Categories...",
+                        type: "info",
+                      });
+
+                      const currentTitle = blogForm.getValues("title");
+                      if (!currentTitle || !currentTitle.trim()) {
+                        blogForm.setValue("title", "Untitled Draft");
+                      }
+                      const currentSlug = blogForm.getValues("slug");
+                      if (!currentSlug || !currentSlug.trim()) {
+                        blogForm.setValue("slug", `untitled-draft-${Date.now()}`);
+                      }
+
+                      const success = await blogForm.handleSave("draft", false, null, true);
+                      if (!success) {
+                        setIsSavingAndNavigating(false);
+                        return;
+                      }
+                    }
+                    setOpen(false);
+                    router.push("/categories");
+                  } catch (err: any) {
+                    setIsSavingAndNavigating(false);
+                    toast.add({
+                      title: "Save Failed",
+                      description: err.message || "Failed to auto-save draft",
+                      type: "error",
+                    });
+                  }
+                } else {
+                  setOpen(false);
+                  router.push("/categories");
+                }
+              }}
+              className="inline-flex items-center gap-1 hover:text-primary transition-colors font-medium cursor-pointer disabled:opacity-50"
             >
-              <span>Manage all</span>
-              <ExternalLink className="size-2.5" />
-            </Link>
+              {isSavingAndNavigating && <Loader2 className="size-2.5 animate-spin" />}
+              <span>{isSavingAndNavigating ? "Saving draft..." : "Manage all"}</span>
+              {!isSavingAndNavigating && <ArrowRight className="size-2.5" />}
+            </button>
           </div>
         </PopoverContent>
       </Popover>

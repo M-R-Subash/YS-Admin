@@ -197,22 +197,24 @@ export function ContentActionCell<T extends ContentActionItem = ContentActionIte
                       <span>{quickEditLabel}</span>
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuItem
-                    onClick={() => {
-                      window.open(previewUrl, previewWindowName);
-                    }}
-                    className="cursor-pointer"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
-                    <span>Live Preview</span>
-                  </DropdownMenuItem>
-                  {publicUrl && (
+                  {item.status !== "published" && previewUrl && (
+                    <DropdownMenuItem
+                      onClick={() => {
+                        window.open(previewUrl, previewWindowName);
+                      }}
+                      className="cursor-pointer"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
+                      <span>Preview Draft</span>
+                    </DropdownMenuItem>
+                  )}
+                  {item.status === "published" && publicUrl && (
                     <DropdownMenuItem
                       onClick={() => {
                         const separator = publicUrl.includes("?") ? "&" : "?";
                         window.open(`${publicUrl}${separator}nocache=${Date.now()}`, "_blank");
                       }}
-                      className="cursor-pointer"
+                      className="cursor-pointer sm:hidden"
                     >
                       <Globe className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
                       <span>{publicUrlLabel}</span>

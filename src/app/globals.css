@@ -194,3 +194,17 @@ body {
 .animate-transition-pulse {
   animation: transitionPulseSlow 2.4s ease-in-out infinite;
 }
+
+/* Base UI Collapsible smooth expanding and collapsing animations */
+[data-slot="collapsible-content"] {
+  overflow: hidden;
+  height: var(--collapsible-panel-height, auto);
+  opacity: 1;
+  transition: height 220ms cubic-bezier(0.2, 0, 0, 1), opacity 180ms ease;
+}
+
+[data-slot="collapsible-content"][data-starting-style],
+[data-slot="collapsible-content"][data-ending-style] {
+  height: 0 !important;
+  opacity: 0 !important;
+}
