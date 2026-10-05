@@ -92,6 +92,8 @@ export const universalSeoFormSchema = z.object({
 
   // Entity specific optional fields
   allowComments: z.boolean().optional(),
+  categories: z.array(z.string()).optional(),
+  tags: z.array(z.string()).optional(),
   authorSelection: z.string().optional(),
   authorId: z.string().optional().nullable(),
   authorName: z.string().optional().nullable(),

@@ -31,6 +31,8 @@ import {
 } from "@/lib/schemas/seo-validation";
 import { calculateQuickSeoScore } from "@/lib/seo/seo-engine";
 import { toast } from "@/components/ui/toast";
+import { CategorySelect } from "@/components/blog/taxonomy/CategorySelect";
+import { TagAutocompleteInput } from "@/components/blog/taxonomy/TagAutocompleteInput";
 import { Loader2, Globe, Share2, Code2, Sparkles, UserCheck, Search, Building2, User, Pencil, Eye, ArrowLeft } from "lucide-react";
 import type { SeoEntityType } from "@/types/seo";
 
@@ -113,6 +115,8 @@ export function UniversalSeoModal({
       authorName: initialData.seo?.authorName || "",
       authorRole: initialData.seo?.authorRole || "",
       authorDescription: initialData.seo?.authorDescription || "",
+      categories: Array.isArray(initialData.categories) ? initialData.categories : [],
+      tags: Array.isArray(initialData.tags) ? initialData.tags : [],
     };
   }, [initialData]);
 
@@ -464,6 +468,38 @@ export function UniversalSeoModal({
                         )}
                       </div>
                     </div>
+
+                    {entityType === "blog" && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-bold text-foreground">Categories</Label>
+                          <Controller
+                            name="categories"
+                            control={control}
+                            render={({ field }) => (
+                              <CategorySelect
+                                value={field.value || []}
+                                onChange={field.onChange}
+                              />
+                            )}
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-bold text-foreground">Tags</Label>
+                          <Controller
+                            name="tags"
+                            control={control}
+                            render={({ field }) => (
+                              <TagAutocompleteInput
+                                value={field.value || []}
+                                onChange={field.onChange}
+                              />
+                            )}
+                          />
+                        </div>
+                      </div>
+                    )}
 
                     <div className="space-y-1.5">
                       <Label htmlFor="quick-focusKeyword" className="text-xs font-bold text-foreground">

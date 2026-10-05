@@ -42,10 +42,10 @@ export function TagAutocompleteInput({
 
   const { data: suggestions = [], isLoading } = useSWR<TagData[]>(searchUrl);
 
-  // Filter out tags that are already selected
-  const availableSuggestions = suggestions.filter((s) => !value.includes(s.name));
+  // Keep all suggestions so user can see tags like "Productivity" even if already selected
+  const availableSuggestions = suggestions;
 
-  const exactMatchExists = availableSuggestions.some(
+  const exactMatchExists = suggestions.some(
     (s) => s.name.toLowerCase() === trimmedInput.toLowerCase()
   );
 
@@ -63,8 +63,20 @@ export function TagAutocompleteInput({
   const addTag = (tagName: string) => {
     const clean = tagName.trim();
     if (!clean) return;
-    if (!value.includes(clean)) {
-      onChange([...value, clean]);
+
+    // Use canonical casing if matching suggestion exists
+    const matchedSuggestion = suggestions.find(
+      (s) => s.name.toLowerCase() === clean.toLowerCase()
+    );
+    const finalName = matchedSuggestion ? matchedSuggestion.name : clean;
+
+    // Prevent duplicate entries case-insensitively
+    const alreadySelected = value.some(
+      (v) => v.toLowerCase() === finalName.toLowerCase()
+    );
+
+    if (!alreadySelected) {
+      onChange([...value, finalName]);
     }
     setInputValue("");
     setShowDropdown(false);
@@ -200,6 +212,9 @@ export function TagAutocompleteInput({
         <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-popover border border-border shadow-md rounded-lg overflow-hidden py-1 max-h-56 overflow-y-auto custom-scrollbar">
           {availableSuggestions.map((item, index) => {
             const isHighlighted = highlightedIndex === index;
+            const isAlreadyAdded = value.some(
+              (v) => v.toLowerCase() === item.name.toLowerCase()
+            );
             return (
               <button
                 key={item.id}
@@ -210,12 +225,18 @@ export function TagAutocompleteInput({
                   "w-full flex items-center justify-between px-3 py-1.5 text-xs text-left cursor-pointer transition-colors",
                   isHighlighted
                     ? "bg-purple-500/15 text-purple-900 dark:text-purple-100 font-semibold"
-                    : "hover:bg-muted text-foreground"
+                    : "hover:bg-muted text-foreground",
+                  isAlreadyAdded && "opacity-80"
                 )}
               >
                 <div className="flex items-center gap-1.5 truncate">
                   <Hash className="size-3 text-purple-500 shrink-0" />
                   <span className="truncate">{item.name}</span>
+                  {isAlreadyAdded && (
+                    <span className="text-[10px] text-muted-foreground font-normal ml-1">
+                      (already added)
+                    </span>
+                  )}
                 </div>
                 <span className="text-[10px] text-muted-foreground ml-2 shrink-0">
                   {item.postCount} {item.postCount === 1 ? "article" : "articles"}

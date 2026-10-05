@@ -67,7 +67,7 @@ export function NavMain({
                 render={
                   <SidebarMenuButton 
                     tooltip={item.title} 
-                    isActive={isItemActive || isAnySubActive} 
+                    className="cursor-pointer font-medium text-sidebar-foreground hover:bg-sidebar-accent"
                   />
                 }
               >

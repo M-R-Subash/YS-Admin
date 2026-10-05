@@ -92,11 +92,27 @@ export async function POST(request: Request) {
     const name = parsed.data.name;
     const slug = slugify(name) || "tag";
 
-    // Upsert so if tag already exists, it returns the existing tag without error
-    const tag = await prisma.tag.upsert({
-      where: { name },
-      update: {},
-      create: {
+    // Check case-insensitively to prevent duplicates like "Productivity" vs "productivity"
+    const existing = await prisma.tag.findFirst({
+      where: {
+        OR: [
+          { name: { equals: name, mode: "insensitive" } },
+          { slug: slug },
+        ],
+      },
+      include: {
+        _count: {
+          select: { blogs: true },
+        },
+      },
+    });
+
+    if (existing) {
+      return NextResponse.json({ ...existing, postCount: existing._count.blogs }, { status: 200 });
+    }
+
+    const tag = await prisma.tag.create({
+      data: {
         name,
         slug,
       },

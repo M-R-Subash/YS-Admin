@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { universalSeoFormSchema } from "@/lib/schemas/seo-validation";
 import { revalidateFrontendPath } from "@/lib/revalidate";
+import { slugify } from "@/lib/slugify";
 
 export async function PUT(
   req: Request,
@@ -24,6 +25,8 @@ export async function PUT(
     const {
       title,
       slug,
+      categories,
+      tags,
       metaTitle,
       metaDesc,
       focusKeyword,
@@ -52,16 +55,53 @@ export async function PUT(
         parsedStructuredData = structuredData;
       }
     }
-    
+
+    const blogUpdateData: any = {
+      title,
+      slug,
+      ...(allowComments !== undefined && { allowComments }),
+      ...(authorId !== undefined && { authorId: authorId || null }),
+    };
+
+    if (categories !== undefined) {
+      const cleanCategories = Array.isArray(categories)
+        ? categories.map((c: any) => String(c).trim()).filter(Boolean)
+        : [];
+      for (const catName of cleanCategories) {
+        await prisma.category.upsert({
+          where: { name: catName },
+          update: {},
+          create: { name: catName, slug: slugify(catName) || "category" },
+        });
+      }
+      blogUpdateData.categories = cleanCategories;
+      blogUpdateData.categoryItems = {
+        set: cleanCategories.map((name: string) => ({ name })),
+      };
+    }
+
+    if (tags !== undefined) {
+      const cleanTags = Array.isArray(tags)
+        ? tags.map((t: any) => String(t).trim()).filter(Boolean)
+        : [];
+      for (const tagName of cleanTags) {
+        await prisma.tag.upsert({
+          where: { name: tagName },
+          update: {},
+          create: { name: tagName, slug: slugify(tagName) || "tag" },
+        });
+      }
+      blogUpdateData.tags = cleanTags;
+      blogUpdateData.tagItems = {
+        set: cleanTags.map((name: string) => ({ name })),
+      };
+    }
+
     // Update the blog and upsert SEO data
     const updatedBlog = await prisma.blog.update({
       where: { id },
       data: {
-        title,
-        slug,
-        ...(allowComments !== undefined && { allowComments }),
-        // Update the blog's authorId if provided
-        ...(authorId !== undefined && { authorId: authorId || null }),
+        ...blogUpdateData,
         seo: {
           upsert: {
             create: {

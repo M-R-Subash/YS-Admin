@@ -516,15 +516,15 @@ export default function CategoriesPage() {
 
               {/* Right Side: Quick Stats Badges + Search Bar */}
               <div className="flex items-center gap-2.5 w-full sm:w-auto">
-                <div className="hidden md:flex items-center gap-1.5">
-                  <Badge variant="outline" className="text-[11px] font-semibold py-1 px-2.5 bg-background flex items-center gap-1">
-                    <FolderTree className="size-3 text-primary" />
+                <div className="hidden md:flex items-center gap-2">
+                  <div className="h-8.5 text-xs font-semibold px-3 bg-background border border-border rounded-md flex items-center gap-1.5 shadow-2xs">
+                    <FolderTree className="size-3.5 text-primary" />
                     <span>{totalCatCount} Categories</span>
-                  </Badge>
-                  <Badge variant="outline" className="text-[11px] font-semibold py-1 px-2.5 bg-background flex items-center gap-1">
-                    <Hash className="size-3 text-purple-500" />
+                  </div>
+                  <div className="h-8.5 text-xs font-semibold px-3 bg-background border border-border rounded-md flex items-center gap-1.5 shadow-2xs">
+                    <Hash className="size-3.5 text-purple-500" />
                     <span>{totalTagCount} Tags</span>
-                  </Badge>
+                  </div>
                 </div>
 
                 <div className="relative flex-1 sm:w-64">
@@ -841,7 +841,7 @@ export default function CategoriesPage() {
             <AlertDialogAction
               disabled={isDeleting}
               onClick={handleConfirmDeleteCategory}
-              className="text-xs h-8.5 bg-destructive hover:bg-destructive/90 text-destructive-foreground cursor-pointer font-semibold"
+              className="text-xs h-8.5 bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer shadow-xs"
             >
               {isDeleting ? (
                 <>
@@ -886,7 +886,7 @@ export default function CategoriesPage() {
             <AlertDialogAction
               disabled={isDeleting}
               onClick={handleConfirmDeleteTag}
-              className="text-xs h-8.5 bg-destructive hover:bg-destructive/90 text-destructive-foreground cursor-pointer font-semibold"
+              className="text-xs h-8.5 bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer shadow-xs"
             >
               {isDeleting ? (
                 <>
