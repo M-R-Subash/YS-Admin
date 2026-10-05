@@ -50,15 +50,26 @@ export function NavMain({
       <SidebarMenu>
         {items.map((item) => {
           const isItemActive = pathname === item.url;
+          const isAnySubActive = item.items?.some(
+            (subItem) =>
+              pathname === subItem.url ||
+              (subItem.url !== "/blogs" && pathname.startsWith(subItem.url + "/")) ||
+              (subItem.url === "/blogs" && (pathname === "/blogs" || pathname.startsWith("/blogs/")))
+          );
           return item.items && item.items.length > 0 ? (
             <Collapsible
               key={item.title}
-              defaultOpen={item.isActive}
+              defaultOpen={item.isActive ?? isAnySubActive ?? true}
               className="group/collapsible"
               render={<SidebarMenuItem />}
             >
               <CollapsibleTrigger
-                render={<SidebarMenuButton tooltip={item.title} />}
+                render={
+                  <SidebarMenuButton 
+                    tooltip={item.title} 
+                    isActive={isItemActive || isAnySubActive} 
+                  />
+                }
               >
                 {item.icon}
                 <span>{item.title}</span>

@@ -348,40 +348,21 @@ export default function CategoriesPage() {
     <>
       <AdminTopBar breadcrumbs="Categories & Tags" />
 
-      <div className="flex flex-1 flex-col gap-6 py-6 px-[15px] md:px-[20px] lg:px-[30px] max-w-7xl mx-auto w-full">
-        {/* Header & Quick Stats */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-5">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
-              <FolderTree className="size-6 text-primary" />
-              Categories & Tags
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Manage hierarchical blog categories and searchable tags with automatic relational synchronization.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="flex items-center gap-2 bg-muted/60 border rounded-lg px-3.5 py-1.5 text-xs font-semibold">
-              <FolderTree className="size-4 text-primary" />
-              <span>{totalCatCount} Categories</span>
-            </div>
-            <div className="flex items-center gap-2 bg-muted/60 border rounded-lg px-3.5 py-1.5 text-xs font-semibold">
-              <Hash className="size-4 text-purple-500" />
-              <span>{totalTagCount} Tags</span>
-            </div>
-          </div>
-        </div>
-
+      <div className="flex flex-1 flex-col gap-5 py-5 px-[15px] md:px-[20px] lg:px-[30px] w-full">
         {/* 2-Column Responsive Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="flex flex-col lg:flex-row gap-6 items-start w-full">
           {/* Left Column: Create Form */}
-          <div className="lg:col-span-4 bg-card border rounded-xl p-5 shadow-xs sticky top-20">
+          <div className="w-full lg:w-[340px] xl:w-[380px] shrink-0 bg-card border rounded-xl p-5 shadow-xs lg:sticky lg:top-20">
             {activeTab === "categories" ? (
               <form onSubmit={handleCreateCategory} className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b">
-                  <FolderPlus className="size-4 text-primary" />
-                  <h2 className="text-sm font-bold text-foreground">Add New Category</h2>
+                <div className="flex items-center justify-between pb-2 border-b">
+                  <div className="flex items-center gap-2">
+                    <FolderPlus className="size-4 text-primary" />
+                    <h2 className="text-sm font-bold text-foreground">Add New Category</h2>
+                  </div>
+                  <Badge variant="secondary" className="text-[10px] font-semibold">
+                    {totalCatCount} total
+                  </Badge>
                 </div>
 
                 <div className="space-y-1.5">
@@ -449,9 +430,14 @@ export default function CategoriesPage() {
               </form>
             ) : (
               <form onSubmit={handleCreateTag} className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b">
-                  <TagIcon className="size-4 text-purple-500" />
-                  <h2 className="text-sm font-bold text-foreground">Add New Tag</h2>
+                <div className="flex items-center justify-between pb-2 border-b">
+                  <div className="flex items-center gap-2">
+                    <TagIcon className="size-4 text-purple-500" />
+                    <h2 className="text-sm font-bold text-foreground">Add New Tag</h2>
+                  </div>
+                  <Badge variant="secondary" className="text-[10px] font-semibold">
+                    {totalTagCount} total
+                  </Badge>
                 </div>
 
                 <div className="space-y-1.5">
@@ -491,7 +477,7 @@ export default function CategoriesPage() {
           </div>
 
           {/* Right Column: Taxonomy Table & Search */}
-          <div className="lg:col-span-8 space-y-4">
+          <div className="flex-1 min-w-0 w-full space-y-4">
             {/* Tabs & Search Toolbar */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card border rounded-xl p-3 shadow-xs">
               {/* Tab Selector */}
@@ -528,16 +514,29 @@ export default function CategoriesPage() {
                 </button>
               </div>
 
-              {/* Search Bar */}
-              <div className="relative flex-1 sm:max-w-xs">
-                <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder={`Search ${activeTab}...`}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8.5 h-8.5 text-xs w-full"
-                />
+              {/* Right Side: Quick Stats Badges + Search Bar */}
+              <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                <div className="hidden md:flex items-center gap-1.5">
+                  <Badge variant="outline" className="text-[11px] font-semibold py-1 px-2.5 bg-background flex items-center gap-1">
+                    <FolderTree className="size-3 text-primary" />
+                    <span>{totalCatCount} Categories</span>
+                  </Badge>
+                  <Badge variant="outline" className="text-[11px] font-semibold py-1 px-2.5 bg-background flex items-center gap-1">
+                    <Hash className="size-3 text-purple-500" />
+                    <span>{totalTagCount} Tags</span>
+                  </Badge>
+                </div>
+
+                <div className="relative flex-1 sm:w-64">
+                  <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder={`Search ${activeTab}...`}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-8.5 h-8.5 text-xs w-full"
+                  />
+                </div>
               </div>
             </div>
 
@@ -561,7 +560,7 @@ export default function CategoriesPage() {
                       {searchQuery
                         ? `No category matches "${searchQuery}".`
                         : "Create your first category using the form on the left."}
-            go         </p>
+                    </p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">

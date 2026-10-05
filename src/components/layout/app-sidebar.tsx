@@ -31,11 +31,16 @@ const navItems = [
     title: "Blogs",
     url: "/blogs",
     icon: <PenToolIcon />,
-  },
-  {
-    title: "Categories & Tags",
-    url: "/categories",
-    icon: <Tags />,
+    items: [
+      {
+        title: "All Blogs",
+        url: "/blogs",
+      },
+      {
+        title: "Categories & Tags",
+        url: "/categories",
+      },
+    ],
   },
   {
     title: "Scheduled Actions",
