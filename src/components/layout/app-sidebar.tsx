@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import useSWR from "swr"
-import { FileTextIcon, UsersIcon, PenToolIcon, ImageIcon, WavesHorizontalIcon, MessageSquare, CalendarClock, Inbox } from "lucide-react"
+import { FileTextIcon, UsersIcon, PenToolIcon, ImageIcon, WavesHorizontalIcon, MessageSquare, CalendarClock, Inbox, Tags } from "lucide-react"
 
 import { NavMain } from "@/components/layout/nav-main"
 import { NavUser } from "@/components/layout/nav-user"
@@ -31,6 +31,11 @@ const navItems = [
     title: "Blogs",
     url: "/blogs",
     icon: <PenToolIcon />,
+  },
+  {
+    title: "Categories & Tags",
+    url: "/categories",
+    icon: <Tags />,
   },
   {
     title: "Scheduled Actions",

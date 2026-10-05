@@ -20,16 +20,16 @@ export const blogGeneralLeftUiSchema: FieldSchema[] = [
   {
     name: "categories",
     label: "Categories",
-    type: "tags",
-    placeholder: "Type category and press Enter...",
-    description: "Group this post into broad topics (e.g. Engineering, AI, Cloud). Required to publish.",
+    type: "category-select",
+    placeholder: "Select or create categories...",
+    description: "Group this post into broad topics (e.g. Engineering, AI, Cloud). Manageable centrally with live article counts.",
   },
   {
     name: "tags",
     label: "Tags",
-    type: "tags",
-    placeholder: "Type tag and press Enter...",
-    description: "Specific keywords or subjects (e.g. typescript, nextjs, devops).",
+    type: "tag-autocomplete",
+    placeholder: "Type tag with autocomplete and press Enter...",
+    description: "Specific keywords or subjects (e.g. typescript, nextjs, devops) with live autocomplete.",
   },
   {
     name: "allowComments",

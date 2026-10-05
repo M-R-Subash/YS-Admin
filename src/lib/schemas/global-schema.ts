@@ -1,6 +1,20 @@
 import { z } from "zod";
 
-export type FieldType = "text" | "textarea" | "url" | "array" | "object" | "accordion" | "image" | "tags" | "boolean" | "menu-builder" | "footer-columns" | "faq-manager";
+export type FieldType =
+  | "text"
+  | "textarea"
+  | "url"
+  | "array"
+  | "object"
+  | "accordion"
+  | "image"
+  | "tags"
+  | "category-select"
+  | "tag-autocomplete"
+  | "boolean"
+  | "menu-builder"
+  | "footer-columns"
+  | "faq-manager";
 
 export interface FieldSchema {
   name: string;

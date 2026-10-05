@@ -11,6 +11,7 @@ import { revalidateFrontendPath } from "@/lib/revalidate";
 import { serverConfig } from "@/lib/config/server";
 import { createBlogRevisionSnapshot } from "@/lib/server/revision-utils";
 import { handleApiError } from "@/lib/server/prisma-errors";
+import { slugify } from "@/lib/slugify";
 
 // GET /api/blogs/[id] — get a single blog
 export async function GET(
@@ -383,6 +384,40 @@ export async function PUT(
 
   // Atomic update: execute blog update and revision snapshot within a transaction
   const blog = await prisma.$transaction(async (tx) => {
+    if (categories !== undefined) {
+      const cleanCategories = Array.isArray(categories)
+        ? categories.map((c: any) => String(c).trim()).filter(Boolean)
+        : [];
+      for (const catName of cleanCategories) {
+        await tx.category.upsert({
+          where: { name: catName },
+          update: {},
+          create: { name: catName, slug: slugify(catName) || "category" },
+        });
+      }
+      updateData.categoryItems = {
+        set: cleanCategories.map((name: string) => ({ name })),
+      };
+      updateData.categories = cleanCategories;
+    }
+
+    if (tags !== undefined) {
+      const cleanTags = Array.isArray(tags)
+        ? tags.map((t: any) => String(t).trim()).filter(Boolean)
+        : [];
+      for (const tagName of cleanTags) {
+        await tx.tag.upsert({
+          where: { name: tagName },
+          update: {},
+          create: { name: tagName, slug: slugify(tagName) || "tag" },
+        });
+      }
+      updateData.tagItems = {
+        set: cleanTags.map((name: string) => ({ name })),
+      };
+      updateData.tags = cleanTags;
+    }
+
     const updated = await tx.blog.update({
       where: { id },
       data: updateData,

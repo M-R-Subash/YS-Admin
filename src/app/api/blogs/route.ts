@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, requireLiveUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { revalidateFrontendPath } from "@/lib/revalidate";
+import { slugify } from "@/lib/slugify";
 import {
   blogDraftSchema,
   blogPublishSchema,
@@ -20,6 +21,7 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
+    const category = searchParams.get("category");
 
     const whereClause: any = {};
     if (status === "trash") {
@@ -33,6 +35,10 @@ export async function GET(req: Request) {
     } else if (status === "scheduled") {
       whereClause.status = "scheduled";
       whereClause.isTrashed = false;
+    }
+
+    if (category && category !== "all") {
+      whereClause.categories = { has: category };
     }
 
     // Exclude heavy TipTap rich-text `content` from list view for maximum speed & minimal payload
@@ -172,6 +178,28 @@ export async function POST(req: Request) {
       }
     }
 
+    const cleanCategories = Array.isArray(categories)
+      ? categories.map((c: any) => String(c).trim()).filter(Boolean)
+      : [];
+    for (const catName of cleanCategories) {
+      await prisma.category.upsert({
+        where: { name: catName },
+        update: {},
+        create: { name: catName, slug: slugify(catName) || "category" },
+      });
+    }
+
+    const cleanTags = Array.isArray(tags)
+      ? tags.map((t: any) => String(t).trim()).filter(Boolean)
+      : [];
+    for (const tagName of cleanTags) {
+      await prisma.tag.upsert({
+        where: { name: tagName },
+        update: {},
+        create: { name: tagName, slug: slugify(tagName) || "tag" },
+      });
+    }
+
     const newBlog = await prisma.blog.create({
       data: {
         title,
@@ -181,8 +209,14 @@ export async function POST(req: Request) {
         excerpt,
         allowComments: allowComments ?? true,
         status: finalStatus,
-        tags: tags || [],
-        categories: categories || [],
+        tags: cleanTags,
+        categories: cleanCategories,
+        categoryItems: {
+          connect: cleanCategories.map((name: string) => ({ name })),
+        },
+        tagItems: {
+          connect: cleanTags.map((name: string) => ({ name })),
+        },
         readingTime: readingTime || 0,
         publishedAt: finalPublishedAt,
         scheduledAt: parsedScheduledAt,

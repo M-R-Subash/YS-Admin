@@ -10,6 +10,8 @@ import { FooterColumnsBlock } from "@/components/FooterColumnsBlock";
 import dynamic from "next/dynamic";
 import { Switch } from "@/components/ui/switch";
 import { TagInput } from "@/components/ui/tag-input";
+import { CategorySelect } from "@/components/blog/taxonomy/CategorySelect";
+import { TagAutocompleteInput } from "@/components/blog/taxonomy/TagAutocompleteInput";
 import { Trash2, Plus } from "lucide-react";
 
 const FaqManager = dynamic(() => import("@/components/faq/FaqManager"), {
@@ -314,7 +316,7 @@ export function EditorRenderer({
           );
         }
 
-        if (field.type === "tags") {
+        if (field.type === "category-select") {
           return (
             <div key={fieldName} className="flex flex-col gap-1.5 flex-1">
               <label className="text-xs font-bold text-foreground uppercase tracking-wider">
@@ -325,7 +327,40 @@ export function EditorRenderer({
                 control={control}
                 render={({ field: { onChange, value }, fieldState: { error } }) => (
                   <div className="flex flex-col gap-1">
-                    <TagInput
+                    <CategorySelect
+                      value={Array.isArray(value) ? value : value ? [String(value)] : []}
+                      onChange={onChange}
+                      error={error?.message}
+                    />
+                    {error && (
+                      <span className="text-red-500 text-[11px] font-bold tracking-wide mt-0.5">
+                        {error.message}
+                      </span>
+                    )}
+                  </div>
+                )}
+              />
+              {field.description && (
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {field.description}
+                </p>
+              )}
+            </div>
+          );
+        }
+
+        if (field.type === "tag-autocomplete" || field.type === "tags") {
+          return (
+            <div key={fieldName} className="flex flex-col gap-1.5 flex-1">
+              <label className="text-xs font-bold text-foreground uppercase tracking-wider">
+                {field.label}
+              </label>
+              <Controller
+                name={fieldName}
+                control={control}
+                render={({ field: { onChange, value }, fieldState: { error } }) => (
+                  <div className="flex flex-col gap-1">
+                    <TagAutocompleteInput
                       value={Array.isArray(value) ? value : value ? [String(value)] : []}
                       onChange={onChange}
                       placeholder={field.placeholder || "Type and press Enter..."}
@@ -492,7 +527,13 @@ function ArrayRenderer({
           const defaultItem: Record<string, any> = {};
           if (field.fields) {
             field.fields.forEach((f) => {
-              defaultItem[f.name] = f.type === "array" || f.type === "tags" ? [] : "";
+              defaultItem[f.name] =
+                f.type === "array" ||
+                f.type === "tags" ||
+                f.type === "category-select" ||
+                f.type === "tag-autocomplete"
+                  ? []
+                  : "";
             });
           }
           append(defaultItem);
