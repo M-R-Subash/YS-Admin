@@ -170,7 +170,8 @@ body {
   0% {
     transform: translateX(-150%) skewX(-20deg);
   }
-  35%, 100% {
+  35%,
+  100% {
     transform: translateX(200%) skewX(-20deg);
   }
 }
@@ -181,7 +182,8 @@ body {
 
 /* Page Transition Loader Animations */
 @keyframes transitionPulseSlow {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
     filter: drop-shadow(0 0 10px rgba(245, 168, 23, 0.4));
   }
@@ -200,7 +202,9 @@ body {
   overflow: hidden;
   height: var(--collapsible-panel-height, auto);
   opacity: 1;
-  transition: height 220ms cubic-bezier(0.2, 0, 0, 1), opacity 180ms ease;
+  transition:
+    height 220ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 180ms ease;
 }
 
 [data-slot="collapsible-content"][data-starting-style],

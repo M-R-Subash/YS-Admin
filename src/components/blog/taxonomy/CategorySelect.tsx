@@ -131,8 +131,8 @@ export function CategorySelect({
         <PopoverTrigger
           disabled={disabled}
           className={cn(
-            "flex min-h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground shadow-xs transition-colors hover:bg-muted/30 focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer",
-            error && "border-red-500 focus:ring-red-500",
+            "flex min-h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground shadow-xs transition-colors hover:bg-muted/30 focus:outline-none focus:border-foreground/50 focus:ring-0 cursor-pointer",
+            error && "border-red-500",
             disabled && "opacity-50 cursor-not-allowed"
           )}
         >

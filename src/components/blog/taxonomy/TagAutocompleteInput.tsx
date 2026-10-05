@@ -154,7 +154,7 @@ export function TagAutocompleteInput({
       <div
         onClick={() => inputRef.current?.focus()}
         className={cn(
-          "flex flex-wrap items-center gap-1.5 min-h-10 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs shadow-xs transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring cursor-text",
+          "flex flex-wrap items-center gap-1.5 min-h-10 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs shadow-xs transition-colors focus-within:border-foreground/50 cursor-text",
           disabled && "opacity-50 cursor-not-allowed",
           className
         )}
