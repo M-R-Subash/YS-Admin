@@ -14,7 +14,6 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Popover,
@@ -235,7 +234,7 @@ export function CategorySelect({
                             : "border-input bg-background"
                         )}
                       >
-                        {isSelected && <Check className="size-3 stroke-[3]" />}
+                        {isSelected && <Check className="size-3 stroke-3" />}
                       </div>
                       <span className="truncate">{category.name}</span>
                     </div>

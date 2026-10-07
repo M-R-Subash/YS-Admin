@@ -71,7 +71,6 @@ export default function TagsPage() {
   // SWR Fetcher
   const {
     data: tags,
-    error: tagsError,
     isLoading: loadingTags,
     mutate: mutateTags,
   } = useSWR<TagItem[]>("/api/tags?limit=200");
@@ -250,7 +249,7 @@ export default function TagsPage() {
         {/* 2-Column Responsive Layout */}
         <div className="flex flex-col lg:flex-row items-start gap-6">
           {/* Left Column: Create Tag Card */}
-          <div className="w-full lg:w-[380px] shrink-0 bg-card border rounded-xl p-4 sm:p-5 shadow-xs space-y-4">
+          <div className="w-full lg:w-95 shrink-0 bg-card border rounded-xl p-4 sm:p-5 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-2 border-b">
               <div className="flex items-center gap-2">
                 <TagIcon className="size-4 text-purple-500" />
@@ -314,7 +313,7 @@ export default function TagsPage() {
                   placeholder="Optional brief description for the tag..."
                   value={tagDesc}
                   onChange={(e) => setTagDesc(e.target.value)}
-                  className="text-xs min-h-[70px] resize-y"
+                  className="text-xs min-h-17.5 resize-y"
                   disabled={isCreatingTag}
                 />
                 <p className="text-[11px] text-muted-foreground">
@@ -504,7 +503,7 @@ export default function TagsPage() {
               <Textarea
                 value={editDesc}
                 onChange={(e) => setEditDesc(e.target.value)}
-                className="text-xs min-h-[70px]"
+                className="text-xs min-h-17.5"
                 disabled={isSavingEdit}
               />
             </div>

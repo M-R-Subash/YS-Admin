@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import useSWR from "swr"
-import { FileTextIcon, UsersIcon, PenToolIcon, ImageIcon, WavesHorizontalIcon, MessageSquare, CalendarClock, Inbox, Tags } from "lucide-react"
+import { FileTextIcon, UsersIcon, PenToolIcon, ImageIcon, ArrowRightLeft, MessageSquare, CalendarClock, Mail } from "lucide-react"
 
 import { NavMain } from "@/components/layout/nav-main"
 import { NavUser } from "@/components/layout/nav-user"
@@ -69,12 +69,12 @@ const navItems = [
   {
     title: "Redirection",
     url: "/redirections",
-    icon: <WavesHorizontalIcon />,
+    icon: <ArrowRightLeft />,
   },
   {
     title: "Submissions",
     url: "/submissions",
-    icon: <Inbox />,
+    icon: <Mail />,
   },
 ]
 

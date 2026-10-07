@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import useSWR from "swr";
-import Link from "next/link";
 import {
   FolderTree,
   Plus,
@@ -10,11 +9,9 @@ import {
   Edit2,
   Trash2,
   Loader2,
-  ExternalLink,
   FolderPlus,
   Sparkles,
   Globe,
-  SlidersHorizontal,
   CheckCircle2,
 } from "lucide-react";
 
@@ -95,7 +92,6 @@ export default function CategoriesPage() {
   // SWR Fetcher
   const {
     data: categories,
-    error: categoriesError,
     isLoading: loadingCategories,
     mutate: mutateCategories,
   } = useSWR<CategoryItem[]>("/api/categories");
@@ -296,7 +292,7 @@ export default function CategoriesPage() {
         {/* 2-Column Responsive Layout */}
         <div className="flex flex-col lg:flex-row items-start gap-6">
           {/* Left Column: Create Category Card */}
-          <div className="w-full lg:w-[420px] shrink-0 bg-card border rounded-xl p-4 sm:p-5 shadow-xs space-y-4">
+          <div className="w-full lg:w-105 shrink-0 bg-card border rounded-xl p-4 sm:p-5 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-2 border-b">
               <div className="flex items-center gap-2">
                 <FolderPlus className="size-4 text-primary" />
@@ -360,7 +356,7 @@ export default function CategoriesPage() {
                   placeholder="Brief description for header overview and archives..."
                   value={catDesc}
                   onChange={(e) => setCatDesc(e.target.value)}
-                  className="text-xs min-h-[64px] resize-y"
+                  className="text-xs min-h-16 resize-y"
                   disabled={isCreatingCat}
                 />
               </div>
@@ -411,7 +407,7 @@ export default function CategoriesPage() {
                         placeholder="Snippet shown in Google search results (140-160 chars recommended)..."
                         value={catMetaDesc}
                         onChange={(e) => setCatMetaDesc(e.target.value)}
-                        className="text-xs min-h-[55px] resize-y"
+                        className="text-xs min-h-13.75 resize-y"
                         disabled={isCreatingCat}
                       />
                     </div>
@@ -684,7 +680,7 @@ export default function CategoriesPage() {
                   <Textarea
                     value={editDesc}
                     onChange={(e) => setEditDesc(e.target.value)}
-                    className="text-xs min-h-[80px]"
+                    className="text-xs min-h-20"
                     disabled={isSavingEdit}
                   />
                 </div>
@@ -719,7 +715,7 @@ export default function CategoriesPage() {
                     placeholder="Snippet shown in search engines..."
                     value={editMetaDesc}
                     onChange={(e) => setEditMetaDesc(e.target.value)}
-                    className="text-xs min-h-[60px]"
+                    className="text-xs min-h-15"
                     disabled={isSavingEdit}
                   />
                 </div>

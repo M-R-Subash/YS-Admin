@@ -118,7 +118,7 @@ export function AdminTopBar({
   return (
     <header
       className={cn(
-        "sticky top-0 z-40 w-full bg-background/95 backdrop-blur-md flex h-14 sm:h-16 shrink-0 items-center justify-between px-[15px] md:px-[20px] lg:px-[30px] transition-[width,height] ease-linear border-b border-border shadow-2xs",
+        "sticky top-0 z-40 w-full bg-background/95 backdrop-blur-md flex h-14 sm:h-16 shrink-0 items-center justify-between px-3.75 md:px-5 lg:px-7.5 transition-[width,height] ease-linear border-b border-border shadow-2xs",
         className
       )}
     >
@@ -166,7 +166,7 @@ export function AdminTopBar({
                       <BreadcrumbPage
                         role="heading"
                         aria-level={1}
-                        className="truncate max-w-[200px] xs:max-w-[260px] sm:max-w-xs md:max-w-sm lg:max-w-md text-base sm:text-lg md:text-xl font-bold sm:font-extrabold tracking-tight text-foreground leading-tight"
+                        className="truncate max-w-50 xs:max-w-[260px] sm:max-w-xs md:max-w-sm lg:max-w-md text-base sm:text-lg md:text-xl font-bold sm:font-extrabold tracking-tight text-foreground leading-tight"
                       >
                         {crumb.label}
                       </BreadcrumbPage>

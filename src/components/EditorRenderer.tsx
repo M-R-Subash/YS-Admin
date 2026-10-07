@@ -10,7 +10,6 @@ import { FooterColumnsBlock } from "@/components/FooterColumnsBlock";
 import dynamic from "next/dynamic";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { TagInput } from "@/components/ui/tag-input";
 import { CategorySelect } from "@/components/blog/taxonomy/CategorySelect";
 import { TagAutocompleteInput } from "@/components/blog/taxonomy/TagAutocompleteInput";
 import { Trash2, Plus } from "lucide-react";
@@ -77,8 +76,8 @@ function AutoResizeTextarea({
       placeholder={placeholder}
       rows={rows}
       className={cn(
-        "w-full px-4 py-2.5 bg-background border rounded-sm text-foreground text-sm font-medium leading-relaxed transition-colors resize-none overflow-hidden break-words whitespace-pre-wrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-        rows <= 2 ? "min-h-[46px]" : "min-h-[88px]",
+        "w-full px-4 py-2.5 bg-background border rounded-sm text-foreground text-sm font-medium leading-relaxed transition-colors resize-none overflow-hidden wrap-break-word whitespace-pre-wrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+        rows <= 2 ? "min-h-11.5" : "min-h-22",
         className || "border-border"
       )}
     />
