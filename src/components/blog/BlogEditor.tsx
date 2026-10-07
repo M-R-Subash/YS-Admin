@@ -68,6 +68,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import {
   Dialog,
@@ -611,25 +612,23 @@ export default function BlogEditor({
                     }
                   }}
                 />
-                <div className="flex flex-col gap-3 mb-4 mt-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="topOpenInNewTab" className="cursor-pointer font-medium text-xs">Open in new tab</Label>
-                    <Switch
+                <div className="flex flex-col gap-2.5 mb-4 mt-2">
+                  <label htmlFor="topOpenInNewTab" className="flex items-center gap-2 cursor-pointer font-medium text-xs select-none">
+                    <Checkbox
                       id="topOpenInNewTab"
                       checked={linkOpenInNewTab}
-                      onCheckedChange={setLinkOpenInNewTab}
-                      className="scale-75 origin-right"
+                      onCheckedChange={(checked) => setLinkOpenInNewTab(Boolean(checked))}
                     />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="topNoFollow" className="cursor-pointer font-medium text-xs">Add nofollow</Label>
-                    <Switch
+                    <span>Open in new tab</span>
+                  </label>
+                  <label htmlFor="topNoFollow" className="flex items-center gap-2 cursor-pointer font-medium text-xs select-none">
+                    <Checkbox
                       id="topNoFollow"
                       checked={linkNoFollow}
-                      onCheckedChange={setLinkNoFollow}
-                      className="scale-75 origin-right"
+                      onCheckedChange={(checked) => setLinkNoFollow(Boolean(checked))}
                     />
-                  </div>
+                    <span>Add nofollow</span>
+                  </label>
                 </div>
                 <div className="flex items-center justify-between">
                   {editor.isActive("link") ? (
@@ -927,23 +926,21 @@ export default function BlogEditor({
                   </button>
                 </div>
                 <div className="flex items-center justify-between pt-3 pb-1 border-t border-border mt-2">
-                  <div className="flex flex-col gap-3 flex-1 pr-6">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-[11px] font-medium cursor-pointer text-muted-foreground hover:text-foreground transition-colors">Open in new tab</Label>
-                      <Switch
+                  <div className="flex flex-col gap-2 flex-1 pr-6">
+                    <label className="flex items-center gap-2 text-[11px] font-medium cursor-pointer text-muted-foreground hover:text-foreground transition-colors select-none">
+                      <Checkbox
                         checked={linkOpenInNewTab}
-                        onCheckedChange={setLinkOpenInNewTab}
-                        className="scale-[0.6] origin-right"
+                        onCheckedChange={(checked) => setLinkOpenInNewTab(Boolean(checked))}
                       />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label className="text-[11px] font-medium cursor-pointer text-muted-foreground hover:text-foreground transition-colors">Add nofollow</Label>
-                      <Switch
+                      <span>Open in new tab</span>
+                    </label>
+                    <label className="flex items-center gap-2 text-[11px] font-medium cursor-pointer text-muted-foreground hover:text-foreground transition-colors select-none">
+                      <Checkbox
                         checked={linkNoFollow}
-                        onCheckedChange={setLinkNoFollow}
-                        className="scale-[0.6] origin-right"
+                        onCheckedChange={(checked) => setLinkNoFollow(Boolean(checked))}
                       />
-                    </div>
+                      <span>Add nofollow</span>
+                    </label>
                   </div>
                   <button
                     type="button"

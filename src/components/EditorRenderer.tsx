@@ -410,6 +410,37 @@ export function EditorRenderer({
           );
         }
 
+        if (field.type === "checkbox") {
+          return (
+            <div
+              key={fieldName}
+              className="flex items-center gap-3 p-3.5 border border-border/70 rounded-lg bg-background"
+            >
+              <Controller
+                name={fieldName}
+                control={control}
+                render={({ field: { value, onChange } }) => (
+                  <Checkbox
+                    id={fieldName}
+                    checked={Boolean(value)}
+                    onCheckedChange={(checked) => onChange(Boolean(checked))}
+                  />
+                )}
+              />
+              <div className="flex flex-col">
+                <label htmlFor={fieldName} className="text-xs font-semibold text-foreground cursor-pointer select-none">
+                  {field.label}
+                </label>
+                {field.description && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {field.description}
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        }
+
         // Base types (text, url, textarea)
         return (
           <div key={fieldName} className="flex flex-col gap-1.5 flex-1">

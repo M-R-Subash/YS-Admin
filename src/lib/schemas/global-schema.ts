@@ -12,6 +12,7 @@ export type FieldType =
   | "category-select"
   | "tag-autocomplete"
   | "boolean"
+  | "checkbox"
   | "menu-builder"
   | "footer-columns"
   | "faq-manager";
