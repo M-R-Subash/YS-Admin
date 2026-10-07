@@ -118,7 +118,7 @@ export function AdminTopBar({
   return (
     <header
       className={cn(
-        "sticky top-0 z-40 bg-background/95 backdrop-blur-md flex h-14 sm:h-16 shrink-0 items-center justify-between px-[15px] md:px-[20px] lg:px-[30px] transition-[width,height] ease-linear border-b border-border shadow-2xs",
+        "sticky top-0 z-40 w-full bg-background/95 backdrop-blur-md flex h-14 sm:h-16 shrink-0 items-center justify-between px-[15px] md:px-[20px] lg:px-[30px] transition-[width,height] ease-linear border-b border-border shadow-2xs",
         className
       )}
     >

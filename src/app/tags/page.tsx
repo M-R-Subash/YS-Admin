@@ -237,7 +237,7 @@ export default function TagsPage() {
   const totalTagCount = rawTags.length;
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <>
       {/* Top Bar with Breadcrumbs */}
       <AdminTopBar
         breadcrumbs={[
@@ -247,17 +247,6 @@ export default function TagsPage() {
       />
 
       <div className="flex-1 w-full p-4 sm:p-6 lg:p-8 space-y-6">
-        {/* Header Section */}
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
-            <Hash className="size-6 text-purple-500" />
-            <span>Blog Tags</span>
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-3xl">
-            Tags allow specific micro-categorization and internal article relationships. They power fast autocompletion and reader recommendations.
-          </p>
-        </div>
-
         {/* 2-Column Responsive Layout */}
         <div className="flex flex-col lg:flex-row items-start gap-6">
           {/* Left Column: Create Tag Card */}
@@ -586,6 +575,6 @@ export default function TagsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }

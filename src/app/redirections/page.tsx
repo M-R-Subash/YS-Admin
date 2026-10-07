@@ -302,7 +302,7 @@ export default function RedirectionsPage() {
   );
 
   return (
-    <div className="w-full flex-1 flex flex-col min-h-screen bg-background">
+    <>
       {/* Top Header Bar */}
       <AdminTopBar breadcrumbs="Redirections" />
 
@@ -505,6 +505,6 @@ export default function RedirectionsPage() {
         onConfirm={handleConfirmStatusChange}
         loading={statusConfirmModal.loading}
       />
-    </div>
+    </>
   );
 }

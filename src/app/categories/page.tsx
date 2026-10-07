@@ -283,7 +283,7 @@ export default function CategoriesPage() {
   const siteUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || "https://yoursite.com";
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <>
       {/* Top Bar with Breadcrumbs */}
       <AdminTopBar
         breadcrumbs={[
@@ -293,17 +293,6 @@ export default function CategoriesPage() {
       />
 
       <div className="flex-1 w-full p-4 sm:p-6 lg:p-8 space-y-6">
-        {/* Header Section */}
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
-            <FolderTree className="size-6 text-primary" />
-            <span>Blog Categories</span>
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-3xl">
-            Organize articles into high-intent topic hubs with custom Meta Titles, Descriptions, and Search Engine Optimization (SEO) landing page metadata.
-          </p>
-        </div>
-
         {/* 2-Column Responsive Layout */}
         <div className="flex flex-col lg:flex-row items-start gap-6">
           {/* Left Column: Create Category Card */}
@@ -854,6 +843,6 @@ export default function CategoriesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }
