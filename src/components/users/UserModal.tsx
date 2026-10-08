@@ -34,6 +34,7 @@ import { CopyButton } from "@/components/ui/copy-button";
 import { cn } from "@/lib/utils";
 import type { User } from "@/app/users/users-columns";
 import { useSession } from "next-auth/react";
+import { clientConfig } from "@/lib/config/client";
 
 export interface UserModalProps {
   user?: User | null;
@@ -138,8 +139,8 @@ function UserForm({ user, onClose, onSuccess }: UserFormProps) {
     if (!file) return;
     setIsUploading(true);
 
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+    const cloudName = clientConfig.cloudinary.cloudName;
+    const uploadPreset = clientConfig.cloudinary.uploadPreset;
 
     if (!cloudName || !uploadPreset) {
       toast.add({

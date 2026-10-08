@@ -6,6 +6,7 @@ import { CopyButton } from "@/components/ui/copy-button";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/toast";
+import { clientConfig } from "@/lib/config/client";
 
 interface SchemaOrgBuilderProps {
   value: any; // string or object
@@ -46,7 +47,7 @@ export function SchemaOrgBuilder({
   }
 
   const handleGenerateDefault = () => {
-    const siteUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || "https://ysinnovations.com";
+    const siteUrl = clientConfig.app.frontendUrl;
     const fullUrl = url.startsWith("http") ? url : `${siteUrl}${url.startsWith("/") ? url : `/${url}`}`;
 
     let schema: any;

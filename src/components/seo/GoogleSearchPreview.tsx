@@ -1,6 +1,7 @@
 "use client";
 
 import { Globe } from "lucide-react";
+import { clientConfig } from "@/lib/config/client";
 
 interface GoogleSearchPreviewProps {
   title: string;
@@ -17,9 +18,9 @@ export function GoogleSearchPreview({
   description,
   pathPrefix = "",
   siteUrl,
-  siteName = "YS Innovations",
+  siteName = clientConfig.app.name,
 }: GoogleSearchPreviewProps) {
-  const baseUrl = siteUrl || process.env.NEXT_PUBLIC_FRONTEND_URL || "https://ysinnovations.com";
+  const baseUrl = siteUrl || clientConfig.app.frontendUrl;
 
   // Build clean path representation
   let formattedPath = "";

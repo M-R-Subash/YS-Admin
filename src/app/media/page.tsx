@@ -6,6 +6,7 @@ import Image from "next/image";
 import { toast } from "@/components/ui/toast";
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { CopyButton } from "@/components/ui/copy-button";
+import { clientConfig } from "@/lib/config/client";
 import {
   Dialog,
   DialogContent,
@@ -111,10 +112,10 @@ export default function MediaPage() {
     setIsUploading(true);
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "default_preset");
+    formData.append("upload_preset", clientConfig.cloudinary.uploadPreset);
 
     try {
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`, {
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${clientConfig.cloudinary.cloudName}/image/upload`, {
           method: "POST",
           body: formData,
       });

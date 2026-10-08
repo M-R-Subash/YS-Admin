@@ -12,6 +12,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ExitConfirmModal } from "@/components/editor-shell";
 import { toast } from "@/components/ui/toast";
 import { useDirtyManager } from "@/hooks/useDirtyManager";
+import { clientConfig } from "@/lib/config/client";
 
 export default function FooterEditorClient({ initialData }: { initialData: any }) {
   const router = useRouter();
@@ -122,7 +123,7 @@ export default function FooterEditorClient({ initialData }: { initialData: any }
           <div className="w-full h-full bg-white shadow-xl rounded-xl overflow-hidden ring-1 ring-border relative">
             <iframe
               ref={iframeRef}
-              src={`${process.env.NEXT_PUBLIC_FRONTEND_URL}/?editor=footer`}
+              src={`${clientConfig.app.frontendUrl}/?editor=footer`}
               className="w-full h-full border-0"
               title="Main Site Preview"
               onLoad={(e) => {

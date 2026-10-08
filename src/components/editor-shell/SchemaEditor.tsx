@@ -14,6 +14,7 @@ import { ChevronDown, Layout, Globe } from "lucide-react";
 import { EditorRenderer } from "@/components/EditorRenderer";
 import type { FieldSchema } from "@/lib/schemas/global-schema";
 import { ZodSchema } from "zod";
+import { clientConfig } from "@/lib/config/client";
 
 interface SchemaEditorProps {
   initialData: any;
@@ -152,7 +153,7 @@ const SchemaEditor = forwardRef<SchemaEditorRef, SchemaEditorProps>(
 
     const [highlightedSection, setHighlightedSection] = useState<string | null>(null);
 
-    const targetOrigin = process.env.NEXT_PUBLIC_FRONTEND_URL || "";
+    const targetOrigin = clientConfig.app.frontendUrl;
 
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
     const onDataChangeDebounceRef = useRef<ReturnType<typeof setTimeout>>(null);

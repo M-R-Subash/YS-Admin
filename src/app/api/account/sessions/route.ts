@@ -4,6 +4,7 @@ import { getToken } from "next-auth/jwt";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { parseUserAgent } from "@/lib/ua-parser";
+import { serverConfig } from "@/lib/config/server";
 
 // GET /api/account/sessions — Get all active logged-in devices/sessions for the current user
 export async function GET(request: NextRequest) {
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
     // Read token from cookie for direct access to sessionId / sessionTokenHash
     const token = await getToken({
       req: request,
-      secret: process.env.NEXTAUTH_SECRET,
+      secret: serverConfig.auth.nextAuthSecret,
     });
 
     const currentSessionId = session.sessionId || token?.sessionId;
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
 
     const token = await getToken({
       req: request,
-      secret: process.env.NEXTAUTH_SECRET,
+      secret: serverConfig.auth.nextAuthSecret,
     });
 
     const currentSessionId = session.sessionId || token?.sessionId;

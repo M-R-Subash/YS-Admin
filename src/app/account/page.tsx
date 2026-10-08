@@ -31,6 +31,7 @@ import { useDirtyManager } from "@/hooks/useDirtyManager";
 import Image from "next/image";
 import { format } from "date-fns";
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
+import { clientConfig } from "@/lib/config/client";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -137,9 +138,8 @@ export default function AccountPage() {
     if (!file) return;
     setIsUploading(true);
 
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME as string;
-    const uploadPreset = process.env
-      .NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET as string;
+    const cloudName = clientConfig.cloudinary.cloudName;
+    const uploadPreset = clientConfig.cloudinary.uploadPreset;
 
     if (!cloudName || !uploadPreset) {
       toast.add({

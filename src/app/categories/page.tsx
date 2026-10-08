@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
+import { clientConfig } from "@/lib/config/client";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -276,7 +277,7 @@ export default function CategoriesPage() {
   }, [rawCategories, searchQuery]);
 
   const totalCatCount = rawCategories.length;
-  const siteUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || "https://yoursite.com";
+  const siteUrl = clientConfig.app.frontendUrl;
 
   return (
     <>

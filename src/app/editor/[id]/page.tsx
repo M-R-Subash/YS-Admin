@@ -28,6 +28,7 @@ import { useDirtyManager } from "@/hooks/useDirtyManager";
 import { SeoEditorSuite } from "@/components/seo/SeoEditorSuite";
 import { analyzeSeo } from "@/lib/seo/seo-engine";
 import type { SeoMetadata } from "@/types/seo";
+import { clientConfig } from "@/lib/config/client";
 
 const SCHEMA_REGISTRY: Record<string, any> = {
   "/": {
@@ -121,7 +122,7 @@ export default function EditorPage({
   const schemaEditorRef = useRef<SchemaEditorRef>(null);
   const router = useRouter();
 
-  const targetOrigin = process.env.NEXT_PUBLIC_FRONTEND_URL || "";
+  const targetOrigin = clientConfig.app.frontendUrl;
 
   // Resolve page params promise
   useEffect(() => {

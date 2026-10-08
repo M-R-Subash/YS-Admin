@@ -11,6 +11,7 @@ import {
   ExternalLink,
   AlertCircle,
 } from "lucide-react";
+import { clientConfig } from "@/lib/config/client";
 
 export type ViewportMode = "desktop" | "tablet" | "mobile";
 
@@ -189,11 +190,7 @@ export function FullscreenPreviewWorkspace({
     );
   }
 
-  const frontendUrl = (
-    process.env.NEXT_PUBLIC_FRONTEND_URL ||
-    process.env.FRONTEND_URL ||
-    "http://localhost:3001"
-  ).replace(/\/+$/, "");
+  const frontendUrl = clientConfig.app.frontendUrl.replace(/\/+$/, "");
 
   const itemPath = getItemPath(data.slug);
   const normalizedPath = itemPath.startsWith("/") ? itemPath : `/${itemPath}`;

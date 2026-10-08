@@ -13,6 +13,7 @@ import {
   Layers,
 } from "lucide-react";
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
+import { clientConfig } from "@/lib/config/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
@@ -70,7 +71,7 @@ export default function ScheduledActionsPage() {
     () => data?.counts || { all: 0, upcoming: 0, pending: 0, failed: 0, success: 0 },
     [data?.counts]
   );
-  const siteUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || "";
+  const siteUrl = clientConfig.app.frontendUrl;
 
   // Filter items based on activeTab and searchQuery
   const filteredItems = useMemo(() => {

@@ -33,7 +33,7 @@ export function verifyCronAuthorization(req: Request): {
   isAuthorized: boolean;
   reason?: string;
 } {
-  const cronSecret = serverConfig.cron.secret || process.env.CRON_SECRET;
+  const cronSecret = serverConfig.cron.secret;
 
   // In development mode, allow running if no CRON_SECRET is configured yet
   if (serverConfig.isDevelopment && !cronSecret) {

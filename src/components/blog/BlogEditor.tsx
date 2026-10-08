@@ -77,6 +77,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { clientConfig } from "@/lib/config/client";
 
 interface BlogEditorProps {
   initialContent?: any;
@@ -85,8 +86,8 @@ interface BlogEditorProps {
 }
 
 const uploadToCloudinary = async (file: File): Promise<string> => {
-  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+  const cloudName = clientConfig.cloudinary.cloudName;
+  const uploadPreset = clientConfig.cloudinary.uploadPreset;
 
   if (!cloudName || !uploadPreset) {
     throw new Error("Cloudinary configuration is missing in environment");

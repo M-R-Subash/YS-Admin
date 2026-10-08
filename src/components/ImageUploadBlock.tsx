@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { clientConfig } from "@/lib/config/client";
 
 interface ImageUploadBlockProps {
   value: { url?: string; alt?: string; title?: string } | string | undefined;
@@ -68,8 +69,8 @@ export function ImageUploadBlock({ value, onChange, customTrigger }: ImageUpload
     if (!file) return;
     setIsUploading(true);
     
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME as string;
-    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET as string;
+    const cloudName = clientConfig.cloudinary.cloudName;
+    const uploadPreset = clientConfig.cloudinary.uploadPreset;
 
     const formData = new FormData();
     formData.append("file", file);

@@ -17,6 +17,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import { clientConfig } from "@/lib/config/client";
 
 export interface BreadcrumbSegment {
   label: string;
@@ -95,7 +96,7 @@ export function AdminTopBar({
     return [{ label: "Dashboard" }];
   }, [breadcrumbs, pathname]);
 
-  const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || "";
+  const frontendUrl = clientConfig.app.frontendUrl;
 
   // Compute the perfect endpoint and label for the external tab button
   const targetSiteUrl = useMemo(() => {

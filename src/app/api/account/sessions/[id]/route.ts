@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { getToken } from "next-auth/jwt";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { serverConfig } from "@/lib/config/server";
 
 // DELETE /api/account/sessions/[id] — Revoke a specific session
 export async function DELETE(
@@ -20,7 +21,7 @@ export async function DELETE(
     // Resolve current session to prevent self-revocation
     const token = await getToken({
       req: request,
-      secret: process.env.NEXTAUTH_SECRET,
+      secret: serverConfig.auth.nextAuthSecret,
     });
 
     const currentSessionId = session.sessionId || token?.sessionId;

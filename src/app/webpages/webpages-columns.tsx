@@ -10,8 +10,10 @@ import { SeoStatusBadge } from "@/components/seo/SeoStatusBadge";
 import { ContentActionCell } from "@/components/admin/ContentActionCell";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDate } from "@/lib/utils";
+import { clientConfig } from "@/lib/config/client";
+
 export const ActionCell = ({ page, onDataChange }: { page: Page; onDataChange: () => void }) => {
-  const baseUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || "";
+  const baseUrl = clientConfig.app.frontendUrl;
   const pageSlug = page.slug === "/" ? "" : page.slug.startsWith("/") ? page.slug : `/${page.slug}`;
 
   return (

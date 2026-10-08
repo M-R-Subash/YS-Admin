@@ -15,12 +15,13 @@ import { ContentActionCell } from "@/components/admin/ContentActionCell";
 import { formatDate } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
 import { format } from "date-fns";
+import { clientConfig } from "@/lib/config/client";
 
 // Action Component
 export const ActionCell = ({ blog, onDataChange }: { blog: any; onDataChange: () => void }) => {
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [rescheduling, setRescheduling] = useState(false);
-  const siteUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || "";
+  const siteUrl = clientConfig.app.frontendUrl;
   const cleanSlug = blog.slug?.startsWith("/") ? blog.slug.slice(1) : (blog.slug || "");
 
   const handleReschedule = async (newDate: Date) => {
