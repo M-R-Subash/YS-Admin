@@ -92,7 +92,9 @@ interface Metrics {
 }
 
 export default function NewsletterPage() {
-  const [activeTab, setActiveTab] = useState<"subscribers" | "campaigns" | "compose">("subscribers");
+  const [activeTab, setActiveTab] = useState<
+    "subscribers" | "campaigns" | "compose"
+  >("subscribers");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
@@ -103,6 +105,7 @@ export default function NewsletterPage() {
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [retryingCampaignId, setRetryingCampaignId] = useState<string | null>(null);
 
   // Compose State
   const [blastSubject, setBlastSubject] = useState("");
@@ -112,11 +115,34 @@ export default function NewsletterPage() {
   const [isConfirmBlastOpen, setIsConfirmBlastOpen] = useState(false);
 
   // Data fetching
-  const { data: metricsData, mutate: mutateMetrics } = useSWR<{ metrics: Metrics }>(
-    "/api/newsletters/metrics",
+  const {
+    data: campaignsData,
+    isLoading: isCampaignsLoading,
+    mutate: mutateCampaigns,
+  } = useSWR<{ campaigns: Campaign[] }>(
+    "/api/newsletters/campaigns",
     fetcher,
-    { refreshInterval: 10000 }
+    {
+      refreshInterval: (latestData) => {
+        const isProcessing = latestData?.campaigns?.some(
+          (c: Campaign) => c.status === "processing",
+        );
+        return isProcessing ? 4000 : 0;
+      },
+      revalidateOnFocus: false,
+    },
   );
+
+  const hasProcessingCampaign = Boolean(
+    campaignsData?.campaigns?.some((c) => c.status === "processing"),
+  );
+
+  const { data: metricsData, mutate: mutateMetrics } = useSWR<{
+    metrics: Metrics;
+  }>("/api/newsletters/metrics", fetcher, {
+    refreshInterval: hasProcessingCampaign ? 4000 : 0,
+    revalidateOnFocus: false,
+  });
 
   const {
     data: subscribersData,
@@ -125,17 +151,10 @@ export default function NewsletterPage() {
     mutate: mutateSubscribers,
   } = useSWR<{ subscribers: Subscriber[] }>(
     `/api/newsletters/subscribers?search=${encodeURIComponent(search)}&status=${statusFilter}`,
-    fetcher
-  );
-
-  const {
-    data: campaignsData,
-    isLoading: isCampaignsLoading,
-    mutate: mutateCampaigns,
-  } = useSWR<{ campaigns: Campaign[] }>(
-    "/api/newsletters/campaigns",
     fetcher,
-    { refreshInterval: 8000 }
+    {
+      revalidateOnFocus: false,
+    },
   );
 
   const metrics = metricsData?.metrics || {
@@ -150,11 +169,45 @@ export default function NewsletterPage() {
   const subscribers = subscribersData?.subscribers || [];
   const campaigns = campaignsData?.campaigns || [];
 
+  // Retry Failed Recipients Handler
+  async function handleRetryCampaign(campaignId: string) {
+    setRetryingCampaignId(campaignId);
+    try {
+      const res = await fetch(`/api/newsletters/campaigns/${campaignId}/retry`, {
+        method: "POST",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        toast.add({
+          title: data.message || "Retrying dispatch to failed recipients...",
+          type: "success",
+        });
+        mutateCampaigns();
+        mutateMetrics();
+      } else {
+        toast.add({
+          title: data.error || "Failed to retry campaign",
+          type: "error",
+        });
+      }
+    } catch {
+      toast.add({
+        title: "Network error occurred while retrying",
+        type: "error",
+      });
+    } finally {
+      setRetryingCampaignId(null);
+    }
+  }
+
   // Add Subscribers
   async function handleAddSubscribers() {
     const raw = newEmailsInput.trim();
     if (!raw) {
-      toast.add({ title: "Please enter at least one email address", type: "error" });
+      toast.add({
+        title: "Please enter at least one email address",
+        type: "error",
+      });
       return;
     }
 
@@ -223,9 +276,12 @@ export default function NewsletterPage() {
     if (!deleteTargetId) return;
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/newsletters/subscribers/${deleteTargetId}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(
+        `/api/newsletters/subscribers/${deleteTargetId}`,
+        {
+          method: "DELETE",
+        },
+      );
       if (res.ok) {
         toast.add({ title: "Subscriber removed permanently", type: "success" });
         mutateSubscribers();
@@ -247,7 +303,10 @@ export default function NewsletterPage() {
   // Send Test Email
   async function handleSendTest() {
     if (!blastSubject.trim() || !blastContent.trim()) {
-      toast.add({ title: "Please fill in both subject and message body", type: "error" });
+      toast.add({
+        title: "Please fill in both subject and message body",
+        type: "error",
+      });
       return;
     }
 
@@ -269,7 +328,10 @@ export default function NewsletterPage() {
         type: "success",
       });
     } catch (err: any) {
-      toast.add({ title: err.message || "Error sending test email", type: "error" });
+      toast.add({
+        title: err.message || "Error sending test email",
+        type: "error",
+      });
     } finally {
       setIsSendingTest(false);
     }
@@ -301,7 +363,10 @@ export default function NewsletterPage() {
       mutateCampaigns();
       mutateMetrics();
     } catch (err: any) {
-      toast.add({ title: err.message || "Failed to dispatch campaign", type: "error" });
+      toast.add({
+        title: err.message || "Failed to dispatch campaign",
+        type: "error",
+      });
     } finally {
       setIsSendingBlast(false);
     }
@@ -310,9 +375,11 @@ export default function NewsletterPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Top Header */}
-      <AdminTopBar breadcrumbs={[{ label: "Newsletter", href: "/newsletters" }]} />
+      <AdminTopBar
+        breadcrumbs={[{ label: "Newsletter", href: "/newsletters" }]}
+      />
 
-      <main className="p-6 max-w-7xl mx-auto space-y-6">
+      <main className="flex-1 w-full px-[15px] md:px-[20px] lg:px-[30px] py-6 space-y-6">
         {/* Title Bar & Quick Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -321,7 +388,8 @@ export default function NewsletterPage() {
               Newsletter & Email Marketing
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Manage your subscriber list, send custom email blasts, and track automated blog dispatches.
+              Manage your subscriber list, send custom email blasts, and track
+              automated blog dispatches.
             </p>
           </div>
 
@@ -351,7 +419,9 @@ export default function NewsletterPage() {
           {/* Active Subscribers */}
           <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">Active Subscribers</span>
+              <span className="text-xs font-medium text-muted-foreground">
+                Active Subscribers
+              </span>
               <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
                 <UserCheck className="w-4 h-4" />
               </div>
@@ -369,7 +439,9 @@ export default function NewsletterPage() {
           {/* Unsubscribed */}
           <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">Unsubscribed</span>
+              <span className="text-xs font-medium text-muted-foreground">
+                Unsubscribed
+              </span>
               <div className="p-2 rounded-lg bg-rose-500/10 text-rose-500">
                 <UserX className="w-4 h-4" />
               </div>
@@ -389,7 +461,9 @@ export default function NewsletterPage() {
           {/* Total Campaigns */}
           <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">Campaigns Sent</span>
+              <span className="text-xs font-medium text-muted-foreground">
+                Campaigns Sent
+              </span>
               <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
                 <Mail className="w-4 h-4" />
               </div>
@@ -398,14 +472,18 @@ export default function NewsletterPage() {
               <span className="text-2xl font-bold tracking-tight text-foreground">
                 {metrics.totalCampaigns.toLocaleString()}
               </span>
-              <span className="text-xs text-muted-foreground">blasts & updates</span>
+              <span className="text-xs text-muted-foreground">
+                blasts & updates
+              </span>
             </div>
           </div>
 
           {/* Total Emails Delivered */}
           <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">Delivery Success</span>
+              <span className="text-xs font-medium text-muted-foreground">
+                Delivery Success
+              </span>
               <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500">
                 <CheckCircle2 className="w-4 h-4" />
               </div>
@@ -515,16 +593,29 @@ export default function NewsletterPage() {
                     {isSubscribersLoading ? (
                       Array.from({ length: 4 }).map((_, i) => (
                         <tr key={i}>
-                          <td className="px-4 py-3"><Skeleton className="h-4 w-48" /></td>
-                          <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
-                          <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
-                          <td className="px-4 py-3"><Skeleton className="h-4 w-24" /></td>
-                          <td className="px-4 py-3 text-right"><Skeleton className="h-4 w-16 ml-auto" /></td>
+                          <td className="px-4 py-3">
+                            <Skeleton className="h-4 w-48" />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Skeleton className="h-4 w-16" />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Skeleton className="h-4 w-20" />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Skeleton className="h-4 w-24" />
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Skeleton className="h-4 w-16 ml-auto" />
+                          </td>
                         </tr>
                       ))
                     ) : subscribers.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
+                        <td
+                          colSpan={5}
+                          className="px-4 py-12 text-center text-muted-foreground"
+                        >
                           <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
                           <p className="font-medium">No subscribers found</p>
                           <p className="text-[11px] mt-0.5">
@@ -536,7 +627,10 @@ export default function NewsletterPage() {
                       </tr>
                     ) : (
                       subscribers.map((sub) => (
-                        <tr key={sub.id} className="hover:bg-muted/30 transition-colors">
+                        <tr
+                          key={sub.id}
+                          className="hover:bg-muted/30 transition-colors"
+                        >
                           <td className="px-4 py-3 font-medium text-foreground">
                             {sub.email}
                           </td>
@@ -546,7 +640,10 @@ export default function NewsletterPage() {
                                 Active
                               </Badge>
                             ) : (
-                              <Badge variant="outline" className="text-muted-foreground border-border text-[10px]">
+                              <Badge
+                                variant="outline"
+                                className="text-muted-foreground border-border text-[10px]"
+                              >
                                 Unsubscribed
                               </Badge>
                             )}
@@ -563,7 +660,11 @@ export default function NewsletterPage() {
                               size="sm"
                               onClick={() => handleToggleStatus(sub)}
                               className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
-                              title={sub.status === "active" ? "Mark as Unsubscribed" : "Re-activate"}
+                              title={
+                                sub.status === "active"
+                                  ? "Mark as Unsubscribed"
+                                  : "Re-activate"
+                              }
                             >
                               {sub.status === "active" ? (
                                 <span className="flex items-center gap-1 text-rose-400">
@@ -610,32 +711,55 @@ export default function NewsletterPage() {
                       <th className="px-4 py-3">Status</th>
                       <th className="px-4 py-3">Progress</th>
                       <th className="px-4 py-3">Date Dispatched</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {isCampaignsLoading ? (
                       Array.from({ length: 3 }).map((_, i) => (
                         <tr key={i}>
-                          <td className="px-4 py-3"><Skeleton className="h-4 w-48" /></td>
-                          <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
-                          <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
-                          <td className="px-4 py-3"><Skeleton className="h-4 w-32" /></td>
-                          <td className="px-4 py-3"><Skeleton className="h-4 w-24" /></td>
+                          <td className="px-4 py-3">
+                            <Skeleton className="h-4 w-48" />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Skeleton className="h-4 w-20" />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Skeleton className="h-4 w-16" />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Skeleton className="h-4 w-32" />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Skeleton className="h-4 w-24" />
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Skeleton className="h-7 w-24 ml-auto" />
+                          </td>
                         </tr>
                       ))
                     ) : campaigns.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
+                        <td
+                          colSpan={6}
+                          className="px-4 py-12 text-center text-muted-foreground"
+                        >
                           <Clock className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                          <p className="font-medium">No campaigns dispatched yet</p>
+                          <p className="font-medium">
+                            No campaigns dispatched yet
+                          </p>
                           <p className="text-[11px] mt-0.5">
-                            When you publish a blog or compose a custom blast, tracking will appear here.
+                            When you publish a blog or compose a custom blast,
+                            tracking will appear here.
                           </p>
                         </td>
                       </tr>
                     ) : (
                       campaigns.map((camp) => (
-                        <tr key={camp.id} className="hover:bg-muted/30 transition-colors">
+                        <tr
+                          key={camp.id}
+                          className="hover:bg-muted/30 transition-colors"
+                        >
                           <td className="px-4 py-3 font-medium text-foreground">
                             <div className="flex items-center gap-2">
                               <span>{camp.subject}</span>
@@ -645,7 +769,8 @@ export default function NewsletterPage() {
                                   target="_blank"
                                   className="text-amber-500 hover:underline flex items-center gap-0.5 text-[10px]"
                                 >
-                                  View Blog <ExternalLink className="w-2.5 h-2.5" />
+                                  View Blog{" "}
+                                  <ExternalLink className="w-2.5 h-2.5" />
                                 </a>
                               )}
                             </div>
@@ -664,11 +789,13 @@ export default function NewsletterPage() {
                           <td className="px-4 py-3">
                             {camp.status === "completed" ? (
                               <span className="inline-flex items-center gap-1.5 text-emerald-400 font-medium">
-                                <CheckCircle2 className="w-3.5 h-3.5" /> Completed
+                                <CheckCircle2 className="w-3.5 h-3.5" />{" "}
+                                Completed
                               </span>
                             ) : camp.status === "processing" ? (
                               <span className="inline-flex items-center gap-1.5 text-blue-400 font-medium">
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Sending...
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />{" "}
+                                Sending...
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1.5 text-rose-400 font-medium">
@@ -680,10 +807,13 @@ export default function NewsletterPage() {
                             <div className="space-y-1">
                               <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                                 <span>
-                                  {camp.successCount} / {camp.totalRecipients} sent
+                                  {camp.successCount} / {camp.totalRecipients}{" "}
+                                  sent
                                 </span>
                                 {camp.failedCount > 0 && (
-                                  <span className="text-rose-400">({camp.failedCount} failed)</span>
+                                  <span className="text-rose-400">
+                                    ({camp.failedCount} failed)
+                                  </span>
                                 )}
                               </div>
                               <div className="w-36 bg-muted rounded-full h-1.5 overflow-hidden">
@@ -692,7 +822,11 @@ export default function NewsletterPage() {
                                   style={{
                                     width: `${
                                       camp.totalRecipients > 0
-                                        ? Math.round((camp.successCount / camp.totalRecipients) * 100)
+                                        ? Math.round(
+                                            (camp.successCount /
+                                              camp.totalRecipients) *
+                                              100,
+                                          )
                                         : 0
                                     }%`,
                                   }}
@@ -701,7 +835,36 @@ export default function NewsletterPage() {
                             </div>
                           </td>
                           <td className="px-4 py-3 text-muted-foreground">
-                            {format(new Date(camp.createdAt), "MMM d, yyyy h:mm a")}
+                            {format(
+                              new Date(camp.createdAt),
+                              "MMM d, yyyy h:mm a",
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {camp.failedCount > 0 ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleRetryCampaign(camp.id)}
+                                disabled={
+                                  retryingCampaignId === camp.id ||
+                                  camp.status === "processing"
+                                }
+                                className="h-7 px-2.5 text-xs text-amber-500 hover:text-amber-400 border-amber-500/30 hover:bg-amber-500/10 gap-1.5 cursor-pointer font-medium"
+                                title="Resend email only to failed recipients"
+                              >
+                                {retryingCampaignId === camp.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="w-3.5 h-3.5" />
+                                )}
+                                <span>Resend Failed ({camp.failedCount})</span>
+                              </Button>
+                            ) : (
+                              <span className="text-[11px] text-muted-foreground font-medium">
+                                All Delivered
+                              </span>
+                            )}
                           </td>
                         </tr>
                       ))
@@ -719,9 +882,12 @@ export default function NewsletterPage() {
             {/* Left: Compose Form */}
             <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-xs">
               <div>
-                <h2 className="text-base font-semibold text-foreground">Write Custom Announcement</h2>
+                <h2 className="text-base font-semibold text-foreground">
+                  Write Custom Announcement
+                </h2>
                 <p className="text-xs text-muted-foreground">
-                  Send a direct announcement, promotion, or company newsletter to all active subscribers.
+                  Send a direct announcement, promotion, or company newsletter
+                  to all active subscribers.
                 </p>
               </div>
 
@@ -729,9 +895,14 @@ export default function NewsletterPage() {
               <div className="p-3 rounded-lg bg-muted/40 border border-border text-xs flex items-center justify-between">
                 <div>
                   <span className="text-muted-foreground">Sender: </span>
-                  <strong className="text-foreground">{metrics.senderEmail || "Active Configured Provider"}</strong>
+                  <strong className="text-foreground">
+                    {metrics.senderEmail || "Active Configured Provider"}
+                  </strong>
                 </div>
-                <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/30">
+                <Badge
+                  variant="outline"
+                  className="text-[10px] text-emerald-400 border-emerald-500/30"
+                >
                   {metrics.activeSubscribers} Active Recipients
                 </Badge>
               </div>
@@ -752,7 +923,8 @@ export default function NewsletterPage() {
               {/* Message Body */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-foreground">
-                  Message Body (HTML or Plain Text) <span className="text-rose-400">*</span>
+                  Message Body (HTML or Plain Text){" "}
+                  <span className="text-rose-400">*</span>
                 </label>
                 <Textarea
                   placeholder="<p>Dear Readers,</p><p>We are thrilled to announce our latest updates...</p>"
@@ -762,7 +934,8 @@ export default function NewsletterPage() {
                   className="text-xs font-mono leading-relaxed resize-y"
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  Supports clean HTML tags like &lt;p&gt;, &lt;h2&gt;, &lt;strong&gt;, &lt;a href="..."&gt;, &lt;ul&gt;, etc.
+                  Supports clean HTML tags like &lt;p&gt;, &lt;h2&gt;,
+                  &lt;strong&gt;, &lt;a href="..."&gt;, &lt;ul&gt;, etc.
                 </p>
               </div>
 
@@ -775,14 +948,23 @@ export default function NewsletterPage() {
                   disabled={isSendingTest || !blastSubject || !blastContent}
                   className="text-xs h-9 gap-1.5"
                 >
-                  {isSendingTest ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
+                  {isSendingTest ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Eye className="w-3.5 h-3.5" />
+                  )}
                   Send Test Preview to Me
                 </Button>
 
                 <Button
                   size="sm"
                   onClick={() => setIsConfirmBlastOpen(true)}
-                  disabled={isSendingBlast || !blastSubject || !blastContent || metrics.activeSubscribers === 0}
+                  disabled={
+                    isSendingBlast ||
+                    !blastSubject ||
+                    !blastContent ||
+                    metrics.activeSubscribers === 0
+                  }
                   className="text-xs h-9 gap-1.5 bg-amber-500 hover:bg-amber-600 text-black font-semibold"
                 >
                   <Send className="w-3.5 h-3.5" />
@@ -797,7 +979,9 @@ export default function NewsletterPage() {
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                   <Eye className="w-4 h-4 text-amber-500" /> Live Inbox Preview
                 </h3>
-                <span className="text-[11px] text-muted-foreground">How subscribers will see it</span>
+                <span className="text-[11px] text-muted-foreground">
+                  How subscribers will see it
+                </span>
               </div>
 
               {/* Preview Container */}
@@ -829,16 +1013,24 @@ export default function NewsletterPage() {
                       />
                     ) : (
                       <p className="text-gray-500 italic">
-                        Type your message on the left to see the live formatted preview here...
+                        Type your message on the left to see the live formatted
+                        preview here...
                       </p>
                     )}
                   </div>
 
                   {/* Footer */}
                   <div className="p-4 bg-[#0d131f] border-t border-[#1f2937] text-center text-[10px] text-gray-500 space-y-1">
-                    <p className="font-semibold text-gray-400">YS Innovations &bull; Innovate Today, Lead Tomorrow!</p>
-                    <p>You received this email because you subscribed to our newsletter.</p>
-                    <p className="text-rose-400 underline">Unsubscribe from our updates</p>
+                    <p className="font-semibold text-gray-400">
+                      YS Innovations &bull; Innovate Today, Lead Tomorrow!
+                    </p>
+                    <p>
+                      You received this email because you subscribed to our
+                      newsletter.
+                    </p>
+                    <p className="text-rose-400 underline">
+                      Unsubscribe from our updates
+                    </p>
                   </div>
                 </div>
               </div>
@@ -858,7 +1050,8 @@ export default function NewsletterPage() {
 
             <div className="space-y-3 py-2 text-xs">
               <p className="text-muted-foreground">
-                Enter email addresses below. You can enter a single email or multiple emails separated by commas or line breaks.
+                Enter email addresses below. You can enter a single email or
+                multiple emails separated by commas or line breaks.
               </p>
               <Textarea
                 placeholder="reader1@example.com&#10;client@company.com, info@agency.com"
@@ -884,7 +1077,9 @@ export default function NewsletterPage() {
                 disabled={isAddingSubscribers || !newEmailsInput.trim()}
                 className="text-xs bg-amber-500 hover:bg-amber-600 text-black font-semibold"
               >
-                {isAddingSubscribers ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : null}
+                {isAddingSubscribers ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                ) : null}
                 Save Subscribers
               </Button>
             </DialogFooter>
@@ -892,12 +1087,16 @@ export default function NewsletterPage() {
         </Dialog>
 
         {/* CONFIRMATION: Delete Subscriber */}
-        <AlertDialog open={Boolean(deleteTargetId)} onOpenChange={(open) => !open && setDeleteTargetId(null)}>
+        <AlertDialog
+          open={Boolean(deleteTargetId)}
+          onOpenChange={(open) => !open && setDeleteTargetId(null)}
+        >
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Subscriber?</AlertDialogTitle>
               <AlertDialogDescription className="text-xs">
-                This subscriber will be permanently deleted from the database. This action cannot be undone.
+                This subscriber will be permanently deleted from the database.
+                This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -914,7 +1113,10 @@ export default function NewsletterPage() {
         </AlertDialog>
 
         {/* CONFIRMATION: Send Blast */}
-        <AlertDialog open={isConfirmBlastOpen} onOpenChange={setIsConfirmBlastOpen}>
+        <AlertDialog
+          open={isConfirmBlastOpen}
+          onOpenChange={setIsConfirmBlastOpen}
+        >
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center gap-2">
@@ -923,11 +1125,16 @@ export default function NewsletterPage() {
               </AlertDialogTitle>
               <AlertDialogDescription className="text-xs space-y-2">
                 <p>
-                  You are about to broadcast <strong>&ldquo;{blastSubject}&rdquo;</strong> to{" "}
-                  <strong>{metrics.activeSubscribers} active subscribers</strong>.
+                  You are about to broadcast{" "}
+                  <strong>&ldquo;{blastSubject}&rdquo;</strong> to{" "}
+                  <strong>
+                    {metrics.activeSubscribers} active subscribers
+                  </strong>
+                  .
                 </p>
                 <p className="text-muted-foreground">
-                  The batch engine will safely dispatch emails in chunks of 50 with automatic 1-click unsubscribe links.
+                  The batch engine will safely dispatch emails in chunks of 50
+                  with automatic 1-click unsubscribe links.
                 </p>
               </AlertDialogDescription>
             </AlertDialogHeader>

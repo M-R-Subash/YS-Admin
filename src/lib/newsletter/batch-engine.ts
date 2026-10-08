@@ -94,6 +94,8 @@ export async function executeCampaignDispatch(campaignId: string): Promise<{
   const chunks = chunkArray(subscribers, BATCH_SIZE);
   let totalSuccess = 0;
   let totalFailed = 0;
+  const failedEmailList: string[] = [];
+  let lastErrorMessage = "";
 
   for (let cIdx = 0; cIdx < chunks.length; cIdx++) {
     const chunk = chunks[cIdx];
@@ -136,11 +138,15 @@ export async function executeCampaignDispatch(campaignId: string): Promise<{
     let chunkSuccess = 0;
     let chunkFailed = 0;
 
-    results.forEach((r) => {
+    results.forEach((r, idx) => {
+      const sub = chunk[idx];
       if (r.status === "fulfilled") {
         chunkSuccess++;
       } else {
         chunkFailed++;
+        failedEmailList.push(sub.email);
+        const reason = (r as PromiseRejectedResult).reason;
+        lastErrorMessage = reason?.message || String(reason) || "Delivery failed";
       }
     });
 
@@ -153,6 +159,10 @@ export async function executeCampaignDispatch(campaignId: string): Promise<{
       data: {
         successCount: totalSuccess,
         failedCount: totalFailed,
+        errorMessage: totalFailed > 0 ? JSON.stringify({
+          error: lastErrorMessage,
+          failedEmails: failedEmailList,
+        }) : null,
       },
     });
 
@@ -168,6 +178,10 @@ export async function executeCampaignDispatch(campaignId: string): Promise<{
     data: {
       status: "completed",
       completedAt: new Date(),
+      errorMessage: totalFailed > 0 ? JSON.stringify({
+        error: lastErrorMessage,
+        failedEmails: failedEmailList,
+      }) : null,
     },
   });
 
@@ -187,6 +201,176 @@ export async function executeCampaignDispatch(campaignId: string): Promise<{
     totalRecipients: subscribers.length,
     successCount: totalSuccess,
     failedCount: totalFailed,
+  };
+}
+
+/**
+ * Retries a campaign dispatch only for recipients who previously failed
+ */
+export async function retryFailedCampaignDispatch(campaignId: string): Promise<{
+  success: boolean;
+  retriedCount: number;
+  successCount: number;
+  failedCount: number;
+  error?: string;
+}> {
+  const campaign = await prisma.newsletterCampaign.findUnique({
+    where: { id: campaignId },
+    include: {
+      blog: {
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          excerpt: true,
+          featuredImage: true,
+          readingTime: true,
+          categories: true,
+        },
+      },
+    },
+  });
+
+  if (!campaign) {
+    return { success: false, retriedCount: 0, successCount: 0, failedCount: 0, error: "Campaign not found" };
+  }
+
+  if (campaign.failedCount === 0 && campaign.status === "completed") {
+    return {
+      success: true,
+      retriedCount: 0,
+      successCount: campaign.successCount,
+      failedCount: 0,
+      error: "No failed recipients to retry for this campaign.",
+    };
+  }
+
+  // 1. Determine which emails failed
+  let targetFailedEmails: string[] = [];
+  if (campaign.errorMessage) {
+    try {
+      const parsed = JSON.parse(campaign.errorMessage);
+      if (Array.isArray(parsed.failedEmails) && parsed.failedEmails.length > 0) {
+        targetFailedEmails = parsed.failedEmails;
+      }
+    } catch {
+      // Non-JSON errorMessage
+    }
+  }
+
+  // If failedEmails was not recorded yet (e.g., initial campaigns where failedCount > 0),
+  // retry across all currently active subscribers
+  let subscribersToRetry = targetFailedEmails.length > 0
+    ? await prisma.subscriber.findMany({
+        where: { email: { in: targetFailedEmails }, status: "active" },
+        select: { id: true, email: true, unsubscribeToken: true },
+      })
+    : await prisma.subscriber.findMany({
+        where: { status: "active" },
+        select: { id: true, email: true, unsubscribeToken: true },
+        take: campaign.failedCount > 0 ? campaign.failedCount : undefined,
+      });
+
+  if (subscribersToRetry.length === 0) {
+    return {
+      success: false,
+      retriedCount: 0,
+      successCount: campaign.successCount,
+      failedCount: campaign.failedCount,
+      error: "No active subscriber matching failed recipients found.",
+    };
+  }
+
+  // 2. Mark campaign processing
+  await prisma.newsletterCampaign.update({
+    where: { id: campaignId },
+    data: { status: "processing" },
+  });
+
+  const provider = getEmailProvider();
+  const domain = serverConfig.auth.nextAuthUrl.replace(/\/$/, "");
+  const chunks = chunkArray(subscribersToRetry, BATCH_SIZE);
+
+  let newlySucceeded = 0;
+  const remainingFailedEmails: string[] = [];
+  let lastErrorMessage = "";
+
+  for (let cIdx = 0; cIdx < chunks.length; cIdx++) {
+    const chunk = chunks[cIdx];
+
+    const results = await Promise.allSettled(
+      chunk.map(async (sub) => {
+        const unsubscribeUrl = `${domain}/api/newsletter/unsubscribe?token=${sub.unsubscribeToken}`;
+
+        let html = "";
+        if (campaign.type === "BLOG_UPDATE" && campaign.blog) {
+          html = renderBlogNewsletterHtml(
+            {
+              title: campaign.blog.title,
+              slug: campaign.blog.slug,
+              excerpt: campaign.blog.excerpt,
+              featuredImage: campaign.blog.featuredImage,
+              readingTime: campaign.blog.readingTime,
+              categoryName: campaign.blog.categories?.[0] || null,
+            },
+            unsubscribeUrl
+          );
+        } else {
+          html = renderCustomBlastHtml(campaign.subject, campaign.bodyHtml, unsubscribeUrl);
+        }
+
+        const res = await provider.send({
+          to: sub.email,
+          subject: campaign.subject,
+          html,
+          unsubscribeUrl,
+        });
+
+        if (!res.success) {
+          throw new Error(res.error || "Delivery failed");
+        }
+        return res;
+      })
+    );
+
+    results.forEach((r, idx) => {
+      const sub = chunk[idx];
+      if (r.status === "fulfilled") {
+        newlySucceeded++;
+      } else {
+        remainingFailedEmails.push(sub.email);
+        const reason = (r as PromiseRejectedResult).reason;
+        lastErrorMessage = reason?.message || String(reason) || "Delivery failed";
+      }
+    });
+
+    if (cIdx < chunks.length - 1) {
+      await delay(BATCH_DELAY_MS);
+    }
+  }
+
+  const updatedSuccessCount = campaign.successCount + newlySucceeded;
+  const updatedFailedCount = Math.max(0, campaign.totalRecipients - updatedSuccessCount);
+
+  await prisma.newsletterCampaign.update({
+    where: { id: campaignId },
+    data: {
+      status: "completed",
+      successCount: updatedSuccessCount,
+      failedCount: updatedFailedCount,
+      completedAt: new Date(),
+      errorMessage: updatedFailedCount > 0 ? JSON.stringify({
+        error: lastErrorMessage,
+        failedEmails: remainingFailedEmails,
+      }) : null,
+    },
+  });
+
+  return {
+    success: true,
+    retriedCount: subscribersToRetry.length,
+    successCount: updatedSuccessCount,
+    failedCount: updatedFailedCount,
   };
 }
 
