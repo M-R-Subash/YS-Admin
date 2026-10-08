@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import useSWR from "swr"
-import { FileTextIcon, UsersIcon, PenToolIcon, ImageIcon, ArrowRightLeft, MessageSquare, CalendarClock, Mail } from "lucide-react"
+import { FileTextIcon, UsersIcon, PenToolIcon, ImageIcon, ArrowRightLeft, MessageSquare, CalendarClock, Mail, Send } from "lucide-react"
 
 import { NavMain } from "@/components/layout/nav-main"
 import { NavUser } from "@/components/layout/nav-user"
@@ -75,6 +75,11 @@ const navItems = [
     title: "Submissions",
     url: "/submissions",
     icon: <Mail />,
+  },
+  {
+    title: "Newsletter",
+    url: "/newsletters",
+    icon: <Send />,
   },
 ]
 

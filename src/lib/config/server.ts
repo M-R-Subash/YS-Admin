@@ -150,6 +150,16 @@ const serverEnvSchema = z.object({
       return true;
     }, z.boolean())
     .default(true),
+
+  // Email & Newsletter Engine
+  EMAIL_PROVIDER: z.string().optional().default("resend"),
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().optional().default("YS Innovations <onboarding@resend.dev>"),
+  EMAIL_REPLY_TO: z.string().optional().default("subash@ysinnovations.com"),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().optional().default(465),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
@@ -175,6 +185,14 @@ const parsedServer = serverEnvSchema.safeParse({
   REVALIDATION_SECRET: process.env.REVALIDATION_SECRET,
   CRON_SECRET: process.env.CRON_SECRET,
   CRON_ENABLED: process.env.CRON_ENABLED,
+  EMAIL_PROVIDER: process.env.EMAIL_PROVIDER,
+  RESEND_API_KEY: process.env.RESEND_API_KEY,
+  EMAIL_FROM: process.env.EMAIL_FROM,
+  EMAIL_REPLY_TO: process.env.EMAIL_REPLY_TO,
+  SMTP_HOST: process.env.SMTP_HOST,
+  SMTP_PORT: process.env.SMTP_PORT,
+  SMTP_USER: process.env.SMTP_USER,
+  SMTP_PASS: process.env.SMTP_PASS,
 });
 
 if (!parsedServer.success && process.env.SKIP_ENV_VALIDATION !== "true") {
@@ -238,6 +256,18 @@ export const serverConfig = {
   cron: {
     secret: rawServer.CRON_SECRET || "",
     enabled: rawServer.CRON_ENABLED ?? true,
+  },
+  email: {
+    provider: rawServer.EMAIL_PROVIDER || "resend",
+    resendApiKey: rawServer.RESEND_API_KEY || "",
+    from: rawServer.EMAIL_FROM || "YS Innovations <onboarding@resend.dev>",
+    replyTo: rawServer.EMAIL_REPLY_TO || "subash@ysinnovations.com",
+    smtp: {
+      host: rawServer.SMTP_HOST || "",
+      port: Number(rawServer.SMTP_PORT) || 465,
+      user: rawServer.SMTP_USER || "",
+      pass: rawServer.SMTP_PASS || "",
+    },
   },
 } as const;
 

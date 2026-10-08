@@ -265,6 +265,15 @@ export async function POST(req: Request) {
       if (newBlog.slug) {
         revalidateFrontendPath(`/blogs/${newBlog.slug}`);
       }
+
+      // Trigger newsletter dispatch if published immediately
+      if (body.sendNewsletter !== false) {
+        import("@/lib/newsletter/batch-engine")
+          .then(({ dispatchBlogNewsletter }) => dispatchBlogNewsletter(newBlog.id))
+          .catch((nlErr) => {
+            console.error("[Newsletter:Dispatch] Error:", nlErr);
+          });
+      }
     }
 
     return NextResponse.json(newBlog, { status: 201 });

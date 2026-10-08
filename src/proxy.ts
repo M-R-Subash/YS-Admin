@@ -61,8 +61,12 @@ export async function proxy(req: NextRequest, event: NextFetchEvent) {
     }
   }
 
-  // Allow NextAuth and Cron endpoints to proceed without requiring an existing session
-  if (pathname.startsWith("/api/auth") || pathname.startsWith("/api/cron")) {
+  // Allow NextAuth, Cron, and public newsletter endpoints to proceed without requiring an admin session
+  if (
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/cron") ||
+    pathname.startsWith("/api/newsletter/")
+  ) {
     return NextResponse.next();
   }
 

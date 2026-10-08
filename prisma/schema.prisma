@@ -118,6 +118,10 @@ model Blog {
   revisions     BlogRevision[]
   categoryItems Category[]      @relation("BlogCategories")
   tagItems      Tag[]           @relation("BlogTags")
+  
+  newsletterSent   Boolean              @default(false)
+  newsletterSentAt DateTime?
+  campaigns        NewsletterCampaign[]
 
   @@index([status, isTrashed, scheduledAt, publishedAt])
 }
@@ -245,4 +249,59 @@ model BlogRevision {
 
   @@unique([blogId, versionNumber])
   @@index([blogId, createdAt(sort: Desc)])
+}
+
+// ==============================================================================
+// NEWSLETTER & SUBSCRIBER MANAGEMENT
+// ==============================================================================
+
+enum SubscriberStatus {
+  active
+  unsubscribed
+}
+
+enum CampaignStatus {
+  draft
+  processing
+  completed
+  failed
+}
+
+enum CampaignType {
+  BLOG_UPDATE
+  CUSTOM_BLAST
+}
+
+model Subscriber {
+  id               String           @id @default(cuid())
+  email            String           @unique
+  status           SubscriberStatus @default(active)
+  unsubscribeToken String           @unique @default(cuid())
+  source           String?          @default("website")
+  
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([status, email])
+}
+
+model NewsletterCampaign {
+  id              String         @id @default(cuid())
+  subject         String
+  bodyHtml        String         @db.Text
+  type            CampaignType   @default(CUSTOM_BLAST)
+  status          CampaignStatus @default(processing)
+  
+  blogId          String?
+  blog            Blog?          @relation(fields: [blogId], references: [id], onDelete: SetNull)
+
+  totalRecipients Int            @default(0)
+  successCount    Int            @default(0)
+  failedCount     Int            @default(0)
+  errorMessage    String?        @db.Text
+
+  createdAt       DateTime       @default(now())
+  completedAt     DateTime?
+
+  @@index([status, createdAt])
 }

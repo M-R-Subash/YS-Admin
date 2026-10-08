@@ -249,6 +249,18 @@ export async function publishOverdueBlogs(): Promise<ScheduledExecutionResult> {
     console.warn("[SCHEDULER] Revalidation warning:", revalError);
   }
 
+  // 4. Trigger newsletter dispatch for newly published scheduled blogs
+  try {
+    const { dispatchBlogNewsletter } = await import("@/lib/newsletter/batch-engine");
+    for (const blog of publishedBlogsList) {
+      dispatchBlogNewsletter(blog.id).catch((nlErr) => {
+        console.warn(`[SCHEDULER] Newsletter dispatch warning for blog ${blog.id}:`, nlErr);
+      });
+    }
+  } catch (nlImportErr) {
+    console.warn("[SCHEDULER] Newsletter import warning:", nlImportErr);
+  }
+
   return {
     success: true,
     message: `Successfully published ${publishedBlogsList.length} scheduled blog${

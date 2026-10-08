@@ -482,7 +482,20 @@ export async function PUT(
     }
   }
 
-    return NextResponse.json(blog);
+  // Trigger automated newsletter dispatch if published and not sent yet
+  if (
+    (blog.status === "published" || shouldRevalidate) &&
+    !blog.newsletterSent &&
+    body.sendNewsletter !== false
+  ) {
+    import("@/lib/newsletter/batch-engine")
+      .then(({ dispatchBlogNewsletter }) => dispatchBlogNewsletter(blog.id))
+      .catch((nlErr) => {
+        console.error("[Newsletter:Dispatch] Error:", nlErr);
+      });
+  }
+
+  return NextResponse.json(blog);
   } catch (error: any) {
     return handleApiError(error, "Failed to update blog");
   }
