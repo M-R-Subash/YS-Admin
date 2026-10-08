@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { getEmailProvider } from "./email-service";
 import { renderBlogNewsletterHtml, renderCustomBlastHtml } from "./templates";
+import { serverConfig } from "@/lib/config/server";
 
 const BATCH_SIZE = 50;
 const BATCH_DELAY_MS = 250; // 250ms pause between 50-email chunks
@@ -88,8 +89,7 @@ export async function executeCampaignDispatch(campaignId: string): Promise<{
   });
 
   const provider = getEmailProvider();
-  const domain = (process.env.NEXTAUTH_URL || "https://ys-admin-pink.vercel.app").replace(/\/$/, "");
-  const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || "https://ysinnovations.com";
+  const domain = serverConfig.auth.nextAuthUrl.replace(/\/$/, "");
 
   const chunks = chunkArray(subscribers, BATCH_SIZE);
   let totalSuccess = 0;
@@ -112,7 +112,6 @@ export async function executeCampaignDispatch(campaignId: string): Promise<{
               featuredImage: campaign.blog.featuredImage,
               readingTime: campaign.blog.readingTime,
               categoryName: campaign.blog.categories?.[0] || null,
-              frontendUrl,
             },
             unsubscribeUrl
           );
@@ -232,7 +231,7 @@ export async function sendTestEmail(
   contentHtml: string
 ): Promise<{ success: boolean; error?: string }> {
   const provider = getEmailProvider();
-  const domain = (process.env.NEXTAUTH_URL || "https://ys-admin-pink.vercel.app").replace(/\/$/, "");
+  const domain = serverConfig.auth.nextAuthUrl.replace(/\/$/, "");
   const sampleUnsubscribeUrl = `${domain}/api/newsletter/unsubscribe?token=sample-test-token`;
 
   const html = renderCustomBlastHtml(`[TEST PREVIEW] ${subject}`, contentHtml, sampleUnsubscribeUrl);

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { clientConfig } from "@/lib/config/client";
 
 export async function POST(req: Request) {
   try {
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Re-subscribed - YS Innovations</title>
+  <title>Re-subscribed - ${clientConfig.app.name}</title>
   <style>
     body {
       margin: 0; padding: 0; background-color: #0b0f17; color: #f3f4f6;
@@ -54,9 +55,9 @@ export async function POST(req: Request) {
   <div class="card">
     <div class="icon">✓</div>
     <h1 style="margin: 0 0 12px 0;">Welcome Back!</h1>
-    <p style="color: #9ca3af; font-size: 15px; line-height: 1.6;">You have been successfully re-subscribed to YS Innovations newsletter updates.</p>
+    <p style="color: #9ca3af; font-size: 15px; line-height: 1.6;">You have been successfully re-subscribed to ${clientConfig.app.name} newsletter updates.</p>
     <div style="margin-top: 24px;">
-      <a href="https://ysinnovations.com" style="color: #f59e0b; text-decoration: none; font-weight: 600;">&larr; Return to YS Innovations</a>
+      <a href="${clientConfig.app.frontendUrl}" style="color: #f59e0b; text-decoration: none; font-weight: 600;">&larr; Return to ${clientConfig.app.name}</a>
     </div>
   </div>
 </body>

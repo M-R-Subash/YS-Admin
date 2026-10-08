@@ -1,3 +1,5 @@
+import { clientConfig } from "@/lib/config/client";
+
 export interface BlogNewsletterData {
   title: string;
   slug: string;
@@ -5,18 +7,23 @@ export interface BlogNewsletterData {
   featuredImage?: string | null;
   readingTime?: number | null;
   categoryName?: string | null;
-  frontendUrl?: string;
 }
 
 export function renderBlogNewsletterHtml(
   blog: BlogNewsletterData,
   unsubscribeUrl: string
 ): string {
-  const siteUrl = blog.frontendUrl || process.env.NEXT_PUBLIC_FRONTEND_URL || "https://ysinnovations.com";
+  const siteUrl = clientConfig.app.frontendUrl;
   const articleUrl = `${siteUrl.replace(/\/$/, "")}/${blog.slug}`;
-  const excerpt = blog.excerpt || "We have just published a fresh, in-depth guide on the YS Innovations blog. Dive in to explore the latest insights and industry strategies.";
-  const readingTimeText = blog.readingTime ? `${blog.readingTime} min read` : "5 min read";
-  const categoryTag = blog.categoryName ? blog.categoryName.toUpperCase() : "INSIGHTS & STRATEGY";
+
+  const metaParts: string[] = [];
+  if (blog.categoryName) {
+    metaParts.push(blog.categoryName.toUpperCase());
+  }
+  if (blog.readingTime) {
+    metaParts.push(`${blog.readingTime} min read`);
+  }
+  const metaLine = metaParts.join(" &bull; ");
 
   return `
 <!DOCTYPE html>
@@ -44,12 +51,12 @@ export function renderBlogNewsletterHtml(
                 <tr>
                   <td>
                     <span style="font-size: 22px; font-weight: 800; letter-spacing: -0.5px; color: #ffffff;">
-                      YS <span style="color: #f59e0b;">INNOVATIONS</span>
+                      ${clientConfig.app.name}
                     </span>
                   </td>
                   <td align="right">
                     <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; background-color: rgba(245, 158, 11, 0.15); color: #f59e0b; padding: 5px 12px; border-radius: 9999px; border: 1px solid rgba(245, 158, 11, 0.3);">
-                      NEW PUBLICATION
+                      NEW POST
                     </span>
                   </td>
                 </tr>
@@ -72,6 +79,9 @@ export function renderBlogNewsletterHtml(
               : ""
           }
 
+          ${
+            metaLine
+              ? `
           <!-- ARTICLE METADATA -->
           <tr>
             <td style="padding: 28px 32px 12px 32px;">
@@ -79,17 +89,20 @@ export function renderBlogNewsletterHtml(
                 <tr>
                   <td>
                     <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.5px; color: #9ca3af; text-transform: uppercase;">
-                      ${categoryTag} &bull; ${readingTimeText}
+                      ${metaLine}
                     </span>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
+          `
+              : ""
+          }
 
           <!-- ARTICLE TITLE -->
           <tr>
-            <td style="padding: 0 32px 16px 32px;">
+            <td style="padding: ${metaLine ? "0" : "28px"} 32px 16px 32px;">
               <h1 style="margin: 0; font-size: 26px; line-height: 1.35; font-weight: 800; color: #f9fafb; letter-spacing: -0.5px;">
                 <a href="${articleUrl}" target="_blank" style="color: #f9fafb; text-decoration: none;">
                   ${blog.title}
@@ -98,14 +111,20 @@ export function renderBlogNewsletterHtml(
             </td>
           </tr>
 
+          ${
+            blog.excerpt?.trim()
+              ? `
           <!-- EXCERPT -->
           <tr>
             <td style="padding: 0 32px 28px 32px;">
               <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #9ca3af;">
-                ${excerpt}
+                ${blog.excerpt.trim()}
               </p>
             </td>
           </tr>
+          `
+              : ""
+          }
 
           <!-- CALL TO ACTION BUTTON -->
           <tr>
@@ -133,10 +152,10 @@ export function renderBlogNewsletterHtml(
           <tr>
             <td style="padding: 28px 32px; background-color: #0d131f; text-align: center;">
               <p style="margin: 0 0 10px 0; font-size: 13px; font-weight: 600; color: #d1d5db;">
-                YS Innovations &bull; Innovate Today, Lead Tomorrow!
+                ${clientConfig.app.name}
               </p>
               <p style="margin: 0 0 16px 0; font-size: 12px; line-height: 1.5; color: #6b7280;">
-                You are receiving this update because you subscribed to our newsletter on ysinnovations.com.
+                You are receiving this update because you subscribed to our newsletter.
               </p>
               <p style="margin: 0; font-size: 12px; color: #6b7280;">
                 <a href="${articleUrl}" style="color: #9ca3af; text-decoration: underline; margin-right: 12px;">View in Browser</a>
@@ -186,12 +205,12 @@ export function renderCustomBlastHtml(
                 <tr>
                   <td>
                     <span style="font-size: 22px; font-weight: 800; letter-spacing: -0.5px; color: #ffffff;">
-                      YS <span style="color: #f59e0b;">INNOVATIONS</span>
+                      ${clientConfig.app.name}
                     </span>
                   </td>
                   <td align="right">
                     <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; background-color: rgba(59, 130, 246, 0.15); color: #60a5fa; padding: 5px 12px; border-radius: 9999px; border: 1px solid rgba(59, 130, 246, 0.3);">
-                      SPECIAL UPDATE
+                      ANNOUNCEMENT
                     </span>
                   </td>
                 </tr>
@@ -217,10 +236,10 @@ export function renderCustomBlastHtml(
           <tr>
             <td style="padding: 28px 32px; background-color: #0d131f; text-align: center;">
               <p style="margin: 0 0 10px 0; font-size: 13px; font-weight: 600; color: #d1d5db;">
-                YS Innovations &bull; Innovate Today, Lead Tomorrow!
+                ${clientConfig.app.name}
               </p>
               <p style="margin: 0 0 16px 0; font-size: 12px; line-height: 1.5; color: #6b7280;">
-                You are receiving this announcement because you are an active subscriber to YS Innovations.
+                You are receiving this announcement because you are an active subscriber.
               </p>
               <p style="margin: 0; font-size: 12px; color: #6b7280;">
                 <a href="${unsubscribeUrl}" style="color: #ef4444; text-decoration: underline;">Unsubscribe from our updates</a>

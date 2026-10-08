@@ -29,9 +29,9 @@ export class ResendProvider implements EmailProvider {
   private defaultReplyTo: string;
 
   constructor() {
-    this.resend = new Resend(serverConfig.email.resendApiKey || process.env.RESEND_API_KEY || "");
-    this.from = serverConfig.email.from || "YS Innovations <onboarding@resend.dev>";
-    this.defaultReplyTo = serverConfig.email.replyTo || "subash@ysinnovations.com";
+    this.resend = new Resend(serverConfig.email.resendApiKey);
+    this.from = serverConfig.email.from;
+    this.defaultReplyTo = serverConfig.email.replyTo;
   }
 
   async send({ to, subject, html, unsubscribeUrl, replyTo }: SendEmailPayload): Promise<SendEmailResult> {
@@ -71,17 +71,17 @@ export class NodemailerProvider implements EmailProvider {
   private defaultReplyTo: string;
 
   constructor() {
-    this.from = serverConfig.email.from || "YS Innovations <newsletter@ysinnovations.com>";
-    this.defaultReplyTo = serverConfig.email.replyTo || "subash@ysinnovations.com";
+    this.from = serverConfig.email.from;
+    this.defaultReplyTo = serverConfig.email.replyTo;
 
     const smtp = serverConfig.email.smtp;
     this.transporter = nodemailer.createTransport({
-      host: smtp.host || "smtp.resend.com",
-      port: smtp.port || 465,
+      host: smtp.host,
+      port: smtp.port,
       secure: smtp.port === 465,
       auth: {
-        user: smtp.user || "resend",
-        pass: smtp.pass || serverConfig.email.resendApiKey || "",
+        user: smtp.user,
+        pass: smtp.pass,
       },
       pool: true,
       maxConnections: 5,
@@ -117,7 +117,7 @@ export class NodemailerProvider implements EmailProvider {
  * Provider Factory
  */
 export function getEmailProvider(): EmailProvider {
-  const provider = (serverConfig.email.provider || "resend").toLowerCase();
+  const provider = serverConfig.email.provider.toLowerCase();
   if (provider === "nodemailer" || provider === "smtp") {
     return new NodemailerProvider();
   }

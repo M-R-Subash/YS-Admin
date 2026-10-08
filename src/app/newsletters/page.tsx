@@ -87,6 +87,8 @@ interface Metrics {
   totalCampaigns: number;
   totalEmailsSent: number;
   avgDeliveryRate: number;
+  senderEmail?: string;
+  replyTo?: string;
 }
 
 export default function NewsletterPage() {
@@ -727,7 +729,7 @@ export default function NewsletterPage() {
               <div className="p-3 rounded-lg bg-muted/40 border border-border text-xs flex items-center justify-between">
                 <div>
                   <span className="text-muted-foreground">Sender: </span>
-                  <strong className="text-foreground">YS Innovations &lt;onboarding@resend.dev&gt;</strong>
+                  <strong className="text-foreground">{metrics.senderEmail || "Active Configured Provider"}</strong>
                 </div>
                 <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/30">
                   {metrics.activeSubscribers} Active Recipients

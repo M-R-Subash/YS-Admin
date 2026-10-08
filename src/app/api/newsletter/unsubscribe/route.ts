@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { clientConfig } from "@/lib/config/client";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -101,7 +102,7 @@ function renderHtml(title: string, message: string, success: boolean, token?: st
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title} - YS Innovations</title>
+  <title>${title} - ${clientConfig.app.name}</title>
   <style>
     body {
       margin: 0;
@@ -166,7 +167,7 @@ function renderHtml(title: string, message: string, success: boolean, token?: st
     <p>${message}</p>
     ${buttonHtml}
     <div style="margin-top: 28px; border-top: 1px solid #1f2937; padding-top: 20px;">
-      <a href="https://ysinnovations.com" class="home-link">&larr; Return to YS Innovations</a>
+      <a href="${clientConfig.app.frontendUrl}" class="home-link">&larr; Return to ${clientConfig.app.name}</a>
     </div>
   </div>
 </body>
