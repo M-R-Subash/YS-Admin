@@ -37,6 +37,12 @@ export const blogGeneralLeftUiSchema: FieldSchema[] = [
     type: "boolean",
     description: "Allow readers to post public comments and join discussions on this article.",
   },
+  {
+    name: "sendNewsletter",
+    label: "Notify Newsletter Subscribers",
+    type: "boolean",
+    description: "Automatically dispatch an email announcement to active newsletter subscribers upon publishing this post.",
+  },
 ];
 
 export const blogGeneralRightUiSchema: FieldSchema[] = [

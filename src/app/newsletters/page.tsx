@@ -24,6 +24,8 @@ import {
   Clock,
   ArrowRight,
   Eye,
+  Upload,
+  FileSpreadsheet,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -41,16 +43,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-  AlertDialogAction,
-} from "@/components/ui/alert-dialog";
+import { ConfirmModal } from "@/components/global-modal";
+import { BRAND_LOGO_URL, formatEmailBody } from "@/lib/newsletter/templates";
+import { cn } from "@/lib/utils";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -71,6 +66,7 @@ interface Campaign {
   totalRecipients: number;
   successCount: number;
   failedCount: number;
+  errorMessage?: string | null;
   createdAt: string;
   completedAt: string | null;
   blog?: {
@@ -100,16 +96,53 @@ export default function NewsletterPage() {
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addModalTab, setAddModalTab] = useState<"csv" | "manual">("manual");
   const [newEmailsInput, setNewEmailsInput] = useState("");
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvParsedEmails, setCsvParsedEmails] = useState<string[]>([]);
+  const [isParsingCsv, setIsParsingCsv] = useState(false);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [isAddingSubscribers, setIsAddingSubscribers] = useState(false);
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [retryingCampaignId, setRetryingCampaignId] = useState<string | null>(null);
+  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+
+  const manualParsedEmails = useMemo(() => {
+    if (!newEmailsInput.trim()) return [];
+    const matches = newEmailsInput.match(
+      /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
+    );
+    if (!matches) return [];
+    return Array.from(new Set(matches.map((e) => e.toLowerCase().trim())));
+  }, [newEmailsInput]);
+
+  const parsedErrorInfo = useMemo(() => {
+    if (!selectedCampaign?.errorMessage) return null;
+    try {
+      const parsed = JSON.parse(selectedCampaign.errorMessage);
+      return {
+        error:
+          typeof parsed.error === "string"
+            ? parsed.error
+            : "Unknown delivery error",
+        failedEmails: Array.isArray(parsed.failedEmails)
+          ? (parsed.failedEmails as string[])
+          : [],
+      };
+    } catch {
+      return {
+        error: selectedCampaign.errorMessage,
+        failedEmails: [] as string[],
+      };
+    }
+  }, [selectedCampaign]);
 
   // Compose State
   const [blastSubject, setBlastSubject] = useState("");
   const [blastContent, setBlastContent] = useState("");
+  const [testRecipientEmail, setTestRecipientEmail] = useState("");
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [isSendingBlast, setIsSendingBlast] = useState(false);
   const [isConfirmBlastOpen, setIsConfirmBlastOpen] = useState(false);
@@ -200,53 +233,135 @@ export default function NewsletterPage() {
     }
   }
 
-  // Add Subscribers
+  // Quick Starter Templates
+  function applyStarterTemplate(type: "announcement" | "release" | "digest") {
+    if (type === "announcement") {
+      setBlastSubject("Exciting Announcement from YS Innovations");
+      setBlastContent(
+        `<p>Dear Readers,</p>\n<p>We are thrilled to share an important milestone with our community today.</p>\n<p>Over the past few months, our team has been working on transforming our core digital experiences to deliver higher reliability and cutting-edge engineering standards.</p>\n<p><a href="https://ysinnovations.com">Explore what's new on our platform &rarr;</a></p>\n<p>Thank you for being part of our journey.</p>\n<p>Warm regards,<br>The YS Innovations Team</p>`
+      );
+    } else if (type === "release") {
+      setBlastSubject("Product Update: Major Performance & Feature Releases");
+      setBlastContent(
+        `<p>Hello everyone,</p>\n<p>Here is what we shipped this week:</p>\n<ul>\n  <li><strong>Lightning Fast Loading:</strong> Optimized server components for 40% faster render speeds.</li>\n  <li><strong>Enhanced Architecture:</strong> High-reliability newsletter automation with instant 1-click unsubscribe.</li>\n  <li><strong>Refined UI:</strong> Streamlined layouts and smoother interactions.</li>\n</ul>\n<p><a href="https://ysinnovations.com/blogs">Read the full changelog on our blog &rarr;</a></p>`
+      );
+    } else if (type === "digest") {
+      setBlastSubject("Engineering Digest: Architecture & High-Scale Systems");
+      setBlastContent(
+        `<p>Welcome to this week's curated engineering digest.</p>\n<p>Today we dive deep into resilient system design, rate-limiting patterns, and building modern web apps that scale effortlessly.</p>\n<p><strong>Featured Insights:</strong></p>\n<p>&bull; How we achieve zero-downtime database synchronization.<br>&bull; Optimizing serverless cold starts.<br>&bull; Clean architecture patterns in modern TypeScript.</p>\n<p><a href="https://ysinnovations.com/blogs">Explore our latest engineering articles &rarr;</a></p>`
+      );
+    }
+    toast.add({ title: "Template applied to editor", type: "success" });
+  }
+
+  // Handle CSV file selection & parsing
+  function handleCsvFileSelect(file: File) {
+    if (!file) return;
+    setCsvFile(file);
+    setIsParsingCsv(true);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        if (!text) {
+          setCsvParsedEmails([]);
+          return;
+        }
+        const matches = text.match(
+          /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
+        );
+        const unique = Array.from(
+          new Set((matches || []).map((em) => em.toLowerCase().trim())),
+        );
+        setCsvParsedEmails(unique);
+        if (unique.length === 0) {
+          toast.add({
+            title: "No valid email addresses found in file",
+            type: "error",
+          });
+        }
+      } catch {
+        toast.add({
+          title: "Failed to read CSV file",
+          type: "error",
+        });
+      } finally {
+        setIsParsingCsv(false);
+      }
+    };
+    reader.onerror = () => {
+      setIsParsingCsv(false);
+      toast.add({ title: "Failed to read file", type: "error" });
+    };
+    reader.readAsText(file);
+  }
+
+  // Download sample CSV template helper
+  function handleDownloadSampleCsv() {
+    const sample =
+      "email,source\nreader1@example.com,website\nclient@company.com,campaign\n";
+    const blob = new Blob([sample], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "ys_subscribers_sample.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  // Bulk Add Subscribers (Fast Atomic Single Request for CSV or Manual)
   async function handleAddSubscribers() {
-    const raw = newEmailsInput.trim();
-    if (!raw) {
+    const emailsToImport =
+      addModalTab === "csv" ? csvParsedEmails : manualParsedEmails;
+
+    if (emailsToImport.length === 0) {
       toast.add({
-        title: "Please enter at least one email address",
+        title: "Please enter or upload at least one valid email address",
         type: "error",
       });
       return;
     }
 
-    const emails = raw
-      .split(/[\n,;]+/)
-      .map((e) => e.trim().toLowerCase())
-      .filter((e) => e.includes("@"));
-
-    if (emails.length === 0) {
-      toast.add({ title: "No valid email addresses found", type: "error" });
-      return;
-    }
-
     setIsAddingSubscribers(true);
-    let addedCount = 0;
-
-    for (const email of emails) {
-      try {
-        const res = await fetch("/api/newsletters/subscribers", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, source: "admin" }),
+    try {
+      const res = await fetch("/api/newsletters/subscribers/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          emails: emailsToImport,
+          source: addModalTab === "csv" ? "admin-csv" : "admin-manual",
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        setIsAddModalOpen(false);
+        setNewEmailsInput("");
+        setCsvFile(null);
+        setCsvParsedEmails([]);
+        mutateSubscribers();
+        mutateMetrics();
+        toast.add({
+          title:
+            data.message ||
+            `Processed ${emailsToImport.length} subscriber(s)`,
+          type: "success",
         });
-        if (res.ok) addedCount++;
-      } catch (e) {
-        console.error(e);
+      } else {
+        toast.add({
+          title: data.error || "Failed to import subscribers",
+          type: "error",
+        });
       }
+    } catch {
+      toast.add({
+        title: "Network error occurred while importing subscribers",
+        type: "error",
+      });
+    } finally {
+      setIsAddingSubscribers(false);
     }
-
-    setIsAddingSubscribers(false);
-    setIsAddModalOpen(false);
-    setNewEmailsInput("");
-    mutateSubscribers();
-    mutateMetrics();
-
-    toast.add({
-      title: `Successfully added ${addedCount} subscriber${addedCount > 1 ? "s" : ""}`,
-      type: "success",
-    });
   }
 
   // Toggle Subscriber Status
@@ -316,8 +431,9 @@ export default function NewsletterPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          subject: blastSubject,
-          bodyHtml: blastContent,
+          recipientEmail: testRecipientEmail.trim() || undefined,
+          subject: blastSubject.trim(),
+          bodyHtml: formatEmailBody(blastContent),
         }),
       });
       const data = await res.json();
@@ -345,8 +461,8 @@ export default function NewsletterPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          subject: blastSubject,
-          bodyHtml: blastContent,
+          subject: blastSubject.trim(),
+          bodyHtml: formatEmailBody(blastContent),
         }),
       });
       const data = await res.json();
@@ -398,15 +514,30 @@ export default function NewsletterPage() {
               variant="outline"
               size="sm"
               onClick={handleExportCsv}
-              className="text-xs h-9 gap-1.5"
+              className="text-xs h-9 gap-1.5 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
               Export CSV
             </Button>
             <Button
+              variant="outline"
               size="sm"
-              onClick={() => setIsAddModalOpen(true)}
-              className="text-xs h-9 gap-1.5 bg-amber-500 hover:bg-amber-600 text-black font-semibold"
+              onClick={() => {
+                setAddModalTab("csv");
+                setIsAddModalOpen(true);
+              }}
+              className="text-xs h-9 gap-1.5 cursor-pointer hover:border-amber-500/50"
+            >
+              <Upload className="w-3.5 h-3.5 text-amber-500" />
+              Import CSV
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setAddModalTab("manual");
+                setIsAddModalOpen(true);
+              }}
+              className="text-xs h-9 gap-1.5 bg-amber-500 hover:bg-amber-600 text-black font-semibold cursor-pointer shadow-xs"
             >
               <Plus className="w-3.5 h-3.5" />
               Add Subscriber
@@ -841,30 +972,42 @@ export default function NewsletterPage() {
                             )}
                           </td>
                           <td className="px-4 py-3 text-right">
-                            {camp.failedCount > 0 ? (
+                            <div className="flex items-center justify-end gap-1.5">
                               <Button
                                 size="sm"
-                                variant="outline"
-                                onClick={() => handleRetryCampaign(camp.id)}
-                                disabled={
-                                  retryingCampaignId === camp.id ||
-                                  camp.status === "processing"
-                                }
-                                className="h-7 px-2.5 text-xs text-amber-500 hover:text-amber-400 border-amber-500/30 hover:bg-amber-500/10 gap-1.5 cursor-pointer font-medium"
-                                title="Resend email only to failed recipients"
+                                variant="ghost"
+                                onClick={() => setSelectedCampaign(camp)}
+                                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1 cursor-pointer"
+                                title="View delivery breakdown and error details"
                               >
-                                {retryingCampaignId === camp.id ? (
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                ) : (
-                                  <RefreshCw className="w-3.5 h-3.5" />
-                                )}
-                                <span>Resend Failed ({camp.failedCount})</span>
+                                <Eye className="w-3.5 h-3.5" />
+                                <span>Details</span>
                               </Button>
-                            ) : (
-                              <span className="text-[11px] text-muted-foreground font-medium">
-                                All Delivered
-                              </span>
-                            )}
+                              {camp.failedCount > 0 ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleRetryCampaign(camp.id)}
+                                  disabled={
+                                    retryingCampaignId === camp.id ||
+                                    camp.status === "processing"
+                                  }
+                                  className="h-7 px-2.5 text-xs text-amber-500 hover:text-amber-400 border-amber-500/30 hover:bg-amber-500/10 gap-1.5 cursor-pointer font-medium"
+                                  title="Resend email only to failed recipients"
+                                >
+                                  {retryingCampaignId === camp.id ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <RefreshCw className="w-3.5 h-3.5" />
+                                  )}
+                                  <span>Resend ({camp.failedCount})</span>
+                                </Button>
+                              ) : (
+                                <span className="text-[11px] text-muted-foreground font-medium px-2">
+                                  Delivered
+                                </span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -907,6 +1050,34 @@ export default function NewsletterPage() {
                 </Badge>
               </div>
 
+              {/* Quick Starter Templates */}
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-medium text-muted-foreground">Quick Starter Templates:</span>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => applyStarterTemplate("announcement")}
+                    className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-muted/60 hover:bg-muted text-foreground border border-border transition-colors cursor-pointer"
+                  >
+                    📢 Announcement
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyStarterTemplate("release")}
+                    className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-muted/60 hover:bg-muted text-foreground border border-border transition-colors cursor-pointer"
+                  >
+                    🚀 Product Release
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyStarterTemplate("digest")}
+                    className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-muted/60 hover:bg-muted text-foreground border border-border transition-colors cursor-pointer"
+                  >
+                    📚 Tech Digest
+                  </button>
+                </div>
+              </div>
+
               {/* Subject */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-foreground">
@@ -922,54 +1093,109 @@ export default function NewsletterPage() {
 
               {/* Message Body */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-foreground">
-                  Message Body (HTML or Plain Text){" "}
-                  <span className="text-rose-400">*</span>
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-foreground">
+                    Message Body <span className="text-rose-400">*</span>
+                  </label>
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <span className="text-[10px]">Insert:</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setBlastContent((prev) =>
+                          prev ? prev.trimEnd() + "\n\n" : "",
+                        )
+                      }
+                      className="px-2 py-0.5 rounded bg-muted/70 hover:bg-muted text-foreground text-[10px] font-medium border border-border/60 transition-colors cursor-pointer"
+                      title="Add a new paragraph"
+                    >
+                      &para; Paragraph
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setBlastContent((prev) =>
+                          prev ? prev + "\n" : "",
+                        )
+                      }
+                      className="px-2 py-0.5 rounded bg-muted/70 hover:bg-muted text-foreground text-[10px] font-medium border border-border/60 transition-colors cursor-pointer"
+                      title="Add a line break"
+                    >
+                      &crarr; Line Break
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setBlastContent((prev) =>
+                          prev + "<strong>Important</strong>",
+                        )
+                      }
+                      className="px-2 py-0.5 rounded bg-muted/70 hover:bg-muted text-foreground text-[10px] font-medium border border-border/60 transition-colors cursor-pointer"
+                      title="Add bold text"
+                    >
+                      Bold
+                    </button>
+                  </div>
+                </div>
                 <Textarea
-                  placeholder="<p>Dear Readers,</p><p>We are thrilled to announce our latest updates...</p>"
+                  placeholder="Type your message here...&#10;&#10;Press Enter to create new lines and paragraphs naturally, or use HTML tags like <p>, <strong>, etc."
                   value={blastContent}
                   onChange={(e) => setBlastContent(e.target.value)}
                   rows={10}
-                  className="text-xs font-mono leading-relaxed resize-y"
+                  className="text-xs font-mono leading-relaxed resize-y bg-background"
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  Supports clean HTML tags like &lt;p&gt;, &lt;h2&gt;,
-                  &lt;strong&gt;, &lt;a href="..."&gt;, &lt;ul&gt;, etc.
+                  Pressing Enter creates real line breaks and paragraphs automatically. Supports HTML formatting as well.
                 </p>
               </div>
 
-              {/* Action Buttons */}
-              <div className="pt-2 flex flex-col sm:flex-row gap-2.5 justify-end">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSendTest}
-                  disabled={isSendingTest || !blastSubject || !blastContent}
-                  className="text-xs h-9 gap-1.5"
-                >
-                  {isSendingTest ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Eye className="w-3.5 h-3.5" />
-                  )}
-                  Send Test Preview to Me
-                </Button>
+              {/* Action Buttons & Test Recipient */}
+              <div className="pt-2 space-y-3">
+                <div className="p-3 rounded-lg bg-muted/20 border border-border/60 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+                  <div className="flex-1">
+                    <label className="text-[11px] font-medium text-muted-foreground block mb-1">
+                      Test Recipient Email (optional, defaults to your admin account):
+                    </label>
+                    <Input
+                      type="email"
+                      placeholder="e.g. test-account@company.com"
+                      value={testRecipientEmail}
+                      onChange={(e) => setTestRecipientEmail(e.target.value)}
+                      className="h-8 text-xs bg-background"
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSendTest}
+                    disabled={isSendingTest || !blastSubject || !blastContent}
+                    className="text-xs h-8 gap-1.5 shrink-0 self-end sm:self-auto cursor-pointer"
+                  >
+                    {isSendingTest ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Eye className="w-3.5 h-3.5" />
+                    )}
+                    Send Preview Test
+                  </Button>
+                </div>
 
-                <Button
-                  size="sm"
-                  onClick={() => setIsConfirmBlastOpen(true)}
-                  disabled={
-                    isSendingBlast ||
-                    !blastSubject ||
-                    !blastContent ||
-                    metrics.activeSubscribers === 0
-                  }
-                  className="text-xs h-9 gap-1.5 bg-amber-500 hover:bg-amber-600 text-black font-semibold"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  Send Blast to {metrics.activeSubscribers} Subscribers
-                </Button>
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    onClick={() => setIsConfirmBlastOpen(true)}
+                    disabled={
+                      isSendingBlast ||
+                      !blastSubject ||
+                      !blastContent ||
+                      metrics.activeSubscribers === 0
+                    }
+                    className="text-xs h-9 gap-1.5 bg-amber-500 hover:bg-amber-600 text-black font-semibold cursor-pointer"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    Send Blast to {metrics.activeSubscribers} Subscribers
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -980,36 +1206,43 @@ export default function NewsletterPage() {
                   <Eye className="w-4 h-4 text-amber-500" /> Live Inbox Preview
                 </h3>
                 <span className="text-[11px] text-muted-foreground">
-                  How subscribers will see it
+                  Formatted exactly as subscribers receive it
                 </span>
               </div>
 
               {/* Preview Container */}
-              <div className="rounded-xl border border-border/80 bg-[#0b0f17] p-4 overflow-hidden shadow-inner text-white">
-                <div className="max-w-[520px] mx-auto bg-[#111827] rounded-xl border border-[#1f2937] overflow-hidden">
+              <div className="rounded-xl border border-border/80 bg-[#050505] p-4 overflow-hidden shadow-inner text-white">
+                <div className="max-w-[540px] mx-auto bg-[#0a0c10] rounded-xl border border-[#1f242d] overflow-hidden shadow-2xl">
                   {/* Header */}
-                  <div className="p-4 bg-gradient-to-r from-[#111827] to-[#1a2234] border-b border-[#1f2937] flex items-center justify-between">
-                    <span className="font-bold text-sm tracking-tight text-white">
-                      YS <span className="text-amber-500">INNOVATIONS</span>
-                    </span>
-                    <span className="text-[10px] uppercase font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
-                      SPECIAL UPDATE
+                  <div className="p-4 bg-gradient-to-r from-[#0a0c10] to-[#121622] border-b border-[#1f242d] flex items-center justify-between">
+                    <img
+                      src={BRAND_LOGO_URL}
+                      alt="YS Innovations"
+                      className="h-7 w-auto object-contain"
+                    />
+                    <span className="text-[10px] uppercase font-bold text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/30 tracking-wider">
+                      ANNOUNCEMENT
                     </span>
                   </div>
 
                   {/* Subject preview */}
-                  <div className="px-5 pt-4 pb-2 border-b border-[#1f2937]/50">
-                    <h4 className="text-sm font-bold text-white">
+                  <div className="px-5 pt-4 pb-3 border-b border-[#1f242d]/80 bg-[#0c0f16]">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-0.5">
+                      Subject Line
+                    </span>
+                    <h4 className="text-sm font-bold text-white leading-snug">
                       {blastSubject || "Your Subject Line Will Appear Here"}
                     </h4>
                   </div>
 
                   {/* Body preview */}
-                  <div className="p-5 text-xs leading-relaxed text-gray-300 min-h-[160px]">
+                  <div className="p-5 text-xs leading-relaxed text-gray-300 min-h-[180px] bg-[#0a0c10]">
                     {blastContent ? (
                       <div
-                        dangerouslySetInnerHTML={{ __html: blastContent }}
-                        className="space-y-2 [&_p]:mb-2 [&_a]:text-amber-400 [&_a]:underline"
+                        dangerouslySetInnerHTML={{
+                          __html: formatEmailBody(blastContent),
+                        }}
+                        className="space-y-3 whitespace-pre-wrap leading-relaxed [&_p]:mb-3 [&_p]:leading-relaxed [&_a]:text-amber-400 [&_a]:underline [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1 [&_strong]:text-white"
                       />
                     ) : (
                       <p className="text-gray-500 italic">
@@ -1020,15 +1253,18 @@ export default function NewsletterPage() {
                   </div>
 
                   {/* Footer */}
-                  <div className="p-4 bg-[#0d131f] border-t border-[#1f2937] text-center text-[10px] text-gray-500 space-y-1">
-                    <p className="font-semibold text-gray-400">
-                      YS Innovations &bull; Innovate Today, Lead Tomorrow!
+                  <div className="p-4 bg-[#06070a] border-t border-[#1f242d] text-center text-[10px] text-gray-500 space-y-1">
+                    <p className="font-bold text-[#F5A817] tracking-tight">
+                      YS Innovations
                     </p>
-                    <p>
+                    <p className="italic text-gray-400 text-[9px]">
+                      Innovate Today, Lead Tomorrow!
+                    </p>
+                    <p className="text-gray-500 pt-1">
                       You received this email because you subscribed to our
-                      newsletter.
+                      newsletter at ysinnovations.com.
                     </p>
-                    <p className="text-rose-400 underline">
+                    <p className="text-rose-400/80 underline pt-0.5">
                       Unsubscribe from our updates
                     </p>
                   </div>
@@ -1038,118 +1274,518 @@ export default function NewsletterPage() {
           </div>
         )}
 
-        {/* MODAL: Add Subscribers */}
-        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-base font-bold flex items-center gap-2">
-                <Plus className="w-4 h-4 text-amber-500" />
-                Add Subscribers
-              </DialogTitle>
+        {/* MODAL: Campaign Details & Diagnostics */}
+        <Dialog
+          open={Boolean(selectedCampaign)}
+          onOpenChange={(open) => !open && setSelectedCampaign(null)}
+        >
+          <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden p-0 gap-0">
+            <DialogHeader className="p-5 border-b border-border bg-card">
+              <div className="flex items-center justify-between gap-3 pr-6">
+                <DialogTitle className="text-base font-bold flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-amber-500" />
+                  Campaign Inspection & Delivery Diagnostics
+                </DialogTitle>
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className={
+                      selectedCampaign?.type === "BLOG_UPDATE"
+                        ? "border-blue-500/30 text-blue-400 bg-blue-500/10 text-[10px]"
+                        : "border-purple-500/30 text-purple-400 bg-purple-500/10 text-[10px]"
+                    }
+                  >
+                    {selectedCampaign?.type === "BLOG_UPDATE"
+                      ? "Blog Update"
+                      : "Custom Blast"}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] ${
+                      selectedCampaign?.status === "completed"
+                        ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
+                        : selectedCampaign?.status === "processing"
+                        ? "border-blue-500/30 text-blue-400 bg-blue-500/10 animate-pulse"
+                        : "border-rose-500/30 text-rose-400 bg-rose-500/10"
+                    }`}
+                  >
+                    {selectedCampaign?.status}
+                  </Badge>
+                </div>
+              </div>
+              <span className="text-xs text-muted-foreground mt-1 block">
+                Dispatched on{" "}
+                {selectedCampaign
+                  ? format(
+                      new Date(selectedCampaign.createdAt),
+                      "MMMM d, yyyy 'at' h:mm a",
+                    )
+                  : ""}
+              </span>
             </DialogHeader>
 
-            <div className="space-y-3 py-2 text-xs">
-              <p className="text-muted-foreground">
-                Enter email addresses below. You can enter a single email or
-                multiple emails separated by commas or line breaks.
-              </p>
-              <Textarea
-                placeholder="reader1@example.com&#10;client@company.com, info@agency.com"
-                value={newEmailsInput}
-                onChange={(e) => setNewEmailsInput(e.target.value)}
-                rows={5}
-                className="font-mono text-xs"
-              />
+            <div className="overflow-y-auto p-5 space-y-4 text-xs">
+              {/* Subject & Linked Blog */}
+              <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
+                    Subject Line
+                  </span>
+                  <h3 className="text-sm font-semibold text-foreground mt-0.5">
+                    {selectedCampaign?.subject}
+                  </h3>
+                </div>
+
+                {selectedCampaign?.blog && (
+                  <div className="pt-2 border-t border-border flex items-center justify-between">
+                    <span className="text-muted-foreground">
+                      Linked Article:{" "}
+                      <strong className="text-foreground">
+                        {selectedCampaign.blog.title}
+                      </strong>
+                    </span>
+                    <a
+                      href={`https://ysinnovations.com/blogs/${selectedCampaign.blog.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-amber-500 hover:text-amber-400 inline-flex items-center gap-1 font-medium text-[11px]"
+                    >
+                      <span>View live</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              {/* Delivery Stats Breakdown */}
+              <div className="grid grid-cols-4 gap-2.5">
+                <div className="rounded-lg border border-border bg-card p-3 text-center">
+                  <span className="text-[10px] uppercase text-muted-foreground font-semibold block">
+                    Total
+                  </span>
+                  <span className="text-base font-bold text-foreground mt-1 block">
+                    {selectedCampaign?.totalRecipients || 0}
+                  </span>
+                </div>
+                <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-center">
+                  <span className="text-[10px] uppercase text-emerald-500 font-semibold block">
+                    Delivered
+                  </span>
+                  <span className="text-base font-bold text-emerald-400 mt-1 block">
+                    {selectedCampaign?.successCount || 0}
+                  </span>
+                </div>
+                <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-center">
+                  <span className="text-[10px] uppercase text-rose-500 font-semibold block">
+                    Failed
+                  </span>
+                  <span className="text-base font-bold text-rose-400 mt-1 block">
+                    {selectedCampaign?.failedCount || 0}
+                  </span>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-3 text-center">
+                  <span className="text-[10px] uppercase text-muted-foreground font-semibold block">
+                    Success Rate
+                  </span>
+                  <span className="text-base font-bold text-foreground mt-1 block">
+                    {selectedCampaign && selectedCampaign.totalRecipients > 0
+                      ? Math.round(
+                          (selectedCampaign.successCount /
+                            selectedCampaign.totalRecipients) *
+                            100,
+                        )
+                      : 0}
+                    %
+                  </span>
+                </div>
+              </div>
+
+              {/* Diagnostic Error Box (If failures exist) */}
+              {selectedCampaign && selectedCampaign.failedCount > 0 && (
+                <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                      <span className="font-semibold text-rose-400 text-xs">
+                        Delivery Error Details
+                      </span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleRetryCampaign(selectedCampaign.id)}
+                      disabled={
+                        retryingCampaignId === selectedCampaign.id ||
+                        selectedCampaign.status === "processing"
+                      }
+                      className="h-7 px-2.5 text-xs text-rose-300 border-rose-500/30 hover:bg-rose-500/20 gap-1.5 cursor-pointer font-medium"
+                    >
+                      {retryingCampaignId === selectedCampaign.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-3.5 h-3.5" />
+                      )}
+                      <span>
+                        Resend to Failed ({selectedCampaign.failedCount})
+                      </span>
+                    </Button>
+                  </div>
+
+                  {parsedErrorInfo?.error && (
+                    <div className="font-mono text-[11px] bg-background/80 p-2.5 rounded border border-border/80 text-rose-300 break-words">
+                      {parsedErrorInfo.error}
+                    </div>
+                  )}
+
+                  {parsedErrorInfo?.failedEmails &&
+                    parsedErrorInfo.failedEmails.length > 0 && (
+                      <div>
+                        <span className="text-[11px] text-muted-foreground font-medium block mb-1.5">
+                          Failed Recipients ({parsedErrorInfo.failedEmails.length}):
+                        </span>
+                        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1.5 bg-background/40 rounded border border-border/60">
+                          {parsedErrorInfo.failedEmails.map((email, idx) => (
+                            <Badge
+                              key={idx}
+                              variant="secondary"
+                              className="text-[10px] font-mono px-2 py-0.5 border border-rose-500/20 text-rose-300 bg-rose-500/10"
+                            >
+                              {email}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                </div>
+              )}
+
+              {/* Email Body Content Preview */}
+              <div className="space-y-1.5">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
+                  Email Content Snapshot
+                </span>
+                <div className="rounded-xl border border-border bg-[#050505] p-3 text-white overflow-hidden shadow-inner">
+                  <div className="rounded-lg border border-[#1f242d] bg-[#0a0c10] overflow-hidden">
+                    <div className="p-3 bg-gradient-to-r from-[#0a0c10] to-[#121622] border-b border-[#1f242d] flex items-center justify-between">
+                      <img
+                        src={BRAND_LOGO_URL}
+                        alt="YS Innovations"
+                        className="h-6 w-auto object-contain"
+                      />
+                      <span className="text-[9px] uppercase font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
+                        {selectedCampaign?.type === "BLOG_UPDATE" ? "BLOG" : "ANNOUNCEMENT"}
+                      </span>
+                    </div>
+                    <div className="p-4 max-h-60 overflow-y-auto text-xs leading-relaxed text-gray-300">
+                      {selectedCampaign?.bodyHtml ? (
+                        <div
+                          dangerouslySetInnerHTML={{
+                            __html: formatEmailBody(selectedCampaign.bodyHtml),
+                          }}
+                          className="space-y-2 whitespace-pre-wrap [&_p]:mb-2 [&_a]:text-amber-400 [&_a]:underline [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1"
+                        />
+                      ) : (
+                        <p className="text-gray-500 italic">
+                          No HTML content preview available for this campaign.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="p-4 border-t border-border bg-card">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedCampaign(null)}
+                className="text-xs ml-auto cursor-pointer"
+              >
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* MODAL: Add & Import Subscribers */}
+        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+          <DialogContent className="sm:max-w-xl rounded-2xl border border-border/80 bg-card p-6 shadow-2xl transition-all">
+            <DialogHeader className="pb-4 border-b border-border/60">
+              <div className="flex items-center gap-3.5">
+                <div className="size-11 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center shrink-0 shadow-xs">
+                  <Users className="size-5" />
+                </div>
+                <div>
+                  <DialogTitle className="text-lg font-extrabold text-foreground tracking-tight">
+                    Manage & Import Subscribers
+                  </DialogTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Add new readers manually or bulk import lists via CSV spreadsheet.
+                  </p>
+                </div>
+              </div>
+            </DialogHeader>
+
+            {/* Tab Navigation */}
+            <div className="flex border-b border-border/70 mt-3 mb-4 gap-2">
+              <button
+                type="button"
+                onClick={() => setAddModalTab("csv")}
+                className={cn(
+                  "flex items-center gap-2 pb-2.5 px-3 text-xs font-semibold border-b-2 transition-all cursor-pointer",
+                  addModalTab === "csv"
+                    ? "border-amber-500 text-amber-500"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Upload CSV File</span>
+                {csvParsedEmails.length > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="text-[10px] h-4 px-1 bg-amber-500/20 text-amber-400"
+                  >
+                    {csvParsedEmails.length}
+                  </Badge>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddModalTab("manual")}
+                className={cn(
+                  "flex items-center gap-2 pb-2.5 px-3 text-xs font-semibold border-b-2 transition-all cursor-pointer",
+                  addModalTab === "manual"
+                    ? "border-amber-500 text-amber-500"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Mail className="w-3.5 h-3.5" />
+                <span>Manual Entry</span>
+                {manualParsedEmails.length > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="text-[10px] h-4 px-1 bg-amber-500/20 text-amber-400"
+                  >
+                    {manualParsedEmails.length}
+                  </Badge>
+                )}
+              </button>
+            </div>
+
+            {/* TAB CONTENT: CSV UPLOAD */}
+            {addModalTab === "csv" ? (
+              <div className="space-y-4 py-1 text-xs">
+                {/* Drag-and-drop zone */}
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDraggingFile(true);
+                  }}
+                  onDragLeave={() => setIsDraggingFile(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDraggingFile(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) handleCsvFileSelect(file);
+                  }}
+                  className={cn(
+                    "relative border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer",
+                    isDraggingFile
+                      ? "border-amber-500 bg-amber-500/10"
+                      : "border-border/80 hover:border-amber-500/50 bg-muted/10 hover:bg-muted/20"
+                  )}
+                  onClick={() => {
+                    document.getElementById("csv-file-input")?.click();
+                  }}
+                >
+                  <input
+                    id="csv-file-input"
+                    type="file"
+                    accept=".csv,.txt"
+                    className="sr-only"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleCsvFileSelect(file);
+                    }}
+                  />
+                  <div className="flex flex-col items-center justify-center space-y-2">
+                    <div className="size-10 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                      <Upload className="w-5 h-5" />
+                    </div>
+                    {csvFile ? (
+                      <div>
+                        <p className="font-semibold text-foreground text-sm">
+                          {csvFile.name}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          {(csvFile.size / 1024).toFixed(1)} KB &bull; Click to choose a different file
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="font-semibold text-foreground text-sm">
+                          Click to upload or drag & drop CSV file
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Supports .csv or .txt containing email addresses
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Parsed email status */}
+                {isParsingCsv ? (
+                  <div className="flex items-center justify-center gap-2 py-3 text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+                    <span>Parsing email addresses from file...</span>
+                  </div>
+                ) : csvParsedEmails.length > 0 ? (
+                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-emerald-500 font-semibold flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        {csvParsedEmails.length} valid email address{csvParsedEmails.length > 1 ? "es" : ""} ready to import
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCsvFile(null);
+                          setCsvParsedEmails([]);
+                        }}
+                        className="text-[11px] text-muted-foreground hover:text-rose-400 cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto p-1 bg-background/50 rounded-lg">
+                      {csvParsedEmails.slice(0, 15).map((em, idx) => (
+                        <Badge
+                          key={idx}
+                          variant="secondary"
+                          className="text-[10px] font-mono px-1.5 py-0.5"
+                        >
+                          {em}
+                        </Badge>
+                      ))}
+                      {csvParsedEmails.length > 15 && (
+                        <span className="text-[10px] text-muted-foreground self-center px-1">
+                          +{csvParsedEmails.length - 15} more
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Template download helper */}
+                <div className="flex items-center justify-between pt-1 text-[11px] text-muted-foreground border-t border-border/50">
+                  <span>Need an example spreadsheet?</span>
+                  <button
+                    type="button"
+                    onClick={handleDownloadSampleCsv}
+                    className="text-amber-500 hover:text-amber-400 underline font-medium cursor-pointer"
+                  >
+                    Download Sample CSV Template
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* TAB CONTENT: MANUAL ENTRY */
+              <div className="space-y-3 py-1 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">
+                    Enter email addresses separated by commas, spaces, or new lines:
+                  </span>
+                  {manualParsedEmails.length > 0 && (
+                    <Badge
+                      variant="outline"
+                      className="border-amber-500/30 text-amber-500 bg-amber-500/10 text-[10px]"
+                    >
+                      {manualParsedEmails.length} email{manualParsedEmails.length > 1 ? "s" : ""} detected
+                    </Badge>
+                  )}
+                </div>
+                <Textarea
+                  placeholder="reader1@example.com&#10;client@company.com, info@agency.com"
+                  value={newEmailsInput}
+                  onChange={(e) => setNewEmailsInput(e.target.value)}
+                  rows={6}
+                  className="font-mono text-xs bg-background leading-relaxed"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Duplicates and invalid emails will be automatically sanitized before adding.
+                </p>
+              </div>
+            )}
+
+            <DialogFooter className="gap-2 sm:gap-0 pt-4 border-t border-border/60">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setIsAddModalOpen(false)}
-                className="text-xs"
+                className="text-xs h-9 cursor-pointer"
               >
                 Cancel
               </Button>
               <Button
                 size="sm"
                 onClick={handleAddSubscribers}
-                disabled={isAddingSubscribers || !newEmailsInput.trim()}
-                className="text-xs bg-amber-500 hover:bg-amber-600 text-black font-semibold"
+                disabled={
+                  isAddingSubscribers ||
+                  (addModalTab === "csv"
+                    ? csvParsedEmails.length === 0
+                    : manualParsedEmails.length === 0)
+                }
+                className="text-xs h-9 bg-amber-500 hover:bg-amber-600 text-black font-semibold cursor-pointer shadow-xs"
               >
                 {isAddingSubscribers ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
-                ) : null}
-                Save Subscribers
+                ) : (
+                  <Plus className="w-3.5 h-3.5 mr-1.5" />
+                )}
+                {addModalTab === "csv"
+                  ? `Import ${csvParsedEmails.length || 0} Subscribers`
+                  : `Save ${manualParsedEmails.length || 0} Subscribers`}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* CONFIRMATION: Delete Subscriber */}
-        <AlertDialog
+        {/* CONFIRMATION: Delete Subscriber using ConfirmModal */}
+        <ConfirmModal
           open={Boolean(deleteTargetId)}
           onOpenChange={(open) => !open && setDeleteTargetId(null)}
-        >
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Subscriber?</AlertDialogTitle>
-              <AlertDialogDescription className="text-xs">
-                This subscriber will be permanently deleted from the database.
-                This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel className="text-xs">Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDeleteSubscriber}
-                disabled={isDeleting}
-                className="text-xs bg-rose-600 hover:bg-rose-700 text-white"
-              >
-                {isDeleting ? "Deleting..." : "Delete Permanently"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          variant="danger"
+          title="Delete Subscriber?"
+          description="This subscriber will be permanently deleted from the database. This action cannot be undone."
+          confirmText="Delete Permanently"
+          onConfirm={handleDeleteSubscriber}
+          loading={isDeleting}
+        />
 
-        {/* CONFIRMATION: Send Blast */}
-        <AlertDialog
+        {/* CONFIRMATION: Send Blast using ConfirmModal */}
+        <ConfirmModal
           open={isConfirmBlastOpen}
           onOpenChange={setIsConfirmBlastOpen}
-        >
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center gap-2">
-                <Send className="w-4 h-4 text-amber-500" />
-                Dispatch Email Blast?
-              </AlertDialogTitle>
-              <AlertDialogDescription className="text-xs space-y-2">
-                <p>
-                  You are about to broadcast{" "}
-                  <strong>&ldquo;{blastSubject}&rdquo;</strong> to{" "}
-                  <strong>
-                    {metrics.activeSubscribers} active subscribers
-                  </strong>
-                  .
-                </p>
-                <p className="text-muted-foreground">
-                  The batch engine will safely dispatch emails in chunks of 50
-                  with automatic 1-click unsubscribe links.
-                </p>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel className="text-xs">Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDispatchBlast}
-                disabled={isSendingBlast}
-                className="text-xs bg-amber-500 hover:bg-amber-600 text-black font-semibold"
-              >
-                {isSendingBlast ? "Queuing Dispatch..." : "Confirm & Send"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          variant="warning"
+          title="Dispatch Email Blast?"
+          description={
+            <div className="space-y-2 text-xs">
+              <p>
+                You are about to broadcast{" "}
+                <strong>&ldquo;{blastSubject}&rdquo;</strong> to{" "}
+                <strong>{metrics.activeSubscribers} active subscribers</strong>.
+              </p>
+              <p className="text-muted-foreground">
+                The batch engine will safely dispatch emails in chunks of 50 with automatic 1-click unsubscribe links.
+              </p>
+            </div>
+          }
+          confirmText="Confirm & Send"
+          onConfirm={handleDispatchBlast}
+          loading={isSendingBlast}
+        />
       </main>
     </div>
   );

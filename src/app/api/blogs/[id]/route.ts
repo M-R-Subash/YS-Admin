@@ -486,7 +486,7 @@ export async function PUT(
   if (
     (blog.status === "published" || shouldRevalidate) &&
     !blog.newsletterSent &&
-    body.sendNewsletter !== false
+    body.sendNewsletter === true
   ) {
     import("@/lib/newsletter/batch-engine")
       .then(({ dispatchBlogNewsletter }) => dispatchBlogNewsletter(blog.id))

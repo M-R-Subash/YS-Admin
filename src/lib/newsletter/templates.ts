@@ -1,5 +1,8 @@
 import { clientConfig } from "@/lib/config/client";
 
+export const BRAND_LOGO_URL =
+  "https://res.cloudinary.com/subash-cms/image/upload/v1788346719/image-8.png";
+
 export interface BlogNewsletterData {
   title: string;
   slug: string;
@@ -9,12 +12,41 @@ export interface BlogNewsletterData {
   categoryName?: string | null;
 }
 
+/**
+ * Formats message body content so plain text newlines are preserved in email clients
+ * while respecting existing HTML tags.
+ */
+export function formatEmailBody(content: string): string {
+  if (!content) return "";
+  const trimmed = content.trim();
+  // Check if content is already structured with HTML block tags (<p>, <div>, <h1>-<h6>, <ul>, <ol>, <table>)
+  const hasBlockTags = /<(p|div|h[1-6]|ul|ol|table|blockquote)[^>]*>/i.test(trimmed);
+  if (!hasBlockTags) {
+    // Plain text: convert double newlines to paragraphs, and single newlines to <br />
+    return trimmed
+      .split(/\r?\n\r?\n+/)
+      .map(
+        (para) =>
+          `<p style="margin: 0 0 16px 0; line-height: 1.7; color: #d1d5db;">${para.replace(
+            /\r?\n/g,
+            "<br />"
+          )}</p>`
+      )
+      .join("");
+  }
+  // Has HTML: convert standalone newlines between text into <br/>
+  return trimmed.replace(/([^>])\r?\n([^<])/g, "$1<br />$2");
+}
+
 export function renderBlogNewsletterHtml(
   blog: BlogNewsletterData,
   unsubscribeUrl: string
 ): string {
-  const siteUrl = clientConfig.app.frontendUrl;
-  const articleUrl = `${siteUrl.replace(/\/$/, "")}/${blog.slug}`;
+  const siteUrl = clientConfig.app.frontendUrl.replace(/\/$/, "");
+  const cleanSlug = blog.slug.replace(/^\/+/, "");
+  const articleUrl = cleanSlug.startsWith("blogs/")
+    ? `${siteUrl}/${cleanSlug}`
+    : `${siteUrl}/blogs/${cleanSlug}`;
 
   const metaParts: string[] = [];
   if (blog.categoryName) {
@@ -38,24 +70,24 @@ export function renderBlogNewsletterHtml(
   </style>
   <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; background-color: #0b0f17; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
-  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #0b0f17;">
+<body style="margin: 0; padding: 0; background-color: #050505; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #050505;">
     <tr>
       <td align="center" style="padding: 40px 16px;">
-        <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 620px; background-color: #111827; border-radius: 16px; border: 1px solid #1f2937; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);">
+        <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 620px; background-color: #0a0c10; border-radius: 16px; border: 1px solid #1f242d; overflow: hidden; box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.8);">
           
           <!-- BRAND HEADER -->
           <tr>
-            <td style="padding: 28px 32px; background: linear-gradient(135deg, #111827 0%, #1a2234 100%); border-bottom: 1px solid #1f2937;">
+            <td style="padding: 24px 32px; background: linear-gradient(135deg, #0a0c10 0%, #121622 100%); border-bottom: 1px solid #1f242d;">
               <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
                 <tr>
-                  <td>
-                    <span style="font-size: 22px; font-weight: 800; letter-spacing: -0.5px; color: #ffffff;">
-                      ${clientConfig.app.name}
-                    </span>
+                  <td align="left">
+                    <a href="${siteUrl}" target="_blank" style="text-decoration: none; display: inline-block;">
+                      <img src="${BRAND_LOGO_URL}" alt="YS Innovations" width="165" height="34" style="height: 34px; width: auto; max-height: 38px; display: block; border: 0; outline: none;" />
+                    </a>
                   </td>
                   <td align="right">
-                    <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; background-color: rgba(245, 158, 11, 0.15); color: #f59e0b; padding: 5px 12px; border-radius: 9999px; border: 1px solid rgba(245, 158, 11, 0.3);">
+                    <span style="font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; background-color: rgba(245, 168, 23, 0.12); color: #F5A817; padding: 5px 12px; border-radius: 9999px; border: 1px solid rgba(245, 168, 23, 0.35);">
                       NEW POST
                     </span>
                   </td>
@@ -88,7 +120,7 @@ export function renderBlogNewsletterHtml(
               <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
                 <tr>
                   <td>
-                    <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.5px; color: #9ca3af; text-transform: uppercase;">
+                    <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.5px; color: #F5A817; text-transform: uppercase;">
                       ${metaLine}
                     </span>
                   </td>
@@ -103,8 +135,8 @@ export function renderBlogNewsletterHtml(
           <!-- ARTICLE TITLE -->
           <tr>
             <td style="padding: ${metaLine ? "0" : "28px"} 32px 16px 32px;">
-              <h1 style="margin: 0; font-size: 26px; line-height: 1.35; font-weight: 800; color: #f9fafb; letter-spacing: -0.5px;">
-                <a href="${articleUrl}" target="_blank" style="color: #f9fafb; text-decoration: none;">
+              <h1 style="margin: 0; font-size: 24px; line-height: 1.35; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;">
+                <a href="${articleUrl}" target="_blank" style="color: #ffffff; text-decoration: none;">
                   ${blog.title}
                 </a>
               </h1>
@@ -117,7 +149,7 @@ export function renderBlogNewsletterHtml(
           <!-- EXCERPT -->
           <tr>
             <td style="padding: 0 32px 28px 32px;">
-              <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #9ca3af;">
+              <p style="margin: 0; font-size: 15px; line-height: 1.7; color: #94a3b8;">
                 ${blog.excerpt.trim()}
               </p>
             </td>
@@ -131,8 +163,8 @@ export function renderBlogNewsletterHtml(
             <td style="padding: 0 32px 36px 32px;">
               <table role="presentation" border="0" cellspacing="0" cellpadding="0">
                 <tr>
-                  <td align="center" style="border-radius: 10px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
-                    <a href="${articleUrl}" target="_blank" style="display: inline-block; padding: 14px 28px; font-size: 15px; font-weight: 700; color: #000000; text-decoration: none; border-radius: 10px; letter-spacing: -0.2px;">
+                  <td align="center" style="border-radius: 10px; background: linear-gradient(135deg, #F5A817 0%, #e59807 100%);">
+                    <a href="${articleUrl}" target="_blank" style="display: inline-block; padding: 13px 28px; font-size: 14px; font-weight: 700; color: #000000; text-decoration: none; border-radius: 10px; letter-spacing: -0.2px;">
                       Read Full Article &rarr;
                     </a>
                   </td>
@@ -144,23 +176,26 @@ export function renderBlogNewsletterHtml(
           <!-- DIVIDER -->
           <tr>
             <td style="padding: 0 32px;">
-              <div style="height: 1px; background-color: #1f2937;"></div>
+              <div style="height: 1px; background-color: #1f242d;"></div>
             </td>
           </tr>
 
           <!-- BRAND FOOTER -->
           <tr>
-            <td style="padding: 28px 32px; background-color: #0d131f; text-align: center;">
-              <p style="margin: 0 0 10px 0; font-size: 13px; font-weight: 600; color: #d1d5db;">
-                ${clientConfig.app.name}
+            <td style="padding: 28px 32px; background-color: #06070a; border-top: 1px solid #1f242d; text-align: center;">
+              <p style="margin: 0 0 6px 0; font-size: 13px; font-weight: 700; color: #F5A817; letter-spacing: -0.2px;">
+                YS Innovations
               </p>
-              <p style="margin: 0 0 16px 0; font-size: 12px; line-height: 1.5; color: #6b7280;">
-                You are receiving this update because you subscribed to our newsletter.
+              <p style="margin: 0 0 12px 0; font-size: 11px; color: #71717a; font-style: italic;">
+                Innovate Today, Lead Tomorrow!
               </p>
-              <p style="margin: 0; font-size: 12px; color: #6b7280;">
+              <p style="margin: 0 0 14px 0; font-size: 12px; line-height: 1.5; color: #52525b;">
+                You are receiving this update because you subscribed to our newsletter at <a href="${siteUrl}" style="color: #a1a1aa; text-decoration: none;">ysinnovations.com</a>.
+              </p>
+              <p style="margin: 0; font-size: 11px; color: #71717a;">
                 <a href="${articleUrl}" style="color: #9ca3af; text-decoration: underline; margin-right: 12px;">View in Browser</a>
                 &bull;
-                <a href="${unsubscribeUrl}" style="color: #ef4444; text-decoration: underline; margin-left: 12px;">Unsubscribe</a>
+                <a href="${unsubscribeUrl}" style="color: #f87171; text-decoration: underline; margin-left: 12px;">Unsubscribe</a>
               </p>
             </td>
           </tr>
@@ -179,6 +214,8 @@ export function renderCustomBlastHtml(
   bodyContent: string,
   unsubscribeUrl: string
 ): string {
+  const siteUrl = clientConfig.app.frontendUrl.replace(/\/$/, "");
+
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -192,24 +229,24 @@ export function renderCustomBlastHtml(
   </style>
   <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; background-color: #0b0f17; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
-  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #0b0f17;">
+<body style="margin: 0; padding: 0; background-color: #050505; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #050505;">
     <tr>
       <td align="center" style="padding: 40px 16px;">
-        <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 620px; background-color: #111827; border-radius: 16px; border: 1px solid #1f2937; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);">
+        <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 620px; background-color: #0a0c10; border-radius: 16px; border: 1px solid #1f242d; overflow: hidden; box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.8);">
           
           <!-- BRAND HEADER -->
           <tr>
-            <td style="padding: 28px 32px; background: linear-gradient(135deg, #111827 0%, #1a2234 100%); border-bottom: 1px solid #1f2937;">
+            <td style="padding: 24px 32px; background: linear-gradient(135deg, #0a0c10 0%, #121622 100%); border-bottom: 1px solid #1f242d;">
               <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
                 <tr>
-                  <td>
-                    <span style="font-size: 22px; font-weight: 800; letter-spacing: -0.5px; color: #ffffff;">
-                      ${clientConfig.app.name}
-                    </span>
+                  <td align="left">
+                    <a href="${siteUrl}" target="_blank" style="text-decoration: none; display: inline-block;">
+                      <img src="${BRAND_LOGO_URL}" alt="YS Innovations" width="165" height="34" style="height: 34px; width: auto; max-height: 38px; display: block; border: 0; outline: none;" />
+                    </a>
                   </td>
                   <td align="right">
-                    <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; background-color: rgba(59, 130, 246, 0.15); color: #60a5fa; padding: 5px 12px; border-radius: 9999px; border: 1px solid rgba(59, 130, 246, 0.3);">
+                    <span style="font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; background-color: rgba(245, 168, 23, 0.12); color: #F5A817; padding: 5px 12px; border-radius: 9999px; border: 1px solid rgba(245, 168, 23, 0.35);">
                       ANNOUNCEMENT
                     </span>
                   </td>
@@ -220,29 +257,32 @@ export function renderCustomBlastHtml(
 
           <!-- BODY CONTENT -->
           <tr>
-            <td style="padding: 36px 32px 36px 32px; font-size: 16px; line-height: 1.7; color: #d1d5db;">
-              ${bodyContent}
+            <td style="padding: 36px 32px; font-size: 15px; line-height: 1.7; color: #d1d5db;">
+              ${formatEmailBody(bodyContent)}
             </td>
           </tr>
 
           <!-- DIVIDER -->
           <tr>
             <td style="padding: 0 32px;">
-              <div style="height: 1px; background-color: #1f2937;"></div>
+              <div style="height: 1px; background-color: #1f242d;"></div>
             </td>
           </tr>
 
           <!-- BRAND FOOTER -->
           <tr>
-            <td style="padding: 28px 32px; background-color: #0d131f; text-align: center;">
-              <p style="margin: 0 0 10px 0; font-size: 13px; font-weight: 600; color: #d1d5db;">
-                ${clientConfig.app.name}
+            <td style="padding: 28px 32px; background-color: #06070a; border-top: 1px solid #1f242d; text-align: center;">
+              <p style="margin: 0 0 6px 0; font-size: 13px; font-weight: 700; color: #F5A817; letter-spacing: -0.2px;">
+                YS Innovations
               </p>
-              <p style="margin: 0 0 16px 0; font-size: 12px; line-height: 1.5; color: #6b7280;">
-                You are receiving this announcement because you are an active subscriber.
+              <p style="margin: 0 0 12px 0; font-size: 11px; color: #71717a; font-style: italic;">
+                Innovate Today, Lead Tomorrow!
               </p>
-              <p style="margin: 0; font-size: 12px; color: #6b7280;">
-                <a href="${unsubscribeUrl}" style="color: #ef4444; text-decoration: underline;">Unsubscribe from our updates</a>
+              <p style="margin: 0 0 14px 0; font-size: 12px; line-height: 1.5; color: #52525b;">
+                You are receiving this announcement because you are an active subscriber to <a href="${siteUrl}" style="color: #a1a1aa; text-decoration: none;">ysinnovations.com</a>.
+              </p>
+              <p style="margin: 0; font-size: 11px; color: #71717a;">
+                <a href="${unsubscribeUrl}" style="color: #f87171; text-decoration: underline;">Unsubscribe from our updates</a>
               </p>
             </td>
           </tr>

@@ -266,8 +266,8 @@ export async function POST(req: Request) {
         revalidateFrontendPath(`/blogs/${newBlog.slug}`);
       }
 
-      // Trigger newsletter dispatch if published immediately
-      if (body.sendNewsletter !== false) {
+      // Trigger newsletter dispatch only if explicitly opted in
+      if (body.sendNewsletter === true) {
         import("@/lib/newsletter/batch-engine")
           .then(({ dispatchBlogNewsletter }) => dispatchBlogNewsletter(newBlog.id))
           .catch((nlErr) => {
