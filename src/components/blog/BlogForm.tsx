@@ -49,6 +49,7 @@ const RevisionHistoryDrawer = dynamic(
   { ssr: false }
 );
 import { ConfirmModal } from "@/components/global-modal";
+import { Checkbox } from "@/components/ui/checkbox";
 import { BlogSnapshotData } from "@/types/revision";
 import { BlogDraftBanner } from "./header/BlogDraftBanner";
 import { BlogFormHeader } from "./header/BlogFormHeader";
@@ -129,6 +130,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       slug: "",
       featuredImage: null,
       allowComments: true,
+      sendNewsletter: false,
       status: "draft",
       scheduledAt: null,
       content: null,
@@ -495,6 +497,9 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           tags: blogTags,
           categories: blogCategories,
           allowComments: initialPayload.allowComments ?? true,
+          sendNewsletter: false,
+          newsletterSent: Boolean(initialPayload.newsletterSent),
+          newsletterSentAt: initialPayload.newsletterSentAt || null,
           status: initialPayload.status || "draft",
           scheduledAt: initialPayload.scheduledAt || null,
           content: dbEditorContent,
@@ -857,6 +862,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       featuredImage: currentValues.featuredImage,
       content: contentPayload,
       allowComments: currentValues.allowComments,
+      sendNewsletter: Boolean(currentValues.sendNewsletter),
       status: publishStatus,
       scheduledAt: targetScheduledAt ? targetScheduledAt.toISOString() : null,
       tags: (currentValues.tags || []).map((t) => t.trim()).filter(Boolean),
@@ -1266,7 +1272,33 @@ export default function BlogForm({ blogId }: BlogFormProps) {
             onCancel={() =>
               setConfirmDialog((prev) => ({ ...prev, open: false }))
             }
-          />
+          >
+            {confirmDialog.publishStatus === "published" &&
+              (!isEditMode || initialData?.status !== "published") &&
+              !initialData?.newsletterSent && (
+                <div className="mt-3 p-3 rounded-lg border border-border bg-muted/30 flex items-start gap-2.5 text-left">
+                  <Checkbox
+                    id="confirmSendNewsletter"
+                    checked={Boolean(watch("sendNewsletter"))}
+                    onCheckedChange={(checked) =>
+                      setValue("sendNewsletter", Boolean(checked))
+                    }
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-0.5 text-xs">
+                    <label
+                      htmlFor="confirmSendNewsletter"
+                      className="font-medium text-foreground cursor-pointer select-none block"
+                    >
+                      Send email newsletter to active subscribers
+                    </label>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      Dispatches an email announcement to active subscribers (sent in throttled batches of 50). Unchecked by default.
+                    </p>
+                  </div>
+                </div>
+              )}
+          </ConfirmModal>
           {isEditMode && blogId && (
             <RevisionHistoryDrawer
               blogId={blogId}

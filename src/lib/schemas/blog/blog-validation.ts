@@ -50,6 +50,7 @@ export const blogDraftSchema = z.object({
   ogDesc: z.string().optional().default(""),
   canonicalUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   noIndex: z.boolean().default(false),
+  sendNewsletter: z.boolean().optional().default(false),
   structuredData: z.any().optional().nullable(),
   authorName: z.string().optional().nullable(),
   authorRole: z.string().optional().nullable(),
@@ -109,6 +110,7 @@ export const blogPublishSchema = z.object({
   ogDesc: z.string().optional().default(""),
   canonicalUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   noIndex: z.boolean().default(false),
+  sendNewsletter: z.boolean().optional().default(false),
   structuredData: z.any().optional().nullable(),
   authorName: z.string().optional().nullable(),
   authorRole: z.string().optional().nullable(),
@@ -162,6 +164,9 @@ export interface BlogFormData {
   slug: string;
   featuredImage: string | null;
   allowComments: boolean;
+  sendNewsletter?: boolean;
+  newsletterSent?: boolean;
+  newsletterSentAt?: string | Date | null;
   status: "draft" | "published" | "scheduled";
   scheduledAt?: string | Date | null;
   content: any;
