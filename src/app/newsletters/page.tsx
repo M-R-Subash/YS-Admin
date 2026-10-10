@@ -12,7 +12,7 @@ import {
   Plus,
   Loader2,
   RefreshCw,
-  Sparkles,
+  Send,
   Upload,
   RotateCcw,
   Clock,
@@ -91,7 +91,7 @@ export default function SubscribersPage() {
     return Array.from(new Set(matches.map((e) => e.toLowerCase().trim())));
   }, [newEmailsInput]);
 
-  const { data: metricsData, mutate: mutateMetrics } = useSWR<{
+  const { data: metricsData, mutate: mutateMetrics, isValidating: isMetricsValidating } = useSWR<{
     metrics: Metrics;
   }>("/api/newsletters/metrics", fetcher, {
     revalidateOnFocus: false,
@@ -100,6 +100,7 @@ export default function SubscribersPage() {
   const {
     data: subscribersData,
     isLoading: isSubscribersLoading,
+    isValidating: isSubscribersValidating,
     mutate: mutateSubscribers,
   } = useSWR<{ subscribers: Subscriber[] }>(
     `/api/newsletters/subscribers?search=${encodeURIComponent(search)}&status=${statusFilter}`,
@@ -108,6 +109,19 @@ export default function SubscribersPage() {
       revalidateOnFocus: false,
     }
   );
+
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setIsManualRefreshing(true);
+    try {
+      await Promise.all([mutateSubscribers(), mutateMetrics()]);
+    } finally {
+      setTimeout(() => setIsManualRefreshing(false), 500);
+    }
+  }, [mutateSubscribers, mutateMetrics]);
+
+  const isSpinning = isManualRefreshing || isSubscribersValidating || isMetricsValidating;
 
   const metrics = useMemo(() => metricsData?.metrics || {
     totalSubscribers: 0,
@@ -371,42 +385,47 @@ export default function SubscribersPage() {
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-background">
-        <AdminTopBar breadcrumbs="Newsletter" />
+        <AdminTopBar
+          breadcrumbs={[
+            { label: "Newsletter", href: "/newsletters" },
+            { label: "Subscribers", href: "/newsletters" },
+          ]}
+        />
 
-        <main className="flex-1 w-full px-[15px] md:px-[20px] lg:px-[30px] py-6 space-y-6">
-          {/* Title Bar & Quick Actions */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                  <Users className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500" />
-                  Audience &amp; Subscribers Hub
-                </h1>
-                {/* Provider Connection Status Indicator */}
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[11px] font-medium text-emerald-500">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                  </span>
-                  <span>SMTP Connected</span>
-                  {metrics.senderEmail && (
-                    <span className="text-muted-foreground hidden sm:inline">
-                      &bull; {metrics.senderEmail}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                Manage your audience list, monitor returning readers, and bulk import or export contacts.
-              </p>
+        <main className="flex-1 w-full px-[15px] md:px-[20px] lg:px-[30px] py-4 space-y-5">
+          {/* Clean Action Bar - Redundant Heading Removed */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
+            {/* Provider Connection Status Indicator */}
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-500">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span>SMTP Connected</span>
+              {metrics.senderEmail && (
+                <span className="text-muted-foreground hidden sm:inline">
+                  &bull; {metrics.senderEmail}
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
               <Button
                 variant="outline"
                 size="sm"
+                onClick={handleRefresh}
+                disabled={isSpinning}
+                className="text-xs h-8.5 gap-1.5 cursor-pointer rounded-sm text-muted-foreground hover:text-foreground"
+                title="Refresh subscribers & metrics"
+              >
+                <RefreshCw className={cn("w-3.5 h-3.5", isSpinning && "animate-spin text-amber-500")} />
+                <span className="hidden sm:inline">Refresh</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleExportCsv}
-                className="text-xs h-9 gap-1.5 cursor-pointer rounded-sm"
+                className="text-xs h-8.5 gap-1.5 cursor-pointer rounded-sm"
               >
                 <Download className="w-3.5 h-3.5" />
                 Export CSV
@@ -418,7 +437,7 @@ export default function SubscribersPage() {
                   setAddModalTab("csv");
                   setIsAddModalOpen(true);
                 }}
-                className="text-xs h-9 gap-1.5 cursor-pointer hover:border-amber-500/50 rounded-sm"
+                className="text-xs h-8.5 gap-1.5 cursor-pointer hover:border-amber-500/50 rounded-sm"
               >
                 <Upload className="w-3.5 h-3.5 text-amber-500" />
                 Import CSV
@@ -430,7 +449,7 @@ export default function SubscribersPage() {
                   setAddModalTab("manual");
                   setIsAddModalOpen(true);
                 }}
-                className="text-xs h-9 gap-1.5 cursor-pointer rounded-sm"
+                className="text-xs h-8.5 gap-1.5 cursor-pointer rounded-sm"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Add Reader
@@ -439,7 +458,7 @@ export default function SubscribersPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="text-xs h-9 gap-1.5 cursor-pointer rounded-sm"
+                  className="text-xs h-8.5 gap-1.5 cursor-pointer rounded-sm"
                 >
                   <Clock className="w-3.5 h-3.5" />
                   Campaign History
@@ -448,10 +467,10 @@ export default function SubscribersPage() {
               <Link href="/newsletters/compose">
                 <Button
                   size="sm"
-                  className="text-xs h-9 gap-1.5 bg-primary text-primary-foreground font-semibold cursor-pointer shadow-xs rounded-sm hover:opacity-90"
+                  className="text-xs h-8.5 gap-1.5 bg-primary text-primary-foreground font-semibold cursor-pointer shadow-xs rounded-sm hover:opacity-90"
                 >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Compose Blast
+                  <Send className="w-3.5 h-3.5" />
+                  Send Newsletter
                 </Button>
               </Link>
             </div>
@@ -484,11 +503,12 @@ export default function SubscribersPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => mutateSubscribers()}
+                  onClick={handleRefresh}
+                  disabled={isSpinning}
                   className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground cursor-pointer rounded-sm"
                   title="Refresh subscriber list"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
+                  <RefreshCw className={cn("w-3.5 h-3.5", isSpinning && "animate-spin text-amber-500")} />
                 </Button>
               </div>
             }

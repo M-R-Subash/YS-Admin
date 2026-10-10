@@ -16,6 +16,7 @@ import {
   Sparkles,
   Clock,
   FilterX,
+  Send,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -46,6 +47,7 @@ import {
   Campaign,
 } from "./campaigns-columns";
 import { BRAND_LOGO_URL, formatEmailBody } from "@/lib/newsletter/templates";
+import { cn } from "@/lib/utils";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -70,6 +72,7 @@ export default function CampaignHistoryPage() {
   const {
     data: campaignsData,
     isLoading: isCampaignsLoading,
+    isValidating: isCampaignsValidating,
     mutate: mutateCampaigns,
   } = useSWR<{ campaigns: Campaign[] }>(
     "/api/newsletters/campaigns",
@@ -89,12 +92,25 @@ export default function CampaignHistoryPage() {
     campaignsData?.campaigns?.some((c) => c.status === "processing")
   );
 
-  const { data: metricsData, mutate: mutateMetrics } = useSWR<{
+  const { data: metricsData, mutate: mutateMetrics, isValidating: isMetricsValidating } = useSWR<{
     metrics: Metrics;
   }>("/api/newsletters/metrics", fetcher, {
     refreshInterval: hasProcessingCampaign ? 4000 : 0,
     revalidateOnFocus: false,
   });
+
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setIsManualRefreshing(true);
+    try {
+      await Promise.all([mutateCampaigns(), mutateMetrics()]);
+    } finally {
+      setTimeout(() => setIsManualRefreshing(false), 500);
+    }
+  }, [mutateCampaigns, mutateMetrics]);
+
+  const isSpinning = isManualRefreshing || isCampaignsValidating || isMetricsValidating;
 
   const campaigns = useMemo(() => campaignsData?.campaigns || [], [campaignsData]);
   const metrics = useMemo(() => metricsData?.metrics || {
@@ -271,40 +287,40 @@ export default function CampaignHistoryPage() {
           ]}
         />
 
-        <main className="flex-1 w-full px-[15px] md:px-[20px] lg:px-[30px] py-6 space-y-6">
-          {/* Title Bar & Quick Actions */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                  <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500" />
-                  Campaign History &amp; Analytics
-                </h1>
-                {/* Provider Connection Status Indicator */}
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[11px] font-medium text-emerald-500">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                  </span>
-                  <span>SMTP Connected</span>
-                  {metrics.senderEmail && (
-                    <span className="text-muted-foreground hidden sm:inline">
-                      &bull; {metrics.senderEmail}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                Review delivered dispatches, inspect failure trace diagnostics, and trigger retries.
-              </p>
+        <main className="flex-1 w-full px-[15px] md:px-[20px] lg:px-[30px] py-4 space-y-5">
+          {/* Clean Action Bar - Redundant Heading Removed */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
+            {/* Provider Connection Status Indicator */}
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-500">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span>SMTP Connected</span>
+              {metrics.senderEmail && (
+                <span className="text-muted-foreground hidden sm:inline">
+                  &bull; {metrics.senderEmail}
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isSpinning}
+                className="text-xs h-8.5 gap-1.5 cursor-pointer rounded-sm text-muted-foreground hover:text-foreground"
+                title="Refresh campaigns & metrics"
+              >
+                <RefreshCw className={cn("w-3.5 h-3.5", isSpinning && "animate-spin text-amber-500")} />
+                <span className="hidden sm:inline">Refresh</span>
+              </Button>
               <Link href="/newsletters">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="text-xs h-9 gap-1.5 cursor-pointer rounded-sm"
+                  className="text-xs h-8.5 gap-1.5 cursor-pointer rounded-sm"
                 >
                   <Users className="w-3.5 h-3.5" />
                   View Subscribers ({metrics.totalSubscribers})
@@ -313,10 +329,10 @@ export default function CampaignHistoryPage() {
               <Link href="/newsletters/compose">
                 <Button
                   size="sm"
-                  className="text-xs h-9 gap-1.5 bg-primary text-primary-foreground font-semibold cursor-pointer shadow-xs rounded-sm hover:opacity-90"
+                  className="text-xs h-8.5 gap-1.5 bg-primary text-primary-foreground font-semibold cursor-pointer shadow-xs rounded-sm hover:opacity-90"
                 >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Compose Blast
+                  <Send className="w-3.5 h-3.5" />
+                  Send Newsletter
                 </Button>
               </Link>
             </div>
@@ -349,11 +365,12 @@ export default function CampaignHistoryPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => mutateCampaigns()}
+                  onClick={handleRefresh}
+                  disabled={isSpinning}
                   className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground cursor-pointer rounded-sm"
                   title="Refresh campaign list"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
+                  <RefreshCw className={cn("w-3.5 h-3.5", isSpinning && "animate-spin text-amber-500")} />
                 </Button>
               </div>
             }

@@ -90,7 +90,7 @@ const navItems = [
         url: "/newsletters/campaigns",
       },
       {
-        title: "Compose Blast",
+        title: "Send Newsletter",
         url: "/newsletters/compose",
       },
     ],

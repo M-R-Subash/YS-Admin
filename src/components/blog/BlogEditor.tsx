@@ -89,6 +89,7 @@ interface BlogEditorProps {
   placeholder?: string;
   onWordCountChange?: (words: number) => void;
   className?: string;
+  mode?: "default" | "email";
 }
 
 const uploadToCloudinary = async (file: File): Promise<string> => {
@@ -150,7 +151,9 @@ export default function BlogEditor({
   placeholder,
   onWordCountChange,
   className,
+  mode = "default",
 }: BlogEditorProps) {
+  const isEmailMode = mode === "email";
   const isMounted = React.useSyncExternalStore(emptySubscribe, () => true, () => false);
   
   // Link popover state
@@ -475,13 +478,15 @@ export default function BlogEditor({
             title="Quote"
             shortcut="Ctrl+Shift+B"
           />
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-            isActive={editor.isActive("codeBlock")}
-            icon={<Code className="w-4 h-4" />}
-            title="Code Block"
-            shortcut="Ctrl+Alt+C"
-          />
+          {!isEmailMode && (
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+              isActive={editor.isActive("codeBlock")}
+              icon={<Code className="w-4 h-4" />}
+              title="Code Block"
+              shortcut="Ctrl+Alt+C"
+            />
+          )}
           <ToolbarButton
             onClick={() => editor.chain().focus().setHorizontalRule().run()}
             icon={<Minus className="w-4 h-4" />}
@@ -513,27 +518,31 @@ export default function BlogEditor({
             title="Heading 3"
             shortcut="Ctrl+Alt+3"
           />
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()}
-            isActive={editor.isActive("heading", { level: 4 })}
-            icon={<Heading4 className="w-4 h-4" />}
-            title="Heading 4"
-            shortcut="Ctrl+Alt+4"
-          />
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleHeading({ level: 5 }).run()}
-            isActive={editor.isActive("heading", { level: 5 })}
-            icon={<Heading5 className="w-4 h-4" />}
-            title="Heading 5"
-            shortcut="Ctrl+Alt+5"
-          />
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleHeading({ level: 6 }).run()}
-            isActive={editor.isActive("heading", { level: 6 })}
-            icon={<Heading6 className="w-4 h-4" />}
-            title="Heading 6"
-            shortcut="Ctrl+Alt+6"
-          />
+          {!isEmailMode && (
+            <>
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()}
+                isActive={editor.isActive("heading", { level: 4 })}
+                icon={<Heading4 className="w-4 h-4" />}
+                title="Heading 4"
+                shortcut="Ctrl+Alt+4"
+              />
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleHeading({ level: 5 }).run()}
+                isActive={editor.isActive("heading", { level: 5 })}
+                icon={<Heading5 className="w-4 h-4" />}
+                title="Heading 5"
+                shortcut="Ctrl+Alt+5"
+              />
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleHeading({ level: 6 }).run()}
+                isActive={editor.isActive("heading", { level: 6 })}
+                icon={<Heading6 className="w-4 h-4" />}
+                title="Heading 6"
+                shortcut="Ctrl+Alt+6"
+              />
+            </>
+          )}
         </div>
 
         {/* Alignment Group */}
@@ -559,13 +568,15 @@ export default function BlogEditor({
             title="Align Right"
             shortcut="Ctrl+Shift+R"
           />
-          <ToolbarButton
-            onClick={() => editor.chain().focus().setTextAlign('justify').run()}
-            isActive={editor.isActive({ textAlign: 'justify' })}
-            icon={<AlignJustify className="w-4 h-4" />}
-            title="Justify"
-            shortcut="Ctrl+Shift+J"
-          />
+          {!isEmailMode && (
+            <ToolbarButton
+              onClick={() => editor.chain().focus().setTextAlign('justify').run()}
+              isActive={editor.isActive({ textAlign: 'justify' })}
+              icon={<AlignJustify className="w-4 h-4" />}
+              title="Justify"
+              shortcut="Ctrl+Shift+J"
+            />
+          )}
         </div>
 
         {/* Lists Group */}
@@ -584,13 +595,15 @@ export default function BlogEditor({
             title="Ordered List"
             shortcut="Ctrl+Shift+7"
           />
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleTaskList().run()}
-            isActive={editor.isActive("taskList")}
-            icon={<CheckSquare className="w-4 h-4" />}
-            title="Task List"
-            shortcut="Ctrl+Shift+9"
-          />
+          {!isEmailMode && (
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleTaskList().run()}
+              isActive={editor.isActive("taskList")}
+              icon={<CheckSquare className="w-4 h-4" />}
+              title="Task List"
+              shortcut="Ctrl+Shift+9"
+            />
+          )}
         </div>
 
         {/* Media & Links Group */}
@@ -707,18 +720,21 @@ export default function BlogEditor({
             )}
           />
 
-          <ToolbarButton
-            onClick={() => {
-              setVideoUrl("");
-              setVideoError("");
-              setShowVideoModal(true);
-            }}
-            icon={<YoutubeIcon className="w-4 h-4 text-red-500" />}
-            title="Insert YouTube Video"
-          />
+          {!isEmailMode && (
+            <ToolbarButton
+              onClick={() => {
+                setVideoUrl("");
+                setVideoError("");
+                setShowVideoModal(true);
+              }}
+              icon={<YoutubeIcon className="w-4 h-4 text-red-500" />}
+              title="Insert YouTube Video"
+            />
+          )}
         </div>
 
         {/* Tables Group */}
+        {!isEmailMode && (
         <div className="flex items-center gap-1 pl-2 shrink-0">
           <Popover open={showTablePopover} onOpenChange={setShowTablePopover}>
             <Tooltip>
@@ -825,6 +841,7 @@ export default function BlogEditor({
             </PopoverContent>
           </Popover>
         </div>
+        )}
       </div>
 
       {/* Editor Content Area */}
