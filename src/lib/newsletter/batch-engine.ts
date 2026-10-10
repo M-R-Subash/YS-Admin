@@ -260,7 +260,7 @@ export async function retryFailedCampaignDispatch(campaignId: string): Promise<{
 
   // If failedEmails was not recorded yet (e.g., initial campaigns where failedCount > 0),
   // retry across all currently active subscribers
-  let subscribersToRetry = targetFailedEmails.length > 0
+  const subscribersToRetry = targetFailedEmails.length > 0
     ? await prisma.subscriber.findMany({
         where: { email: { in: targetFailedEmails }, status: "active" },
         select: { id: true, email: true, unsubscribeToken: true },

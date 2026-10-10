@@ -95,7 +95,7 @@ export function getSubscribersColumns({
               {initials}
             </div>
             <div className="flex items-center gap-2 min-w-0">
-              <span className="font-semibold text-foreground text-xs truncate max-w-[240px] sm:max-w-none">
+              <span className="font-semibold text-foreground text-xs truncate max-w-60 sm:max-w-none">
                 {sub.email}
               </span>
               <Tooltip>

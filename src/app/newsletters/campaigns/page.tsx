@@ -491,7 +491,7 @@ export default function CampaignHistoryPage() {
           ]}
         />
 
-        <main className="flex-1 w-full px-[15px] md:px-[20px] lg:px-[30px] py-4 space-y-5">
+        <main className="flex-1 w-full px-3.75 md:px-5 lg:px-7.5 py-4 space-y-5">
           {/* Clean Action Bar with Navigation on Left and Send Button on Right */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
             <div className="flex items-center gap-2 flex-wrap">
@@ -860,7 +860,7 @@ export default function CampaignHistoryPage() {
                   </div>
 
                   {parsedErrorInfo?.error && (
-                    <div className="font-mono text-xs bg-black/60 p-3 rounded-lg border border-rose-500/20 text-rose-300 break-words leading-relaxed">
+                    <div className="font-mono text-xs bg-black/60 p-3 rounded-lg border border-rose-500/20 text-rose-300 wrap-break-word leading-relaxed">
                       {parsedErrorInfo.error}
                     </div>
                   )}
@@ -895,7 +895,7 @@ export default function CampaignHistoryPage() {
                 </span>
                 <div className="rounded-xl border border-border bg-[#050505] p-3 sm:p-4 text-white overflow-hidden shadow-inner">
                   <div className="rounded-lg border border-[#1f242d] bg-[#0a0c10] overflow-hidden">
-                    <div className="p-3.5 bg-gradient-to-r from-[#0a0c10] to-[#121622] border-b border-[#1f242d] flex items-center justify-between">
+                    <div className="p-3.5 bg-linear-to-r from-[#0a0c10] to-[#121622] border-b border-[#1f242d] flex items-center justify-between">
                       <img
                         src={BRAND_LOGO_URL}
                         alt="YS Innovations"

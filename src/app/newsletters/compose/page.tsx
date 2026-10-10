@@ -58,7 +58,7 @@ import { SchedulePostModal } from "@/components/blog/dialogs/SchedulePostModal";
 const BlogEditor = dynamic(() => import("@/components/blog/BlogEditor"), {
   ssr: false,
   loading: () => (
-    <div className="h-[460px] flex flex-col gap-3 p-5 bg-card rounded-xl border border-border animate-pulse">
+    <div className="h-115 flex flex-col gap-3 p-5 bg-card rounded-xl border border-border animate-pulse">
       <Skeleton className="h-9 w-full rounded-md" />
       <Skeleton className="h-64 w-full rounded-md" />
     </div>
@@ -348,7 +348,7 @@ export default function ComposeBlastPage() {
           ]}
         />
 
-        <main className="flex-1 w-full px-[15px] md:px-[20px] lg:px-[30px] py-4 space-y-5">
+        <main className="flex-1 w-full px-3.75 md:px-5 lg:px-7.5 py-4 space-y-5">
           {/* Top Bar with View Tabs on Left and Send Button on Right */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
             {/* Left: View Tabs */}
@@ -385,7 +385,7 @@ export default function ComposeBlastPage() {
                 type="button"
                 onClick={() => setActiveTab("split")}
                 className={cn(
-                  "px-2.5 py-1 text-xs font-medium rounded-xs transition-colors cursor-pointer flex items-center gap-1.5 hidden md:flex",
+                  "px-2.5 py-1 text-xs font-medium rounded-xs transition-colors cursor-pointer items-center gap-1.5 hidden md:flex",
                   activeTab === "split"
                     ? "bg-card text-foreground shadow-2xs font-semibold"
                     : "text-muted-foreground hover:text-foreground",
@@ -566,7 +566,7 @@ export default function ComposeBlastPage() {
                 </div>
 
                 {/* Email Body Editor - mode="email" hides irrelevant extensions */}
-                <div className="min-h-[460px]">
+                <div className="min-h-115">
                   <BlogEditor
                     value={blastContent}
                     outputFormat="html"
@@ -694,13 +694,13 @@ export default function ComposeBlastPage() {
                   </div>
 
                   {/* Email Canvas Viewport - Always displays the designed dark branded email template */}
-                  <div className="p-4 sm:p-6 bg-[#050505] min-h-[460px] max-h-[680px] overflow-y-auto">
+                  <div className="p-4 sm:p-6 bg-[#050505] min-h-115 max-h-170 overflow-y-auto">
                     <div
                       className={cn(
                         "transition-all mx-auto",
                         previewDevice === "mobile"
-                          ? "max-w-[340px] rounded-[32px] border-[6px] border-zinc-800 p-2 shadow-2xl bg-zinc-950"
-                          : "max-w-[620px] w-full",
+                          ? "max-w-85 rounded-[32px] border-[6px] border-zinc-800 p-2 shadow-2xl bg-zinc-950"
+                          : "max-w-155 w-full",
                       )}
                     >
                       {/* Mobile Dynamic Island Bar */}
@@ -711,7 +711,7 @@ export default function ComposeBlastPage() {
                       {/* Actual Designed Branded Email Template */}
                       <div className="bg-[#0a0c10] rounded-xl border border-[#1f242d] overflow-hidden shadow-2xl text-zinc-200">
                         {/* Brand Banner Header */}
-                        <div className="px-5 py-3.5 bg-gradient-to-r from-[#0a0c10] to-[#121622] border-b border-[#1f242d] flex items-center justify-between">
+                        <div className="px-5 py-3.5 bg-linear-to-r from-[#0a0c10] to-[#121622] border-b border-[#1f242d] flex items-center justify-between">
                           <img
                             src={BRAND_LOGO_URL}
                             alt="YS Innovations"
@@ -733,7 +733,7 @@ export default function ComposeBlastPage() {
                         </div>
 
                         {/* Body Render */}
-                        <div className="p-5 sm:p-6 text-xs sm:text-sm leading-relaxed text-gray-300 min-h-[220px] bg-[#0a0c10]">
+                        <div className="p-5 sm:p-6 text-xs sm:text-sm leading-relaxed text-gray-300 min-h-55 bg-[#0a0c10]">
                           {blastContent ? (
                             <div
                               dangerouslySetInnerHTML={{

@@ -203,7 +203,7 @@ export function getCampaignsColumns({
             : 0;
 
         return (
-          <div className="space-y-1.5 min-w-[140px]">
+          <div className="space-y-1.5 min-w-35">
             <div className="flex items-center justify-between text-[11px] text-muted-foreground">
               <span className="font-medium text-foreground">
                 {camp.successCount} / {camp.totalRecipients}

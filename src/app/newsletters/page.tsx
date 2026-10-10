@@ -431,7 +431,7 @@ export default function SubscribersPage() {
           ]}
         />
 
-        <main className="flex-1 w-full px-[15px] md:px-[20px] lg:px-[30px] py-4 space-y-5">
+        <main className="flex-1 w-full px-3.75 md:px-5 lg:px-7.5 py-4 space-y-5">
           {/* Clean Action Bar with Actions on Left and Send Button on Right */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
             <div className="flex items-center gap-2 flex-wrap">
@@ -655,7 +655,7 @@ export default function SubscribersPage() {
 
             {/* TAB CONTENT: CSV UPLOAD */}
             {addModalTab === "csv" ? (
-              <div className="h-[275px] flex flex-col justify-between text-xs">
+              <div className="h-68.75 flex flex-col justify-between text-xs">
                 {!csvFile ? (
                   <div
                     onDragOver={(e) => {
@@ -784,7 +784,7 @@ export default function SubscribersPage() {
                 </div>
               </div>
             ) : (
-              <div className="h-[275px] flex flex-col justify-between text-xs gap-2">
+              <div className="h-68.75 flex flex-col justify-between text-xs gap-2">
                 <div className="flex items-center justify-between shrink-0">
                   <span className="text-muted-foreground">
                     Enter email addresses separated by commas, spaces, or new

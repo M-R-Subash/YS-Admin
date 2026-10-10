@@ -54,8 +54,9 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       count: created.count,
+      reactivatedCount: reactivated.count,
       totalProcessed: uniqueEmails.length,
-      message: `Successfully processed ${uniqueEmails.length} subscriber(s). Added ${created.count} new.`,
+      message: `Successfully processed ${uniqueEmails.length} subscriber(s). Added ${created.count} new, reactivated ${reactivated.count}.`,
     });
   } catch (error: any) {
     console.error("[API:Newsletters:Subscribers:Bulk] Error:", error);

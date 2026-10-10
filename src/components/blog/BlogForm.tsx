@@ -358,7 +358,6 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       );
     }
   }, [
-    isEditMode,
     initialData,
     title,
     slug,

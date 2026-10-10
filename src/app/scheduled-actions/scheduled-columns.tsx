@@ -92,7 +92,7 @@ export const getScheduledColumns = ({
       const isNewsletter = item.itemType === "newsletter";
 
       return (
-        <div className="flex items-center gap-3 w-full max-w-[240px] md:max-w-[260px] min-w-0">
+        <div className="flex items-center gap-3 w-full max-w-60 md:max-w-65 min-w-0">
           {isNewsletter ? (
             <div className="w-10 h-10 rounded-sm bg-violet-500/10 text-violet-600 dark:text-violet-400 flex items-center justify-center shrink-0 border border-violet-500/25">
               <Mail className="w-5 h-5" />
