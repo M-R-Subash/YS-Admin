@@ -153,7 +153,7 @@ const serverEnvSchema = z.object({
 
   // Email & Newsletter Engine
   EMAIL_PROVIDER: z.string().min(1, "EMAIL_PROVIDER is required"),
-  RESEND_API_KEY: z.string().min(1, "RESEND_API_KEY is required"),
+  RESEND_API_KEY: z.string().optional().default(""),
   EMAIL_FROM: z.string().min(1, "EMAIL_FROM is required"),
   EMAIL_REPLY_TO: z.string().email("EMAIL_REPLY_TO must be a valid email address"),
   SMTP_HOST: z.string().optional(),

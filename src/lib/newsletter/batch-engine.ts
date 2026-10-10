@@ -89,7 +89,7 @@ export async function executeCampaignDispatch(campaignId: string): Promise<{
   });
 
   const provider = getEmailProvider();
-  const domain = serverConfig.auth.nextAuthUrl.replace(/\/$/, "");
+  const domain = (serverConfig.app.frontendUrl).replace(/\/$/, "");
 
   const chunks = chunkArray(subscribers, BATCH_SIZE);
   let totalSuccess = 0;
@@ -288,7 +288,7 @@ export async function retryFailedCampaignDispatch(campaignId: string): Promise<{
   });
 
   const provider = getEmailProvider();
-  const domain = serverConfig.auth.nextAuthUrl.replace(/\/$/, "");
+  const domain = (serverConfig.app.frontendUrl).replace(/\/$/, "");
   const chunks = chunkArray(subscribersToRetry, BATCH_SIZE);
 
   let newlySucceeded = 0;
@@ -415,7 +415,7 @@ export async function sendTestEmail(
   contentHtml: string
 ): Promise<{ success: boolean; error?: string }> {
   const provider = getEmailProvider();
-  const domain = serverConfig.auth.nextAuthUrl.replace(/\/$/, "");
+  const domain = (serverConfig.app.frontendUrl).replace(/\/$/, "");
   const sampleUnsubscribeUrl = `${domain}/api/newsletter/unsubscribe?token=sample-test-token`;
 
   const html = renderCustomBlastHtml(`[TEST PREVIEW] ${subject}`, contentHtml, sampleUnsubscribeUrl);
