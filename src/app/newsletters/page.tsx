@@ -12,12 +12,11 @@ import {
   Plus,
   Loader2,
   RefreshCw,
-  Send,
   Upload,
   RotateCcw,
-  Clock,
   FilterX,
   CheckCircle2,
+  Send,
 } from "lucide-react";
 
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
@@ -44,10 +43,7 @@ import {
 } from "@/components/admin/ContentFilterBar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DataTable } from "@/components/ui/data-table";
-import {
-  getSubscribersColumns,
-  Subscriber,
-} from "./subscribers-columns";
+import { getSubscribersColumns, Subscriber } from "./subscribers-columns";
 import { cn } from "@/lib/utils";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -85,13 +81,17 @@ export default function SubscribersPage() {
   const manualParsedEmails = useMemo(() => {
     if (!newEmailsInput.trim()) return [];
     const matches = newEmailsInput.match(
-      /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g
+      /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
     );
     if (!matches) return [];
     return Array.from(new Set(matches.map((e) => e.toLowerCase().trim())));
   }, [newEmailsInput]);
 
-  const { data: metricsData, mutate: mutateMetrics, isValidating: isMetricsValidating } = useSWR<{
+  const {
+    data: metricsData,
+    mutate: mutateMetrics,
+    isValidating: isMetricsValidating,
+  } = useSWR<{
     metrics: Metrics;
   }>("/api/newsletters/metrics", fetcher, {
     revalidateOnFocus: false,
@@ -107,7 +107,7 @@ export default function SubscribersPage() {
     fetcher,
     {
       revalidateOnFocus: false,
-    }
+    },
   );
 
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
@@ -121,19 +121,27 @@ export default function SubscribersPage() {
     }
   }, [mutateSubscribers, mutateMetrics]);
 
-  const isSpinning = isManualRefreshing || isSubscribersValidating || isMetricsValidating;
+  const isSpinning =
+    isManualRefreshing || isSubscribersValidating || isMetricsValidating;
 
-  const metrics = useMemo(() => metricsData?.metrics || {
-    totalSubscribers: 0,
-    activeSubscribers: 0,
-    unsubscribedSubscribers: 0,
-    returnedSubscribers: 0,
-    totalCampaigns: 0,
-    totalEmailsSent: 0,
-    avgDeliveryRate: 100,
-  }, [metricsData]);
+  const metrics = useMemo(
+    () =>
+      metricsData?.metrics || {
+        totalSubscribers: 0,
+        activeSubscribers: 0,
+        unsubscribedSubscribers: 0,
+        returnedSubscribers: 0,
+        totalCampaigns: 0,
+        totalEmailsSent: 0,
+        avgDeliveryRate: 100,
+      },
+    [metricsData],
+  );
 
-  const subscribers = useMemo(() => subscribersData?.subscribers || [], [subscribersData]);
+  const subscribers = useMemo(
+    () => subscribersData?.subscribers || [],
+    [subscribersData],
+  );
 
   const handleCopyEmail = useCallback((email: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -159,10 +167,10 @@ export default function SubscribersPage() {
           return;
         }
         const matches = text.match(
-          /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g
+          /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
         );
         const unique = Array.from(
-          new Set((matches || []).map((em) => em.toLowerCase().trim()))
+          new Set((matches || []).map((em) => em.toLowerCase().trim())),
         );
         setCsvParsedEmails(unique);
         if (unique.length === 0) {
@@ -235,8 +243,7 @@ export default function SubscribersPage() {
         mutateMetrics();
         toast.add({
           title:
-            data.message ||
-            `Processed ${emailsToImport.length} subscriber(s)`,
+            data.message || `Processed ${emailsToImport.length} subscriber(s)`,
           type: "success",
         });
       } else {
@@ -256,26 +263,32 @@ export default function SubscribersPage() {
   }
 
   // Toggle Subscriber Status
-  const handleToggleStatus = useCallback(async (sub: Subscriber) => {
-    const nextStatus = sub.status === "active" ? "unsubscribed" : "active";
-    try {
-      const res = await fetch(`/api/newsletters/subscribers/${sub.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: nextStatus }),
-      });
-      if (res.ok) {
-        toast.add({
-          title: `Marked as ${nextStatus === "active" ? "Active" : "Unsubscribed"}`,
-          type: "success",
+  const handleToggleStatus = useCallback(
+    async (sub: Subscriber) => {
+      const nextStatus = sub.status === "active" ? "unsubscribed" : "active";
+      try {
+        const res = await fetch(`/api/newsletters/subscribers/${sub.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: nextStatus }),
         });
-        mutateSubscribers();
-        mutateMetrics();
+        if (res.ok) {
+          toast.add({
+            title: `Marked as ${nextStatus === "active" ? "Active" : "Unsubscribed"}`,
+            type: "success",
+          });
+          mutateSubscribers();
+          mutateMetrics();
+        }
+      } catch {
+        toast.add({
+          title: "Failed to update subscriber status",
+          type: "error",
+        });
       }
-    } catch {
-      toast.add({ title: "Failed to update subscriber status", type: "error" });
-    }
-  }, [mutateSubscribers, mutateMetrics]);
+    },
+    [mutateSubscribers, mutateMetrics],
+  );
 
   // Delete Subscriber
   async function handleDeleteSubscriber() {
@@ -286,7 +299,7 @@ export default function SubscribersPage() {
         `/api/newsletters/subscribers/${deleteTargetId}`,
         {
           method: "DELETE",
-        }
+        },
       );
       if (res.ok) {
         toast.add({ title: "Subscriber removed permanently", type: "success" });
@@ -306,70 +319,96 @@ export default function SubscribersPage() {
     window.open("/api/newsletters/subscribers/export", "_blank");
   }
 
-  const metricCards = useMemo<MetricCardItem[]>(() => [
-    {
-      id: "all",
-      label: "All Readers",
-      count: metrics.totalSubscribers.toLocaleString(),
-      icon: Users,
-      color: "primary",
-      isActive: statusFilter === "all",
-      onClick: () => setStatusFilter("all"),
-      badgeLabel: "Audience",
-    },
-    {
-      id: "active",
-      label: "Active Readers",
-      count: metrics.activeSubscribers.toLocaleString(),
-      icon: UserCheck,
-      color: "emerald",
-      isActive: statusFilter === "active",
-      onClick: () => setStatusFilter("active"),
-      badgeLabel: "Subscribed",
-    },
-    {
-      id: "returned",
-      label: "Returned Readers",
-      count: (metrics.returnedSubscribers || 0).toLocaleString(),
-      icon: RotateCcw,
-      color: "purple",
-      isActive: statusFilter === "returned",
-      onClick: () => setStatusFilter("returned"),
-      badgeLabel:
-        metrics.activeSubscribers > 0
-          ? `${Math.round(((metrics.returnedSubscribers || 0) / metrics.activeSubscribers) * 100)}% re-opted`
-          : undefined,
-    },
-    {
-      id: "unsubscribed",
-      label: "Opted Out",
-      count: metrics.unsubscribedSubscribers.toLocaleString(),
-      icon: UserX,
-      color: "red",
-      isActive: statusFilter === "unsubscribed",
-      onClick: () => setStatusFilter("unsubscribed"),
-      badgeLabel:
-        metrics.totalSubscribers > 0
-          ? `${Math.round((metrics.unsubscribedSubscribers / metrics.totalSubscribers) * 100)}%`
-          : undefined,
-    },
-    {
-      id: "campaigns",
-      label: "Campaigns Dispatched",
-      count: metrics.totalCampaigns.toLocaleString(),
-      icon: Mail,
-      color: "amber",
-      isActive: false,
-      badgeLabel: `${metrics.avgDeliveryRate}% delivery rate`,
-    },
-  ], [metrics, statusFilter]);
+  const metricCards = useMemo<MetricCardItem[]>(
+    () => [
+      {
+        id: "all",
+        label: "All Readers",
+        count: metrics.totalSubscribers.toLocaleString(),
+        icon: Users,
+        color: "primary",
+        isActive: statusFilter === "all",
+        onClick: () => setStatusFilter("all"),
+        badgeLabel: "Audience",
+      },
+      {
+        id: "active",
+        label: "Active Readers",
+        count: metrics.activeSubscribers.toLocaleString(),
+        icon: UserCheck,
+        color: "emerald",
+        isActive: statusFilter === "active",
+        onClick: () => setStatusFilter("active"),
+        badgeLabel: "Subscribed",
+      },
+      {
+        id: "returned",
+        label: "Returned Readers",
+        count: (metrics.returnedSubscribers || 0).toLocaleString(),
+        icon: RotateCcw,
+        color: "purple",
+        isActive: statusFilter === "returned",
+        onClick: () => setStatusFilter("returned"),
+        badgeLabel:
+          metrics.activeSubscribers > 0
+            ? `${Math.round(((metrics.returnedSubscribers || 0) / metrics.activeSubscribers) * 100)}% re-opted`
+            : undefined,
+      },
+      {
+        id: "unsubscribed",
+        label: "Opted Out",
+        count: metrics.unsubscribedSubscribers.toLocaleString(),
+        icon: UserX,
+        color: "red",
+        isActive: statusFilter === "unsubscribed",
+        onClick: () => setStatusFilter("unsubscribed"),
+        badgeLabel:
+          metrics.totalSubscribers > 0
+            ? `${Math.round((metrics.unsubscribedSubscribers / metrics.totalSubscribers) * 100)}%`
+            : undefined,
+      },
+      {
+        id: "campaigns",
+        label: "Campaigns Dispatched",
+        count: metrics.totalCampaigns.toLocaleString(),
+        icon: Mail,
+        color: "amber",
+        isActive: false,
+        badgeLabel: `${metrics.avgDeliveryRate}% delivery rate`,
+      },
+    ],
+    [metrics, statusFilter],
+  );
 
-  const filterTabs = useMemo<ContentFilterTab[]>(() => [
-    { id: "all", label: "All Readers", count: metrics.totalSubscribers, color: "primary" },
-    { id: "active", label: "Active", count: metrics.activeSubscribers, color: "emerald" },
-    { id: "returned", label: "Returned", count: metrics.returnedSubscribers || 0, color: "purple" },
-    { id: "unsubscribed", label: "Opted Out", count: metrics.unsubscribedSubscribers, color: "red" },
-  ], [metrics]);
+  const filterTabs = useMemo<ContentFilterTab[]>(
+    () => [
+      {
+        id: "all",
+        label: "All Readers",
+        count: metrics.totalSubscribers,
+        color: "primary",
+      },
+      {
+        id: "active",
+        label: "Active",
+        count: metrics.activeSubscribers,
+        color: "emerald",
+      },
+      {
+        id: "returned",
+        label: "Returned",
+        count: metrics.returnedSubscribers || 0,
+        color: "purple",
+      },
+      {
+        id: "unsubscribed",
+        label: "Opted Out",
+        count: metrics.unsubscribedSubscribers,
+        color: "red",
+      },
+    ],
+    [metrics],
+  );
 
   const columns = useMemo(
     () =>
@@ -379,7 +418,7 @@ export default function SubscribersPage() {
         copiedEmail,
         onCopyEmail: handleCopyEmail,
       }),
-    [copiedEmail, handleToggleStatus, handleCopyEmail]
+    [copiedEmail, handleToggleStatus, handleCopyEmail],
   );
 
   return (
@@ -393,34 +432,9 @@ export default function SubscribersPage() {
         />
 
         <main className="flex-1 w-full px-[15px] md:px-[20px] lg:px-[30px] py-4 space-y-5">
-          {/* Clean Action Bar - Redundant Heading Removed */}
+          {/* Clean Action Bar with Actions on Left and Send Button on Right */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
-            {/* Provider Connection Status Indicator */}
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-500">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <span>SMTP Connected</span>
-              {metrics.senderEmail && (
-                <span className="text-muted-foreground hidden sm:inline">
-                  &bull; {metrics.senderEmail}
-                </span>
-              )}
-            </div>
-
             <div className="flex items-center gap-2 flex-wrap">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRefresh}
-                disabled={isSpinning}
-                className="text-xs h-8.5 gap-1.5 cursor-pointer rounded-sm text-muted-foreground hover:text-foreground"
-                title="Refresh subscribers & metrics"
-              >
-                <RefreshCw className={cn("w-3.5 h-3.5", isSpinning && "animate-spin text-amber-500")} />
-                <span className="hidden sm:inline">Refresh</span>
-              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -454,16 +468,9 @@ export default function SubscribersPage() {
                 <Plus className="w-3.5 h-3.5" />
                 Add Reader
               </Button>
-              <Link href="/newsletters/campaigns">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs h-8.5 gap-1.5 cursor-pointer rounded-sm"
-                >
-                  <Clock className="w-3.5 h-3.5" />
-                  Campaign History
-                </Button>
-              </Link>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
               <Link href="/newsletters/compose">
                 <Button
                   size="sm"
@@ -508,7 +515,12 @@ export default function SubscribersPage() {
                   className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground cursor-pointer rounded-sm"
                   title="Refresh subscriber list"
                 >
-                  <RefreshCw className={cn("w-3.5 h-3.5", isSpinning && "animate-spin text-amber-500")} />
+                  <RefreshCw
+                    className={cn(
+                      "w-3.5 h-3.5",
+                      isSpinning && "animate-spin text-amber-500",
+                    )}
+                  />
                 </Button>
               </div>
             }
@@ -525,14 +537,17 @@ export default function SubscribersPage() {
           ) : subscribers.length === 0 ? (
             <div className="text-center py-16 bg-card border border-border rounded-sm p-6">
               <div className="w-12 h-12 rounded-2xl bg-border/40 text-muted flex items-center justify-center mx-auto mb-3">
-                <Users className="w-6 h-6 text-muted-foreground" strokeWidth={2} />
+                <Users
+                  className="w-6 h-6 text-muted-foreground"
+                  strokeWidth={2}
+                />
               </div>
               <div className="text-foreground font-semibold text-base mb-1">
                 {search
                   ? `No subscribers matching "${search}"`
                   : statusFilter !== "all"
-                  ? `No ${statusFilter} subscribers found`
-                  : "No subscribers yet"}
+                    ? `No ${statusFilter} subscribers found`
+                    : "No subscribers yet"}
               </div>
               <p className="text-muted-foreground text-xs max-w-sm mx-auto">
                 {search || statusFilter !== "all"
@@ -585,7 +600,8 @@ export default function SubscribersPage() {
                     Manage &amp; Import Subscribers
                   </DialogTitle>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Add new readers manually or bulk import lists via CSV spreadsheet.
+                    Add new readers manually or bulk import lists via CSV
+                    spreadsheet.
                   </p>
                 </div>
               </div>
@@ -600,7 +616,7 @@ export default function SubscribersPage() {
                   "flex items-center gap-2 pb-2.5 px-3 text-xs font-semibold border-b-2 transition-all cursor-pointer",
                   addModalTab === "csv"
                     ? "border-amber-500 text-amber-500"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
                 )}
               >
                 <Upload className="w-3.5 h-3.5" />
@@ -621,7 +637,7 @@ export default function SubscribersPage() {
                   "flex items-center gap-2 pb-2.5 px-3 text-xs font-semibold border-b-2 transition-all cursor-pointer",
                   addModalTab === "manual"
                     ? "border-amber-500 text-amber-500"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
                 )}
               >
                 <Mail className="w-3.5 h-3.5" />
@@ -657,7 +673,7 @@ export default function SubscribersPage() {
                       "flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-5 text-center transition-all cursor-pointer",
                       isDraggingFile
                         ? "border-amber-500 bg-amber-500/10"
-                        : "border-border/80 hover:border-amber-500/50 bg-muted/10 hover:bg-muted/20"
+                        : "border-border/80 hover:border-amber-500/50 bg-muted/10 hover:bg-muted/20",
                     )}
                     onClick={() => {
                       document.getElementById("csv-file-input")?.click();
@@ -726,7 +742,8 @@ export default function SubscribersPage() {
                           <div className="flex items-center justify-between mb-1 shrink-0">
                             <span className="text-emerald-500 font-semibold flex items-center gap-1.5 text-xs">
                               <CheckCircle2 className="w-3.5 h-3.5" />
-                              {csvParsedEmails.length} valid email address{csvParsedEmails.length > 1 ? "es" : ""} found
+                              {csvParsedEmails.length} valid email address
+                              {csvParsedEmails.length > 1 ? "es" : ""} found
                             </span>
                           </div>
                           <div className="flex-1 overflow-y-auto flex flex-wrap gap-1 p-1 bg-background/50 rounded-lg">
@@ -770,14 +787,16 @@ export default function SubscribersPage() {
               <div className="h-[275px] flex flex-col justify-between text-xs gap-2">
                 <div className="flex items-center justify-between shrink-0">
                   <span className="text-muted-foreground">
-                    Enter email addresses separated by commas, spaces, or new lines:
+                    Enter email addresses separated by commas, spaces, or new
+                    lines:
                   </span>
                   {manualParsedEmails.length > 0 && (
                     <Badge
                       variant="outline"
                       className="border-amber-500/30 text-amber-500 bg-amber-500/10 text-[10px]"
                     >
-                      {manualParsedEmails.length} email{manualParsedEmails.length > 1 ? "s" : ""} detected
+                      {manualParsedEmails.length} email
+                      {manualParsedEmails.length > 1 ? "s" : ""} detected
                     </Badge>
                   )}
                 </div>
@@ -788,7 +807,8 @@ export default function SubscribersPage() {
                   className="font-mono text-xs bg-background leading-relaxed flex-1 resize-none p-3 rounded-xl border border-input"
                 />
                 <p className="text-[11px] text-muted-foreground shrink-0">
-                  Duplicates and invalid emails will be automatically sanitized before adding.
+                  Duplicates and invalid emails will be automatically sanitized
+                  before adding.
                 </p>
               </div>
             )}

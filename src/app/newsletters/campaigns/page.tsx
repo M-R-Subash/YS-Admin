@@ -42,10 +42,7 @@ import {
 } from "@/components/admin/ContentFilterBar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DataTable } from "@/components/ui/data-table";
-import {
-  getCampaignsColumns,
-  Campaign,
-} from "./campaigns-columns";
+import { getCampaignsColumns, Campaign } from "./campaigns-columns";
 import { BRAND_LOGO_URL, formatEmailBody } from "@/lib/newsletter/templates";
 import { cn } from "@/lib/utils";
 
@@ -66,33 +63,37 @@ interface Metrics {
 export default function CampaignHistoryPage() {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
-  const [retryingCampaignId, setRetryingCampaignId] = useState<string | null>(null);
-  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+  const [retryingCampaignId, setRetryingCampaignId] = useState<string | null>(
+    null,
+  );
+  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(
+    null,
+  );
 
   const {
     data: campaignsData,
     isLoading: isCampaignsLoading,
     isValidating: isCampaignsValidating,
     mutate: mutateCampaigns,
-  } = useSWR<{ campaigns: Campaign[] }>(
-    "/api/newsletters/campaigns",
-    fetcher,
-    {
-      refreshInterval: (latestData) => {
-        const isProcessing = latestData?.campaigns?.some(
-          (c: Campaign) => c.status === "processing"
-        );
-        return isProcessing ? 4000 : 0;
-      },
-      revalidateOnFocus: false,
-    }
-  );
+  } = useSWR<{ campaigns: Campaign[] }>("/api/newsletters/campaigns", fetcher, {
+    refreshInterval: (latestData) => {
+      const isProcessing = latestData?.campaigns?.some(
+        (c: Campaign) => c.status === "processing",
+      );
+      return isProcessing ? 4000 : 0;
+    },
+    revalidateOnFocus: false,
+  });
 
   const hasProcessingCampaign = Boolean(
-    campaignsData?.campaigns?.some((c) => c.status === "processing")
+    campaignsData?.campaigns?.some((c) => c.status === "processing"),
   );
 
-  const { data: metricsData, mutate: mutateMetrics, isValidating: isMetricsValidating } = useSWR<{
+  const {
+    data: metricsData,
+    mutate: mutateMetrics,
+    isValidating: isMetricsValidating,
+  } = useSWR<{
     metrics: Metrics;
   }>("/api/newsletters/metrics", fetcher, {
     refreshInterval: hasProcessingCampaign ? 4000 : 0,
@@ -110,18 +111,26 @@ export default function CampaignHistoryPage() {
     }
   }, [mutateCampaigns, mutateMetrics]);
 
-  const isSpinning = isManualRefreshing || isCampaignsValidating || isMetricsValidating;
+  const isSpinning =
+    isManualRefreshing || isCampaignsValidating || isMetricsValidating;
 
-  const campaigns = useMemo(() => campaignsData?.campaigns || [], [campaignsData]);
-  const metrics = useMemo(() => metricsData?.metrics || {
-    totalSubscribers: 0,
-    activeSubscribers: 0,
-    unsubscribedSubscribers: 0,
-    returnedSubscribers: 0,
-    totalCampaigns: 0,
-    totalEmailsSent: 0,
-    avgDeliveryRate: 100,
-  }, [metricsData]);
+  const campaigns = useMemo(
+    () => campaignsData?.campaigns || [],
+    [campaignsData],
+  );
+  const metrics = useMemo(
+    () =>
+      metricsData?.metrics || {
+        totalSubscribers: 0,
+        activeSubscribers: 0,
+        unsubscribedSubscribers: 0,
+        returnedSubscribers: 0,
+        totalCampaigns: 0,
+        totalEmailsSent: 0,
+        avgDeliveryRate: 100,
+      },
+    [metricsData],
+  );
 
   // Diagnostic error parser for modal
   const parsedErrorInfo = useMemo(() => {
@@ -146,35 +155,41 @@ export default function CampaignHistoryPage() {
   }, [selectedCampaign]);
 
   // Retry Failed Recipients Handler
-  const handleRetryCampaign = useCallback(async (campaignId: string) => {
-    setRetryingCampaignId(campaignId);
-    try {
-      const res = await fetch(`/api/newsletters/campaigns/${campaignId}/retry`, {
-        method: "POST",
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.success) {
+  const handleRetryCampaign = useCallback(
+    async (campaignId: string) => {
+      setRetryingCampaignId(campaignId);
+      try {
+        const res = await fetch(
+          `/api/newsletters/campaigns/${campaignId}/retry`,
+          {
+            method: "POST",
+          },
+        );
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.success) {
+          toast.add({
+            title: data.message || "Retrying dispatch to failed recipients...",
+            type: "success",
+          });
+          mutateCampaigns();
+          mutateMetrics();
+        } else {
+          toast.add({
+            title: data.error || "Failed to retry campaign",
+            type: "error",
+          });
+        }
+      } catch {
         toast.add({
-          title: data.message || "Retrying dispatch to failed recipients...",
-          type: "success",
-        });
-        mutateCampaigns();
-        mutateMetrics();
-      } else {
-        toast.add({
-          title: data.error || "Failed to retry campaign",
+          title: "Network error occurred while retrying",
           type: "error",
         });
+      } finally {
+        setRetryingCampaignId(null);
       }
-    } catch {
-      toast.add({
-        title: "Network error occurred while retrying",
-        type: "error",
-      });
-    } finally {
-      setRetryingCampaignId(null);
-    }
-  }, [mutateCampaigns, mutateMetrics]);
+    },
+    [mutateCampaigns, mutateMetrics],
+  );
 
   // Filtered Campaigns
   const filteredCampaigns = useMemo(() => {
@@ -189,7 +204,8 @@ export default function CampaignHistoryPage() {
       if (filterType === "all") return true;
       if (filterType === "blog") return c.type === "BLOG_UPDATE";
       if (filterType === "blast") return c.type === "CUSTOM_BLAST";
-      if (filterType === "failed") return c.failedCount > 0 || c.status === "failed";
+      if (filterType === "failed")
+        return c.failedCount > 0 || c.status === "failed";
       if (filterType === "completed") return c.status === "completed";
       return true;
     });
@@ -197,75 +213,103 @@ export default function CampaignHistoryPage() {
 
   const blogUpdatesCount = useMemo(
     () => campaigns.filter((c) => c.type === "BLOG_UPDATE").length,
-    [campaigns]
+    [campaigns],
   );
   const customBlastsCount = useMemo(
     () => campaigns.filter((c) => c.type === "CUSTOM_BLAST").length,
-    [campaigns]
+    [campaigns],
   );
   const failedCount = useMemo(
-    () => campaigns.filter((c) => c.failedCount > 0 || c.status === "failed").length,
-    [campaigns]
+    () =>
+      campaigns.filter((c) => c.failedCount > 0 || c.status === "failed")
+        .length,
+    [campaigns],
   );
 
-  const metricCards = useMemo<MetricCardItem[]>(() => [
-    {
-      id: "all",
-      label: "Campaigns Dispatched",
-      count: metrics.totalCampaigns.toLocaleString(),
-      icon: Mail,
-      color: "primary",
-      isActive: filterType === "all",
-      onClick: () => setFilterType("all"),
-      badgeLabel: "Total Blasts",
-    },
-    {
-      id: "blog",
-      label: "Blog Updates",
-      count: blogUpdatesCount.toLocaleString(),
-      icon: FileText,
-      color: "amber",
-      isActive: filterType === "blog",
-      onClick: () => setFilterType("blog"),
-      badgeLabel: "Automated",
-    },
-    {
-      id: "blast",
-      label: "Custom Broadcasts",
-      count: customBlastsCount.toLocaleString(),
-      icon: Sparkles,
-      color: "purple",
-      isActive: filterType === "blast",
-      onClick: () => setFilterType("blast"),
-      badgeLabel: "Manual",
-    },
-    {
-      id: "failed",
-      label: "Failed Dispatches",
-      count: failedCount.toLocaleString(),
-      icon: AlertCircle,
-      color: "red",
-      isActive: filterType === "failed",
-      onClick: () => setFilterType("failed"),
-      badgeLabel: failedCount > 0 ? "Retry Available" : undefined,
-    },
-    {
-      id: "delivery",
-      label: "Delivery Health",
-      count: `${metrics.avgDeliveryRate}%`,
-      icon: CheckCircle2,
-      color: "emerald",
-      isActive: false,
-      badgeLabel: `${metrics.totalEmailsSent.toLocaleString()} emails delivered`,
-    },
-  ], [metrics, filterType, blogUpdatesCount, customBlastsCount, failedCount]);
+  const metricCards = useMemo<MetricCardItem[]>(
+    () => [
+      {
+        id: "all",
+        label: "Campaigns Dispatched",
+        count: metrics.totalCampaigns.toLocaleString(),
+        icon: Mail,
+        color: "primary",
+        isActive: filterType === "all",
+        onClick: () => setFilterType("all"),
+        badgeLabel: "Total Blasts",
+      },
+      {
+        id: "blog",
+        label: "Blog Updates",
+        count: blogUpdatesCount.toLocaleString(),
+        icon: FileText,
+        color: "amber",
+        isActive: filterType === "blog",
+        onClick: () => setFilterType("blog"),
+        badgeLabel: "Automated",
+      },
+      {
+        id: "blast",
+        label: "Custom Broadcasts",
+        count: customBlastsCount.toLocaleString(),
+        icon: Sparkles,
+        color: "purple",
+        isActive: filterType === "blast",
+        onClick: () => setFilterType("blast"),
+        badgeLabel: "Manual",
+      },
+      {
+        id: "failed",
+        label: "Failed Dispatches",
+        count: failedCount.toLocaleString(),
+        icon: AlertCircle,
+        color: "red",
+        isActive: filterType === "failed",
+        onClick: () => setFilterType("failed"),
+        badgeLabel: failedCount > 0 ? "Retry Available" : undefined,
+      },
+      {
+        id: "delivery",
+        label: "Delivery Health",
+        count: `${metrics.avgDeliveryRate}%`,
+        icon: CheckCircle2,
+        color: "emerald",
+        isActive: false,
+        badgeLabel: `${metrics.totalEmailsSent.toLocaleString()} emails delivered`,
+      },
+    ],
+    [metrics, filterType, blogUpdatesCount, customBlastsCount, failedCount],
+  );
 
-  const filterTabs = useMemo<ContentFilterTab[]>(() => [
-    { id: "all", label: "All Campaigns", count: campaigns.length, color: "primary" },
-    { id: "blog", label: "Blog Updates", count: blogUpdatesCount, color: "amber" },
-    { id: "blast", label: "Custom Blasts", count: customBlastsCount, color: "purple" },
-    { id: "failed", label: "Delivery Issues", count: failedCount, color: "red" },
-  ], [campaigns.length, blogUpdatesCount, customBlastsCount, failedCount]);
+  const filterTabs = useMemo<ContentFilterTab[]>(
+    () => [
+      {
+        id: "all",
+        label: "All Campaigns",
+        count: campaigns.length,
+        color: "primary",
+      },
+      {
+        id: "blog",
+        label: "Blog Updates",
+        count: blogUpdatesCount,
+        color: "amber",
+      },
+      {
+        id: "blast",
+        label: "Custom Blasts",
+        count: customBlastsCount,
+        color: "purple",
+      },
+      {
+        id: "failed",
+        label: "Delivery Issues",
+        count: failedCount,
+        color: "red",
+      },
+    ],
+    [campaigns.length, blogUpdatesCount, customBlastsCount, failedCount],
+  );
 
   const columns = useMemo(
     () =>
@@ -274,7 +318,7 @@ export default function CampaignHistoryPage() {
         onRetryCampaign: handleRetryCampaign,
         retryingCampaignId,
       }),
-    [retryingCampaignId, handleRetryCampaign]
+    [retryingCampaignId, handleRetryCampaign],
   );
 
   return (
@@ -288,34 +332,9 @@ export default function CampaignHistoryPage() {
         />
 
         <main className="flex-1 w-full px-[15px] md:px-[20px] lg:px-[30px] py-4 space-y-5">
-          {/* Clean Action Bar - Redundant Heading Removed */}
+          {/* Clean Action Bar with Navigation on Left and Send Button on Right */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
-            {/* Provider Connection Status Indicator */}
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-500">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <span>SMTP Connected</span>
-              {metrics.senderEmail && (
-                <span className="text-muted-foreground hidden sm:inline">
-                  &bull; {metrics.senderEmail}
-                </span>
-              )}
-            </div>
-
             <div className="flex items-center gap-2 flex-wrap">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRefresh}
-                disabled={isSpinning}
-                className="text-xs h-8.5 gap-1.5 cursor-pointer rounded-sm text-muted-foreground hover:text-foreground"
-                title="Refresh campaigns & metrics"
-              >
-                <RefreshCw className={cn("w-3.5 h-3.5", isSpinning && "animate-spin text-amber-500")} />
-                <span className="hidden sm:inline">Refresh</span>
-              </Button>
               <Link href="/newsletters">
                 <Button
                   variant="outline"
@@ -326,6 +345,9 @@ export default function CampaignHistoryPage() {
                   View Subscribers ({metrics.totalSubscribers})
                 </Button>
               </Link>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
               <Link href="/newsletters/compose">
                 <Button
                   size="sm"
@@ -339,7 +361,10 @@ export default function CampaignHistoryPage() {
           </div>
 
           {/* 5 Content Metric Cards */}
-          <ContentMetricCards cards={metricCards} loading={isCampaignsLoading} />
+          <ContentMetricCards
+            cards={metricCards}
+            loading={isCampaignsLoading}
+          />
 
           {/* Unified CMS Filter & Search Bar */}
           <ContentFilterBar
@@ -370,7 +395,12 @@ export default function CampaignHistoryPage() {
                   className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground cursor-pointer rounded-sm"
                   title="Refresh campaign list"
                 >
-                  <RefreshCw className={cn("w-3.5 h-3.5", isSpinning && "animate-spin text-amber-500")} />
+                  <RefreshCw
+                    className={cn(
+                      "w-3.5 h-3.5",
+                      isSpinning && "animate-spin text-amber-500",
+                    )}
+                  />
                 </Button>
               </div>
             }
@@ -387,14 +417,17 @@ export default function CampaignHistoryPage() {
           ) : filteredCampaigns.length === 0 ? (
             <div className="text-center py-16 bg-card border border-border rounded-sm p-6">
               <div className="w-12 h-12 rounded-2xl bg-border/40 text-muted flex items-center justify-center mx-auto mb-3">
-                <Clock className="w-6 h-6 text-muted-foreground" strokeWidth={2} />
+                <Clock
+                  className="w-6 h-6 text-muted-foreground"
+                  strokeWidth={2}
+                />
               </div>
               <div className="text-foreground font-semibold text-base mb-1">
                 {search
                   ? `No campaigns matching "${search}"`
                   : filterType !== "all"
-                  ? `No ${filterType} campaigns found`
-                  : "No campaigns dispatched yet"}
+                    ? `No ${filterType} campaigns found`
+                    : "No campaigns dispatched yet"}
               </div>
               <p className="text-muted-foreground text-xs max-w-sm mx-auto">
                 {search || filterType !== "all"
@@ -453,7 +486,7 @@ export default function CampaignHistoryPage() {
                       {selectedCampaign
                         ? format(
                             new Date(selectedCampaign.createdAt),
-                            "MMMM d, yyyy 'at' h:mm a"
+                            "MMMM d, yyyy 'at' h:mm a",
                           )
                         : ""}
                     </p>
@@ -479,8 +512,8 @@ export default function CampaignHistoryPage() {
                       selectedCampaign?.status === "completed"
                         ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
                         : selectedCampaign?.status === "processing"
-                        ? "border-blue-500/30 text-blue-400 bg-blue-500/10 animate-pulse"
-                        : "border-rose-500/30 text-rose-400 bg-rose-500/10"
+                          ? "border-blue-500/30 text-blue-400 bg-blue-500/10 animate-pulse"
+                          : "border-rose-500/30 text-rose-400 bg-rose-500/10"
                     }`}
                   >
                     {selectedCampaign?.status}
@@ -538,7 +571,7 @@ export default function CampaignHistoryPage() {
                         ? Math.round(
                             (selectedCampaign.successCount /
                               selectedCampaign.totalRecipients) *
-                              100
+                              100,
                           )
                         : 0}
                       %
@@ -628,7 +661,8 @@ export default function CampaignHistoryPage() {
                     parsedErrorInfo.failedEmails.length > 0 && (
                       <div className="space-y-1.5 pt-1">
                         <span className="text-[11px] text-muted-foreground font-medium block">
-                          Affected Recipients ({parsedErrorInfo.failedEmails.length}):
+                          Affected Recipients (
+                          {parsedErrorInfo.failedEmails.length}):
                         </span>
                         <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-2 bg-black/40 rounded-lg border border-border/60">
                           {parsedErrorInfo.failedEmails.map((email, idx) => (
@@ -660,7 +694,9 @@ export default function CampaignHistoryPage() {
                         className="h-6 w-auto object-contain"
                       />
                       <span className="text-[9px] uppercase font-bold text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/30">
-                        {selectedCampaign?.type === "BLOG_UPDATE" ? "BLOG" : "ANNOUNCEMENT"}
+                        {selectedCampaign?.type === "BLOG_UPDATE"
+                          ? "BLOG"
+                          : "ANNOUNCEMENT"}
                       </span>
                     </div>
                     <div className="p-4 sm:p-5 max-h-72 overflow-y-auto text-xs leading-relaxed text-gray-300">

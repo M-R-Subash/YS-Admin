@@ -159,8 +159,9 @@ export default function BlogEditor({
   // Link popover state
   const [showLinkPopover, setShowLinkPopover] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
+  const [linkText, setLinkText] = useState("");
   const [linkOpenInNewTab, setLinkOpenInNewTab] = useState(true);
-  const [linkNoFollow, setLinkNoFollow] = useState(true);
+  const [linkNoFollow, setLinkNoFollow] = useState(false);
   const [isLinkBubbleDismissed, setIsLinkBubbleDismissed] = useState(false);
   const dismissedLinkPos = useRef<number | null>(null);
 
@@ -375,6 +376,7 @@ export default function BlogEditor({
 
 
   const addLink = () => {
+    if (!editor) return;
     setIsLinkBubbleDismissed(true);
     setShowLinkPopover(false);
 
@@ -391,14 +393,67 @@ export default function BlogEditor({
       formattedUrl = "https://" + formattedUrl;
     }
 
-    const to = editor.state.selection.to;
-    dismissedLinkPos.current = to;
+    const { empty, from, to } = editor.state.selection;
+    const selectedText = from !== to ? editor.state.doc.textBetween(from, to, " ") : "";
+    const displayText = linkText.trim() || selectedText || formattedUrl;
 
-    editor.chain().focus().extendMarkRange("link").setLink({
-      href: formattedUrl,
-      target: linkOpenInNewTab ? "_blank" : "",
-      rel: linkNoFollow ? "noopener noreferrer nofollow" : "noopener noreferrer",
-    }).setTextSelection(to).run();
+    if (empty) {
+      // If user didn't select text beforehand, insert link directly at cursor position
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: "text",
+          text: displayText,
+          marks: [
+            {
+              type: "link",
+              attrs: {
+                href: formattedUrl,
+                target: linkOpenInNewTab ? "_blank" : undefined,
+                rel: linkNoFollow ? "noopener noreferrer nofollow" : "noopener noreferrer",
+              },
+            },
+          ],
+        })
+        .insertContent(" ")
+        .run();
+    } else {
+      // User selected text: if display text was edited, replace selection with updated text + link
+      if (linkText.trim() && linkText.trim() !== selectedText) {
+        editor
+          .chain()
+          .focus()
+          .insertContent({
+            type: "text",
+            text: linkText.trim(),
+            marks: [
+              {
+                type: "link",
+                attrs: {
+                  href: formattedUrl,
+                  target: linkOpenInNewTab ? "_blank" : undefined,
+                  rel: linkNoFollow ? "noopener noreferrer nofollow" : "noopener noreferrer",
+                },
+              },
+            ],
+          })
+          .run();
+      } else {
+        dismissedLinkPos.current = to;
+        editor
+          .chain()
+          .focus()
+          .extendMarkRange("link")
+          .setLink({
+            href: formattedUrl,
+            target: linkOpenInNewTab ? "_blank" : "",
+            rel: linkNoFollow ? "noopener noreferrer nofollow" : "noopener noreferrer",
+          })
+          .setTextSelection(to)
+          .run();
+      }
+    }
 
     try {
       editor.view.dispatch(editor.state.tr.setMeta("linkBubbleMenu", "hide"));
@@ -608,69 +663,123 @@ export default function BlogEditor({
 
         {/* Media & Links Group */}
         <div className="flex items-center gap-1 px-2 border-r border-border relative shrink-0">
-          <div className="relative">
-            <ToolbarButton
-              onClick={() => {
-                if (editor.isActive('link')) {
+          <Popover
+            open={showLinkPopover}
+            onOpenChange={(open) => {
+              setShowLinkPopover(open);
+              if (open) {
+                if (editor.isActive("link")) {
                   const attrs = editor.getAttributes("link");
                   setLinkUrl(attrs.href || "");
                   setLinkOpenInNewTab(attrs.target === "_blank");
                   setLinkNoFollow(Boolean(attrs.rel?.includes("nofollow")));
-                  setShowLinkPopover(!showLinkPopover);
+                  const { from, to } = editor.state.selection;
+                  setLinkText(from !== to ? editor.state.doc.textBetween(from, to, " ") : "");
                 } else {
                   setLinkUrl("");
                   setLinkOpenInNewTab(true);
-                  setLinkNoFollow(true);
-                  setShowLinkPopover(!showLinkPopover);
+                  setLinkNoFollow(false);
+                  const { from, to } = editor.state.selection;
+                  setLinkText(from !== to ? editor.state.doc.textBetween(from, to, " ") : "");
                 }
-              }}
-              isActive={editor.isActive("link")}
-              icon={
-                <div className="flex items-center gap-0.5">
-                  <LinkIcon className="w-4 h-4" />
-                  <ChevronDown className="w-3 h-3 opacity-70" />
-                </div>
               }
+            }}
+          >
+            <PopoverTrigger
+              className={cn(
+                "p-2 px-2.5 rounded-sm transition flex items-center gap-0.5 bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer text-xs",
+                editor.isActive("link") && "bg-accent text-foreground font-semibold"
+              )}
               title={editor.isActive("link") ? "Edit Link" : "Insert Link"}
-              shortcut="Ctrl+K"
-              className="w-auto px-2"
-            />
-            
-            {showLinkPopover && (
-              <div className="absolute top-full left-0 mt-2 p-4 bg-card border border-border shadow-xl rounded-xl w-72 z-50">
-                <input
-                  type="text"
-                  placeholder="Paste URL (e.g. https://...)..."
-                  value={linkUrl}
-                  onChange={(e) => setLinkUrl(e.target.value)}
-                  className="w-full px-3 py-2 mb-3 text-sm border border-input rounded-md focus:outline-ring"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addLink();
+            >
+              <div className="flex items-center gap-0.5">
+                <LinkIcon className="w-4 h-4" />
+                <ChevronDown className="w-3 h-3 opacity-70" />
+              </div>
+            </PopoverTrigger>
+
+            <PopoverContent
+              className="w-80 p-4 bg-card border border-border shadow-xl rounded-xl z-50"
+              align="start"
+              sideOffset={8}
+            >
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-foreground">
+                    Link URL
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="https://example.com"
+                    value={linkUrl}
+                    onChange={(e) => setLinkUrl(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs border border-input rounded-md bg-background focus:outline-ring"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addLink();
+                      }
+                    }}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-foreground flex items-center justify-between">
+                    <span>Display Text</span>
+                    <span className="text-[10px] text-muted-foreground font-normal">
+                      {editor.state.selection.empty ? "Optional" : "Selected text"}
+                    </span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={
+                      editor.state.selection.empty
+                        ? "e.g. Visit Our Website (defaults to URL)"
+                        : "Link display text"
                     }
-                  }}
-                />
-                <div className="flex flex-col gap-2.5 mb-4 mt-2">
-                  <label htmlFor="topOpenInNewTab" className="flex items-center gap-2 cursor-pointer font-medium text-xs select-none">
+                    value={linkText}
+                    onChange={(e) => setLinkText(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs border border-input rounded-md bg-background focus:outline-ring"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addLink();
+                      }
+                    }}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2 pt-1 border-t border-border">
+                  <label
+                    htmlFor="topOpenInNewTab"
+                    className="flex items-center gap-2 cursor-pointer font-medium text-xs select-none"
+                  >
                     <Checkbox
                       id="topOpenInNewTab"
                       checked={linkOpenInNewTab}
-                      onCheckedChange={(checked) => setLinkOpenInNewTab(Boolean(checked))}
+                      onCheckedChange={(checked) =>
+                        setLinkOpenInNewTab(Boolean(checked))
+                      }
                     />
                     <span>Open in new tab</span>
                   </label>
-                  <label htmlFor="topNoFollow" className="flex items-center gap-2 cursor-pointer font-medium text-xs select-none">
+                  <label
+                    htmlFor="topNoFollow"
+                    className="flex items-center gap-2 cursor-pointer font-medium text-xs select-none"
+                  >
                     <Checkbox
                       id="topNoFollow"
                       checked={linkNoFollow}
-                      onCheckedChange={(checked) => setLinkNoFollow(Boolean(checked))}
+                      onCheckedChange={(checked) =>
+                        setLinkNoFollow(Boolean(checked))
+                      }
                     />
                     <span>Add nofollow</span>
                   </label>
                 </div>
-                <div className="flex items-center justify-between">
+
+                <div className="flex items-center justify-between pt-2 border-t border-border">
                   {editor.isActive("link") ? (
                     <button
                       type="button"
@@ -682,17 +791,29 @@ export default function BlogEditor({
                     >
                       <Unlink className="w-3.5 h-3.5" /> Remove
                     </button>
-                  ) : <div />}
+                  ) : (
+                    <div />
+                  )}
                   <div className="flex gap-2">
-                    <button onClick={() => setShowLinkPopover(false)} className="px-3 py-1.5 text-xs hover:bg-accent rounded-md transition cursor-pointer">Cancel</button>
-                    <button onClick={addLink} className="px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-md flex items-center gap-1 transition hover:bg-primary/90 cursor-pointer font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setShowLinkPopover(false)}
+                      className="px-3 py-1.5 text-xs hover:bg-accent rounded-md transition cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={addLink}
+                      className="px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-md flex items-center gap-1 transition hover:bg-primary/90 cursor-pointer font-semibold shadow-xs"
+                    >
                       <Check className="w-3 h-3" /> Apply
                     </button>
                   </div>
                 </div>
               </div>
-            )}
-          </div>
+            </PopoverContent>
+          </Popover>
 
           <ImageUploadBlock
             value={undefined}
@@ -1137,8 +1258,8 @@ export default function BlogEditor({
         )}
       </div>
 
-      {/* Word Count & Read Time (Desktop only - mobile has reading time in Outline button) */}
-      {editor && (
+      {/* Word Count & Read Time (Desktop only - hidden in email mode) */}
+      {editor && mode !== "email" && (
         <div className="hidden md:flex absolute bottom-6 right-8 z-10 items-center gap-3 bg-card/80 backdrop-blur-md border border-border px-3 py-1.5 rounded-full shadow-sm text-xs font-medium text-muted-foreground opacity-70 hover:opacity-100 transition-opacity pointer-events-none">
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
