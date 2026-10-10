@@ -6,6 +6,7 @@ import {
   blogDraftSchema,
   blogPublishSchema,
   blogScheduleSchema,
+  extractImageUrl,
 } from "@/lib/schemas/blog/blog-validation";
 import { revalidateFrontendPath } from "@/lib/revalidate";
 import { serverConfig } from "@/lib/config/server";
@@ -88,6 +89,7 @@ export async function PUT(
     action,
   } = body;
   let { status } = body;
+  const normalizedFeaturedImage = extractImageUrl(featuredImage);
 
   // Validate action payload with Zod
   if (action === "publish" || (action === "publish-now" && Boolean(body.title && body.content))) {
@@ -256,7 +258,7 @@ export async function PUT(
         ...(title !== undefined && { title }),
         ...(slug !== undefined && { slug }),
         ...(content !== undefined && { content }),
-        ...(featuredImage !== undefined && { featuredImage }),
+        ...(featuredImage !== undefined && { featuredImage: normalizedFeaturedImage }),
         ...(allowComments !== undefined && { allowComments }),
         ...(tags !== undefined && { tags }),
         ...(categories !== undefined && { categories }),
@@ -298,7 +300,7 @@ export async function PUT(
         title,
         slug,
         content,
-        featuredImage,
+        featuredImage: normalizedFeaturedImage,
         allowComments,
         tags,
         categories,
@@ -313,7 +315,7 @@ export async function PUT(
       title,
       slug,
       content,
-      featuredImage,
+      featuredImage: normalizedFeaturedImage,
       allowComments,
       tags,
       categories,
@@ -370,7 +372,7 @@ export async function PUT(
       ...(slug !== undefined && { slug }),
       ...(resolvedStatus !== undefined && { status: resolvedStatus }),
       ...(content !== undefined && { content }),
-      ...(featuredImage !== undefined && { featuredImage }),
+      ...(featuredImage !== undefined && { featuredImage: normalizedFeaturedImage }),
       ...(allowComments !== undefined && { allowComments }),
       ...(tags !== undefined && { tags }),
       ...(categories !== undefined && { categories }),

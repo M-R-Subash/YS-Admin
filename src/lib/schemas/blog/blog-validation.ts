@@ -29,11 +29,30 @@ export function hasTipTapContent(val: any): boolean {
   return traverse(val);
 }
 
+// Helper to extract clean image URL whether string, object { url }, null or undefined
+export function extractImageUrl(val: any): string | null {
+  if (!val) return null;
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (typeof val === "object" && val !== null && "url" in val) {
+    if (typeof val.url === "string") {
+      const trimmed = val.url.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    }
+  }
+  return null;
+}
+
 // 1. Permissive Draft Schema (allows saving incomplete work at any time)
 export const blogDraftSchema = z.object({
   title: z.string().min(1, "Title is required to save a draft"),
   slug: z.string().min(1, "Slug is required"),
-  featuredImage: z.string().nullable().optional(),
+  featuredImage: z.preprocess(
+    (val) => extractImageUrl(val),
+    z.string().nullable().optional()
+  ),
   allowComments: z.boolean().default(true),
   status: z.enum(["draft", "published", "scheduled"]).default("draft"),
   scheduledAt: z.union([z.string(), z.date()]).optional().nullable(),
@@ -86,10 +105,10 @@ export const blogPublishSchema = z.object({
       /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
       "Slug must only contain lowercase alphanumeric characters and hyphens without leading or trailing dashes"
     ),
-  featuredImage: z
-    .string()
-    .trim()
-    .min(1, "A featured cover image is required to publish live"),
+  featuredImage: z.preprocess(
+    (val) => extractImageUrl(val) || "",
+    z.string().min(1, "A featured cover image is required to publish live")
+  ),
   allowComments: z.boolean().default(true),
   status: z.enum(["published", "scheduled"]).default("published"),
   scheduledAt: z.union([z.string(), z.date()]).optional().nullable(),
@@ -162,7 +181,7 @@ export type BlogScheduleFormData = z.infer<typeof blogScheduleSchema>;
 export interface BlogFormData {
   title: string;
   slug: string;
-  featuredImage: string | null;
+  featuredImage: string | { url?: string; alt?: string; title?: string } | null;
   allowComments: boolean;
   sendNewsletter?: boolean;
   newsletterSent?: boolean;

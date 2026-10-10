@@ -14,6 +14,7 @@ import {
   blogPublishSchema,
   blogScheduleSchema,
   BlogFormData,
+  extractImageUrl,
 } from "@/lib/schemas/blog/blog-validation";
 import { format } from "date-fns";
 import {
@@ -320,7 +321,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
         !arraysEqual(tags || [], initialData.tags || []) ||
         !arraysEqual(categories || [], initialData.categories || []) ||
         allowComments !== initialData.allowComments ||
-        featuredImage !== initialData.featuredImage ||
+        extractImageUrl(featuredImage) !== extractImageUrl(initialData.featuredImage) ||
         excerpt !== initialData.excerpt ||
         metaTitle !== initialData.metaTitle ||
         metaDesc !== initialData.metaDesc ||
@@ -342,7 +343,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           JSON.stringify(content) !== '""' &&
           JSON.stringify(content) !== "null" &&
           JSON.stringify(content) !== '{"type":"doc","content":[]}') ||
-        featuredImage !== null ||
+        Boolean(extractImageUrl(featuredImage)) ||
         excerpt.trim() !== "" ||
         tags.length > 0 ||
         categories.length > 0 ||
@@ -859,7 +860,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     const payload = {
       title: currentValues.title,
       slug: currentValues.slug,
-      featuredImage: currentValues.featuredImage,
+      featuredImage: extractImageUrl(currentValues.featuredImage),
       content: contentPayload,
       allowComments: currentValues.allowComments,
       sendNewsletter: Boolean(currentValues.sendNewsletter),
@@ -937,7 +938,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
             : status,
         scheduledAt: targetScheduledAt,
         content: currentValues.content,
-        featuredImage: currentValues.featuredImage,
+        featuredImage: extractImageUrl(currentValues.featuredImage),
         excerpt: currentValues.excerpt,
         metaTitle: currentValues.metaTitle,
         metaDesc: currentValues.metaDesc,
@@ -1276,26 +1277,20 @@ export default function BlogForm({ blogId }: BlogFormProps) {
             {confirmDialog.publishStatus === "published" &&
               (!isEditMode || initialData?.status !== "published") &&
               !initialData?.newsletterSent && (
-                <div className="mt-3 p-3 rounded-lg border border-border bg-muted/30 flex items-start gap-2.5 text-left">
+                <div className="mt-3 flex items-center gap-2 text-left">
                   <Checkbox
                     id="confirmSendNewsletter"
                     checked={Boolean(watch("sendNewsletter"))}
                     onCheckedChange={(checked) =>
                       setValue("sendNewsletter", Boolean(checked))
                     }
-                    className="mt-0.5"
                   />
-                  <div className="space-y-0.5 text-xs">
-                    <label
-                      htmlFor="confirmSendNewsletter"
-                      className="font-medium text-foreground cursor-pointer select-none block"
-                    >
-                      Send email newsletter to active subscribers
-                    </label>
-                    <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      Dispatches an email announcement to active subscribers (sent in throttled batches of 50). Unchecked by default.
-                    </p>
-                  </div>
+                  <label
+                    htmlFor="confirmSendNewsletter"
+                    className="text-xs font-medium text-foreground cursor-pointer select-none"
+                  >
+                    Send email newsletter to subscribers
+                  </label>
                 </div>
               )}
           </ConfirmModal>

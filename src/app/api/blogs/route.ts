@@ -8,6 +8,7 @@ import {
   blogDraftSchema,
   blogPublishSchema,
   blogScheduleSchema,
+  extractImageUrl,
 } from "@/lib/schemas/blog/blog-validation";
 import { handleApiError } from "@/lib/server/prisma-errors";
 import { createBlogRevisionSnapshot } from "@/lib/server/revision-utils";
@@ -204,7 +205,7 @@ export async function POST(req: Request) {
       data: {
         title,
         slug,
-        featuredImage,
+        featuredImage: extractImageUrl(featuredImage),
         content,
         excerpt,
         allowComments: allowComments ?? true,
