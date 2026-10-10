@@ -27,6 +27,7 @@ import {
   Upload,
   FileSpreadsheet,
   Percent,
+  RotateCcw,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -73,6 +74,8 @@ interface Subscriber {
   email: string;
   status: "active" | "unsubscribed";
   source: string | null;
+  resubscribeCount?: number;
+  resubscribedAt?: string | null;
   createdAt: string;
 }
 
@@ -99,6 +102,7 @@ interface Metrics {
   totalSubscribers: number;
   activeSubscribers: number;
   unsubscribedSubscribers: number;
+  returnedSubscribers: number;
   totalCampaigns: number;
   totalEmailsSent: number;
   avgDeliveryRate: number;
@@ -213,6 +217,7 @@ export default function NewsletterPage() {
     totalSubscribers: 0,
     activeSubscribers: 0,
     unsubscribedSubscribers: 0,
+    returnedSubscribers: 0,
     totalCampaigns: 0,
     totalEmailsSent: 0,
     avgDeliveryRate: 100,
@@ -565,7 +570,7 @@ export default function NewsletterPage() {
         </div>
 
         {/* Top Metric KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Active Subscribers */}
           <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
             <div className="flex items-center justify-between">
@@ -582,6 +587,28 @@ export default function NewsletterPage() {
               </span>
               <span className="text-xs text-muted-foreground">
                 of {metrics.totalSubscribers.toLocaleString()} total
+              </span>
+            </div>
+          </div>
+
+          {/* Returned Readers */}
+          <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">
+                Returned Readers
+              </span>
+              <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400">
+                <RotateCcw className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-2xl font-bold tracking-tight text-foreground">
+                {(metrics.returnedSubscribers || 0).toLocaleString()}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {metrics.activeSubscribers > 0
+                  ? `${Math.round(((metrics.returnedSubscribers || 0) / metrics.activeSubscribers) * 100)}% re-opted in`
+                  : "0% re-opted in"}
               </span>
             </div>
           </div>
@@ -722,6 +749,9 @@ export default function NewsletterPage() {
                       <SelectItem value="unsubscribed" className="text-xs cursor-pointer font-medium text-rose-500">
                         Unsubscribed Only
                       </SelectItem>
+                      <SelectItem value="returned" className="text-xs cursor-pointer font-medium text-purple-400">
+                        Returned Only
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -797,18 +827,37 @@ export default function NewsletterPage() {
                             {sub.email}
                           </td>
                           <td className="px-4 py-3">
-                            {sub.status === "active" ? (
-                              <Badge className="bg-emerald-500/15 text-emerald-500 border-emerald-500/20 font-medium text-[10px]">
-                                Active
-                              </Badge>
-                            ) : (
-                              <Badge
-                                variant="outline"
-                                className="text-muted-foreground border-border text-[10px]"
-                              >
-                                Unsubscribed
-                              </Badge>
-                            )}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {sub.status === "active" ? (
+                                <Badge className="bg-emerald-500/15 text-emerald-500 border-emerald-500/20 font-medium text-[10px]">
+                                  Active
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant="outline"
+                                  className="text-muted-foreground border-border text-[10px]"
+                                >
+                                  Unsubscribed
+                                </Badge>
+                              )}
+                              {sub.resubscribeCount && sub.resubscribeCount > 0 ? (
+                                <Badge
+                                  variant="outline"
+                                  className="bg-purple-500/10 text-purple-400 border-purple-500/25 font-medium text-[10px] gap-1"
+                                  title={
+                                    sub.resubscribedAt
+                                      ? `Returned ${sub.resubscribeCount} time(s). Last on ${format(
+                                          new Date(sub.resubscribedAt),
+                                          "MMM d, yyyy"
+                                        )}`
+                                      : `Returned ${sub.resubscribeCount} time(s)`
+                                  }
+                                >
+                                  <RotateCcw className="w-2.5 h-2.5" />
+                                  Returned ({sub.resubscribeCount}x)
+                                </Badge>
+                              ) : null}
+                            </div>
                           </td>
                           <td className="px-4 py-3 text-muted-foreground capitalize">
                             {sub.source || "website"}

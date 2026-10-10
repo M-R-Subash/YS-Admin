@@ -16,16 +16,20 @@ export async function GET() {
         email: true,
         status: true,
         source: true,
+        resubscribeCount: true,
+        resubscribedAt: true,
         createdAt: true,
       },
     });
 
     // Generate CSV string
-    const headers = ["Email", "Status", "Source", "Subscribed At"];
+    const headers = ["Email", "Status", "Source", "Return Count", "Last Resubscribed At", "Subscribed At"];
     const rows = subscribers.map((s) => [
       `"${s.email.replace(/"/g, '""')}"`,
       `"${s.status}"`,
       `"${s.source || "website"}"`,
+      `"${s.resubscribeCount || 0}"`,
+      `"${s.resubscribedAt ? s.resubscribedAt.toISOString() : ""}"`,
       `"${s.createdAt.toISOString()}"`,
     ]);
 

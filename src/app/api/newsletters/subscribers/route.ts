@@ -27,7 +27,9 @@ export async function GET(req: Request) {
     if (search) {
       where.email = { contains: search, mode: "insensitive" };
     }
-    if (status === "active" || status === "unsubscribed") {
+    if (status === "returned") {
+      where.resubscribeCount = { gt: 0 };
+    } else if (status === "active" || status === "unsubscribed") {
       where.status = status;
     }
 
@@ -71,18 +73,31 @@ export async function POST(req: Request) {
 
     const { email, source } = parsed.data;
 
-    const subscriber = await prisma.subscriber.upsert({
-      where: { email },
-      update: {
-        status: "active",
-        source,
-      },
-      create: {
-        email,
-        source,
-        status: "active",
-      },
-    });
+    const existing = await prisma.subscriber.findUnique({ where: { email } });
+    let subscriber;
+
+    if (!existing) {
+      subscriber = await prisma.subscriber.create({
+        data: {
+          email,
+          source,
+          status: "active",
+          resubscribeCount: 0,
+        },
+      });
+    } else if (existing.status === "unsubscribed") {
+      subscriber = await prisma.subscriber.update({
+        where: { id: existing.id },
+        data: {
+          status: "active",
+          source: source || existing.source,
+          resubscribedAt: new Date(),
+          resubscribeCount: { increment: 1 },
+        },
+      });
+    } else {
+      subscriber = existing;
+    }
 
     return NextResponse.json({
       success: true,

@@ -38,14 +38,16 @@ export async function POST(req: Request) {
       skipDuplicates: true,
     });
 
-    // For any existing subscribers that were unsubscribed, re-activate them if desired
-    await prisma.subscriber.updateMany({
+    // For any existing subscribers that were unsubscribed, re-activate and record return metadata
+    const reactivated = await prisma.subscriber.updateMany({
       where: {
         email: { in: uniqueEmails },
         status: "unsubscribed",
       },
       data: {
         status: "active",
+        resubscribedAt: new Date(),
+        resubscribeCount: { increment: 1 },
       },
     });
 

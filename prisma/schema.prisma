@@ -227,24 +227,13 @@ model BlogRevision {
   id             String    @id @default(cuid())
   blogId         String
   blog           Blog      @relation(fields: [blogId], references: [id], onDelete: Cascade)
-
-  // Sequential version identifier per blog (1, 2, 3...)
   versionNumber  Int
-
-  // Universal JSON snapshot capturing all blog attributes at publish time
   snapshotData   Json
-
-  // Triggering action: "published" | "updated" | "scheduled-publish" | "restored"
   action         String
-
-  // Metadata summary for rapid list rendering without parsing full TipTap tree
   wordCount      Int       @default(0)
   readingTime    Int       @default(1)
-
-  // Author association (Set null if user is deleted)
   savedById      String?
   savedBy        User?     @relation("RevisionAuthor", fields: [savedById], references: [id], onDelete: SetNull)
-
   createdAt      DateTime  @default(now())
 
   @@unique([blogId, versionNumber])
@@ -279,10 +268,14 @@ model Subscriber {
   unsubscribeToken String           @unique @default(cuid())
   source           String?          @default("website")
   
+  resubscribedAt   DateTime?
+  resubscribeCount Int              @default(0)
+
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
   @@index([status, email])
+  @@index([resubscribeCount])
 }
 
 model NewsletterCampaign {

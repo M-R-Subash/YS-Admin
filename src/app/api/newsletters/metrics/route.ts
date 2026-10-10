@@ -11,21 +11,28 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const [totalSubscribers, activeSubscribers, unsubscribedSubscribers, totalCampaigns, campaigns] =
-      await Promise.all([
-        prisma.subscriber.count(),
-        prisma.subscriber.count({ where: { status: "active" } }),
-        prisma.subscriber.count({ where: { status: "unsubscribed" } }),
-        prisma.newsletterCampaign.count(),
-        prisma.newsletterCampaign.findMany({
-          select: {
-            totalRecipients: true,
-            successCount: true,
-            failedCount: true,
-            status: true,
-          },
-        }),
-      ]);
+    const [
+      totalSubscribers,
+      activeSubscribers,
+      unsubscribedSubscribers,
+      returnedSubscribers,
+      totalCampaigns,
+      campaigns,
+    ] = await Promise.all([
+      prisma.subscriber.count(),
+      prisma.subscriber.count({ where: { status: "active" } }),
+      prisma.subscriber.count({ where: { status: "unsubscribed" } }),
+      prisma.subscriber.count({ where: { resubscribeCount: { gt: 0 } } }),
+      prisma.newsletterCampaign.count(),
+      prisma.newsletterCampaign.findMany({
+        select: {
+          totalRecipients: true,
+          successCount: true,
+          failedCount: true,
+          status: true,
+        },
+      }),
+    ]);
 
     const totalEmailsSent = campaigns.reduce((acc, c) => acc + c.successCount, 0);
     const totalAttempted = campaigns.reduce((acc, c) => acc + c.successCount + c.failedCount, 0);
@@ -36,6 +43,7 @@ export async function GET() {
         totalSubscribers,
         activeSubscribers,
         unsubscribedSubscribers,
+        returnedSubscribers,
         totalCampaigns,
         totalEmailsSent,
         avgDeliveryRate,
