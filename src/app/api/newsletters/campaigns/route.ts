@@ -10,6 +10,7 @@ export const maxDuration = 60;
 const createCampaignSchema = z.object({
   subject: z.string().trim().min(1, "Subject line is required").max(150),
   bodyHtml: z.string().trim().min(1, "Email body content is required"),
+  scheduledAt: z.string().nullable().optional(),
 });
 
 export async function GET(req: Request) {
@@ -66,7 +67,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: parsed.error.issues[0]?.message || "Validation failed" }, { status: 400 });
     }
 
-    const { subject, bodyHtml } = parsed.data;
+    const { subject, bodyHtml, scheduledAt } = parsed.data;
 
     // Check if there are active subscribers
     const activeSubscribersCount = await prisma.subscriber.count({
@@ -80,7 +81,32 @@ export async function POST(req: Request) {
       );
     }
 
-    // Create the campaign record
+    const parsedScheduledAt = scheduledAt ? new Date(scheduledAt) : null;
+    const isScheduledForFuture =
+      parsedScheduledAt &&
+      !isNaN(parsedScheduledAt.getTime()) &&
+      parsedScheduledAt.getTime() > Date.now();
+
+    if (isScheduledForFuture) {
+      const campaign = await prisma.newsletterCampaign.create({
+        data: {
+          subject,
+          bodyHtml,
+          type: "CUSTOM_BLAST",
+          status: "scheduled",
+          scheduledAt: parsedScheduledAt,
+          totalRecipients: activeSubscribersCount,
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `Campaign scheduled for delivery on ${parsedScheduledAt.toLocaleString()}`,
+        campaign,
+      });
+    }
+
+    // Create the campaign record for immediate delivery
     const campaign = await prisma.newsletterCampaign.create({
       data: {
         subject,
@@ -103,6 +129,6 @@ export async function POST(req: Request) {
     });
   } catch (error: any) {
     console.error("[API:Newsletters:Campaigns:POST] Error:", error);
-    return NextResponse.json({ error: "Failed to create campaign" }, { status: 500 });
+    return NextResponse.json({ error: error?.message || "Failed to create campaign" }, { status: 500 });
   }
 }

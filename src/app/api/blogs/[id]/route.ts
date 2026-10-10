@@ -241,15 +241,20 @@ export async function PUT(
     // Schedule post
     const scheduleDate = body.scheduledAt ? new Date(body.scheduledAt) : null;
     const isPastSchedule = scheduleDate && scheduleDate.getTime() <= Date.now();
+    const shouldNotify = Boolean(body.sendNewsletter);
 
     if (existingBlog.status === "published" && !isPastSchedule) {
       // EXISTING PUBLISHED BLOG:
       // The current version stays live! New edits are staged in draftContent with scheduledAt.
       updateData = {
         ...updateData,
-        draftContent: body,
+        draftContent: {
+          ...body,
+          notifyNewsletter: shouldNotify,
+        },
         status: "published",
         scheduledAt: scheduleDate,
+        notifyNewsletter: shouldNotify,
       };
     } else {
       // DRAFT or NEW BLOG:
@@ -264,6 +269,7 @@ export async function PUT(
         ...(categories !== undefined && { categories }),
         ...(excerpt !== undefined && { excerpt }),
         draftContent: null,
+        notifyNewsletter: isPastSchedule ? false : shouldNotify,
         status: isPastSchedule ? "published" : "scheduled",
         scheduledAt: isPastSchedule ? null : scheduleDate,
         publishedAt: isPastSchedule ? (existingBlog.publishedAt || new Date()) : null,
@@ -281,6 +287,7 @@ export async function PUT(
       publishedAt: existingBlog.publishedAt || new Date(),
       scheduledAt: existingBlog.scheduledAt || null,
       draftContent: null,
+      notifyNewsletter: false,
     };
     if (stagedDraft && typeof stagedDraft === "object") {
       updateData = {
@@ -324,6 +331,7 @@ export async function PUT(
       status: "published",
       scheduledAt: null,
       publishedAt: new Date(),
+      notifyNewsletter: false,
     };
     shouldRevalidate = true;
   } else if (action === "cancel-schedule") {
@@ -334,6 +342,7 @@ export async function PUT(
         status: "published",
         scheduledAt: null,
         draftContent: null,
+        notifyNewsletter: false,
       };
     } else {
       // Revert scheduled post back to draft
@@ -341,6 +350,7 @@ export async function PUT(
         ...updateData,
         status: "draft",
         scheduledAt: null,
+        notifyNewsletter: false,
       };
     }
   } else if (action === "discard-draft") {
@@ -485,10 +495,15 @@ export async function PUT(
   }
 
   // Trigger automated newsletter dispatch if published and not sent yet
+  const stagedDraft = existingBlog.draftContent as any;
+  const shouldSendNewsletter =
+    body.sendNewsletter === true ||
+    (action === "publish-now" && (existingBlog.notifyNewsletter || stagedDraft?.notifyNewsletter === true));
+
   if (
     (blog.status === "published" || shouldRevalidate) &&
     !blog.newsletterSent &&
-    body.sendNewsletter === true
+    shouldSendNewsletter
   ) {
     import("@/lib/newsletter/batch-engine")
       .then(({ dispatchBlogNewsletter }) => dispatchBlogNewsletter(blog.id))

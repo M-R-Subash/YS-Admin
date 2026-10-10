@@ -407,6 +407,60 @@ export async function dispatchBlogNewsletter(blogId: string): Promise<string | n
 }
 
 /**
+ * Automatically dispatches any standalone custom newsletter campaigns that were scheduled
+ * and are now overdue (status = 'scheduled' and scheduledAt <= now).
+ * Uses atomic DB locking (`updateMany` where status == "scheduled") to prevent race conditions.
+ */
+export async function dispatchOverdueScheduledCampaigns(): Promise<{
+  checkedCount: number;
+  dispatchedCount: number;
+}> {
+  const now = new Date();
+
+  // Find all campaigns that are scheduled and overdue
+  const overdueCampaigns = await prisma.newsletterCampaign.findMany({
+    where: {
+      status: "scheduled",
+      scheduledAt: { lte: now },
+    },
+    select: { id: true, subject: true, scheduledAt: true },
+    orderBy: { scheduledAt: "asc" },
+  });
+
+  if (overdueCampaigns.length === 0) {
+    return { checkedCount: 0, dispatchedCount: 0 };
+  }
+
+  let dispatchedCount = 0;
+
+  for (const camp of overdueCampaigns) {
+    // Atomic lock: Only update and claim if status is still "scheduled"
+    const updateResult = await prisma.newsletterCampaign.updateMany({
+      where: {
+        id: camp.id,
+        status: "scheduled",
+      },
+      data: {
+        status: "processing",
+      },
+    });
+
+    if (updateResult.count > 0) {
+      dispatchedCount++;
+      // Execute campaign in background
+      executeCampaignDispatch(camp.id).catch((err) => {
+        console.error(`[Newsletter:ScheduledCampaign:${camp.id}] Dispatch failed:`, err);
+      });
+    }
+  }
+
+  return {
+    checkedCount: overdueCampaigns.length,
+    dispatchedCount,
+  };
+}
+
+/**
  * Sends a single test email preview to the admin
  */
 export async function sendTestEmail(

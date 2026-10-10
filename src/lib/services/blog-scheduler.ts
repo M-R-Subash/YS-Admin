@@ -118,10 +118,20 @@ export async function publishOverdueBlogs(): Promise<ScheduledExecutionResult> {
       status: true,
       draftContent: true,
       scheduledAt: true,
+      notifyNewsletter: true,
+      newsletterSent: true,
     },
   });
 
   if (overdueBlogs.length === 0) {
+    // Even if no blogs to publish, check for overdue scheduled newsletter campaigns
+    try {
+      const { dispatchOverdueScheduledCampaigns } = await import("@/lib/newsletter/batch-engine");
+      dispatchOverdueScheduledCampaigns().catch((campErr) => {
+        console.warn("[SCHEDULER] Scheduled campaigns dispatch warning:", campErr);
+      });
+    } catch {}
+
     return {
       success: true,
       message: "No overdue scheduled blogs found to publish.",
@@ -132,7 +142,12 @@ export async function publishOverdueBlogs(): Promise<ScheduledExecutionResult> {
     };
   }
 
-  const publishedBlogsList: { id: string; title: string; slug: string }[] = [];
+  const publishedBlogsList: {
+    id: string;
+    title: string;
+    slug: string;
+    shouldNotifyNewsletter: boolean;
+  }[] = [];
 
   // 2. Process each overdue blog
   for (const blog of overdueBlogs) {
@@ -161,6 +176,7 @@ export async function publishOverdueBlogs(): Promise<ScheduledExecutionResult> {
           status: "published",
           publishedAt: blog.status === "scheduled" ? now : undefined, // only update publishedAt if first time
           draftContent: null as any,
+          notifyNewsletter: false,
           // Retain scheduledAt timestamp so historical release record remains in Scheduled Actions
         },
         include: { seo: true },
@@ -189,10 +205,12 @@ export async function publishOverdueBlogs(): Promise<ScheduledExecutionResult> {
         console.warn("[SCHEDULER] Failed to create revision snapshot:", revError);
       }
 
+      const shouldNotify = Boolean((stagedDraft as any)?.sendNewsletter ?? blog.notifyNewsletter);
       publishedBlogsList.push({
         id: blog.id,
         title: stagedDraft.title || blog.title,
         slug: stagedDraft.slug || blog.slug,
+        shouldNotifyNewsletter: shouldNotify && !blog.newsletterSent,
       });
     } else {
       // Standard new scheduled post without separate draftContent
@@ -201,6 +219,7 @@ export async function publishOverdueBlogs(): Promise<ScheduledExecutionResult> {
         data: {
           status: "published",
           publishedAt: now,
+          notifyNewsletter: false,
           // Retain scheduledAt timestamp so historical release record remains in Scheduled Actions
         },
         include: { seo: true },
@@ -233,6 +252,7 @@ export async function publishOverdueBlogs(): Promise<ScheduledExecutionResult> {
         id: blog.id,
         title: blog.title,
         slug: blog.slug,
+        shouldNotifyNewsletter: Boolean(blog.notifyNewsletter) && !blog.newsletterSent,
       });
     }
   }
@@ -249,14 +269,23 @@ export async function publishOverdueBlogs(): Promise<ScheduledExecutionResult> {
     console.warn("[SCHEDULER] Revalidation warning:", revalError);
   }
 
-  // 4. Trigger newsletter dispatch for newly published scheduled blogs
+  // 4. Trigger newsletter dispatch only for scheduled blogs that explicitly opted in
   try {
-    const { dispatchBlogNewsletter } = await import("@/lib/newsletter/batch-engine");
+    const { dispatchBlogNewsletter, dispatchOverdueScheduledCampaigns } = await import(
+      "@/lib/newsletter/batch-engine"
+    );
     for (const blog of publishedBlogsList) {
-      dispatchBlogNewsletter(blog.id).catch((nlErr) => {
-        console.warn(`[SCHEDULER] Newsletter dispatch warning for blog ${blog.id}:`, nlErr);
-      });
+      if (blog.shouldNotifyNewsletter) {
+        dispatchBlogNewsletter(blog.id).catch((nlErr) => {
+          console.warn(`[SCHEDULER] Newsletter dispatch warning for blog ${blog.id}:`, nlErr);
+        });
+      }
     }
+
+    // 5. Trigger dispatch for overdue scheduled newsletter campaigns
+    dispatchOverdueScheduledCampaigns().catch((campErr) => {
+      console.warn("[SCHEDULER] Scheduled campaigns dispatch warning:", campErr);
+    });
   } catch (nlImportErr) {
     console.warn("[SCHEDULER] Newsletter import warning:", nlImportErr);
   }

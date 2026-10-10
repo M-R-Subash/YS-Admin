@@ -22,9 +22,14 @@ export async function GET() {
             where: { isTrashed: false, isApproved: false },
           })
         : Promise.resolve(0),
-      prisma.blog.count({
-        where: { status: "scheduled", isTrashed: false },
-      }),
+      Promise.all([
+        prisma.blog.count({
+          where: { status: "scheduled", isTrashed: false },
+        }),
+        prisma.newsletterCampaign.count({
+          where: { status: "scheduled" },
+        }),
+      ]).then(([blogs, campaigns]) => blogs + campaigns),
     ]);
 
     return NextResponse.json({

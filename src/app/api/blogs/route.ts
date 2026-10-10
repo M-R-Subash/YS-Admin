@@ -221,6 +221,7 @@ export async function POST(req: Request) {
         readingTime: readingTime || 0,
         publishedAt: finalPublishedAt,
         scheduledAt: parsedScheduledAt,
+        notifyNewsletter: Boolean(body.sendNewsletter),
         authorId: session.user.id,
         seo: (metaTitle || metaDesc || focusKeyword || ogImage || ogTitle || ogDesc || canonicalUrl || noIndex) ? {
           create: {

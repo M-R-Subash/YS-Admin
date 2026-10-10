@@ -17,8 +17,8 @@ export async function GET() {
     // 1. Currently scheduled (status: "scheduled")
     // 2. Previously scheduled and released (scheduledAt != null)
     // 3. Staged updates awaiting scheduled publish
-    // Fetch non-trashed blogs that actually involve scheduling without transferring heavy draftContent
-    const [blogs, stagedBlogRecords] = await Promise.all([
+    // Fetch non-trashed blogs and newsletter campaigns that involve scheduling:
+    const [blogs, stagedBlogRecords, campaigns] = await Promise.all([
       prisma.blog.findMany({
         where: {
           isTrashed: false,
@@ -38,6 +38,7 @@ export async function GET() {
           updatedAt: true,
           categories: true,
           tags: true,
+          notifyNewsletter: true,
           author: {
             select: {
               id: true,
@@ -61,12 +62,39 @@ export async function GET() {
         },
         select: { id: true },
       }),
+      prisma.newsletterCampaign.findMany({
+        where: {
+          OR: [
+            { status: "scheduled" },
+            { scheduledAt: { not: null } },
+          ],
+        },
+        select: {
+          id: true,
+          subject: true,
+          type: true,
+          status: true,
+          scheduledAt: true,
+          completedAt: true,
+          createdAt: true,
+          totalRecipients: true,
+          successCount: true,
+          failedCount: true,
+          blog: {
+            select: { id: true, title: true, slug: true },
+          },
+        },
+        orderBy: [
+          { createdAt: "desc" },
+        ],
+        take: 100,
+      }),
     ]);
 
     const stagedBlogIds = new Set(stagedBlogRecords.map((b) => b.id));
 
-    // Annotate items with accurate schedule category and status
-    const items = blogs.map((blog) => {
+    // Annotate blog items with schedule category and status
+    const blogItems = blogs.map((blog) => {
       let scheduleState: "upcoming" | "pending" | "failed" | "success" = "upcoming";
       const hasStagedUpdate = blog.status === "published" && stagedBlogIds.has(blog.id) && Boolean(blog.scheduledAt);
 
@@ -78,13 +106,10 @@ export async function GET() {
           const diffMs = now.getTime() - scheduleTime;
 
           if (diffMs > 10 * 60 * 1000) {
-            // Overdue by more than 10 minutes: cron trigger missed / failed
             scheduleState = "failed";
           } else if (diffMs >= 0) {
-            // Due right now (within 10-minute window waiting for cron execution)
             scheduleState = "pending";
           } else {
-            // In the future
             scheduleState = "upcoming";
           }
         }
@@ -96,6 +121,7 @@ export async function GET() {
 
       return {
         id: blog.id,
+        itemType: "blog" as const,
         title: blog.title,
         slug: blog.slug,
         featuredImage: blog.featuredImage,
@@ -108,8 +134,68 @@ export async function GET() {
         author: blog.author,
         scheduleState,
         hasStagedUpdate,
+        notifyNewsletter: Boolean(blog.notifyNewsletter),
       };
     });
+
+    // Annotate newsletter campaigns with schedule category and status
+    const campaignItems = campaigns.map((camp) => {
+      let scheduleState: "upcoming" | "pending" | "failed" | "success" = "upcoming";
+
+      if (camp.status === "scheduled") {
+        if (!camp.scheduledAt) {
+          scheduleState = "pending";
+        } else {
+          const scheduleTime = new Date(camp.scheduledAt).getTime();
+          const diffMs = now.getTime() - scheduleTime;
+
+          if (diffMs > 10 * 60 * 1000) {
+            scheduleState = "failed";
+          } else if (diffMs >= 0) {
+            scheduleState = "pending";
+          } else {
+            scheduleState = "upcoming";
+          }
+        }
+      } else if (camp.status === "completed") {
+        scheduleState = "success";
+      } else if (camp.status === "failed") {
+        scheduleState = "failed";
+      } else if (camp.status === "processing") {
+        scheduleState = "pending";
+      }
+
+      return {
+        id: camp.id,
+        itemType: "newsletter" as const,
+        title: camp.subject,
+        slug: camp.blog?.slug || "newsletters/campaigns",
+        featuredImage: null,
+        status: camp.status,
+        scheduledAt: camp.scheduledAt ? camp.scheduledAt.toISOString() : null,
+        publishedAt: camp.completedAt ? camp.completedAt.toISOString() : null,
+        updatedAt: camp.createdAt.toISOString(),
+        categories: [camp.type === "BLOG_UPDATE" ? "Blog Newsletter" : "Custom Blast"],
+        tags: [],
+        author: {
+          id: "newsletter-bot",
+          name: "Newsletter Dispatcher",
+          email: "newsletter@ysinnovations.com",
+          profilePicture: null,
+        },
+        scheduleState,
+        hasStagedUpdate: false,
+        notifyNewsletter: false,
+        newsletterInfo: {
+          type: camp.type,
+          totalRecipients: camp.totalRecipients,
+          successCount: camp.successCount,
+          failedCount: camp.failedCount,
+        },
+      };
+    });
+
+    const items = [...blogItems, ...campaignItems];
 
     // Smart priority sorting:
     // 1. Attention required first: failed (red) -> pending (amber)
@@ -139,6 +225,8 @@ export async function GET() {
       pending: items.filter((i) => i.scheduleState === "pending").length,
       failed: items.filter((i) => i.scheduleState === "failed").length,
       success: items.filter((i) => i.scheduleState === "success").length,
+      blogs: items.filter((i) => i.itemType === "blog").length,
+      newsletters: items.filter((i) => i.itemType === "newsletter").length,
     };
 
     return NextResponse.json({

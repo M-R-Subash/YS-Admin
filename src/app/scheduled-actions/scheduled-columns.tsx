@@ -14,6 +14,8 @@ import {
   PenTool,
   ExternalLink,
   Undo2,
+  Mail,
+  Send,
 } from "lucide-react";
 import { format, formatDistanceToNow, isToday, isTomorrow } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -31,6 +33,7 @@ import { DataTableColumnHeader } from "@/components/ui/data-table-column-header"
 
 export interface ScheduledItem {
   id: string;
+  itemType?: "blog" | "newsletter";
   title: string;
   slug: string;
   featuredImage: string | null;
@@ -42,11 +45,18 @@ export interface ScheduledItem {
   tags: string[];
   scheduleState: "upcoming" | "pending" | "failed" | "success";
   hasStagedUpdate?: boolean;
+  notifyNewsletter?: boolean;
   author?: {
     id: string;
     name: string | null;
     email: string;
     profilePicture: string | null;
+  } | null;
+  newsletterInfo?: {
+    type: "BLOG_UPDATE" | "CUSTOM_BLAST";
+    totalRecipients: number;
+    successCount: number;
+    failedCount: number;
   } | null;
 }
 
@@ -67,7 +77,7 @@ export const getScheduledColumns = ({
 }: ScheduledColumnsProps): ColumnDef<ScheduledItem>[] => [
   {
     accessorKey: "title",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Post & Title" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Action & Title" />,
     meta: {
       className: "w-[240px] md:w-[260px] max-w-[260px]",
     },
@@ -79,10 +89,15 @@ export const getScheduledColumns = ({
     cell: ({ row }) => {
       const item = row.original;
       const cleanSlug = item.slug?.startsWith("/") ? item.slug.slice(1) : (item.slug || "");
+      const isNewsletter = item.itemType === "newsletter";
 
       return (
         <div className="flex items-center gap-3 w-full max-w-[240px] md:max-w-[260px] min-w-0">
-          {item.featuredImage ? (
+          {isNewsletter ? (
+            <div className="w-10 h-10 rounded-sm bg-violet-500/10 text-violet-600 dark:text-violet-400 flex items-center justify-center shrink-0 border border-violet-500/25">
+              <Mail className="w-5 h-5" />
+            </div>
+          ) : item.featuredImage ? (
             <img
               src={item.featuredImage}
               alt={item.title}
@@ -106,14 +121,32 @@ export const getScheduledColumns = ({
                 {item.title}
               </TooltipContent>
             </Tooltip>
-            <div className="flex items-center gap-2 mt-0.5 min-w-0 w-full overflow-hidden">
-              <span className="text-[11px] text-muted-foreground truncate font-mono min-w-0 flex-1">
-                /blogs/{cleanSlug}
-              </span>
-              {item.categories?.length > 0 && (
-                <span className="px-1.5 py-0.2 bg-secondary text-secondary-foreground text-[9px] font-semibold uppercase rounded-xs shrink-0">
-                  {item.categories[0]}
-                </span>
+            <div className="flex items-center gap-1.5 mt-0.5 min-w-0 w-full overflow-hidden flex-wrap">
+              {isNewsletter ? (
+                <>
+                  <span className="px-1.5 py-0.2 bg-violet-500/10 text-violet-600 dark:text-violet-400 text-[9px] font-bold uppercase rounded-xs border border-violet-500/20 shrink-0">
+                    Newsletter
+                  </span>
+                  <span className="text-[11px] text-muted-foreground truncate font-mono">
+                    {item.newsletterInfo?.totalRecipients || 0} recipient(s)
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="text-[11px] text-muted-foreground truncate font-mono min-w-0 flex-1">
+                    /blogs/{cleanSlug}
+                  </span>
+                  {item.categories?.length > 0 && (
+                    <span className="px-1.5 py-0.2 bg-secondary text-secondary-foreground text-[9px] font-semibold uppercase rounded-xs shrink-0">
+                      {item.categories[0]}
+                    </span>
+                  )}
+                  {item.notifyNewsletter && (
+                    <span className="px-1.5 py-0.2 bg-violet-500/10 text-violet-600 dark:text-violet-400 text-[9px] font-bold uppercase rounded-xs border border-violet-500/20 shrink-0 flex items-center gap-1">
+                      <Mail className="w-2.5 h-2.5" /> Newsletter
+                    </span>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -271,7 +304,8 @@ export const getScheduledColumns = ({
     cell: ({ row }) => {
       const item = row.original;
       const cleanSlug = item.slug?.startsWith("/") ? item.slug.slice(1) : item.slug;
-      const publicUrl = siteUrl ? `${siteUrl}/blogs/${cleanSlug}` : undefined;
+      const publicUrl = siteUrl && item.itemType === "blog" ? `${siteUrl}/blogs/${cleanSlug}` : undefined;
+      const isNewsletter = item.itemType === "newsletter";
       const isQueue =
         item.scheduleState === "upcoming" ||
         item.scheduleState === "pending" ||
@@ -289,11 +323,22 @@ export const getScheduledColumns = ({
                 className={`h-7 px-2.5 text-[11px] font-semibold gap-1 cursor-pointer hidden sm:inline-flex ${
                   item.scheduleState === "failed"
                     ? "border-red-500/40 text-red-600 dark:text-red-400 hover:bg-red-500/10"
+                    : isNewsletter
+                    ? "border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
                     : "border-purple-500/30 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10"
                 }`}
               >
-                <Play className="w-3 h-3 fill-current" />
-                <span>Publish Now</span>
+                {isNewsletter ? (
+                  <>
+                    <Send className="w-3 h-3" />
+                    <span>Send Now</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3 h-3 fill-current" />
+                    <span>Publish Now</span>
+                  </>
+                )}
               </Button>
 
               <Button
@@ -306,19 +351,31 @@ export const getScheduledColumns = ({
               </Button>
             </>
           ) : (
-            publicUrl && item.status === "published" && (
+            isNewsletter ? (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  const separator = publicUrl.includes("?") ? "&" : "?";
-                  window.open(`${publicUrl}${separator}nocache=${Date.now()}`, "_blank");
-                }}
-                className="h-7 px-2.5 text-[11px] font-semibold gap-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 cursor-pointer hidden sm:inline-flex"
+                onClick={() => window.open("/newsletters/campaigns", "_self")}
+                className="h-7 px-2.5 text-[11px] font-semibold gap-1 text-violet-600 dark:text-violet-400 border-violet-500/30 hover:bg-violet-500/10 cursor-pointer hidden sm:inline-flex"
               >
-                <Globe className="w-3 h-3" />
-                <span>View Live</span>
+                <Mail className="w-3 h-3" />
+                <span>Campaign History</span>
               </Button>
+            ) : (
+              publicUrl && item.status === "published" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const separator = publicUrl.includes("?") ? "&" : "?";
+                    window.open(`${publicUrl}${separator}nocache=${Date.now()}`, "_blank");
+                  }}
+                  className="h-7 px-2.5 text-[11px] font-semibold gap-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 cursor-pointer hidden sm:inline-flex"
+                >
+                  <Globe className="w-3 h-3" />
+                  <span>View Live</span>
+                </Button>
+              )
             )
           )}
 
@@ -336,25 +393,36 @@ export const getScheduledColumns = ({
             />
             <DropdownMenuContent align="end" className="w-44 text-xs">
               <DropdownMenuGroup>
-                <DropdownMenuLabel>Post Actions</DropdownMenuLabel>
-                <DropdownMenuItem className="cursor-pointer p-0">
-                  <Link href={`/blogs/edit/${item.id}`} className="flex items-center w-full px-2 py-1.5">
-                    <PenTool className="w-3.5 h-3.5 mr-2" />
-                    <span>Edit in Builder</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => window.open(`/blogs/preview/${item.id}`, `preview_${item.id}`)}
-                  className="cursor-pointer"
-                >
-                  <ExternalLink className="w-3.5 h-3.5 mr-2" />
-                  <span>Live Preview</span>
-                </DropdownMenuItem>
-                {publicUrl && item.status === "published" && (
-                  <DropdownMenuItem onClick={() => window.open(publicUrl, "_blank")} className="cursor-pointer">
-                    <Globe className="w-3.5 h-3.5 mr-2" />
-                    <span>View Live Post</span>
+                <DropdownMenuLabel>{isNewsletter ? "Newsletter Actions" : "Post Actions"}</DropdownMenuLabel>
+                {isNewsletter ? (
+                  <DropdownMenuItem className="cursor-pointer p-0">
+                    <Link href="/newsletters/campaigns" className="flex items-center w-full px-2 py-1.5">
+                      <Mail className="w-3.5 h-3.5 mr-2" />
+                      <span>View in Campaigns</span>
+                    </Link>
                   </DropdownMenuItem>
+                ) : (
+                  <>
+                    <DropdownMenuItem className="cursor-pointer p-0">
+                      <Link href={`/blogs/edit/${item.id}`} className="flex items-center w-full px-2 py-1.5">
+                        <PenTool className="w-3.5 h-3.5 mr-2" />
+                        <span>Edit in Builder</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => window.open(`/blogs/preview/${item.id}`, `preview_${item.id}`)}
+                      className="cursor-pointer"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 mr-2" />
+                      <span>Live Preview</span>
+                    </DropdownMenuItem>
+                    {publicUrl && item.status === "published" && (
+                      <DropdownMenuItem onClick={() => window.open(publicUrl, "_blank")} className="cursor-pointer">
+                        <Globe className="w-3.5 h-3.5 mr-2" />
+                        <span>View Live Post</span>
+                      </DropdownMenuItem>
+                    )}
+                  </>
                 )}
               </DropdownMenuGroup>
 
@@ -367,8 +435,17 @@ export const getScheduledColumns = ({
                       disabled={actionLoadingId === item.id}
                       className="cursor-pointer sm:hidden text-purple-600 font-semibold"
                     >
-                      <Play className="w-3.5 h-3.5 mr-2 fill-current" />
-                      <span>Publish Now</span>
+                      {isNewsletter ? (
+                        <>
+                          <Send className="w-3.5 h-3.5 mr-2" />
+                          <span>Send Now</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-3.5 h-3.5 mr-2 fill-current" />
+                          <span>Publish Now</span>
+                        </>
+                      )}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => onOpenReschedule(item)}
@@ -382,7 +459,7 @@ export const getScheduledColumns = ({
                       className="text-amber-600 focus:text-amber-600 cursor-pointer"
                     >
                       <Undo2 className="w-3.5 h-3.5 mr-2 text-amber-600" />
-                      <span>Revert to Draft</span>
+                      <span>{isNewsletter ? "Cancel Schedule" : "Revert to Draft"}</span>
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
                 </>

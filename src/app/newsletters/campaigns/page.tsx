@@ -17,6 +17,7 @@ import {
   Clock,
   FilterX,
   Send,
+  Calendar,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -45,6 +46,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { getCampaignsColumns, Campaign } from "./campaigns-columns";
 import { BRAND_LOGO_URL, formatEmailBody } from "@/lib/newsletter/templates";
 import { cn } from "@/lib/utils";
+import { SchedulePostModal } from "@/components/blog/dialogs/SchedulePostModal";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -66,6 +68,10 @@ export default function CampaignHistoryPage() {
   const [retryingCampaignId, setRetryingCampaignId] = useState<string | null>(
     null,
   );
+  const [actionCampaignId, setActionCampaignId] = useState<string | null>(null);
+  const [reschedulingCampaign, setReschedulingCampaign] =
+    useState<Campaign | null>(null);
+  const [isSubmittingReschedule, setIsSubmittingReschedule] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(
     null,
   );
@@ -191,6 +197,128 @@ export default function CampaignHistoryPage() {
     [mutateCampaigns, mutateMetrics],
   );
 
+  // Send Now Scheduled Campaign Handler
+  const handleSendNowCampaign = useCallback(
+    async (campaignId: string) => {
+      setActionCampaignId(campaignId);
+      try {
+        const res = await fetch(`/api/newsletters/campaigns/${campaignId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "send-now" }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.success) {
+          toast.add({
+            title: data.message || "Dispatching campaign immediately...",
+            type: "success",
+          });
+          mutateCampaigns();
+          mutateMetrics();
+        } else {
+          toast.add({
+            title: data.error || "Failed to trigger campaign dispatch",
+            type: "error",
+          });
+        }
+      } catch {
+        toast.add({
+          title: "Network error occurred while dispatching",
+          type: "error",
+        });
+      } finally {
+        setActionCampaignId(null);
+      }
+    },
+    [mutateCampaigns, mutateMetrics],
+  );
+
+  // Cancel Schedule Handler
+  const handleCancelScheduleCampaign = useCallback(
+    async (campaignId: string) => {
+      setActionCampaignId(campaignId);
+      try {
+        const res = await fetch(`/api/newsletters/campaigns/${campaignId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "cancel" }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.success) {
+          toast.add({
+            title: data.message || "Campaign schedule cancelled.",
+            type: "success",
+          });
+          mutateCampaigns();
+        } else {
+          toast.add({
+            title: data.error || "Failed to cancel schedule",
+            type: "error",
+          });
+        }
+      } catch {
+        toast.add({
+          title: "Network error occurred while cancelling schedule",
+          type: "error",
+        });
+      } finally {
+        setActionCampaignId(null);
+      }
+    },
+    [mutateCampaigns],
+  );
+
+  // Open Reschedule Modal Handler
+  const handleRescheduleCampaign = useCallback((camp: Campaign) => {
+    setReschedulingCampaign(camp);
+  }, []);
+
+  // Confirm Reschedule Handler (passed to SchedulePostModal)
+  const handleConfirmReschedule = useCallback(
+    async (newDate: Date) => {
+      if (!reschedulingCampaign) return false;
+      setIsSubmittingReschedule(true);
+      try {
+        const res = await fetch(
+          `/api/newsletters/campaigns/${reschedulingCampaign.id}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "reschedule",
+              scheduledAt: newDate.toISOString(),
+            }),
+          },
+        );
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.success) {
+          toast.add({
+            title: `Campaign rescheduled for ${format(newDate, "MMMM d, yyyy 'at' h:mm a")}!`,
+            type: "success",
+          });
+          setReschedulingCampaign(null);
+          mutateCampaigns();
+          return true;
+        } else {
+          toast.add({
+            title: data.error || "Failed to reschedule campaign",
+            type: "error",
+          });
+          return false;
+        }
+      } catch {
+        toast.add({
+          title: "Network error occurred while rescheduling",
+          type: "error",
+        });
+        return false;
+      } finally {
+        setIsSubmittingReschedule(false);
+      }
+    },
+    [reschedulingCampaign, mutateCampaigns],
+  );
+
   // Filtered Campaigns
   const filteredCampaigns = useMemo(() => {
     return campaigns.filter((c) => {
@@ -202,6 +330,7 @@ export default function CampaignHistoryPage() {
       if (!matchesSearch) return false;
 
       if (filterType === "all") return true;
+      if (filterType === "scheduled") return c.status === "scheduled";
       if (filterType === "blog") return c.type === "BLOG_UPDATE";
       if (filterType === "blast") return c.type === "CUSTOM_BLAST";
       if (filterType === "failed")
@@ -211,6 +340,10 @@ export default function CampaignHistoryPage() {
     });
   }, [campaigns, search, filterType]);
 
+  const scheduledCount = useMemo(
+    () => campaigns.filter((c) => c.status === "scheduled").length,
+    [campaigns],
+  );
   const blogUpdatesCount = useMemo(
     () => campaigns.filter((c) => c.type === "BLOG_UPDATE").length,
     [campaigns],
@@ -237,6 +370,16 @@ export default function CampaignHistoryPage() {
         isActive: filterType === "all",
         onClick: () => setFilterType("all"),
         badgeLabel: "Total Blasts",
+      },
+      {
+        id: "scheduled",
+        label: "Scheduled Releases",
+        count: scheduledCount.toLocaleString(),
+        icon: Clock,
+        color: "purple",
+        isActive: filterType === "scheduled",
+        onClick: () => setFilterType("scheduled"),
+        badgeLabel: "Pending Send",
       },
       {
         id: "blog",
@@ -278,7 +421,7 @@ export default function CampaignHistoryPage() {
         badgeLabel: `${metrics.totalEmailsSent.toLocaleString()} emails delivered`,
       },
     ],
-    [metrics, filterType, blogUpdatesCount, customBlastsCount, failedCount],
+    [metrics, filterType, scheduledCount, blogUpdatesCount, customBlastsCount, failedCount],
   );
 
   const filterTabs = useMemo<ContentFilterTab[]>(
@@ -288,6 +431,12 @@ export default function CampaignHistoryPage() {
         label: "All Campaigns",
         count: campaigns.length,
         color: "primary",
+      },
+      {
+        id: "scheduled",
+        label: "Scheduled",
+        count: scheduledCount,
+        color: "purple",
       },
       {
         id: "blog",
@@ -308,7 +457,7 @@ export default function CampaignHistoryPage() {
         color: "red",
       },
     ],
-    [campaigns.length, blogUpdatesCount, customBlastsCount, failedCount],
+    [campaigns.length, scheduledCount, blogUpdatesCount, customBlastsCount, failedCount],
   );
 
   const columns = useMemo(
@@ -316,9 +465,20 @@ export default function CampaignHistoryPage() {
       getCampaignsColumns({
         onSelectCampaign: (camp) => setSelectedCampaign(camp),
         onRetryCampaign: handleRetryCampaign,
+        onSendNowCampaign: handleSendNowCampaign,
+        onRescheduleCampaign: handleRescheduleCampaign,
+        onCancelScheduleCampaign: handleCancelScheduleCampaign,
         retryingCampaignId,
+        actionCampaignId,
       }),
-    [retryingCampaignId, handleRetryCampaign],
+    [
+      retryingCampaignId,
+      actionCampaignId,
+      handleRetryCampaign,
+      handleSendNowCampaign,
+      handleRescheduleCampaign,
+      handleCancelScheduleCampaign,
+    ],
   );
 
   return (
@@ -596,7 +756,7 @@ export default function CampaignHistoryPage() {
                   <div className="pt-2.5 border-t border-border/70 flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">
                       Linked Article:{" "}
-                      <strong className="text-foreground ml-1">
+                        <strong className="text-foreground ml-1">
                         {selectedCampaign.blog.title}
                       </strong>
                     </span>
@@ -612,6 +772,54 @@ export default function CampaignHistoryPage() {
                   </div>
                 )}
               </div>
+
+              {/* Scheduled Status Notice (If campaign is scheduled) */}
+              {selectedCampaign && selectedCampaign.status === "scheduled" && (
+                <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-violet-500/20 text-violet-400 shrink-0">
+                      <Clock className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="font-semibold text-violet-400 text-xs sm:text-sm block">
+                        Scheduled For Automated Release
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {selectedCampaign.scheduledAt
+                          ? `Will be dispatched on ${format(new Date(selectedCampaign.scheduledAt), "MMMM d, yyyy 'at' h:mm a")}`
+                          : "Pending automated dispatch"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const camp = selectedCampaign;
+                        setSelectedCampaign(null);
+                        handleRescheduleCampaign(camp);
+                      }}
+                      className="text-xs h-8 px-3 border-violet-500/40 text-violet-400 hover:bg-violet-500/10 cursor-pointer"
+                    >
+                      <Calendar className="w-3.5 h-3.5 mr-1" />
+                      Reschedule
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        const id = selectedCampaign.id;
+                        setSelectedCampaign(null);
+                        handleSendNowCampaign(id);
+                      }}
+                      className="text-xs h-8 px-3 bg-primary text-primary-foreground cursor-pointer"
+                    >
+                      <Send className="w-3.5 h-3.5 mr-1" />
+                      Send Now
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               {/* Diagnostic Error Box (If failures exist) */}
               {selectedCampaign && selectedCampaign.failedCount > 0 && (
@@ -730,6 +938,24 @@ export default function CampaignHistoryPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* RESCHEDULE CAMPAIGN MODAL */}
+        {reschedulingCampaign && (
+          <SchedulePostModal
+            open={Boolean(reschedulingCampaign)}
+            onOpenChange={(open) => !open && setReschedulingCampaign(null)}
+            postTitle={reschedulingCampaign.subject}
+            currentScheduledAt={reschedulingCampaign.scheduledAt}
+            title="Reschedule Newsletter Blast"
+            description="Choose a new date and time to automatically dispatch this newsletter to your active readers."
+            confirmButtonText="Save Rescheduled Time"
+            showNewsletterOption={false}
+            skipInternalConfirm={true}
+            isSubmitting={isSubmittingReschedule}
+            onConfirmSchedule={handleConfirmReschedule}
+            onCancelSchedule={() => handleCancelScheduleCampaign(reschedulingCampaign.id)}
+          />
+        )}
       </div>
     </TooltipProvider>
   );

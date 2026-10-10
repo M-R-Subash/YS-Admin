@@ -25,6 +25,8 @@ if (
   !(client as any).subscriber ||
   !(client as any).newsletterCampaign ||
   !(client as any)._runtimeDataModel?.models?.Blog?.fields?.some((f: any) => f.name === "scheduledAt") ||
+  !(client as any)._runtimeDataModel?.models?.Blog?.fields?.some((f: any) => f.name === "notifyNewsletter") ||
+  !(client as any)._runtimeDataModel?.models?.NewsletterCampaign?.fields?.some((f: any) => f.name === "scheduledAt") ||
   !(client as any)._runtimeDataModel?.models?.Category?.fields?.some((f: any) => f.name === "metaTitle") ||
   !(client as any)._runtimeDataModel?.models?.Tag?.fields?.some((f: any) => f.name === "description") ||
   !(client as any)._runtimeDataModel?.models?.Subscriber?.fields?.some((f: any) => f.name === "resubscribeCount")

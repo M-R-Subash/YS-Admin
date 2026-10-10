@@ -17,7 +17,11 @@ export function BlogSeoTab() {
   const title = watch("title") || "";
   const slug = watch("slug") || "";
   const content = watch("content");
-  const featuredImage = watch("featuredImage") || "";
+  const rawFeaturedImage = watch("featuredImage");
+  const featuredImage =
+    typeof rawFeaturedImage === "string"
+      ? rawFeaturedImage
+      : (rawFeaturedImage as any)?.url || "";
   const metaTitle = watch("metaTitle") || "";
   const metaDesc = watch("metaDesc") || "";
   const focusKeyword = watch("focusKeyword") || "";

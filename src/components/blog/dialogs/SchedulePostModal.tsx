@@ -40,6 +40,7 @@ import {
 } from "date-fns";
 import { useNow } from "@/hooks/useNow";
 import { ConfirmModal } from "@/components/global-modal";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export interface SchedulePostModalProps {
   open: boolean;
@@ -50,6 +51,12 @@ export interface SchedulePostModalProps {
   onCancelSchedule?: () => Promise<boolean | void>;
   isSubmitting?: boolean;
   skipInternalConfirm?: boolean;
+  title?: string;
+  description?: string;
+  confirmButtonText?: string;
+  showNewsletterOption?: boolean;
+  sendNewsletter?: boolean;
+  onSendNewsletterChange?: (checked: boolean) => void;
 }
 
 export function SchedulePostModal({
@@ -60,7 +67,13 @@ export function SchedulePostModal({
   onConfirmSchedule,
   onCancelSchedule,
   isSubmitting = false,
-  skipInternalConfirm = false,
+  skipInternalConfirm = true,
+  title,
+  description,
+  confirmButtonText,
+  showNewsletterOption = false,
+  sendNewsletter = false,
+  onSendNewsletterChange,
 }: SchedulePostModalProps) {
   // Helper to compute default future date: Current date + 10 mins (rounded to next 5 minutes)
   const getDefaultFutureDate = (): Date => {
@@ -213,10 +226,10 @@ export function SchedulePostModal({
             </div>
             <div>
               <DialogTitle className="text-lg font-bold tracking-tight">
-                {isAlreadyScheduled ? "Reschedule Blog Post" : "Schedule Blog Post"}
+                {title || (isAlreadyScheduled ? "Reschedule Blog Post" : "Schedule Blog Post")}
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                Pick a target release date and time for automated publishing.
+                {description || "Pick a target release date and time for automated publishing."}
               </DialogDescription>
             </div>
           </div>
@@ -431,6 +444,23 @@ export function SchedulePostModal({
                 </div>
               </div>
             </div>
+
+            {/* Optional Newsletter Option Checkbox */}
+            {showNewsletterOption && (
+              <div className="flex items-center gap-2 text-left pt-1">
+                <Checkbox
+                  id="scheduleSendNewsletter"
+                  checked={Boolean(sendNewsletter)}
+                  onCheckedChange={(checked) => onSendNewsletterChange?.(Boolean(checked))}
+                />
+                <label
+                  htmlFor="scheduleSendNewsletter"
+                  className="text-xs font-medium text-foreground cursor-pointer select-none"
+                >
+                  Send email newsletter to subscribers when published
+                </label>
+              </div>
+            )}
           </div>
         </div>
 
@@ -481,7 +511,9 @@ export function SchedulePostModal({
               ) : (
                 <>
                   <CalendarIcon className="w-4 h-4" />
-                  <span>{isAlreadyScheduled ? "Confirm Reschedule" : "Confirm Schedule"}</span>
+                  <span>
+                    {confirmButtonText || (isAlreadyScheduled ? "Confirm Reschedule" : "Confirm Schedule")}
+                  </span>
                 </>
               )}
             </Button>
@@ -494,13 +526,13 @@ export function SchedulePostModal({
         open={showConfirm}
         onOpenChange={setShowConfirm}
         variant="neutral"
-        title={isAlreadyScheduled ? "Reschedule Blog Post?" : "Schedule Blog Post?"}
+        title={title ? `${title}?` : isAlreadyScheduled ? "Confirm Reschedule?" : "Confirm Schedule?"}
         description={
           postTitle
-            ? `Are you sure you want to schedule "${postTitle}" for publication on ${previewText}? It will automatically go live at that time.`
-            : `Are you sure you want to schedule this post for publication on ${previewText}? It will automatically go live at that time.`
+            ? `Are you sure you want to schedule "${postTitle}" for delivery on ${previewText}?`
+            : `Are you sure you want to schedule for delivery on ${previewText}?`
         }
-        confirmText={isAlreadyScheduled ? "Confirm Reschedule" : "Confirm Schedule"}
+        confirmText={confirmButtonText || (isAlreadyScheduled ? "Confirm Reschedule" : "Confirm Schedule")}
         cancelText="Cancel"
         loading={isSubmitting}
         onConfirm={handleInternalConfirm}

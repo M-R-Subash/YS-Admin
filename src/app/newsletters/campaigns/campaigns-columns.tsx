@@ -9,6 +9,11 @@ import {
   Loader2,
   RefreshCw,
   Eye,
+  Calendar,
+  Clock,
+  Send,
+  MoreHorizontal,
+  XCircle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -18,13 +23,21 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 export interface Campaign {
   id: string;
   subject: string;
   bodyHtml: string;
   type: "BLOG_UPDATE" | "CUSTOM_BLAST";
-  status: "draft" | "processing" | "completed" | "failed";
+  status: "draft" | "scheduled" | "processing" | "completed" | "failed";
+  scheduledAt?: string | null;
   totalRecipients: number;
   successCount: number;
   failedCount: number;
@@ -41,13 +54,21 @@ export interface Campaign {
 interface CampaignsColumnsOptions {
   onSelectCampaign: (camp: Campaign) => void;
   onRetryCampaign: (id: string) => void;
+  onSendNowCampaign?: (id: string) => void;
+  onRescheduleCampaign?: (camp: Campaign) => void;
+  onCancelScheduleCampaign?: (id: string) => void;
   retryingCampaignId: string | null;
+  actionCampaignId?: string | null;
 }
 
 export function getCampaignsColumns({
   onSelectCampaign,
   onRetryCampaign,
+  onSendNowCampaign,
+  onRescheduleCampaign,
+  onCancelScheduleCampaign,
   retryingCampaignId,
+  actionCampaignId,
 }: CampaignsColumnsOptions): ColumnDef<Campaign>[] {
   return [
     {
@@ -123,6 +144,35 @@ export function getCampaignsColumns({
           );
         }
 
+        if (status === "scheduled") {
+          const schedDate = row.original.scheduledAt ? new Date(row.original.scheduledAt) : null;
+          return (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/25 cursor-default">
+                    <Clock className="w-3.5 h-3.5" />
+                    Scheduled
+                  </span>
+                }
+              />
+              <TooltipContent side="top">
+                {schedDate
+                  ? `Scheduled for ${format(schedDate, "MMMM d, yyyy 'at' h:mm a")}`
+                  : "Scheduled for automated dispatch"}
+              </TooltipContent>
+            </Tooltip>
+          );
+        }
+
+        if (status === "draft") {
+          return (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-muted text-muted-foreground border border-border">
+              Draft
+            </span>
+          );
+        }
+
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-500/10 text-rose-500 border border-rose-500/20">
             <AlertCircle className="w-3.5 h-3.5" />
@@ -138,6 +188,15 @@ export function getCampaignsColumns({
       ),
       cell: ({ row }) => {
         const camp = row.original;
+
+        if (camp.status === "scheduled") {
+          return (
+            <div className="text-[11px] text-muted-foreground font-medium italic">
+              Awaiting release ({camp.totalRecipients} recipient{camp.totalRecipients !== 1 ? "s" : ""})
+            </div>
+          );
+        }
+
         const successPct =
           camp.totalRecipients > 0
             ? Math.round((camp.successCount / camp.totalRecipients) * 100)
@@ -169,24 +228,27 @@ export function getCampaignsColumns({
     {
       accessorKey: "createdAt",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Dispatched" />
+        <DataTableColumnHeader column={column} title="Date" />
       ),
       cell: ({ row }) => {
-        const createdAt = row.original.createdAt;
+        const camp = row.original;
+        const isScheduled = camp.status === "scheduled" && camp.scheduledAt;
+        const targetDate = isScheduled ? new Date(camp.scheduledAt!) : new Date(camp.createdAt);
 
         return (
           <Tooltip>
             <TooltipTrigger
               render={
                 <span className="cursor-default text-xs text-muted-foreground hover:text-foreground transition-colors font-medium">
-                  {formatDistanceToNow(new Date(createdAt), {
+                  {isScheduled ? "Sends " : ""}
+                  {formatDistanceToNow(targetDate, {
                     addSuffix: true,
                   })}
                 </span>
               }
             />
             <TooltipContent side="top">
-              {format(new Date(createdAt), "MMMM d, yyyy 'at' h:mm a")}
+              {format(targetDate, "MMMM d, yyyy 'at' h:mm a")}
             </TooltipContent>
           </Tooltip>
         );
@@ -210,6 +272,52 @@ export function getCampaignsColumns({
               <Eye className="w-3.5 h-3.5" />
               <span>Details</span>
             </Button>
+            {camp.status === "scheduled" && (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={actionCampaignId === camp.id}
+                      className="h-8 px-2.5 text-xs gap-1 cursor-pointer rounded-sm border-violet-500/30 text-violet-600 dark:text-violet-400 hover:bg-violet-500/10"
+                    >
+                      {actionCampaignId === camp.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Calendar className="w-3.5 h-3.5" />
+                      )}
+                      <span>Manage</span>
+                      <MoreHorizontal className="w-3 h-3 ml-0.5" />
+                    </Button>
+                  }
+                />
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuItem
+                    onClick={() => onSendNowCampaign?.(camp.id)}
+                    className="text-xs cursor-pointer gap-2"
+                  >
+                    <Send className="w-3.5 h-3.5 text-blue-500" />
+                    <span>Send Now</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onRescheduleCampaign?.(camp)}
+                    className="text-xs cursor-pointer gap-2"
+                  >
+                    <Calendar className="w-3.5 h-3.5 text-violet-500" />
+                    <span>Reschedule</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => onCancelScheduleCampaign?.(camp.id)}
+                    className="text-xs cursor-pointer gap-2 text-rose-500 focus:text-rose-500"
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    <span>Cancel Schedule</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             {camp.failedCount > 0 && (
               <Button
                 size="sm"

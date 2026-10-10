@@ -119,6 +119,7 @@ model Blog {
   categoryItems Category[]      @relation("BlogCategories")
   tagItems      Tag[]           @relation("BlogTags")
   
+  notifyNewsletter Boolean              @default(false)
   newsletterSent   Boolean              @default(false)
   newsletterSentAt DateTime?
   campaigns        NewsletterCampaign[]
@@ -251,6 +252,7 @@ enum SubscriberStatus {
 
 enum CampaignStatus {
   draft
+  scheduled
   processing
   completed
   failed
@@ -284,6 +286,7 @@ model NewsletterCampaign {
   bodyHtml        String         @db.Text
   type            CampaignType   @default(CUSTOM_BLAST)
   status          CampaignStatus @default(processing)
+  scheduledAt     DateTime?
   
   blogId          String?
   blog            Blog?          @relation(fields: [blogId], references: [id], onDelete: SetNull)
@@ -297,4 +300,5 @@ model NewsletterCampaign {
   completedAt     DateTime?
 
   @@index([status, createdAt])
+  @@index([status, scheduledAt])
 }

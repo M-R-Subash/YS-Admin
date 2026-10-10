@@ -1246,6 +1246,9 @@ export default function BlogForm({ blogId }: BlogFormProps) {
             onCancelSchedule={handleCancelSchedule}
             isSubmitting={isSubmitting}
             skipInternalConfirm={true}
+            showNewsletterOption={!initialData?.newsletterSent}
+            sendNewsletter={Boolean(watch("sendNewsletter"))}
+            onSendNewsletterChange={(checked) => setValue("sendNewsletter", checked)}
           />
           {/* Publish / Update / Schedule Confirmation Dialog */}
           <ConfirmModal

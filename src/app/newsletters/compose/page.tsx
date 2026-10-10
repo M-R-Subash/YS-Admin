@@ -20,7 +20,9 @@ import {
   Check,
   Columns,
   Zap,
+  Calendar,
 } from "lucide-react";
+import { format } from "date-fns";
 
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { Button } from "@/components/ui/button";
@@ -51,6 +53,7 @@ import {
 import dynamic from "next/dynamic";
 import { BRAND_LOGO_URL, formatEmailBody } from "@/lib/newsletter/templates";
 import { cn } from "@/lib/utils";
+import { SchedulePostModal } from "@/components/blog/dialogs/SchedulePostModal";
 
 const BlogEditor = dynamic(() => import("@/components/blog/BlogEditor"), {
   ssr: false,
@@ -173,6 +176,8 @@ export default function ComposeBlastPage() {
   // Execution states
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [isSendingBlast, setIsSendingBlast] = useState(false);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [isScheduling, setIsScheduling] = useState(false);
   const [lastTestSentAt, setLastTestSentAt] = useState<string | null>(null);
   const [isPreflightOpen, setIsPreflightOpen] = useState(false);
 
@@ -290,6 +295,44 @@ export default function ComposeBlastPage() {
     }
   }
 
+  // Schedule Custom Blast
+  async function handleScheduleBlast(scheduledDate: Date) {
+    setIsScheduling(true);
+    try {
+      const fullHtml = buildFullEmailHtml(blastContent, blastPreheader);
+      const res = await fetch("/api/newsletters/campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: blastSubject.trim(),
+          bodyHtml: fullHtml,
+          scheduledAt: scheduledDate.toISOString(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to schedule newsletter");
+      }
+
+      toast.add({
+        title: `Newsletter scheduled for ${format(scheduledDate, "MMMM d, yyyy 'at' h:mm a")}!`,
+        type: "success",
+      });
+      setIsScheduleModalOpen(false);
+      mutateMetrics();
+      router.push("/newsletters/campaigns");
+      return true;
+    } catch (err: any) {
+      toast.add({
+        title: err.message || "Failed to schedule newsletter",
+        type: "error",
+      });
+      return false;
+    } finally {
+      setIsScheduling(false);
+    }
+  }
+
   const isReadyToBlast =
     blastSubject.trim().length > 0 &&
     blastContent.trim().length > 0 &&
@@ -354,16 +397,31 @@ export default function ComposeBlastPage() {
               </button>
             </div>
 
-            {/* Right: Primary Action Button */}
-            <Button
-              size="sm"
-              onClick={() => setIsPreflightOpen(true)}
-              disabled={!isReadyToBlast || isSendingBlast}
-              className="h-8.5 px-4 text-xs gap-1.5 bg-primary text-primary-foreground font-semibold cursor-pointer shadow-xs rounded-sm hover:opacity-90 shrink-0"
-            >
-              <Send className="w-3.5 h-3.5" />
-              <span>Send Newsletter</span>
-            </Button>
+            {/* Right: Action Buttons */}
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsScheduleModalOpen(true)}
+                disabled={!isReadyToBlast || isSendingBlast || isScheduling}
+                className="h-8.5 px-3 text-xs gap-1.5 border-border hover:bg-muted font-medium cursor-pointer rounded-sm"
+              >
+                <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                <span>Schedule Send</span>
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setIsPreflightOpen(true)}
+                disabled={!isReadyToBlast || isSendingBlast || isScheduling}
+                className="h-8.5 px-4 text-xs gap-1.5 bg-primary text-primary-foreground font-semibold cursor-pointer shadow-xs rounded-sm hover:opacity-90 shrink-0"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>Send Newsletter</span>
+              </Button>
+            </div>
           </div>
 
           {/* Main Layout Area */}
@@ -873,22 +931,51 @@ export default function ComposeBlastPage() {
               >
                 Keep Editing
               </Button>
-              <Button
-                size="sm"
-                onClick={handleDispatchBlast}
-                disabled={isSendingBlast}
-                className="cursor-pointer text-xs h-8.5 gap-1.5 bg-primary text-primary-foreground font-semibold rounded-sm shadow-xs hover:opacity-90"
-              >
-                {isSendingBlast ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Send className="w-3.5 h-3.5" />
-                )}
-                <span>Confirm &amp; Send Newsletter</span>
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setIsPreflightOpen(false);
+                    setIsScheduleModalOpen(true);
+                  }}
+                  disabled={isSendingBlast || isScheduling}
+                  className="cursor-pointer text-xs h-8.5 gap-1.5 rounded-sm border-border hover:bg-muted"
+                >
+                  <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Schedule Instead</span>
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleDispatchBlast}
+                  disabled={isSendingBlast || isScheduling}
+                  className="cursor-pointer text-xs h-8.5 gap-1.5 bg-primary text-primary-foreground font-semibold rounded-sm shadow-xs hover:opacity-90"
+                >
+                  {isSendingBlast ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Send className="w-3.5 h-3.5" />
+                  )}
+                  <span>Confirm &amp; Send Newsletter</span>
+                </Button>
+              </div>
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* SCHEDULE POST MODAL FOR NEWSLETTER */}
+        <SchedulePostModal
+          open={isScheduleModalOpen}
+          onOpenChange={setIsScheduleModalOpen}
+          postTitle={blastSubject}
+          title="Schedule Newsletter Send"
+          description="Select a future date and time to automatically dispatch this newsletter to your active subscribers."
+          confirmButtonText="Confirm Schedule Send"
+          showNewsletterOption={false}
+          skipInternalConfirm={true}
+          isSubmitting={isScheduling}
+          onConfirmSchedule={handleScheduleBlast}
+        />
       </div>
     </TooltipProvider>
   );
