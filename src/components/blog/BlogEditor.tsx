@@ -78,11 +78,17 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { clientConfig } from "@/lib/config/client";
+import { cn } from "@/lib/utils";
 
 interface BlogEditorProps {
   initialContent?: any;
-  onChange: (json: any) => void;
+  onChange: (content: any) => void;
+  onChangeHtml?: (html: string) => void;
+  outputFormat?: "json" | "html";
+  value?: string;
+  placeholder?: string;
   onWordCountChange?: (words: number) => void;
+  className?: string;
 }
 
 const uploadToCloudinary = async (file: File): Promise<string> => {
@@ -138,7 +144,12 @@ const CustomImage = Image.extend({
 export default function BlogEditor({
   initialContent,
   onChange,
+  onChangeHtml,
+  outputFormat = "json",
+  value,
+  placeholder,
   onWordCountChange,
+  className,
 }: BlogEditorProps) {
   const isMounted = React.useSyncExternalStore(emptySubscribe, () => true, () => false);
   
@@ -201,7 +212,7 @@ export default function BlogEditor({
       TableHeader,
       TableCell,
       Placeholder.configure({
-        placeholder: "Type '/' for commands, or start writing...",
+        placeholder: placeholder || "Type '/' for commands, or start writing...",
         showOnlyCurrent: true,
       }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
@@ -214,12 +225,17 @@ export default function BlogEditor({
       Youtube.configure({ inline: false }),
       Typography,
     ],
-    content: initialContent || "",
+    content: value !== undefined ? (value || "") : (initialContent || ""),
     onCreate: ({ editor }) => {
       onWordCountChange?.(editor.storage.characterCount.words());
     },
     onUpdate: ({ editor }) => {
-      onChange(editor.getJSON());
+      if (outputFormat === "html") {
+        onChange(editor.getHTML());
+      } else {
+        onChange(editor.getJSON());
+      }
+      onChangeHtml?.(editor.getHTML());
       onWordCountChange?.(editor.storage.characterCount.words());
     },
     editorProps: {
@@ -339,6 +355,17 @@ export default function BlogEditor({
     };
   }, [editor]);
 
+  // Sync external value updates (e.g. templates, resets)
+  useEffect(() => {
+    if (!editor || value === undefined) return;
+    const currentHtml = editor.getHTML();
+    if (value !== currentHtml) {
+      if (!editor.isFocused || currentHtml === "<p></p>" || !value || Math.abs(value.length - currentHtml.length) > 5) {
+        editor.commands.setContent(value || "");
+      }
+    }
+  }, [value, editor]);
+
   if (!isMounted || !editor) {
     return <div className="h-100 bg-card border rounded-xl animate-pulse"></div>;
   }
@@ -377,7 +404,7 @@ export default function BlogEditor({
 
   return (
     <TooltipProvider delay={200}>
-      <div className="flex flex-col h-full border border-border rounded-xl bg-card overflow-hidden relative">
+      <div className={cn("flex flex-col h-full border border-border rounded-xl bg-card overflow-hidden relative", className)}>
         
         {/* Editor Toolbar */}
       <div className="sticky top-0 z-10 flex items-center gap-1 p-1.5 sm:p-2 bg-card border-b border-border shadow-xs shrink-0 overflow-x-auto no-scrollbar touch-pan-x flex-nowrap md:flex-wrap">

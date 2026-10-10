@@ -26,6 +26,7 @@ import {
   Eye,
   Upload,
   FileSpreadsheet,
+  Percent,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -43,9 +44,27 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ConfirmModal } from "@/components/global-modal";
+import dynamic from "next/dynamic";
 import { BRAND_LOGO_URL, formatEmailBody } from "@/lib/newsletter/templates";
 import { cn } from "@/lib/utils";
+
+const BlogEditor = dynamic(() => import("@/components/blog/BlogEditor"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[480px] flex flex-col gap-3 p-5 bg-card rounded-xl border border-border animate-pulse">
+      <Skeleton className="h-9 w-full rounded-md" />
+      <Skeleton className="h-64 w-full rounded-md" />
+    </div>
+  ),
+});
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -537,7 +556,7 @@ export default function NewsletterPage() {
                 setAddModalTab("manual");
                 setIsAddModalOpen(true);
               }}
-              className="text-xs h-9 gap-1.5 bg-amber-500 hover:bg-amber-600 text-black font-semibold cursor-pointer shadow-xs"
+              className="text-xs h-9 gap-1.5 bg-black hover:bg-black/90 text-white dark:bg-white dark:text-black font-semibold cursor-pointer shadow-xs"
             >
               <Plus className="w-3.5 h-3.5" />
               Add Subscriber
@@ -685,15 +704,27 @@ export default function NewsletterPage() {
               </div>
 
               <div className="flex items-center gap-2 w-full sm:w-auto">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="h-9 px-3 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                >
-                  <option value="all">All Statuses</option>
-                  <option value="active">Active Only</option>
-                  <option value="unsubscribed">Unsubscribed Only</option>
-                </select>
+                <div className="w-40">
+                  <Select
+                    value={statusFilter}
+                    onValueChange={(val) => setStatusFilter(val || "all")}
+                  >
+                    <SelectTrigger className="h-9 px-3 text-xs w-full bg-card border-border cursor-pointer">
+                      <SelectValue placeholder="All Statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all" className="text-xs cursor-pointer font-medium">
+                        All Statuses
+                      </SelectItem>
+                      <SelectItem value="active" className="text-xs cursor-pointer font-medium text-emerald-500">
+                        Active Only
+                      </SelectItem>
+                      <SelectItem value="unsubscribed" className="text-xs cursor-pointer font-medium text-rose-500">
+                        Unsubscribed Only
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 <Button
                   variant="ghost"
@@ -1091,93 +1122,56 @@ export default function NewsletterPage() {
                 />
               </div>
 
-              {/* Message Body */}
+              {/* Message Body with Blog TipTap Editor */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-medium text-foreground">
                     Message Body <span className="text-rose-400">*</span>
                   </label>
-                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                    <span className="text-[10px]">Insert:</span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setBlastContent((prev) =>
-                          prev ? prev.trimEnd() + "\n\n" : "",
-                        )
-                      }
-                      className="px-2 py-0.5 rounded bg-muted/70 hover:bg-muted text-foreground text-[10px] font-medium border border-border/60 transition-colors cursor-pointer"
-                      title="Add a new paragraph"
-                    >
-                      &para; Paragraph
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setBlastContent((prev) =>
-                          prev ? prev + "\n" : "",
-                        )
-                      }
-                      className="px-2 py-0.5 rounded bg-muted/70 hover:bg-muted text-foreground text-[10px] font-medium border border-border/60 transition-colors cursor-pointer"
-                      title="Add a line break"
-                    >
-                      &crarr; Line Break
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setBlastContent((prev) =>
-                          prev + "<strong>Important</strong>",
-                        )
-                      }
-                      className="px-2 py-0.5 rounded bg-muted/70 hover:bg-muted text-foreground text-[10px] font-medium border border-border/60 transition-colors cursor-pointer"
-                      title="Add bold text"
-                    >
-                      Bold
-                    </button>
-                  </div>
+                  <span className="text-[11px] text-muted-foreground">
+                    Blog-grade rich editor &bull; Formatting, images, tables &amp; slash commands
+                  </span>
                 </div>
-                <Textarea
-                  placeholder="Type your message here...&#10;&#10;Press Enter to create new lines and paragraphs naturally, or use HTML tags like <p>, <strong>, etc."
-                  value={blastContent}
-                  onChange={(e) => setBlastContent(e.target.value)}
-                  rows={10}
-                  className="text-xs font-mono leading-relaxed resize-y bg-background"
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Pressing Enter creates real line breaks and paragraphs automatically. Supports HTML formatting as well.
-                </p>
+                <div className="h-[480px]">
+                  <BlogEditor
+                    value={blastContent}
+                    outputFormat="html"
+                    onChange={(html) => setBlastContent(html)}
+                    placeholder="Type your announcement or newsletter message here... Press '/' for slash commands or use the toolbar above for formatting, links, and tables."
+                  />
+                </div>
               </div>
 
               {/* Action Buttons & Test Recipient */}
               <div className="pt-2 space-y-3">
-                <div className="p-3 rounded-lg bg-muted/20 border border-border/60 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-                  <div className="flex-1">
-                    <label className="text-[11px] font-medium text-muted-foreground block mb-1">
-                      Test Recipient Email (optional, defaults to your admin account):
-                    </label>
+                <div className="p-3.5 rounded-xl bg-muted/20 border border-border/60 space-y-2">
+                  <label className="text-[11px] font-medium text-muted-foreground block">
+                    Test Recipient Email (optional, defaults to your admin account):
+                  </label>
+                  <div className="flex items-center gap-2">
                     <Input
                       type="email"
                       placeholder="e.g. test-account@company.com"
                       value={testRecipientEmail}
                       onChange={(e) => setTestRecipientEmail(e.target.value)}
-                      className="h-8 text-xs bg-background"
+                      className="h-9 text-xs bg-background flex-1"
                     />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSendTest}
+                      disabled={isSendingTest || !blastSubject || !blastContent}
+                      className="h-9 px-3.5 text-xs gap-1.5 shrink-0 cursor-pointer hover:bg-muted font-medium"
+                    >
+                      {isSendingTest ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Eye className="w-3.5 h-3.5" />
+                      )}
+                      <span>Send Preview Test</span>
+                    </Button>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleSendTest}
-                    disabled={isSendingTest || !blastSubject || !blastContent}
-                    className="text-xs h-8 gap-1.5 shrink-0 self-end sm:self-auto cursor-pointer"
-                  >
-                    {isSendingTest ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Eye className="w-3.5 h-3.5" />
-                    )}
-                    Send Preview Test
-                  </Button>
                 </div>
 
                 <div className="flex justify-end">
@@ -1190,7 +1184,7 @@ export default function NewsletterPage() {
                       !blastContent ||
                       metrics.activeSubscribers === 0
                     }
-                    className="text-xs h-9 gap-1.5 bg-amber-500 hover:bg-amber-600 text-black font-semibold cursor-pointer"
+                    className="text-xs h-9 gap-1.5 bg-black hover:bg-black/90 text-white dark:bg-white dark:text-black font-semibold cursor-pointer shadow-xs"
                   >
                     <Send className="w-3.5 h-3.5" />
                     Send Blast to {metrics.activeSubscribers} Subscribers
@@ -1279,20 +1273,36 @@ export default function NewsletterPage() {
           open={Boolean(selectedCampaign)}
           onOpenChange={(open) => !open && setSelectedCampaign(null)}
         >
-          <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden p-0 gap-0">
-            <DialogHeader className="p-5 border-b border-border bg-card">
-              <div className="flex items-center justify-between gap-3 pr-6">
-                <DialogTitle className="text-base font-bold flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-amber-500" />
-                  Campaign Inspection & Delivery Diagnostics
-                </DialogTitle>
-                <div className="flex items-center gap-2">
+          <DialogContent className="sm:max-w-3xl md:max-w-4xl w-full max-h-[88vh] flex flex-col overflow-hidden p-0 gap-0 rounded-2xl border border-border/80 shadow-2xl bg-card">
+            <DialogHeader className="p-5 sm:p-6 border-b border-border/70 bg-card/60 backdrop-blur-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pr-6">
+                <div className="flex items-center gap-3">
+                  <div className="size-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center shrink-0 shadow-2xs">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-base sm:text-lg font-bold tracking-tight text-foreground">
+                      Campaign Inspection & Delivery Diagnostics
+                    </DialogTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Dispatched on{" "}
+                      {selectedCampaign
+                        ? format(
+                            new Date(selectedCampaign.createdAt),
+                            "MMMM d, yyyy 'at' h:mm a",
+                          )
+                        : ""}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
                   <Badge
                     variant="outline"
                     className={
                       selectedCampaign?.type === "BLOG_UPDATE"
-                        ? "border-blue-500/30 text-blue-400 bg-blue-500/10 text-[10px]"
-                        : "border-purple-500/30 text-purple-400 bg-purple-500/10 text-[10px]"
+                        ? "border-blue-500/30 text-blue-400 bg-blue-500/10 text-xs px-2.5 py-0.5 font-semibold"
+                        : "border-purple-500/30 text-purple-400 bg-purple-500/10 text-xs px-2.5 py-0.5 font-semibold"
                     }
                   >
                     {selectedCampaign?.type === "BLOG_UPDATE"
@@ -1301,7 +1311,7 @@ export default function NewsletterPage() {
                   </Badge>
                   <Badge
                     variant="outline"
-                    className={`text-[10px] ${
+                    className={`text-xs capitalize px-2.5 py-0.5 font-semibold ${
                       selectedCampaign?.status === "completed"
                         ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
                         : selectedCampaign?.status === "processing"
@@ -1313,34 +1323,83 @@ export default function NewsletterPage() {
                   </Badge>
                 </div>
               </div>
-              <span className="text-xs text-muted-foreground mt-1 block">
-                Dispatched on{" "}
-                {selectedCampaign
-                  ? format(
-                      new Date(selectedCampaign.createdAt),
-                      "MMMM d, yyyy 'at' h:mm a",
-                    )
-                  : ""}
-              </span>
             </DialogHeader>
 
-            <div className="overflow-y-auto p-5 space-y-4 text-xs">
+            <div className="overflow-y-auto p-5 sm:p-6 space-y-4 text-xs">
+              {/* Delivery Stats Breakdown */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-xl border border-border/80 bg-muted/20 p-3.5 flex flex-col justify-between">
+                  <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                    Total Recipients
+                  </span>
+                  <div className="mt-2 flex items-baseline justify-between">
+                    <span className="text-2xl font-bold tracking-tight text-foreground">
+                      {selectedCampaign?.totalRecipients || 0}
+                    </span>
+                    <Users className="w-4 h-4 text-muted-foreground/60" />
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3.5 flex flex-col justify-between">
+                  <span className="text-[11px] uppercase tracking-wider text-emerald-500 font-semibold">
+                    Delivered
+                  </span>
+                  <div className="mt-2 flex items-baseline justify-between">
+                    <span className="text-2xl font-bold tracking-tight text-emerald-400">
+                      {selectedCampaign?.successCount || 0}
+                    </span>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-rose-500/25 bg-rose-500/5 p-3.5 flex flex-col justify-between">
+                  <span className="text-[11px] uppercase tracking-wider text-rose-500 font-semibold">
+                    Failed
+                  </span>
+                  <div className="mt-2 flex items-baseline justify-between">
+                    <span className="text-2xl font-bold tracking-tight text-rose-400">
+                      {selectedCampaign?.failedCount || 0}
+                    </span>
+                    <AlertCircle className="w-4 h-4 text-rose-500" />
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border/80 bg-muted/20 p-3.5 flex flex-col justify-between">
+                  <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                    Success Rate
+                  </span>
+                  <div className="mt-2 flex items-baseline justify-between">
+                    <span className="text-2xl font-bold tracking-tight text-foreground">
+                      {selectedCampaign && selectedCampaign.totalRecipients > 0
+                        ? Math.round(
+                            (selectedCampaign.successCount /
+                              selectedCampaign.totalRecipients) *
+                              100,
+                          )
+                        : 0}
+                      %
+                    </span>
+                    <Percent className="w-4 h-4 text-muted-foreground/60" />
+                  </div>
+                </div>
+              </div>
+
               {/* Subject & Linked Blog */}
-              <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+              <div className="rounded-xl border border-border/80 bg-card p-4 space-y-2.5 shadow-2xs">
                 <div>
                   <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
-                    Subject Line
+                    Email Subject Line
                   </span>
-                  <h3 className="text-sm font-semibold text-foreground mt-0.5">
+                  <h3 className="text-sm sm:text-base font-semibold text-foreground mt-0.5">
                     {selectedCampaign?.subject}
                   </h3>
                 </div>
 
                 {selectedCampaign?.blog && (
-                  <div className="pt-2 border-t border-border flex items-center justify-between">
+                  <div className="pt-2.5 border-t border-border/70 flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">
                       Linked Article:{" "}
-                      <strong className="text-foreground">
+                      <strong className="text-foreground ml-1">
                         {selectedCampaign.blog.title}
                       </strong>
                     </span>
@@ -1348,67 +1407,31 @@ export default function NewsletterPage() {
                       href={`https://ysinnovations.com/blogs/${selectedCampaign.blog.slug}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-amber-500 hover:text-amber-400 inline-flex items-center gap-1 font-medium text-[11px]"
+                      className="text-amber-500 hover:text-amber-400 inline-flex items-center gap-1 font-semibold text-xs"
                     >
-                      <span>View live</span>
-                      <ExternalLink className="w-3 h-3" />
+                      <span>View live post</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
                     </a>
                   </div>
                 )}
               </div>
 
-              {/* Delivery Stats Breakdown */}
-              <div className="grid grid-cols-4 gap-2.5">
-                <div className="rounded-lg border border-border bg-card p-3 text-center">
-                  <span className="text-[10px] uppercase text-muted-foreground font-semibold block">
-                    Total
-                  </span>
-                  <span className="text-base font-bold text-foreground mt-1 block">
-                    {selectedCampaign?.totalRecipients || 0}
-                  </span>
-                </div>
-                <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-center">
-                  <span className="text-[10px] uppercase text-emerald-500 font-semibold block">
-                    Delivered
-                  </span>
-                  <span className="text-base font-bold text-emerald-400 mt-1 block">
-                    {selectedCampaign?.successCount || 0}
-                  </span>
-                </div>
-                <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-center">
-                  <span className="text-[10px] uppercase text-rose-500 font-semibold block">
-                    Failed
-                  </span>
-                  <span className="text-base font-bold text-rose-400 mt-1 block">
-                    {selectedCampaign?.failedCount || 0}
-                  </span>
-                </div>
-                <div className="rounded-lg border border-border bg-card p-3 text-center">
-                  <span className="text-[10px] uppercase text-muted-foreground font-semibold block">
-                    Success Rate
-                  </span>
-                  <span className="text-base font-bold text-foreground mt-1 block">
-                    {selectedCampaign && selectedCampaign.totalRecipients > 0
-                      ? Math.round(
-                          (selectedCampaign.successCount /
-                            selectedCampaign.totalRecipients) *
-                            100,
-                        )
-                      : 0}
-                    %
-                  </span>
-                </div>
-              </div>
-
               {/* Diagnostic Error Box (If failures exist) */}
               {selectedCampaign && selectedCampaign.failedCount > 0 && (
-                <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-3.5 space-y-2.5">
-                  <div className="flex items-center justify-between gap-2">
+                <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                     <div className="flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
-                      <span className="font-semibold text-rose-400 text-xs">
-                        Delivery Error Details
-                      </span>
+                      <div className="p-1 rounded-md bg-rose-500/20 text-rose-400">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                      </div>
+                      <div>
+                        <span className="font-semibold text-rose-400 text-xs sm:text-sm block">
+                          Delivery Diagnostic Trace
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          Resend delivery exception logged during dispatch
+                        </span>
+                      </div>
                     </div>
                     <Button
                       size="sm"
@@ -1418,7 +1441,7 @@ export default function NewsletterPage() {
                         retryingCampaignId === selectedCampaign.id ||
                         selectedCampaign.status === "processing"
                       }
-                      className="h-7 px-2.5 text-xs text-rose-300 border-rose-500/30 hover:bg-rose-500/20 gap-1.5 cursor-pointer font-medium"
+                      className="h-8 px-3 text-xs text-rose-300 border-rose-500/40 hover:bg-rose-500/20 gap-1.5 cursor-pointer font-medium shrink-0"
                     >
                       {retryingCampaignId === selectedCampaign.id ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1432,18 +1455,18 @@ export default function NewsletterPage() {
                   </div>
 
                   {parsedErrorInfo?.error && (
-                    <div className="font-mono text-[11px] bg-background/80 p-2.5 rounded border border-border/80 text-rose-300 break-words">
+                    <div className="font-mono text-xs bg-black/60 p-3 rounded-lg border border-rose-500/20 text-rose-300 break-words leading-relaxed">
                       {parsedErrorInfo.error}
                     </div>
                   )}
 
                   {parsedErrorInfo?.failedEmails &&
                     parsedErrorInfo.failedEmails.length > 0 && (
-                      <div>
-                        <span className="text-[11px] text-muted-foreground font-medium block mb-1.5">
-                          Failed Recipients ({parsedErrorInfo.failedEmails.length}):
+                      <div className="space-y-1.5 pt-1">
+                        <span className="text-[11px] text-muted-foreground font-medium block">
+                          Affected Recipients ({parsedErrorInfo.failedEmails.length}):
                         </span>
-                        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1.5 bg-background/40 rounded border border-border/60">
+                        <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-2 bg-black/40 rounded-lg border border-border/60">
                           {parsedErrorInfo.failedEmails.map((email, idx) => (
                             <Badge
                               key={idx}
@@ -1460,29 +1483,29 @@ export default function NewsletterPage() {
               )}
 
               {/* Email Body Content Preview */}
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
-                  Email Content Snapshot
+                  Email Dispatch Preview
                 </span>
-                <div className="rounded-xl border border-border bg-[#050505] p-3 text-white overflow-hidden shadow-inner">
+                <div className="rounded-xl border border-border bg-[#050505] p-3 sm:p-4 text-white overflow-hidden shadow-inner">
                   <div className="rounded-lg border border-[#1f242d] bg-[#0a0c10] overflow-hidden">
-                    <div className="p-3 bg-gradient-to-r from-[#0a0c10] to-[#121622] border-b border-[#1f242d] flex items-center justify-between">
+                    <div className="p-3.5 bg-gradient-to-r from-[#0a0c10] to-[#121622] border-b border-[#1f242d] flex items-center justify-between">
                       <img
                         src={BRAND_LOGO_URL}
                         alt="YS Innovations"
                         className="h-6 w-auto object-contain"
                       />
-                      <span className="text-[9px] uppercase font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
+                      <span className="text-[9px] uppercase font-bold text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/30">
                         {selectedCampaign?.type === "BLOG_UPDATE" ? "BLOG" : "ANNOUNCEMENT"}
                       </span>
                     </div>
-                    <div className="p-4 max-h-60 overflow-y-auto text-xs leading-relaxed text-gray-300">
+                    <div className="p-4 sm:p-5 max-h-72 overflow-y-auto text-xs leading-relaxed text-gray-300">
                       {selectedCampaign?.bodyHtml ? (
                         <div
                           dangerouslySetInnerHTML={{
                             __html: formatEmailBody(selectedCampaign.bodyHtml),
                           }}
-                          className="space-y-2 whitespace-pre-wrap [&_p]:mb-2 [&_a]:text-amber-400 [&_a]:underline [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1"
+                          className="space-y-2 whitespace-pre-wrap [&_p]:mb-2 [&_a]:text-amber-400 [&_a]:underline [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1 [&_h2]:text-sm [&_h2]:font-bold [&_h2]:text-white [&_h3]:text-xs [&_h3]:font-semibold [&_h3]:text-gray-200"
                         />
                       ) : (
                         <p className="text-gray-500 italic">
@@ -1495,12 +1518,12 @@ export default function NewsletterPage() {
               </div>
             </div>
 
-            <DialogFooter className="p-4 border-t border-border bg-card">
+            <DialogFooter className="p-4 border-t border-border bg-card/60 backdrop-blur-xs">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setSelectedCampaign(null)}
-                className="text-xs ml-auto cursor-pointer"
+                className="text-xs ml-auto cursor-pointer h-9 px-4"
               >
                 Close
               </Button>
@@ -1575,125 +1598,141 @@ export default function NewsletterPage() {
 
             {/* TAB CONTENT: CSV UPLOAD */}
             {addModalTab === "csv" ? (
-              <div className="space-y-4 py-1 text-xs">
-                {/* Drag-and-drop zone */}
-                <div
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setIsDraggingFile(true);
-                  }}
-                  onDragLeave={() => setIsDraggingFile(false)}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setIsDraggingFile(false);
-                    const file = e.dataTransfer.files?.[0];
-                    if (file) handleCsvFileSelect(file);
-                  }}
-                  className={cn(
-                    "relative border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer",
-                    isDraggingFile
-                      ? "border-amber-500 bg-amber-500/10"
-                      : "border-border/80 hover:border-amber-500/50 bg-muted/10 hover:bg-muted/20"
-                  )}
-                  onClick={() => {
-                    document.getElementById("csv-file-input")?.click();
-                  }}
-                >
-                  <input
-                    id="csv-file-input"
-                    type="file"
-                    accept=".csv,.txt"
-                    className="sr-only"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
+              <div className="h-[275px] flex flex-col justify-between text-xs">
+                {/* Drag-and-drop zone / Parsed state */}
+                {!csvFile ? (
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDraggingFile(true);
+                    }}
+                    onDragLeave={() => setIsDraggingFile(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDraggingFile(false);
+                      const file = e.dataTransfer.files?.[0];
                       if (file) handleCsvFileSelect(file);
                     }}
-                  />
-                  <div className="flex flex-col items-center justify-center space-y-2">
-                    <div className="size-10 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center">
-                      <Upload className="w-5 h-5" />
-                    </div>
-                    {csvFile ? (
-                      <div>
-                        <p className="font-semibold text-foreground text-sm">
-                          {csvFile.name}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          {(csvFile.size / 1024).toFixed(1)} KB &bull; Click to choose a different file
-                        </p>
+                    className={cn(
+                      "flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-5 text-center transition-all cursor-pointer",
+                      isDraggingFile
+                        ? "border-amber-500 bg-amber-500/10"
+                        : "border-border/80 hover:border-amber-500/50 bg-muted/10 hover:bg-muted/20"
+                    )}
+                    onClick={() => {
+                      document.getElementById("csv-file-input")?.click();
+                    }}
+                  >
+                    <input
+                      id="csv-file-input"
+                      type="file"
+                      accept=".csv,.txt"
+                      className="sr-only"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleCsvFileSelect(file);
+                      }}
+                    />
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                      <div className="size-11 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                        <Upload className="w-5 h-5" />
                       </div>
-                    ) : (
                       <div>
                         <p className="font-semibold text-foreground text-sm">
                           Click to upload or drag & drop CSV file
                         </p>
                         <p className="text-[11px] text-muted-foreground mt-0.5">
-                          Supports .csv or .txt containing email addresses
+                          supports .csv or .txt containing email addresses
                         </p>
                       </div>
-                    )}
+                    </div>
                   </div>
-                </div>
-
-                {/* Parsed email status */}
-                {isParsingCsv ? (
-                  <div className="flex items-center justify-center gap-2 py-3 text-muted-foreground">
-                    <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
-                    <span>Parsing email addresses from file...</span>
-                  </div>
-                ) : csvParsedEmails.length > 0 ? (
-                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-emerald-500 font-semibold flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        {csvParsedEmails.length} valid email address{csvParsedEmails.length > 1 ? "es" : ""} ready to import
-                      </span>
+                ) : (
+                  <div className="flex-1 flex flex-col justify-between overflow-hidden gap-2">
+                    {/* Selected File header */}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl border border-border/70 bg-muted/20 shrink-0">
+                      <div className="flex items-center gap-2.5 overflow-hidden">
+                        <div className="size-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+                          <Upload className="w-4 h-4" />
+                        </div>
+                        <div className="truncate">
+                          <p className="font-semibold text-foreground text-xs truncate">
+                            {csvFile.name}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {(csvFile.size / 1024).toFixed(1)} KB
+                          </p>
+                        </div>
+                      </div>
                       <button
                         type="button"
                         onClick={() => {
                           setCsvFile(null);
                           setCsvParsedEmails([]);
                         }}
-                        className="text-[11px] text-muted-foreground hover:text-rose-400 cursor-pointer"
+                        className="text-xs text-muted-foreground hover:text-rose-500 cursor-pointer font-medium shrink-0 ml-2"
                       >
-                        Clear
+                        Change file
                       </button>
                     </div>
-                    <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto p-1 bg-background/50 rounded-lg">
-                      {csvParsedEmails.slice(0, 15).map((em, idx) => (
-                        <Badge
-                          key={idx}
-                          variant="secondary"
-                          className="text-[10px] font-mono px-1.5 py-0.5"
-                        >
-                          {em}
-                        </Badge>
-                      ))}
-                      {csvParsedEmails.length > 15 && (
-                        <span className="text-[10px] text-muted-foreground self-center px-1">
-                          +{csvParsedEmails.length - 15} more
-                        </span>
+
+                    {/* Parsed list container */}
+                    <div className="flex-1 min-h-0 flex flex-col justify-center">
+                      {isParsingCsv ? (
+                        <div className="flex items-center justify-center gap-2 py-4 text-muted-foreground">
+                          <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+                          <span>Parsing email addresses from file...</span>
+                        </div>
+                      ) : csvParsedEmails.length > 0 ? (
+                        <div className="h-full rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-2.5 flex flex-col justify-between overflow-hidden">
+                          <div className="flex items-center justify-between mb-1 shrink-0">
+                            <span className="text-emerald-500 font-semibold flex items-center gap-1.5 text-xs">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              {csvParsedEmails.length} valid email address{csvParsedEmails.length > 1 ? "es" : ""} found
+                            </span>
+                          </div>
+                          <div className="flex-1 overflow-y-auto flex flex-wrap gap-1 p-1 bg-background/50 rounded-lg">
+                            {csvParsedEmails.slice(0, 30).map((em, idx) => (
+                              <Badge
+                                key={idx}
+                                variant="secondary"
+                                className="text-[10px] font-mono px-1.5 py-0.5"
+                              >
+                                {em}
+                              </Badge>
+                            ))}
+                            {csvParsedEmails.length > 30 && (
+                              <span className="text-[10px] text-muted-foreground self-center px-1">
+                                +{csvParsedEmails.length - 30} more
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3 text-center text-xs text-rose-400 bg-rose-500/10 rounded-xl border border-rose-500/20">
+                          No valid email addresses found in this file.
+                        </div>
                       )}
                     </div>
                   </div>
-                ) : null}
+                )}
 
                 {/* Template download helper */}
-                <div className="flex items-center justify-between pt-1 text-[11px] text-muted-foreground border-t border-border/50">
+                <div className="flex items-center justify-between pt-2 text-[11px] text-muted-foreground border-t border-border/50 shrink-0">
                   <span>Need an example spreadsheet?</span>
                   <button
                     type="button"
                     onClick={handleDownloadSampleCsv}
                     className="text-amber-500 hover:text-amber-400 underline font-medium cursor-pointer"
                   >
-                    Download Sample CSV Template
+                    download sample csv template
                   </button>
                 </div>
               </div>
             ) : (
               /* TAB CONTENT: MANUAL ENTRY */
-              <div className="space-y-3 py-1 text-xs">
-                <div className="flex items-center justify-between">
+              <div className="h-[275px] flex flex-col justify-between text-xs gap-2">
+                <div className="flex items-center justify-between shrink-0">
                   <span className="text-muted-foreground">
                     Enter email addresses separated by commas, spaces, or new lines:
                   </span>
@@ -1710,10 +1749,9 @@ export default function NewsletterPage() {
                   placeholder="reader1@example.com&#10;client@company.com, info@agency.com"
                   value={newEmailsInput}
                   onChange={(e) => setNewEmailsInput(e.target.value)}
-                  rows={6}
-                  className="font-mono text-xs bg-background leading-relaxed"
+                  className="font-mono text-xs bg-background leading-relaxed flex-1 resize-none p-3 rounded-xl border border-input"
                 />
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-[11px] text-muted-foreground shrink-0">
                   Duplicates and invalid emails will be automatically sanitized before adding.
                 </p>
               </div>
@@ -1737,7 +1775,7 @@ export default function NewsletterPage() {
                     ? csvParsedEmails.length === 0
                     : manualParsedEmails.length === 0)
                 }
-                className="text-xs h-9 bg-amber-500 hover:bg-amber-600 text-black font-semibold cursor-pointer shadow-xs"
+                className="text-xs h-9 bg-black hover:bg-black/90 text-white dark:bg-white dark:text-black font-semibold cursor-pointer shadow-xs disabled:opacity-50"
               >
                 {isAddingSubscribers ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
