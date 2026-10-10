@@ -313,8 +313,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
 
   // Check if form is modified compared to initial snapshot
   const isDirtyOrFilled = useMemo(() => {
-    if (isEditMode) {
-      if (!initialData) return false;
+    if (initialData) {
       return (
         title !== initialData.title ||
         slug !== initialData.slug ||
@@ -953,6 +952,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
 
       setInitialData(newSnapshot);
       reset(newSnapshot);
+      dirtyManager.markClean(newSnapshot);
 
       setLastSavedAt(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
 
@@ -1004,7 +1004,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       if (shouldExit) {
         router.push("/blogs");
       } else if (!isEditMode && responseData && responseData.id) {
-        router.replace(`/blogs/${responseData.id}`);
+        router.replace(`/blogs/edit/${responseData.id}`);
       }
       return true;
     } catch (error: any) {
