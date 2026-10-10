@@ -80,6 +80,20 @@ const navItems = [
     title: "Newsletter",
     url: "/newsletters",
     icon: <Send />,
+    items: [
+      {
+        title: "Subscribers",
+        url: "/newsletters",
+      },
+      {
+        title: "Campaign History",
+        url: "/newsletters/campaigns",
+      },
+      {
+        title: "Compose Blast",
+        url: "/newsletters/compose",
+      },
+    ],
   },
 ]
 
