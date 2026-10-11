@@ -7,7 +7,149 @@ import Link from "next/link";
 import { ArrowLeft, FileSpreadsheet, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BulkEditorGrid, BulkBlogItem } from "./BulkEditorGrid";
+import {
+  UniversalSpreadsheetEditor,
+  SpreadsheetColumnConfig,
+} from "@/components/admin/spreadsheet/UniversalSpreadsheetEditor";
+
+export interface BulkBlogItem {
+  id: string;
+  title: string;
+  slug: string;
+  status: "published" | "draft" | "scheduled";
+  categories: string[];
+  tags: string[];
+  allowComments: boolean;
+  readingTime?: number;
+  featuredImage?: string | null;
+  excerpt?: string | null;
+  seo?: {
+    metaTitle?: string | null;
+    metaDesc?: string | null;
+    focusKeyword?: string | null;
+    canonicalUrl?: string | null;
+    noIndex?: boolean | null;
+  } | null;
+}
+
+const BLOG_COLUMNS: SpreadsheetColumnConfig[] = [
+  {
+    key: "slug",
+    label: "Slug",
+    defaultWidth: 200,
+    minWidth: 130,
+    type: "text",
+    category: "General",
+    placeholder: "my-post-slug",
+  },
+  {
+    key: "status",
+    label: "Status",
+    defaultWidth: 120,
+    minWidth: 100,
+    type: "status",
+    category: "Publishing",
+  },
+  {
+    key: "categories",
+    label: "Categories",
+    defaultWidth: 220,
+    minWidth: 140,
+    type: "categories",
+    category: "Taxonomy",
+  },
+  {
+    key: "tags",
+    label: "Tags",
+    defaultWidth: 220,
+    minWidth: 140,
+    type: "tags",
+    category: "Taxonomy",
+  },
+  {
+    key: "allowComments",
+    label: "Comments",
+    defaultWidth: 100,
+    minWidth: 80,
+    type: "switch",
+    category: "Publishing",
+  },
+  {
+    key: "readingTime",
+    label: "Read Time",
+    defaultWidth: 110,
+    minWidth: 90,
+    type: "number",
+    category: "Publishing",
+  },
+  {
+    key: "featuredImage",
+    label: "Featured Image",
+    defaultWidth: 220,
+    minWidth: 140,
+    type: "text",
+    category: "General",
+    placeholder: "https://...",
+  },
+  {
+    key: "excerpt",
+    label: "Excerpt",
+    defaultWidth: 260,
+    minWidth: 160,
+    type: "text",
+    category: "General",
+    placeholder: "Post excerpt...",
+  },
+  {
+    key: "metaTitle",
+    label: "Meta Title",
+    defaultWidth: 220,
+    minWidth: 140,
+    type: "text",
+    category: "SEO",
+    placeholder: "SEO title...",
+    fieldPath: "seo.metaTitle",
+  },
+  {
+    key: "metaDesc",
+    label: "Meta Description",
+    defaultWidth: 260,
+    minWidth: 160,
+    type: "text",
+    category: "SEO",
+    placeholder: "Meta description...",
+    fieldPath: "seo.metaDesc",
+  },
+  {
+    key: "focusKeyword",
+    label: "Focus Keyword",
+    defaultWidth: 160,
+    minWidth: 120,
+    type: "text",
+    category: "SEO",
+    placeholder: "Focus keyword...",
+    fieldPath: "seo.focusKeyword",
+  },
+  {
+    key: "canonicalUrl",
+    label: "Canonical URL",
+    defaultWidth: 220,
+    minWidth: 140,
+    type: "text",
+    category: "SEO",
+    placeholder: "https://...",
+    fieldPath: "seo.canonicalUrl",
+  },
+  {
+    key: "noIndex",
+    label: "No Index",
+    defaultWidth: 90,
+    minWidth: 80,
+    type: "switch",
+    category: "SEO",
+    fieldPath: "seo.noIndex",
+  },
+];
 
 function BulkEditContent() {
   const searchParams = useSearchParams();
@@ -69,8 +211,8 @@ function BulkEditContent() {
   if (isLoading) {
     return (
       <div className="p-6 space-y-4 max-w-[1600px] mx-auto">
-        <Skeleton className="h-16 w-full rounded-xl" />
-        <Skeleton className="h-96 w-full rounded-xl" />
+        <Skeleton className="h-14 w-full rounded-xl" />
+        <Skeleton className="h-64 w-full rounded-xl" />
       </div>
     );
   }
@@ -98,11 +240,15 @@ function BulkEditContent() {
   }
 
   return (
-    <div className="h-screen w-screen overflow-hidden flex flex-col bg-background p-3 sm:p-4 gap-3 animate-in fade-in duration-200">
-      <BulkEditorGrid
-        initialBlogs={blogs}
-        allCategories={categories}
-        allTags={tags}
+    <div className="w-full min-h-screen bg-background p-3 sm:p-5">
+      <UniversalSpreadsheetEditor
+        entityLabel="Blog"
+        backHref="/blogs"
+        initialItems={blogs}
+        columns={BLOG_COLUMNS}
+        availableCategories={categories}
+        availableTags={tags}
+        apiEndpoint="/api/blogs/bulk"
       />
     </div>
   );
@@ -113,8 +259,8 @@ export default function BulkEditPage() {
     <Suspense
       fallback={
         <div className="p-6 space-y-4 max-w-[1600px] mx-auto">
-          <Skeleton className="h-16 w-full rounded-xl" />
-          <Skeleton className="h-96 w-full rounded-xl" />
+          <Skeleton className="h-14 w-full rounded-xl" />
+          <Skeleton className="h-64 w-full rounded-xl" />
         </div>
       }
     >
