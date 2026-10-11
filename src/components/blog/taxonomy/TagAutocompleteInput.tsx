@@ -5,6 +5,7 @@ import useSWR from "swr";
 import { Hash, X, Plus, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useDebounce } from "@/hooks/useDebounce";
 
 interface TagData {
   id: string;
@@ -34,13 +35,17 @@ export function TagAutocompleteInput({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Debounced search query for SWR
   const trimmedInput = inputValue.trim();
-  const searchUrl = trimmedInput
-    ? `/api/tags?search=${encodeURIComponent(trimmedInput)}&limit=10`
+
+  // Debounced search query for SWR to prevent spamming tag search API on keystrokes
+  const debouncedInput = useDebounce(trimmedInput, 250);
+  const searchUrl = debouncedInput
+    ? `/api/tags?search=${encodeURIComponent(debouncedInput)}&limit=10`
     : null;
 
-  const { data: suggestions = [], isLoading } = useSWR<TagData[]>(searchUrl);
+  const { data: suggestions = [], isLoading } = useSWR<TagData[]>(searchUrl, {
+    dedupingInterval: 15000,
+  });
 
   // Keep all suggestions so user can see tags like "Productivity" even if already selected
   const availableSuggestions = suggestions;

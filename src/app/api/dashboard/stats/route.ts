@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma, { mapDbToPageData } from "@/lib/prisma";
+import { fetchWithMemoryCache } from "@/lib/server/memory-cache";
 
 export async function GET() {
   try {
@@ -11,78 +12,87 @@ export async function GET() {
     }
 
     const isUserAdmin = session.user.role === "ADMIN";
+    const cacheKey = `dashboard-stats:${isUserAdmin ? "admin" : "editor"}`;
 
-    const [
-      publishedPagesCount,
-      totalBlogsCount,
-      totalCommentsCount,
-      unapprovedCommentsCount,
-      totalSubmissionsCount,
-      unreadSubmissionsCount,
-      recentPagesRaw,
-    ] = await Promise.all([
-      prisma.page.count({
-        where: { isTrashed: false, status: "published" },
-      }),
-      prisma.blog.count({
-        where: { isTrashed: false },
-      }),
-      isUserAdmin
-        ? prisma.comment.count({
-            where: { isTrashed: false, parentId: null },
-          })
-        : Promise.resolve(0),
-      isUserAdmin
-        ? prisma.comment.count({
-            where: { isTrashed: false, isApproved: false },
-          })
-        : Promise.resolve(0),
-      isUserAdmin
-        ? prisma.formSubmission.count({
+    const stats = await fetchWithMemoryCache(
+      cacheKey,
+      async () => {
+        const [
+          publishedPagesCount,
+          totalBlogsCount,
+          totalCommentsCount,
+          unapprovedCommentsCount,
+          totalSubmissionsCount,
+          unreadSubmissionsCount,
+          recentPagesRaw,
+        ] = await Promise.all([
+          prisma.page.count({
+            where: { isTrashed: false, status: "published" },
+          }),
+          prisma.blog.count({
             where: { isTrashed: false },
-          })
-        : Promise.resolve(0),
-      isUserAdmin
-        ? prisma.formSubmission.count({
-            where: { isTrashed: false, isRead: false },
-          })
-        : Promise.resolve(0),
-      prisma.page.findMany({
-        where: { isTrashed: false },
-        select: {
-          id: true,
-          title: true,
-          slug: true,
-          status: true,
-          isTrashed: true,
-          createdAt: true,
-          updatedAt: true,
-          seo: true,
-          author: {
+          }),
+          isUserAdmin
+            ? prisma.comment.count({
+                where: { isTrashed: false, parentId: null },
+              })
+            : Promise.resolve(0),
+          isUserAdmin
+            ? prisma.comment.count({
+                where: { isTrashed: false, isApproved: false },
+              })
+            : Promise.resolve(0),
+          isUserAdmin
+            ? prisma.formSubmission.count({
+                where: { isTrashed: false },
+              })
+            : Promise.resolve(0),
+          isUserAdmin
+            ? prisma.formSubmission.count({
+                where: { isTrashed: false, isRead: false },
+              })
+            : Promise.resolve(0),
+          prisma.page.findMany({
+            where: { isTrashed: false },
             select: {
               id: true,
-              name: true,
-              email: true,
-              profilePicture: true,
+              title: true,
+              slug: true,
+              status: true,
+              isTrashed: true,
+              createdAt: true,
+              updatedAt: true,
+              seo: true,
+              author: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  profilePicture: true,
+                },
+              },
             },
-          },
-        },
-        orderBy: { updatedAt: "desc" },
-        take: 10,
-      }),
-    ]);
+            orderBy: { updatedAt: "desc" },
+            take: 10,
+          }),
+        ]);
 
-    const recentPages = recentPagesRaw.map(mapDbToPageData);
+        const recentPages = recentPagesRaw.map(mapDbToPageData);
 
-    return NextResponse.json({
-      publishedPagesCount,
-      totalBlogsCount,
-      totalCommentsCount,
-      unapprovedCommentsCount,
-      totalSubmissionsCount,
-      unreadSubmissionsCount,
-      recentPages,
-    });
+        return {
+          publishedPagesCount,
+          totalBlogsCount,
+          totalCommentsCount,
+          unapprovedCommentsCount,
+          totalSubmissionsCount,
+          unreadSubmissionsCount,
+          recentPages,
+        };
+      },
+      15000 // 15 seconds TTL
+    );
+
+    return NextResponse.json(stats);
   } catch (error: any) {
     console.error("Dashboard stats fetch error:", error);
     return NextResponse.json(

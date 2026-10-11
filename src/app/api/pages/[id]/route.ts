@@ -5,6 +5,7 @@ import prisma, { mapDbToPageData } from "@/lib/prisma";
 import { revalidateFrontendPath } from "@/lib/revalidate";
 import { serverConfig } from "@/lib/config/server";
 import { handleApiError } from "@/lib/server/prisma-errors";
+import { invalidateAggregateCaches } from "@/lib/server/memory-cache";
 
 // GET /api/pages/[id] — get a single page
 export async function GET(
@@ -167,6 +168,8 @@ export async function PUT(
     revalidateFrontendPath(page.slug);
   }
 
+  invalidateAggregateCaches();
+
     return NextResponse.json({
       ...mapDbToPageData(page),
       previewSecret: serverConfig.security.previewSecret,
@@ -204,6 +207,8 @@ export async function DELETE(
   }
 
   await prisma.page.delete({ where: { id } });
+
+  invalidateAggregateCaches();
 
   if (page.slug) {
     revalidateFrontendPath(page.slug);

@@ -11,9 +11,10 @@ export const fetcher = async (url: string) => {
 
 export const swrGlobalConfig = {
   fetcher,
-  revalidateOnFocus: true,
+  revalidateOnFocus: false,
   revalidateOnReconnect: true,
-  dedupingInterval: 4000,
+  revalidateIfStale: false,
+  dedupingInterval: 10000,
   onErrorRetry: (
     error: any,
     _key: string,

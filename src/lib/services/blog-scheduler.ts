@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { revalidateFrontendPath } from "@/lib/revalidate";
 import { serverConfig } from "@/lib/config/server";
 import { createBlogRevisionSnapshot } from "@/lib/server/revision-utils";
+import { invalidateAggregateCaches } from "@/lib/server/memory-cache";
 
 function safeCompareSecret(provided: string | null | undefined, expected: string): boolean {
   if (!provided || !expected) return false;
@@ -288,6 +289,10 @@ export async function publishOverdueBlogs(): Promise<ScheduledExecutionResult> {
     });
   } catch (nlImportErr) {
     console.warn("[SCHEDULER] Newsletter import warning:", nlImportErr);
+  }
+
+  if (publishedBlogsList.length > 0) {
+    invalidateAggregateCaches();
   }
 
   return {

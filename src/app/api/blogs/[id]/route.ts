@@ -13,6 +13,7 @@ import { serverConfig } from "@/lib/config/server";
 import { createBlogRevisionSnapshot } from "@/lib/server/revision-utils";
 import { handleApiError } from "@/lib/server/prisma-errors";
 import { slugify } from "@/lib/slugify";
+import { invalidateAggregateCaches } from "@/lib/server/memory-cache";
 
 // GET /api/blogs/[id] — get a single blog
 export async function GET(
@@ -512,6 +513,8 @@ export async function PUT(
       });
   }
 
+  invalidateAggregateCaches();
+
   return NextResponse.json(blog);
   } catch (error: any) {
     return handleApiError(error, "Failed to update blog");
@@ -550,6 +553,8 @@ export async function DELETE(
   }
 
   await prisma.blog.delete({ where: { id } });
+
+  invalidateAggregateCaches();
 
   revalidateFrontendPath("/blogs");
   if (blog.slug) {

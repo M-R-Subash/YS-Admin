@@ -57,7 +57,9 @@ export default function DashboardPage() {
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "ADMIN";
 
-  const { data, isLoading, mutate } = useSWR("/api/dashboard/stats");
+  const { data, isLoading, mutate } = useSWR("/api/dashboard/stats", {
+    dedupingInterval: 15000,
+  });
 
   const publishedCount = data?.publishedPagesCount ?? 0;
   const blogsCount = data?.totalBlogsCount ?? 0;

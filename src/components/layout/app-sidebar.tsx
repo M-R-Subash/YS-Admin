@@ -115,9 +115,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     upcomingScheduled: number;
   }>("/api/badges", {
     refreshInterval: 180000, // 3 minutes - smart background polling
-    revalidateOnFocus: true, // fresh data immediately when tab is active
+    revalidateOnFocus: false, // Avoid refetching on window/tab focus
     revalidateIfStale: false,
-    dedupingInterval: 10000,
+    dedupingInterval: 15000, // Share response across 15s window
   });
 
   const unreadSubmissionsCount = badges?.unreadSubmissions || 0;

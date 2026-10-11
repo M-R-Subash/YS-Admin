@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, requireLiveAdmin } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { invalidateAggregateCaches } from "@/lib/server/memory-cache";
 
 export async function PATCH(
   request: Request,
@@ -40,6 +41,8 @@ export async function PATCH(
       data: dataToUpdate,
     });
 
+    invalidateAggregateCaches();
+
     return NextResponse.json({ submission: updated });
   } catch (error) {
     console.error("Update form submission error:", error);
@@ -70,6 +73,8 @@ export async function DELETE(
     await prisma.formSubmission.delete({
       where: { id },
     });
+
+    invalidateAggregateCaches();
 
     return NextResponse.json({ message: "Submission deleted successfully" });
   } catch (error) {

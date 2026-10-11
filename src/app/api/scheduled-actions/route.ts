@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { publishOverdueBlogs } from "@/lib/services/blog-scheduler";
+import { invalidateAggregateCaches } from "@/lib/server/memory-cache";
 
 export async function GET() {
   try {
@@ -255,6 +256,7 @@ export async function POST() {
     }
 
     const result = await publishOverdueBlogs();
+    invalidateAggregateCaches();
     return NextResponse.json(result, { status: result.success ? 200 : 500 });
   } catch (error: any) {
     console.error("POST /api/scheduled-actions error:", error);

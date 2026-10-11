@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { executeCampaignDispatch } from "@/lib/newsletter/batch-engine";
+import { invalidateAggregateCaches } from "@/lib/server/memory-cache";
 
 export const maxDuration = 60;
 
@@ -99,6 +100,8 @@ export async function POST(req: Request) {
         },
       });
 
+      invalidateAggregateCaches();
+
       return NextResponse.json({
         success: true,
         message: `Campaign scheduled for delivery on ${parsedScheduledAt.toLocaleString()}`,
@@ -121,6 +124,8 @@ export async function POST(req: Request) {
     executeCampaignDispatch(campaign.id).catch((err) => {
       console.error(`[Campaign:${campaign.id}] Dispatch failed:`, err);
     });
+
+    invalidateAggregateCaches();
 
     return NextResponse.json({
       success: true,

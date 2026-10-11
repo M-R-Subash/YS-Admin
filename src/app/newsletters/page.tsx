@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import useSWR from "swr";
+import { useDebounce } from "@/hooks/useDebounce";
 import {
   Users,
   UserCheck,
@@ -62,6 +63,7 @@ interface Metrics {
 
 export default function SubscribersPage() {
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
 
@@ -103,10 +105,11 @@ export default function SubscribersPage() {
     isValidating: isSubscribersValidating,
     mutate: mutateSubscribers,
   } = useSWR<{ subscribers: Subscriber[] }>(
-    `/api/newsletters/subscribers?search=${encodeURIComponent(search)}&status=${statusFilter}`,
+    `/api/newsletters/subscribers?search=${encodeURIComponent(debouncedSearch)}&status=${statusFilter}`,
     fetcher,
     {
       revalidateOnFocus: false,
+      dedupingInterval: 8000,
     },
   );
 

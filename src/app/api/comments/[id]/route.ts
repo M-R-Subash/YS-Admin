@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, requireLiveAdmin } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { invalidateAggregateCaches } from "@/lib/server/memory-cache";
 
 export async function PATCH(
   request: Request,
@@ -42,6 +43,7 @@ export async function PATCH(
       },
     });
 
+    invalidateAggregateCaches();
     return NextResponse.json({ comment: updated });
   } catch (error) {
     console.error("Update comment error:", error);
@@ -73,6 +75,7 @@ export async function DELETE(
       where: { id },
     });
 
+    invalidateAggregateCaches();
     return NextResponse.json({ message: "Comment permanently deleted" });
   } catch (error) {
     console.error("Delete comment error:", error);

@@ -12,6 +12,7 @@ import {
 } from "@/lib/schemas/blog/blog-validation";
 import { handleApiError } from "@/lib/server/prisma-errors";
 import { createBlogRevisionSnapshot } from "@/lib/server/revision-utils";
+import { invalidateAggregateCaches } from "@/lib/server/memory-cache";
 
 export async function GET(req: Request) {
   try {
@@ -277,6 +278,8 @@ export async function POST(req: Request) {
           });
       }
     }
+
+    invalidateAggregateCaches();
 
     return NextResponse.json(newBlog, { status: 201 });
   } catch (error: any) {

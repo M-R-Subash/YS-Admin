@@ -72,10 +72,10 @@ export default function ScheduledActionsPage() {
     "/api/scheduled-actions",
     {
       refreshInterval: 180000, // 3 minutes - background polling
-      revalidateOnFocus: true,
+      revalidateOnFocus: false, // Prevent DB spikes on window focus
       revalidateOnMount: true,
-      revalidateIfStale: true,
-      dedupingInterval: 2000,
+      revalidateIfStale: false,
+      dedupingInterval: 10000,
     }
   );
 

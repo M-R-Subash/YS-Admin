@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { executeCampaignDispatch } from "@/lib/newsletter/batch-engine";
+import { invalidateAggregateCaches } from "@/lib/server/memory-cache";
 
 export const maxDuration = 60;
 
@@ -75,6 +76,8 @@ export async function PATCH(
         },
       });
 
+      invalidateAggregateCaches();
+
       return NextResponse.json({
         success: true,
         message: "Campaign schedule cancelled.",
@@ -112,6 +115,8 @@ export async function PATCH(
           scheduledAt: parsedDate,
         },
       });
+
+      invalidateAggregateCaches();
 
       return NextResponse.json({
         success: true,
@@ -160,6 +165,8 @@ export async function PATCH(
         console.error(`[Campaign:${updated.id}] Dispatch failed:`, err);
       });
 
+      invalidateAggregateCaches();
+
       return NextResponse.json({
         success: true,
         message: `Campaign dispatch initiated for ${activeSubscribersCount} active subscribers.`,
@@ -206,6 +213,8 @@ export async function DELETE(
     await prisma.newsletterCampaign.delete({
       where: { id },
     });
+
+    invalidateAggregateCaches();
 
     return NextResponse.json({
       success: true,
