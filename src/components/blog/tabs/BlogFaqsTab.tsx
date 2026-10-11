@@ -10,7 +10,7 @@ const FaqManager = dynamic(() => import("@/components/faq/FaqManager"), {
   ssr: false,
 });
 
-export function BlogFaqsTab() {
+export const BlogFaqsTab = React.memo(function BlogFaqsTab() {
   const { editorTab, errors, control, clearErrors } = useBlogForm();
 
   return (
@@ -46,4 +46,4 @@ export function BlogFaqsTab() {
       />
     </div>
   );
-}
+});

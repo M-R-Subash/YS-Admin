@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, Suspense } from "react";
+import { useState, useMemo, useDeferredValue, Suspense } from "react";
 import useSWR, { mutate as globalMutate } from "swr";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -27,6 +27,7 @@ function BlogsContent() {
   const urlCategory = searchParams.get("category");
 
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearch = useDeferredValue(searchQuery);
   const [statusFilter, setStatusFilter] = useState<
     "all" | "published" | "scheduled" | "draft" | "trash"
   >("all");
@@ -36,38 +37,58 @@ function BlogsContent() {
   const { data: categoriesData } = useSWR<any[]>("/api/categories");
   const categoriesList = Array.isArray(categoriesData) ? categoriesData : [];
 
-  const blogs = Array.isArray(data) ? data : [];
+  const blogs = useMemo(() => (Array.isArray(data) ? data : []), [data]);
   const loading = isLoading && !data;
 
-  // Filter blogs based on search, status, category, and isTrashed
-  const filteredBlogs = blogs.filter((blog) => {
-    const matchesSearch =
-      blog.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      blog.slug.toLowerCase().includes(searchQuery.toLowerCase());
+  // Filter blogs based on search, status, category, and isTrashed (memoized with deferred search)
+  const filteredBlogs = useMemo(() => {
+    const query = deferredSearch.toLowerCase().trim();
+    return blogs.filter((blog) => {
+      const matchesSearch =
+        !query ||
+        blog.title.toLowerCase().includes(query) ||
+        blog.slug.toLowerCase().includes(query);
 
-    const matchesCategory =
-      categoryFilter === "all" ||
-      (Array.isArray(blog.categories) && blog.categories.includes(categoryFilter));
+      const matchesCategory =
+        categoryFilter === "all" ||
+        (Array.isArray(blog.categories) && blog.categories.includes(categoryFilter));
 
-    if (statusFilter === "trash") {
-      return matchesSearch && matchesCategory && blog.isTrashed === true;
-    } else {
-      const matchesStatus = statusFilter === "all" || blog.status === statusFilter;
-      return matchesSearch && matchesCategory && matchesStatus && blog.isTrashed !== true;
+      if (statusFilter === "trash") {
+        return matchesSearch && matchesCategory && blog.isTrashed === true;
+      } else {
+        const matchesStatus = statusFilter === "all" || blog.status === statusFilter;
+        return matchesSearch && matchesCategory && matchesStatus && blog.isTrashed !== true;
+      }
+    });
+  }, [blogs, deferredSearch, categoryFilter, statusFilter]);
+
+  // Single-pass computation for metric counts
+  const { totalCount, publishedCount, scheduledCount, draftCount, trashedCount } = useMemo(() => {
+    let total = 0;
+    let published = 0;
+    let scheduled = 0;
+    let draft = 0;
+    let trashed = 0;
+
+    for (const b of blogs) {
+      if (b.isTrashed) {
+        trashed++;
+      } else {
+        total++;
+        if (b.status === "published") published++;
+        else if (b.status === "scheduled") scheduled++;
+        else if (b.status === "draft") draft++;
+      }
     }
-  });
 
-  const totalCount = blogs.filter((b) => !b.isTrashed).length;
-  const publishedCount = blogs.filter(
-    (b) => !b.isTrashed && b.status === "published",
-  ).length;
-  const scheduledCount = blogs.filter(
-    (b) => !b.isTrashed && b.status === "scheduled",
-  ).length;
-  const draftCount = blogs.filter(
-    (b) => !b.isTrashed && b.status === "draft",
-  ).length;
-  const trashedCount = blogs.filter((b) => b.isTrashed).length;
+    return {
+      totalCount: total,
+      publishedCount: published,
+      scheduledCount: scheduled,
+      draftCount: draft,
+      trashedCount: trashed,
+    };
+  }, [blogs]);
 
   const metricCards = useMemo<MetricCardItem[]>(() => [
     {

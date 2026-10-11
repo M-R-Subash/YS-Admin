@@ -18,7 +18,7 @@ const BlogEditor = dynamic(() => import("../BlogEditor"), {
   ),
 });
 
-export function BlogContentTab() {
+export const BlogContentTab = React.memo(function BlogContentTab() {
   const { editorTab, errors, control, clearErrors, setEditorWordCount } = useBlogForm();
 
   return (
@@ -53,4 +53,4 @@ export function BlogContentTab() {
       />
     </div>
   );
-}
+});

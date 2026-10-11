@@ -1,5 +1,4 @@
-"use client";
-
+import React from "react";
 import { Search, Inbox, RefreshCw } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +29,7 @@ interface SubmissionsSidebarProps {
   isRefreshing: boolean;
 }
 
-export function SubmissionsSidebar({
+export const SubmissionsSidebar = React.memo(function SubmissionsSidebar({
   submissions,
   filteredSubmissions,
   selectedSubmission,
@@ -237,4 +236,4 @@ export function SubmissionsSidebar({
       </div>
     </aside>
   );
-}
+});

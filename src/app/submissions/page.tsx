@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback, useDeferredValue } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import useSWR, { mutate as globalMutate } from "swr";
@@ -41,6 +41,7 @@ export default function SubmissionsPage() {
   const [selectedSubmissionState, setSelectedSubmission] =
     useState<FormSubmission | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearch = useDeferredValue(searchQuery);
   const [filter, setFilter] = useState<FilterType>("all");
   const [mobileView, setMobileView] = useState<MobileView>("list");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -70,14 +71,14 @@ export default function SubmissionsPage() {
       subData?.submissions?.find((s) => s.id === selectedSubmissionState.id)) ||
     selectedSubmissionState;
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     await mutateSubmissions();
     setTimeout(() => setIsRefreshing(false), 600);
-  };
+  }, [mutateSubmissions]);
 
   // Handle selecting a submission & Auto Mark-as-Read & Switch to Detail on Mobile
-  const handleSelectSubmission = async (submission: FormSubmission) => {
+  const handleSelectSubmission = useCallback(async (submission: FormSubmission) => {
     setSelectedSubmission(submission);
     setMobileView("detail");
 
@@ -111,10 +112,10 @@ export default function SubmissionsPage() {
         mutateSubmissions();
       }
     }
-  };
+  }, [mutateSubmissions]);
 
   // Toggle Read / Unread manually
-  const toggleReadStatus = async (submission: FormSubmission) => {
+  const toggleReadStatus = useCallback(async (submission: FormSubmission) => {
     const newStatus = !submission.isRead;
 
     // Optimistically update SWR cache
@@ -134,9 +135,9 @@ export default function SubmissionsPage() {
       false
     );
 
-    if (selectedSubmission?.id === submission.id) {
-      setSelectedSubmission({ ...selectedSubmission, isRead: newStatus });
-    }
+    setSelectedSubmission((current) =>
+      current?.id === submission.id ? { ...current, isRead: newStatus } : current
+    );
 
     try {
       const res = await fetch(`/api/forms/submissions/${submission.id}`, {
@@ -151,7 +152,7 @@ export default function SubmissionsPage() {
     } catch {
       mutateSubmissions();
     }
-  };
+  }, [mutateSubmissions]);
 
   // Centralized Trash Manager Hook
   const {
@@ -174,10 +175,10 @@ export default function SubmissionsPage() {
     },
   });
 
-  // Filter submissions by search query (memoized)
+  // Filter submissions by search query (memoized with deferred search)
   const filteredSubmissions = useMemo(() => {
-    if (!searchQuery.trim()) return submissions;
-    const query = searchQuery.toLowerCase();
+    const query = deferredSearch.toLowerCase().trim();
+    if (!query) return submissions;
 
     return submissions.filter((s) => {
       const sender = getSenderName(s.payload).toLowerCase();
@@ -190,7 +191,7 @@ export default function SubmissionsPage() {
         payloadStr.includes(query)
       );
     });
-  }, [submissions, searchQuery]);
+  }, [submissions, deferredSearch]);
 
   return (
     <TooltipProvider>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useDeferredValue } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import {
@@ -319,13 +319,15 @@ export default function CampaignHistoryPage() {
     [reschedulingCampaign, mutateCampaigns],
   );
 
+  const deferredSearch = useDeferredValue(search);
+
   // Filtered Campaigns
   const filteredCampaigns = useMemo(() => {
     return campaigns.filter((c) => {
       const matchesSearch =
-        !search.trim() ||
-        c.subject.toLowerCase().includes(search.toLowerCase().trim()) ||
-        c.blog?.title.toLowerCase().includes(search.toLowerCase().trim());
+        !deferredSearch.trim() ||
+        c.subject.toLowerCase().includes(deferredSearch.toLowerCase().trim()) ||
+        c.blog?.title.toLowerCase().includes(deferredSearch.toLowerCase().trim());
 
       if (!matchesSearch) return false;
 
@@ -338,26 +340,27 @@ export default function CampaignHistoryPage() {
       if (filterType === "completed") return c.status === "completed";
       return true;
     });
-  }, [campaigns, search, filterType]);
+  }, [campaigns, deferredSearch, filterType]);
 
-  const scheduledCount = useMemo(
-    () => campaigns.filter((c) => c.status === "scheduled").length,
-    [campaigns],
-  );
-  const blogUpdatesCount = useMemo(
-    () => campaigns.filter((c) => c.type === "BLOG_UPDATE").length,
-    [campaigns],
-  );
-  const customBlastsCount = useMemo(
-    () => campaigns.filter((c) => c.type === "CUSTOM_BLAST").length,
-    [campaigns],
-  );
-  const failedCount = useMemo(
-    () =>
-      campaigns.filter((c) => c.failedCount > 0 || c.status === "failed")
-        .length,
-    [campaigns],
-  );
+  // Single-pass metrics count across campaigns to prevent redundant array scans
+  const { scheduledCount, blogUpdatesCount, customBlastsCount, failedCount } = useMemo(() => {
+    let scheduled = 0;
+    let blogUpdates = 0;
+    let customBlasts = 0;
+    let failed = 0;
+    for (const c of campaigns) {
+      if (c.status === "scheduled") scheduled++;
+      if (c.type === "BLOG_UPDATE") blogUpdates++;
+      if (c.type === "CUSTOM_BLAST") customBlasts++;
+      if (c.failedCount > 0 || c.status === "failed") failed++;
+    }
+    return {
+      scheduledCount: scheduled,
+      blogUpdatesCount: blogUpdates,
+      customBlastsCount: customBlasts,
+      failedCount: failed,
+    };
+  }, [campaigns]);
 
   const metricCards = useMemo<MetricCardItem[]>(
     () => [
@@ -625,11 +628,12 @@ export default function CampaignHistoryPage() {
           )}
         </main>
 
-        {/* MODAL: Campaign Details & Diagnostics */}
-        <Dialog
-          open={Boolean(selectedCampaign)}
-          onOpenChange={(open) => !open && setSelectedCampaign(null)}
-        >
+        {/* MODAL: Campaign Details & Diagnostics (Conditionally mounted to avoid formatting email body when closed) */}
+        {selectedCampaign && (
+          <Dialog
+            open={Boolean(selectedCampaign)}
+            onOpenChange={(open) => !open && setSelectedCampaign(null)}
+          >
           <DialogContent className="sm:max-w-3xl md:max-w-4xl w-full max-h-[88vh] flex flex-col overflow-hidden p-0 gap-0 rounded-2xl border border-border/80 shadow-2xl bg-card">
             <DialogHeader className="p-5 sm:p-6 border-b border-border/70 bg-card/60 backdrop-blur-xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pr-6">
@@ -938,6 +942,7 @@ export default function CampaignHistoryPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        )}
 
         {/* RESCHEDULE CAMPAIGN MODAL */}
         {reschedulingCampaign && (

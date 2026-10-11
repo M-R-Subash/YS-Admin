@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useDeferredValue } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import {
@@ -86,7 +86,9 @@ export default function ScheduledActionsPage() {
   );
   const siteUrl = clientConfig.app.frontendUrl;
 
-  // Filter items based on activeTab, typeFilter, and searchQuery
+  const deferredSearch = useDeferredValue(searchQuery);
+
+  // Filter items based on activeTab, typeFilter, and deferredSearch
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
       // Type filter
@@ -96,7 +98,7 @@ export default function ScheduledActionsPage() {
       if (activeTab !== "all" && item.scheduleState !== activeTab) return false;
 
       // Search match
-      const query = searchQuery.toLowerCase().trim();
+      const query = deferredSearch.toLowerCase().trim();
       if (!query) return true;
 
       const matchesTitle = item.title?.toLowerCase().includes(query);
@@ -106,10 +108,10 @@ export default function ScheduledActionsPage() {
 
       return Boolean(matchesTitle || matchesSlug || matchesAuthor || matchesCategory);
     });
-  }, [items, searchQuery, activeTab, typeFilter]);
+  }, [items, deferredSearch, activeTab, typeFilter]);
 
   // Trigger manual publish sync
-  const handleTriggerSync = async () => {
+  const handleTriggerSync = useCallback(async () => {
     try {
       setIsSyncing(true);
       const res = await fetch("/api/scheduled-actions", {
@@ -143,7 +145,7 @@ export default function ScheduledActionsPage() {
     } finally {
       setIsSyncing(false);
     }
-  };
+  }, [mutate]);
 
   // Immediate publish/send of a single scheduled item
   const handlePublishNow = useCallback(async (item: ScheduledItem) => {
@@ -260,7 +262,7 @@ export default function ScheduledActionsPage() {
   }, []);
 
   // Confirm reschedule from dialog
-  const handleConfirmReschedule = async (newDate: Date) => {
+  const handleConfirmReschedule = useCallback(async (newDate: Date) => {
     if (!selectedPost) return;
 
     try {
@@ -318,7 +320,7 @@ export default function ScheduledActionsPage() {
     } finally {
       setIsRescheduling(false);
     }
-  };
+  }, [selectedPost, mutate]);
 
   // Table Columns
   const columns = useMemo(() => {

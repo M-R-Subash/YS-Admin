@@ -634,7 +634,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     getPayload: () => getValues(),
   });
 
-  const handleDiscardDraft = async () => {
+  const handleDiscardDraft = useCallback(async () => {
     setDiscarding(true);
     try {
       if (hasCloudDraft && blogId) {
@@ -657,14 +657,15 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       toast.add({ title: "Error", description: err.message, type: "error" });
       setDiscarding(false);
     }
-  };
+  }, [hasCloudDraft, blogId, clearBackup]);
 
-  const handleSave = async (
-    publishStatus: "draft" | "published" | "scheduled",
-    shouldExit: boolean = false,
-    overrideScheduledAt?: Date | null,
-    skipConfirm: boolean = false
-  ): Promise<boolean> => {
+  const handleSave = useCallback(
+    async (
+      publishStatus: "draft" | "published" | "scheduled",
+      shouldExit: boolean = false,
+      overrideScheduledAt?: Date | null,
+      skipConfirm: boolean = false
+    ): Promise<boolean> => {
     clearErrors();
 
     const currentValues = getValues();
@@ -1012,29 +1013,48 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [
+    clearErrors,
+    getValues,
+    setError,
+    setValue,
+    reset,
+    setEditorTab,
+    blogId,
+    isEditMode,
+    clearBackup,
+    dirtyManager,
+    router,
+    hasCloudDraft,
+    initialData?.scheduledAt,
+    initialData?.status,
+    isDirtyOrFilled,
+    loadedFromBackup,
+    restoredFromVersion,
+    status,
+  ]);
 
-  const handleSchedule = async (date: Date): Promise<boolean> => {
+  const handleSchedule = useCallback(async (date: Date): Promise<boolean> => {
     setShowScheduleModal(false);
     return handleSave("scheduled", false, date);
-  };
+  }, [handleSave]);
 
-  const handlePublishNow = async (): Promise<boolean> => {
+  const handlePublishNow = useCallback(async (): Promise<boolean> => {
     return handleSave("published", false);
-  };
+  }, [handleSave]);
 
-  const handleCancelSchedule = async (): Promise<boolean> => {
+  const handleCancelSchedule = useCallback(async (): Promise<boolean> => {
     setValue("status", "draft");
     setValue("scheduledAt", null);
     return handleSave("draft", false);
-  };
+  }, [setValue, handleSave]);
 
   useEffect(() => {
     handleSaveRef.current = handleSave;
   });
 
   // Auto-Save and Open/Focus Live Preview tab
-  const handlePreview = async () => {
+  const handlePreview = useCallback(async () => {
     const currentSlug = (getValues("slug") || "").trim();
     if (!currentSlug) {
       toast.add({
@@ -1077,7 +1097,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     if (win) {
       win.focus();
     }
-  };
+  }, [getValues, blogId, isDirtyOrFilled, isEditMode, setEditorTab, handleSave]);
 
   const handleRestoreRevision = useCallback(
     (snapshotData: BlogSnapshotData, versionNumber: number) => {
@@ -1163,7 +1183,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     };
   }, [blogId, handleRestoreRevision]);
 
-  const contextValue: BlogFormContextValue = {
+  const contextValue: BlogFormContextValue = useMemo(() => ({
     control,
     errors,
     setValue,
@@ -1223,7 +1243,56 @@ export default function BlogForm({ blogId }: BlogFormProps) {
 
     restoredFromVersion,
     setRestoredFromVersion,
-  };
+  }), [
+    control,
+    errors,
+    setValue,
+    getValues,
+    clearErrors,
+    watch,
+    blogId,
+    isEditMode,
+    isSubmitting,
+    isLoading,
+    editorTab,
+    setEditorTab,
+    isFullscreen,
+    setIsFullscreen,
+    dirtyManager.isDirty,
+    hasCloudDraft,
+    loadedFromBackup,
+    lastSavedAt,
+    seoPreviewMode,
+    setSeoPreviewMode,
+    editorWordCount,
+    setEditorWordCount,
+    isSeoCalculating,
+    seoAnalysis,
+    extractedDoc,
+    readingTime,
+    handleAutoFillMeta,
+    tocItems,
+    tocIssues,
+    handleTocClick,
+    handleSchedule,
+    handlePublishNow,
+    handleCancelSchedule,
+    showScheduleModal,
+    setShowScheduleModal,
+    handleSave,
+    handlePreview,
+    isPreviewSaving,
+    handleDiscardDraft,
+    discarding,
+    showExitConfirm,
+    setShowExitConfirm,
+    showDiscardConfirm,
+    setShowDiscardConfirm,
+    showHistoryDrawer,
+    setShowHistoryDrawer,
+    restoredFromVersion,
+    setRestoredFromVersion,
+  ]);
 
   return (
     <TooltipProvider delay={200}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo, Suspense } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import useSWR, { mutate as globalMutate } from "swr";
@@ -178,7 +178,6 @@ function CommentsPageContent() {
 
   // Inline Reply state
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
-  const [replyText, setReplyText] = useState("");
 
   // Modal state
   const [modal, setModal] = useState<ModalState>({
@@ -214,24 +213,28 @@ function CommentsPageContent() {
 
   const loading = isCommentsLoading && !commentsData;
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     await mutate();
     setTimeout(() => setIsRefreshing(false), 600);
-  };
+  }, [mutate]);
 
-  // Open confirmation modal helper
-  const openConfirmModal = (type: ModalActionType, comment: CommentItem) => {
-    setModal({
-      isOpen: true,
-      type,
-      targetComment: comment,
-    });
-  };
+  // Open confirmation modal helper (stable callback)
+  const openConfirmModal = useCallback(
+    (type: ModalActionType, comment: CommentItem, replyContent?: string) => {
+      setModal({
+        isOpen: true,
+        type,
+        targetComment: comment,
+        replyContent,
+      });
+    },
+    [],
+  );
 
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     setModal({ isOpen: false, type: null, targetComment: null });
-  };
+  }, []);
 
   // Confirm Modal Execution Logic
   const handleModalConfirm = async () => {
@@ -331,7 +334,8 @@ function CommentsPageContent() {
         if (!res.ok) throw new Error();
         toast.add({ title: "Comment permanently deleted", type: "success" });
       } else if (type === "reply") {
-        if (!replyText.trim()) return;
+        const contentToSend = modal.replyContent?.trim();
+        if (!contentToSend) return;
 
         const res = await fetch("/api/comments", {
           method: "POST",
@@ -339,7 +343,7 @@ function CommentsPageContent() {
           body: JSON.stringify({
             blogId: targetComment.blogId,
             parentId: targetComment.id,
-            content: replyText,
+            content: contentToSend,
           }),
         });
 
@@ -354,7 +358,6 @@ function CommentsPageContent() {
           };
         }, false);
         setReplyingToId(null);
-        setReplyText("");
         toast.add({ title: "Admin reply published", type: "success" });
       }
 
@@ -790,8 +793,6 @@ function CommentsPageContent() {
                       filter={filter}
                       replyingToId={replyingToId}
                       setReplyingToId={setReplyingToId}
-                      replyText={replyText}
-                      setReplyText={setReplyText}
                       openConfirmModal={openConfirmModal}
                     />
                   ))}

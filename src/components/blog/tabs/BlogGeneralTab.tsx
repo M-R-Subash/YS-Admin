@@ -9,7 +9,7 @@ import {
 } from "@/lib/schemas/blog/blog-ui-schema";
 import { useBlogForm } from "../context/BlogFormContext";
 
-export function BlogGeneralTab() {
+export const BlogGeneralTab = React.memo(function BlogGeneralTab() {
   const { control, editorTab } = useBlogForm();
 
   return (
@@ -49,4 +49,4 @@ export function BlogGeneralTab() {
       </div>
     </div>
   );
-}
+});

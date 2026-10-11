@@ -22,7 +22,7 @@ interface TagAutocompleteInputProps {
   disabled?: boolean;
 }
 
-export function TagAutocompleteInput({
+export const TagAutocompleteInput = React.memo(function TagAutocompleteInput({
   value = [],
   onChange,
   placeholder = "Type tag and press Enter...",
@@ -204,7 +204,7 @@ export function TagAutocompleteInput({
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
           placeholder={value.length === 0 ? placeholder : "Add more tags..."}
-          className="flex-1 min-w-[120px] bg-transparent outline-none text-xs text-foreground placeholder:text-muted-foreground"
+          className="flex-1 min-w-30 bg-transparent outline-none text-xs text-foreground placeholder:text-muted-foreground"
         />
 
         {isLoading && (
@@ -265,4 +265,4 @@ export function TagAutocompleteInput({
       )}
     </div>
   );
-}
+});

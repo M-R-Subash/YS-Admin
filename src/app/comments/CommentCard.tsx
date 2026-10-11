@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import {
   CornerDownRight,
   ShieldCheck,
@@ -24,20 +25,64 @@ interface CommentCardProps {
   filter: "all" | "pending" | "approved" | "trashed";
   replyingToId: string | null;
   setReplyingToId: (id: string | null) => void;
-  replyText: string;
-  setReplyText: (text: string) => void;
-  openConfirmModal: (type: ModalActionType, comment: CommentItem) => void;
+  openConfirmModal: (type: ModalActionType, comment: CommentItem, replyContent?: string) => void;
 }
 
-export function CommentCard({
+function CommentReplyBox({
+  comment,
+  onCancel,
+  onSubmitReply,
+}: {
+  comment: CommentItem;
+  onCancel: () => void;
+  onSubmitReply: (text: string) => void;
+}) {
+  const [text, setText] = useState("");
+
+  return (
+    <div className="p-4 rounded-sm border border-border bg-muted/30 space-y-3">
+      <div className="flex items-center justify-between text-xs font-bold text-foreground">
+        <span className="flex items-center gap-1.5">
+          <Reply className="w-3.5 h-3.5" />
+          <span>Reply to {comment.name} as Admin</span>
+        </span>
+        <button
+          onClick={onCancel}
+          className="text-muted-foreground hover:text-foreground text-xs"
+        >
+          Cancel
+        </button>
+      </div>
+
+      <textarea
+        rows={3}
+        placeholder="Type your official response..."
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        className="w-full p-3 bg-background border border-border rounded-sm text-xs font-medium focus:outline-none focus:border-accent transition-colors"
+      />
+
+      <div className="flex justify-end">
+        <button
+          onClick={() => onSubmitReply(text)}
+          disabled={!text.trim()}
+          className="px-4 py-2 bg-black hover:bg-black/90 text-white text-xs font-bold rounded-sm flex items-center gap-1.5 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+        >
+          <Send className="w-3.5 h-3.5" />
+          <span>Publish Reply</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export const CommentCard = React.memo(function CommentCard({
   comment,
   replies,
   selectedBlogId,
   filter,
   replyingToId,
   setReplyingToId,
-  replyText,
-  setReplyText,
   openConfirmModal,
 }: CommentCardProps) {
   return (
@@ -164,42 +209,11 @@ export function CommentCard({
 
       {/* Inline Reply Form */}
       {replyingToId === comment.id && (
-        <div className="p-4 rounded-sm border border-border bg-muted/30 space-y-3">
-          <div className="flex items-center justify-between text-xs font-bold text-foreground">
-            <span className="flex items-center gap-1.5">
-              <Reply className="w-3.5 h-3.5" />
-              <span>Reply to {comment.name} as Admin</span>
-            </span>
-            <button
-              onClick={() => {
-                setReplyingToId(null);
-                setReplyText("");
-              }}
-              className="text-muted-foreground hover:text-foreground text-xs"
-            >
-              Cancel
-            </button>
-          </div>
-
-          <textarea
-            rows={3}
-            placeholder="Type your official response..."
-            value={replyText}
-            onChange={(e) => setReplyText(e.target.value)}
-            className="w-full p-3 bg-background border border-border rounded-sm text-xs font-medium focus:outline-none focus:border-accent transition-colors"
-          />
-
-          <div className="flex justify-end">
-            <button
-              onClick={() => openConfirmModal("reply", comment)}
-              disabled={!replyText.trim()}
-              className="px-4 py-2 bg-black hover:bg-black/90 text-white text-xs font-bold rounded-sm flex items-center gap-1.5 transition-all cursor-pointer shadow-xs disabled:opacity-50"
-            >
-              <Send className="w-3.5 h-3.5" />
-              <span>Publish Reply</span>
-            </button>
-          </div>
-        </div>
+        <CommentReplyBox
+          comment={comment}
+          onCancel={() => setReplyingToId(null)}
+          onSubmitReply={(text) => openConfirmModal("reply", comment, text)}
+        />
       )}
 
       {/* Footer Action Buttons: Space-Between for Safety */}
@@ -273,7 +287,6 @@ export function CommentCard({
                         setReplyingToId(
                           replyingToId === comment.id ? null : comment.id,
                         );
-                        setReplyText("");
                       }}
                       className="px-3 py-1.5 rounded-sm border border-border bg-background hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
                     />
@@ -333,4 +346,4 @@ export function CommentCard({
       </div>
     </div>
   );
-}
+});

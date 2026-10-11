@@ -40,6 +40,7 @@ export interface ModalState {
   isOpen: boolean;
   type: ModalActionType | null;
   targetComment: CommentItem | null;
+  replyContent?: string;
 }
 
 export interface CommentsResponse {

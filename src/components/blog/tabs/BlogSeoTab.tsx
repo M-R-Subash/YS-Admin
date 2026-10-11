@@ -4,7 +4,7 @@ import React from "react";
 import { useBlogForm } from "../context/BlogFormContext";
 import { SeoEditorSuite, SeoEditorSuiteValues } from "@/components/seo/SeoEditorSuite";
 
-export function BlogSeoTab() {
+export const BlogSeoTab = React.memo(function BlogSeoTab() {
   const {
     editorTab,
     watch,
@@ -82,4 +82,4 @@ export function BlogSeoTab() {
       </div>
     </div>
   );
-}
+});

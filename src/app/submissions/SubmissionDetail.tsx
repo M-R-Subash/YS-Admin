@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import {
   ArrowLeft,
   Mail,
@@ -51,7 +52,7 @@ interface SubmissionDetailProps {
   isRefreshing: boolean;
 }
 
-export function SubmissionDetail({
+export const SubmissionDetail = React.memo(function SubmissionDetail({
   selectedSubmission,
   totalCount,
   loading,
@@ -547,4 +548,4 @@ export function SubmissionDetail({
       )}
     </main>
   );
-}
+});
