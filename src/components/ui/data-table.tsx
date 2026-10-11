@@ -9,6 +9,8 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   SortingState,
+  RowSelectionState,
+  OnChangeFn,
   Row,
   RowData,
 } from "@tanstack/react-table";
@@ -38,6 +40,10 @@ export interface DataTableProps<TData, TValue> {
   data: TData[];
   defaultSorting?: SortingState;
   renderMobileCard?: (row: Row<TData>) => React.ReactNode;
+  enableRowSelection?: boolean;
+  rowSelection?: RowSelectionState;
+  onRowSelectionChange?: OnChangeFn<RowSelectionState>;
+  renderBulkActionDock?: (selectedRows: TData[], clearSelection: () => void) => React.ReactNode;
 }
 
 function getColumnLabel(columnId: string): string {
@@ -69,22 +75,35 @@ export function DataTable<TData, TValue>({
   data,
   defaultSorting = [],
   renderMobileCard,
+  enableRowSelection = true,
+  rowSelection: controlledRowSelection,
+  onRowSelectionChange: setControlledRowSelection,
+  renderBulkActionDock,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>(defaultSorting);
+  const [internalRowSelection, setInternalRowSelection] = useState<RowSelectionState>({});
+
+  const rowSelection = controlledRowSelection !== undefined ? controlledRowSelection : internalRowSelection;
+  const setRowSelection = setControlledRowSelection !== undefined ? setControlledRowSelection : setInternalRowSelection;
 
   const table = useReactTable({
     data,
     columns,
+    enableRowSelection,
     state: {
       sorting,
+      rowSelection,
     },
     onSortingChange: setSorting,
+    onRowSelectionChange: setRowSelection,
     getRowId: (row: any, relativeIndex: number) =>
       row?.id ?? row?._id ?? row?.slug ?? String(relativeIndex),
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
+
+  const selectedRows = table.getSelectedRowModel().rows.map((r) => r.original);
 
   return (
     <div className="space-y-4">
@@ -125,7 +144,7 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="hover:bg-muted/30 transition-colors"
+                  className="hover:bg-muted/30 transition-colors data-[state=selected]:bg-muted/60 data-[state=selected]:hover:bg-muted/80"
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
@@ -327,6 +346,11 @@ export function DataTable<TData, TValue>({
             </Button>
           </div>
         </div>
+      )}
+
+      {/* Floating Bulk Action Dock */}
+      {renderBulkActionDock && selectedRows.length > 0 && (
+        renderBulkActionDock(selectedRows, () => table.resetRowSelection())
       )}
     </div>
   );

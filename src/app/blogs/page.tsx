@@ -18,6 +18,8 @@ import {
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { ContentMetricCards, MetricCardItem } from "@/components/admin/ContentMetricCards";
 import { ContentFilterBar, ContentFilterTab } from "@/components/admin/ContentFilterBar";
+import { TableFloatingDock } from "@/components/admin/TableFloatingDock";
+import { toast } from "@/components/ui/toast";
 
 import { DataTable } from "@/components/ui/data-table";
 import { getBlogsColumns } from "./blogs-columns";
@@ -155,6 +157,42 @@ function BlogsContent() {
     };
   }, [mutate]);
 
+  const handleBulkAction = async (action: string, ids: string[]) => {
+    try {
+      const res = await fetch("/api/blogs/bulk-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          ids,
+          status: action === "publish" ? "published" : action === "draft" ? "draft" : undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || err.error || "Bulk action failed");
+      }
+
+      toast.add({
+        title: "Bulk Action Applied",
+        description: `Successfully applied "${action}" to ${ids.length} blogs.`,
+        type: "success",
+      });
+
+      await mutate();
+      globalMutate("/api/dashboard/stats");
+      globalMutate("/api/badges");
+    } catch (err: any) {
+      toast.add({
+        title: "Action Failed",
+        description: err.message,
+        type: "error",
+      });
+      throw err;
+    }
+  };
+
   const columns = useMemo(() => getBlogsColumns(handleDataChange), [handleDataChange]);
 
   return (
@@ -273,6 +311,17 @@ function BlogsContent() {
           <DataTable
             columns={columns}
             data={filteredBlogs}
+            renderBulkActionDock={(selectedRows, clearSelection) => (
+              <TableFloatingDock
+                selectedItems={selectedRows}
+                onClearSelection={clearSelection}
+                entityName="blogs"
+                entityType="blogs"
+                bulkEditUrl="/blogs/bulk-edit"
+                isTrashedView={statusFilter === "trash"}
+                onBulkAction={handleBulkAction}
+              />
+            )}
           />
         )}
       </div>

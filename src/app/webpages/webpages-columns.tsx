@@ -3,6 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Globe } from "lucide-react";
 import { Page } from "@/types";
+import { Checkbox } from "@/components/ui/checkbox";
 import { UniversalSeoModal } from "@/components/seo/UniversalSeoModal";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
 import { StatusBadge } from "@/components/admin/StatusBadge";
@@ -42,6 +43,43 @@ export const ActionCell = ({ page, onDataChange }: { page: Page; onDataChange: (
 };
 
 export const getWebpagesColumns = (onDataChange: () => void): ColumnDef<Page>[] => [
+  {
+    id: "select",
+    header: ({ table }) => (
+      <div className="flex items-center justify-center px-1">
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected()
+              ? true
+              : table.getIsSomePageRowsSelected()
+              ? "indeterminate"
+              : false
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+          className="cursor-pointer"
+        />
+      </div>
+    ),
+    cell: ({ row }) => (
+      <div
+        className="flex items-center justify-center px-1"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+          className="cursor-pointer"
+        />
+      </div>
+    ),
+    enableSorting: false,
+    enableHiding: false,
+    meta: {
+      className: "w-10 min-w-10 max-w-10 text-center sticky left-0 z-30 bg-card",
+    },
+  },
   {
     accessorKey: "title",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Page & Title" />,

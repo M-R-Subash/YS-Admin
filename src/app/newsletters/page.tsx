@@ -35,6 +35,7 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DataTable } from "@/components/ui/data-table";
 import { getSubscribersColumns, Subscriber } from "./subscribers-columns";
+import { TableFloatingDock } from "@/components/admin/TableFloatingDock";
 import { cn } from "@/lib/utils";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -295,6 +296,36 @@ export default function SubscribersPage() {
     [copiedEmail, handleToggleStatus, handleCopyEmail],
   );
 
+  const handleBulkAction = async (action: string, ids: string[]) => {
+    try {
+      const res = await fetch("/api/newsletters/subscribers/bulk-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ids }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || err.error || "Bulk action failed");
+      }
+
+      toast.add({
+        title: "Bulk Action Applied",
+        description: `Successfully processed ${ids.length} subscribers.`,
+        type: "success",
+      });
+
+      await Promise.all([mutateSubscribers(), mutateMetrics()]);
+    } catch (err: any) {
+      toast.add({
+        title: "Action Failed",
+        description: err.message,
+        type: "error",
+      });
+      throw err;
+    }
+  };
+
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-background">
@@ -457,7 +488,19 @@ export default function SubscribersPage() {
               </div>
             </div>
           ) : (
-            <DataTable columns={columns} data={subscribers} />
+            <DataTable
+              columns={columns}
+              data={subscribers}
+              renderBulkActionDock={(selectedRows, clearSelection) => (
+                <TableFloatingDock
+                  selectedItems={selectedRows}
+                  onClearSelection={clearSelection}
+                  entityName="subscribers"
+                  entityType="subscribers"
+                  onBulkAction={handleBulkAction}
+                />
+              )}
+            />
           )}
         </main>
 

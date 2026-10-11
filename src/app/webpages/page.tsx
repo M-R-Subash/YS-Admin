@@ -13,6 +13,8 @@ import { ContentFilterBar, ContentFilterTab } from "@/components/admin/ContentFi
 
 import { DataTable } from "@/components/ui/data-table";
 import { getWebpagesColumns } from "./webpages-columns";
+import { TableFloatingDock } from "@/components/admin/TableFloatingDock";
+import { toast } from "@/components/ui/toast";
   
 export default function WebpagesPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -100,6 +102,42 @@ export default function WebpagesPage() {
       globalMutate("/api/dashboard/stats");
     };
   }, [mutate]);
+
+  const handleBulkAction = async (action: string, ids: string[]) => {
+    try {
+      const res = await fetch("/api/pages/bulk-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          ids,
+          status: action === "publish" ? "published" : action === "draft" ? "draft" : undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || err.error || "Bulk action failed");
+      }
+
+      toast.add({
+        title: "Bulk Action Applied",
+        description: `Successfully applied "${action}" to ${ids.length} webpages.`,
+        type: "success",
+      });
+
+      await mutate();
+      globalMutate("/api/dashboard/stats");
+      globalMutate("/api/badges");
+    } catch (err: any) {
+      toast.add({
+        title: "Action Failed",
+        description: err.message,
+        type: "error",
+      });
+      throw err;
+    }
+  };
 
   const columns = useMemo(() => getWebpagesColumns(handleDataChange), [handleDataChange]);
 
@@ -201,6 +239,17 @@ export default function WebpagesPage() {
           <DataTable
             columns={columns}
             data={filteredPages}
+            renderBulkActionDock={(selectedRows, clearSelection) => (
+              <TableFloatingDock
+                selectedItems={selectedRows}
+                onClearSelection={clearSelection}
+                entityName="webpages"
+                entityType="pages"
+                bulkEditUrl="/webpages/bulk-edit"
+                isTrashedView={statusFilter === "trash"}
+                onBulkAction={handleBulkAction}
+              />
+            )}
           />
         )}
       </div>

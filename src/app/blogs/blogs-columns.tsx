@@ -16,6 +16,7 @@ import { formatDate } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
 import { format } from "date-fns";
 import { clientConfig } from "@/lib/config/client";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Action Component
 export const ActionCell = ({ blog, onDataChange }: { blog: any; onDataChange: () => void }) => {
@@ -99,6 +100,36 @@ export const ActionCell = ({ blog, onDataChange }: { blog: any; onDataChange: ()
 };
 
 export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
+  {
+    id: "select",
+    header: ({ table }) => (
+      <div className="flex items-center justify-center px-1">
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
+          onCheckedChange={(val) => table.toggleAllPageRowsSelected(!!val)}
+          aria-label="Select all rows"
+        />
+      </div>
+    ),
+    cell: ({ row }) => (
+      <div className="flex items-center justify-center px-1">
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(val) => row.toggleSelected(!!val)}
+          aria-label="Select row"
+        />
+      </div>
+    ),
+    enableSorting: false,
+    enableHiding: false,
+    meta: {
+      className: "w-[40px] px-2 text-center",
+      headerClassName: "w-[40px] px-2 text-center",
+    },
+  },
   {
     accessorKey: "title",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Post & Title" />,
