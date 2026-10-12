@@ -178,7 +178,7 @@ function BulkEditContent() {
       ? `/api/blogs/bulk?ids=${resolvedIds.join(",")}`
       : null;
 
-  const { data: bulkData, isLoading, error } = useSWR<{ blogs: BulkBlogItem[] }>(queryKey);
+  const { data: bulkData, isLoading, error, mutate } = useSWR<{ blogs: BulkBlogItem[] }>(queryKey);
   const { data: categoriesData } = useSWR<any[]>("/api/categories");
   const { data: tagsData } = useSWR<any[]>("/api/tags");
 
@@ -249,6 +249,9 @@ function BulkEditContent() {
         availableCategories={categories}
         availableTags={tags}
         apiEndpoint="/api/blogs/bulk"
+        onSaved={async () => {
+          await mutate();
+        }}
       />
     </div>
   );

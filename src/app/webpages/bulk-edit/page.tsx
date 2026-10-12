@@ -122,7 +122,7 @@ function WebpageBulkEditContent() {
       ? `/api/pages/bulk?ids=${resolvedIds.join(",")}`
       : null;
 
-  const { data: bulkData, isLoading, error } = useSWR<{ pages: BulkPageItem[] }>(queryKey);
+  const { data: bulkData, isLoading, error, mutate } = useSWR<{ pages: BulkPageItem[] }>(queryKey);
   const pages = bulkData?.pages || [];
 
   if (resolvedIds.length === 0) {
@@ -186,6 +186,9 @@ function WebpageBulkEditContent() {
         initialItems={pages}
         columns={WEBPAGE_COLUMNS}
         apiEndpoint="/api/pages/bulk"
+        onSaved={async () => {
+          await mutate();
+        }}
       />
     </div>
   );

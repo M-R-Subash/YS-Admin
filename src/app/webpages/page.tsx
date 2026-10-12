@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import useSWR, { mutate as globalMutate } from "swr";
 import Link from "next/link";
 import { Menu, FileText, Globe, CheckCircle2, FileEdit, Trash2, Plus } from "lucide-react";
@@ -23,6 +23,11 @@ export default function WebpagesPage() {
   >("all");
 
   const { data, isLoading, mutate } = useSWR<Page[]>("/api/pages");
+
+  useEffect(() => {
+    mutate();
+  }, [mutate]);
+
   const pages = Array.isArray(data) ? data : [];
   const loading = isLoading && !data;
 

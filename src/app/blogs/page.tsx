@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useDeferredValue, Suspense } from "react";
+import { useState, useMemo, useEffect, useDeferredValue, Suspense } from "react";
 import useSWR, { mutate as globalMutate } from "swr";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -38,6 +38,10 @@ function BlogsContent() {
   const { data, isLoading, mutate } = useSWR<any[]>("/api/blogs");
   const { data: categoriesData } = useSWR<any[]>("/api/categories");
   const categoriesList = Array.isArray(categoriesData) ? categoriesData : [];
+
+  useEffect(() => {
+    mutate();
+  }, [mutate]);
 
   const blogs = useMemo(() => (Array.isArray(data) ? data : []), [data]);
   const loading = isLoading && !data;

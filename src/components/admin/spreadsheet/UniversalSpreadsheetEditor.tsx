@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { mutate as globalMutate } from "swr";
 import {
   ArrowLeft,
   Save,
@@ -64,6 +65,7 @@ export interface UniversalSpreadsheetEditorProps<T extends { id: string; title: 
   availableCategories?: { id: string; name: string }[];
   availableTags?: { id: string; name: string }[];
   apiEndpoint: string; // e.g. "/api/blogs/bulk" or "/api/pages/bulk"
+  onSaved?: (updatedItems: T[]) => void | Promise<void>;
 }
 
 export function UniversalSpreadsheetEditor<T extends { id: string; title: string; slug?: string; status?: string }>({
@@ -74,10 +76,16 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
   availableCategories = [],
   availableTags = [],
   apiEndpoint,
+  onSaved,
 }: UniversalSpreadsheetEditorProps<T>) {
   const router = useRouter();
 
-  // Working state of items
+  // Baseline items (tracks latest saved/committed state)
+  const [baselineItems, setBaselineItems] = useState<T[]>(() =>
+    JSON.parse(JSON.stringify(initialItems))
+  );
+
+  // Working state of items (tracks active user edits)
   const [items, setItems] = useState<T[]>(() =>
     JSON.parse(JSON.stringify(initialItems))
   );
@@ -111,13 +119,13 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
   const [newTagInput, setNewTagInput] = useState<Record<string, string>>({});
   const [categorySearch, setCategorySearch] = useState<Record<string, string>>({});
 
-  // Compute dirty map comparing current items to initialItems
+  // Compute dirty map comparing current items to baselineItems
   const { dirtyMap, totalDirtyCount, hasPublishAction } = useMemo(() => {
     const dMap: Record<string, Record<string, boolean>> = {};
     let count = 0;
     let publishingDetected = false;
 
-    const initialMap = new Map(initialItems.map((item) => [item.id, item]));
+    const initialMap = new Map(baselineItems.map((item) => [item.id, item]));
 
     items.forEach((item) => {
       const orig = initialMap.get(item.id) as any;
@@ -174,7 +182,7 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
       totalDirtyCount: count,
       hasPublishAction: publishingDetected,
     };
-  }, [items, initialItems, columns]);
+  }, [items, baselineItems, columns]);
 
   // Prevent accidental navigation when changes are unsaved
   useEffect(() => {
@@ -278,10 +286,10 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
 
   // Discard all changes
   const handleDiscard = () => {
-    setItems(JSON.parse(JSON.stringify(initialItems)));
+    setItems(JSON.parse(JSON.stringify(baselineItems)));
     toast.add({
       title: "Changes Reverted",
-      description: "Restored all items to their original values.",
+      description: "Restored all items to their latest saved values.",
       type: "info",
     });
   };
@@ -384,13 +392,38 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
         throw new Error(err.message || err.error || "Failed to commit bulk updates");
       }
 
+      // 1. Immediately update baseline to the newly saved items
+      setBaselineItems(JSON.parse(JSON.stringify(items)));
+
+      // 2. Invalidate SWR cache across related admin endpoints
+      await globalMutate(
+        (key) =>
+          typeof key === "string" &&
+          (key.startsWith("/api/blogs") ||
+           key.startsWith("/api/pages") ||
+           key.startsWith("/api/newsletters") ||
+           key.startsWith("/api/categories") ||
+           key.startsWith("/api/tags") ||
+           key.startsWith("/api/dashboard")),
+        undefined,
+        { revalidate: true }
+      );
+
+      // 3. Refresh Next.js server components
+      router.refresh();
+
+      // 4. Fire onSaved callback if provided
+      if (onSaved) {
+        await onSaved(items);
+      }
+
       toast.add({
         title: "Bulk Updates Saved!",
         description: `Successfully saved ${totalDirtyCount} modifications across ${updates.length} ${entityLabel.toLowerCase()}s.`,
         type: "success",
       });
 
-      router.push(backHref);
+      // We intentionally do NOT call router.push(backHref) - keeping bulk editor open
     } catch (err: any) {
       toast.add({
         title: "Save Failed",
