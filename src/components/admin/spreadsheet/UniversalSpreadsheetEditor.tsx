@@ -88,11 +88,11 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
     return new Set(columns.slice(0, 6).map((c) => c.key));
   });
 
-  // Column Widths for Drag-to-Resize
+  // Column Widths for Drag-to-Resize (all columns uniform 190px by default)
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     const map: Record<string, number> = {};
     columns.forEach((col) => {
-      map[col.key] = col.defaultWidth || 200;
+      map[col.key] = 190;
     });
     return map;
   });
@@ -105,6 +105,7 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
   const [isSaving, setIsSaving] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isPublishConfirmOpen, setIsPublishConfirmOpen] = useState(false);
+  const [itemToPublish, setItemToPublish] = useState<{ id: string; title: string } | null>(null);
 
   // Local state for adding custom tags
   const [newTagInput, setNewTagInput] = useState<Record<string, string>>({});
@@ -150,7 +151,7 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
         } else {
           if ((curVal ?? "") !== (origVal ?? "")) {
             fieldChanges[col.key] = true;
-            if (col.key === "status" && curVal === "published" && origVal !== "published") {
+            if (col.key === "status" && curVal === "published") {
               publishingDetected = true;
             }
           }
@@ -161,6 +162,10 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
       if (changedFields.length > 0) {
         dMap[item.id] = fieldChanges;
         count += changedFields.length;
+        // If this modified item is currently published or being changed to published:
+        if ((item as any).status === "published" || orig.status === "published") {
+          publishingDetected = true;
+        }
       }
     });
 
@@ -284,26 +289,40 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
   // Column Resizing handlers
   const handleResizeStart = (colKey: string, e: React.MouseEvent) => {
     e.preventDefault();
-    setResizingColKey(colKey);
+    e.stopPropagation();
     resizeStartXRef.current = e.clientX;
-    resizeStartWidthRef.current = columnWidths[colKey] || 200;
+    resizeStartWidthRef.current = columnWidths[colKey] || 190;
+    setResizingColKey(colKey);
+  };
+
+  useEffect(() => {
+    if (!resizingColKey) return;
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
 
     const onMouseMove = (moveEvent: MouseEvent) => {
+      moveEvent.preventDefault();
       const delta = moveEvent.clientX - resizeStartXRef.current;
-      const minW = columns.find((c) => c.key === colKey)?.minWidth || 90;
+      const minW = 80;
       const newW = Math.max(minW, resizeStartWidthRef.current + delta);
-      setColumnWidths((prev) => ({ ...prev, [colKey]: newW }));
+      setColumnWidths((prev) => ({ ...prev, [resizingColKey]: newW }));
     };
 
     const onMouseUp = () => {
       setResizingColKey(null);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
     };
 
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
-  };
+
+    return () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [resizingColKey]);
 
   // Pre-save check
   const handleSaveClick = () => {
@@ -567,14 +586,17 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
       {/* Auto-Height Spreadsheet Table Grid */}
       <div className="relative border border-border rounded-xl bg-card shadow-xs overflow-hidden flex flex-col">
         <div className="overflow-x-auto max-h-[calc(100vh-170px)]">
-          <table className="w-full text-xs border-collapse">
+          <table
+            style={{ tableLayout: "fixed", width: "max-content", minWidth: "100%" }}
+            className="text-xs border-collapse"
+          >
             {/* Table Header with Drag Resizing */}
             <thead>
               <tr className="border-b border-border bg-muted/60 text-muted-foreground font-semibold sticky top-0 z-30 shadow-xs">
                 {/* Fixed Sticky Column 1: Clean Title Only */}
                 <th
-                  style={{ width: 280, minWidth: 280 }}
-                  className="py-3 px-3.5 text-left font-semibold text-xs sticky left-0 z-40 bg-muted/95 backdrop-blur-xs border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]"
+                  style={{ width: 260, minWidth: 260, maxWidth: 260 }}
+                  className="py-3 px-3.5 text-left font-semibold text-xs sticky left-0 z-40 bg-muted border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]"
                 >
                   <div className="flex items-center justify-between">
                     <span>{entityLabel} Title</span>
@@ -584,18 +606,18 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
                   </div>
                 </th>
 
-                {/* Dynamic Columns with Resizer Handles */}
+                {/* Dynamic Columns with Resizer Handles (Uniform width by default) */}
                 {columns
                   .filter((c) => visibleColumnKeys.has(c.key))
                   .map((col) => {
-                    const width = columnWidths[col.key] || col.defaultWidth || 180;
+                    const width = columnWidths[col.key] || 190;
                     return (
                       <th
                         key={col.key}
-                        style={{ width, minWidth: col.minWidth || 90 }}
-                        className="relative py-3 px-3 text-left font-semibold text-xs border-r border-border/80 last:border-r-0 select-none group"
+                        style={{ width: `${width}px`, minWidth: `${width}px`, maxWidth: `${width}px` }}
+                        className="relative py-3 px-3 text-left font-semibold text-xs border-r border-border/80 last:border-r-0 select-none group overflow-hidden"
                       >
-                        <div className="flex items-center justify-between gap-1 pr-1.5">
+                        <div className="flex items-center justify-between gap-1 pr-2">
                           <span className="truncate">{col.label}</span>
                         </div>
 
@@ -603,8 +625,8 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
                         <div
                           onMouseDown={(e) => handleResizeStart(col.key, e)}
                           className={cn(
-                            "absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/50 transition-colors z-20",
-                            resizingColKey === col.key && "bg-primary"
+                            "absolute right-0 top-0 h-full w-2.5 cursor-col-resize hover:bg-primary/70 transition-colors z-30 select-none",
+                            resizingColKey === col.key && "bg-primary w-2.5"
                           )}
                           title="Drag to resize column"
                         />
@@ -624,12 +646,12 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
                 return (
                   <tr
                     key={item.id}
-                    className="hover:bg-muted/30 transition-colors group"
+                    className="hover:bg-muted transition-colors group"
                   >
                     {/* Fixed Sticky Column 1: Clean Row # + Title Only (No slug, no image) */}
                     <td
-                      style={{ width: 280, minWidth: 280 }}
-                      className="p-2.5 sticky left-0 z-20 bg-card group-hover:bg-muted/30 border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]"
+                      style={{ width: 260, minWidth: 260, maxWidth: 260 }}
+                      className="p-2.5 sticky left-0 z-20 bg-card group-hover:bg-muted border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]"
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] text-muted-foreground font-mono w-4 text-right shrink-0">
@@ -656,7 +678,7 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
                     {columns
                       .filter((c) => visibleColumnKeys.has(c.key))
                       .map((col) => {
-                        const width = columnWidths[col.key] || col.defaultWidth || 180;
+                        const width = columnWidths[col.key] || 190;
                         const fieldPath = col.fieldPath || col.key;
                         let cellVal: any;
 
@@ -672,9 +694,9 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
                         return (
                           <td
                             key={col.key}
-                            style={{ width, minWidth: col.minWidth || 90 }}
+                            style={{ width: `${width}px`, minWidth: `${width}px`, maxWidth: `${width}px` }}
                             className={cn(
-                              "p-2 border-r border-border/60 align-middle",
+                              "p-2 border-r border-border/60 align-middle overflow-hidden",
                               dirty && "bg-amber-500/5"
                             )}
                           >
@@ -682,13 +704,13 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
                             {col.type === "status" && (
                               <button
                                 type="button"
-                                onClick={() =>
-                                  updateItemField(
-                                    item.id,
-                                    "status",
-                                    cellVal === "published" ? "draft" : "published"
-                                  )
-                                }
+                                onClick={() => {
+                                  if (cellVal !== "published") {
+                                    setItemToPublish({ id: item.id, title: item.title });
+                                  } else {
+                                    updateItemField(item.id, "status", "draft");
+                                  }
+                                }}
                                 className={cn(
                                   "px-2.5 py-1 text-[11px] font-bold rounded-sm border transition-all cursor-pointer",
                                   cellVal === "published"
@@ -736,20 +758,28 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
                                   render={
                                     <button
                                       type="button"
-                                      className="w-full min-h-8 p-1.5 flex flex-wrap items-center gap-1 text-left rounded-sm border border-border/80 bg-background hover:border-primary/50 cursor-pointer text-xs"
+                                      title={Array.isArray(cellVal) ? cellVal.join(", ") : ""}
+                                      className="w-full h-8 px-2 flex items-center justify-between gap-1 text-left rounded-sm border border-border/80 bg-background hover:border-primary/50 cursor-pointer text-xs overflow-hidden"
                                     >
                                       {Array.isArray(cellVal) && cellVal.length > 0 ? (
-                                        cellVal.map((catName: string) => (
+                                        <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
                                           <Badge
-                                            key={catName}
                                             variant="secondary"
-                                            className="text-[10px] px-1.5 py-0 h-4.5 bg-muted font-medium text-foreground"
+                                            className="text-[10px] px-1.5 py-0 h-4.5 bg-muted font-medium text-foreground truncate max-w-[105px] shrink-0"
                                           >
-                                            {catName}
+                                            {cellVal[0]}
                                           </Badge>
-                                        ))
+                                          {cellVal.length > 1 && (
+                                            <Badge
+                                              variant="outline"
+                                              className="text-[9px] px-1 py-0 h-4 font-mono text-muted-foreground shrink-0 border-border/80"
+                                            >
+                                              +{cellVal.length - 1} ...
+                                            </Badge>
+                                          )}
+                                        </div>
                                       ) : (
-                                        <span className="text-[11px] text-muted-foreground/60 italic px-1">
+                                        <span className="text-[11px] text-muted-foreground/60 italic">
                                           [ Empty ]
                                         </span>
                                       )}
@@ -810,20 +840,28 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
                                   render={
                                     <button
                                       type="button"
-                                      className="w-full min-h-8 p-1.5 flex flex-wrap items-center gap-1 text-left rounded-sm border border-border/80 bg-background hover:border-primary/50 cursor-pointer text-xs"
+                                      title={Array.isArray(cellVal) ? cellVal.map((t: string) => `#${t}`).join(", ") : ""}
+                                      className="w-full h-8 px-2 flex items-center justify-between gap-1 text-left rounded-sm border border-border/80 bg-background hover:border-primary/50 cursor-pointer text-xs overflow-hidden"
                                     >
                                       {Array.isArray(cellVal) && cellVal.length > 0 ? (
-                                        cellVal.map((tName: string) => (
+                                        <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
                                           <Badge
-                                            key={tName}
                                             variant="outline"
-                                            className="text-[10px] px-1.5 py-0 h-4.5 font-normal text-foreground bg-muted/40"
+                                            className="text-[10px] px-1.5 py-0 h-4.5 font-normal text-foreground bg-muted/40 truncate max-w-[105px] shrink-0"
                                           >
-                                            #{tName}
+                                            #{cellVal[0]}
                                           </Badge>
-                                        ))
+                                          {cellVal.length > 1 && (
+                                            <Badge
+                                              variant="secondary"
+                                              className="text-[9px] px-1 py-0 h-4 font-mono text-muted-foreground shrink-0"
+                                            >
+                                              +{cellVal.length - 1} ...
+                                            </Badge>
+                                          )}
+                                        </div>
                                       ) : (
-                                        <span className="text-[11px] text-muted-foreground/60 italic px-1">
+                                        <span className="text-[11px] text-muted-foreground/60 italic">
                                           [ Empty ]
                                         </span>
                                       )}
@@ -934,33 +972,79 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
         open={isPublishConfirmOpen}
         onOpenChange={(open) => !open && setIsPublishConfirmOpen(false)}
       >
-        <DialogContent className="sm:max-w-md p-5 space-y-3">
-          <DialogHeader className="space-y-1">
-            <DialogTitle className="text-base font-bold flex items-center gap-2 text-foreground">
-              <AlertTriangle className="w-4 h-4 text-amber-500" />
-              Confirm Publishing Changes
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
+        <DialogContent className="sm:max-w-lg p-6 sm:p-7 space-y-5 rounded-2xl">
+          <DialogHeader className="space-y-2 pb-2 border-b border-border">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <DialogTitle className="text-lg font-bold text-foreground">
+                Confirm Publishing Changes
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs sm:text-sm text-muted-foreground leading-relaxed pt-1">
               You are about to publish modified {entityLabel.toLowerCase()}s live to the website.
               Visitors will immediately be able to view these live changes.
             </DialogDescription>
           </DialogHeader>
 
-          <DialogFooter className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+          <DialogFooter className="flex items-center justify-end gap-3 pt-3 border-t border-border">
             <Button
               variant="outline"
-              size="sm"
               onClick={() => setIsPublishConfirmOpen(false)}
-              className="text-xs cursor-pointer"
+              className="h-10 px-5 text-sm font-semibold cursor-pointer rounded-lg"
             >
               Cancel
             </Button>
             <Button
-              size="sm"
               onClick={executeSave}
-              className="text-xs font-semibold cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
+              className="h-10 px-5 text-sm font-semibold cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-xs"
             >
               Publish & Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Modal for Individual Item Publishing */}
+      <Dialog
+        open={Boolean(itemToPublish)}
+        onOpenChange={(open) => !open && setItemToPublish(null)}
+      >
+        <DialogContent className="sm:max-w-lg p-6 sm:p-7 space-y-5 rounded-2xl">
+          <DialogHeader className="space-y-2 pb-2 border-b border-border">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <DialogTitle className="text-lg font-bold text-foreground">
+                Confirm Publishing {entityLabel}
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs sm:text-sm text-muted-foreground leading-relaxed pt-1">
+              You are about to publish &quot;{itemToPublish?.title || entityLabel}&quot; live to the website.
+              Visitors will immediately be able to view this {entityLabel.toLowerCase()}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+            <Button
+              variant="outline"
+              onClick={() => setItemToPublish(null)}
+              className="h-10 px-5 text-sm font-semibold cursor-pointer rounded-lg"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (itemToPublish) {
+                  updateItemField(itemToPublish.id, "status", "published");
+                  setItemToPublish(null);
+                }
+              }}
+              className="h-10 px-5 text-sm font-semibold cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-xs"
+            >
+              Publish Now
             </Button>
           </DialogFooter>
         </DialogContent>

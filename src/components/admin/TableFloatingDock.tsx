@@ -12,9 +12,18 @@ import {
   Download,
   Loader2,
   ChevronUp,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,6 +56,7 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
   const router = useRouter();
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [isExporting, setIsExporting] = React.useState(false);
+  const [isPublishConfirmOpen, setIsPublishConfirmOpen] = React.useState(false);
 
   const count = selectedItems.length;
   const ids = selectedItems.map((item) => item.id);
@@ -238,7 +248,7 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleAction("publish")}
+                onClick={() => setIsPublishConfirmOpen(true)}
                 disabled={isProcessing}
                 className="h-8 px-2.5 text-xs font-medium rounded-full cursor-pointer shrink-0 border-border hover:bg-muted text-emerald-600 dark:text-emerald-400"
                 title="Publish all selected drafts"
@@ -317,7 +327,7 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
                 />
                 <DropdownMenuContent align="center" side="top" className="w-40 mb-2">
                   <DropdownMenuItem
-                    onClick={() => handleAction("publish")}
+                    onClick={() => setIsPublishConfirmOpen(true)}
                     className="text-xs cursor-pointer flex items-center gap-2"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
@@ -412,6 +422,48 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
           </Button>
         </div>
       </div>
+
+      {/* Confirmation Modal for Bulk Publishing */}
+      <Dialog
+        open={isPublishConfirmOpen}
+        onOpenChange={(open) => !open && setIsPublishConfirmOpen(false)}
+      >
+        <DialogContent className="sm:max-w-lg p-6 sm:p-7 space-y-5 rounded-2xl">
+          <DialogHeader className="space-y-2 pb-2 border-b border-border">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <DialogTitle className="text-lg font-bold text-foreground">
+                Confirm Bulk Publishing
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs sm:text-sm text-muted-foreground leading-relaxed pt-1">
+              You are about to publish {count} {entityName} live to the website.
+              Visitors will immediately be able to view these live changes.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+            <Button
+              variant="outline"
+              onClick={() => setIsPublishConfirmOpen(false)}
+              className="h-10 px-5 text-sm font-semibold cursor-pointer rounded-lg"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setIsPublishConfirmOpen(false);
+                handleAction("publish");
+              }}
+              className="h-10 px-5 text-sm font-semibold cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-xs"
+            >
+              Publish {count} {entityName}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -152,29 +152,31 @@ export function ExportColumnsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md p-5 space-y-4">
-        <DialogHeader className="space-y-1">
-          <DialogTitle className="text-base font-bold flex items-center gap-2">
-            <Download className="w-4 h-4 text-primary" />
-            Export Selected Columns
+      <DialogContent className="sm:max-w-xl md:max-w-2xl p-6 sm:p-7 space-y-5 rounded-2xl">
+        <DialogHeader className="space-y-1.5 pb-2 border-b border-border">
+          <DialogTitle className="text-lg font-bold flex items-center gap-2.5 text-foreground">
+            <div className="p-2 rounded-xl bg-primary/10 text-primary">
+              <Download className="w-5 h-5" />
+            </div>
+            <span>Export Selected Columns</span>
           </DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground">
-            Select the exact columns and format to download for {data.length} {entityName}.
+          <DialogDescription className="text-xs sm:text-sm text-muted-foreground">
+            Choose the columns and preferred file format to download for {data.length} {entityName}.
           </DialogDescription>
         </DialogHeader>
 
         {/* Format Selection */}
-        <div className="space-y-1.5">
-          <label className="text-[11px] font-bold text-foreground uppercase tracking-wider">
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-foreground uppercase tracking-wider">
             Export Format
           </label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
               onClick={() => setFormat("csv")}
-              className={`flex items-center justify-center gap-2 p-2.5 rounded-lg border text-xs font-semibold cursor-pointer transition-all ${
+              className={`flex items-center justify-center gap-2.5 p-3 rounded-xl border text-sm font-semibold cursor-pointer transition-all ${
                 format === "csv"
-                  ? "border-primary bg-primary/10 text-primary"
+                  ? "border-primary bg-primary/10 text-primary shadow-xs"
                   : "border-border hover:bg-muted text-muted-foreground"
               }`}
             >
@@ -184,9 +186,9 @@ export function ExportColumnsModal({
             <button
               type="button"
               onClick={() => setFormat("json")}
-              className={`flex items-center justify-center gap-2 p-2.5 rounded-lg border text-xs font-semibold cursor-pointer transition-all ${
+              className={`flex items-center justify-center gap-2.5 p-3 rounded-xl border text-sm font-semibold cursor-pointer transition-all ${
                 format === "json"
-                  ? "border-primary bg-primary/10 text-primary"
+                  ? "border-primary bg-primary/10 text-primary shadow-xs"
                   : "border-border hover:bg-muted text-muted-foreground"
               }`}
             >
@@ -197,41 +199,41 @@ export function ExportColumnsModal({
         </div>
 
         {/* Column Checkboxes */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between pb-1 border-b border-border">
-            <label className="text-[11px] font-bold text-foreground uppercase tracking-wider">
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between pb-1.5 border-b border-border">
+            <label className="text-xs font-bold text-foreground uppercase tracking-wider">
               Choose Columns ({selectedKeys.size}/{columns.length})
             </label>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <button
                 type="button"
                 onClick={selectAll}
-                className="text-[10px] text-primary hover:underline font-semibold cursor-pointer"
+                className="text-xs text-primary hover:underline font-semibold cursor-pointer"
               >
                 Select All
               </button>
-              <span className="text-muted-foreground text-[10px]">|</span>
+              <span className="text-muted-foreground text-xs">|</span>
               <button
                 type="button"
                 onClick={deselectAll}
-                className="text-[10px] text-muted-foreground hover:text-foreground font-semibold cursor-pointer"
+                className="text-xs text-muted-foreground hover:text-foreground font-semibold cursor-pointer"
               >
-                Clear
+                Clear All
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-64 overflow-y-auto pr-1">
             {columns.map((col) => {
               const isChecked = selectedKeys.has(col.key);
               return (
                 <div
                   key={col.key}
                   onClick={() => toggleColumn(col.key)}
-                  className={`flex items-center gap-2 p-2 rounded-md border text-xs cursor-pointer select-none transition-colors ${
+                  className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-xs sm:text-sm cursor-pointer select-none transition-all ${
                     isChecked
-                      ? "border-primary/40 bg-primary/5 text-foreground font-medium"
-                      : "border-border/60 hover:bg-muted/50 text-muted-foreground"
+                      ? "border-primary/50 bg-primary/5 text-foreground font-medium shadow-2xs"
+                      : "border-border/70 hover:bg-muted/50 text-muted-foreground"
                   }`}
                 >
                   <Checkbox
@@ -245,24 +247,24 @@ export function ExportColumnsModal({
           </div>
         </div>
 
-        <DialogFooter className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+        <DialogFooter className="flex items-center justify-end gap-3 pt-3 border-t border-border">
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="default"
             onClick={onClose}
-            className="text-xs cursor-pointer"
+            className="h-10 px-5 text-sm font-medium cursor-pointer rounded-lg"
           >
             Cancel
           </Button>
           <Button
             type="button"
-            size="sm"
+            size="default"
             onClick={handleExport}
             disabled={selectedKeys.size === 0 || isExporting}
-            className="text-xs font-semibold cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
+            className="h-10 px-5 text-sm font-semibold cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-xs"
           >
-            <Download className="w-3.5 h-3.5 mr-1.5" />
+            <Download className="w-4 h-4 mr-2" />
             Download {format.toUpperCase()}
           </Button>
         </DialogFooter>
