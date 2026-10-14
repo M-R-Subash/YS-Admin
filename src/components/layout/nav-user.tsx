@@ -21,16 +21,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+import { ConfirmModal } from "@/components/global-modal"
 import { ChevronsUpDownIcon, SettingsIcon, LogOutIcon } from "lucide-react"
 import { signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
@@ -110,44 +101,20 @@ export function NavUser({
         </SidebarMenuItem>
       </SidebarMenu>
 
-      <AlertDialog open={showLogoutModal} onOpenChange={setShowLogoutModal}>
-        <AlertDialogContent className="rounded-sm max-w-lg p-6">
-          <AlertDialogHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-sm bg-red-500/10 text-red-600 dark:text-red-400 shrink-0">
-                <LogOutIcon className="size-5" />
-              </div>
-              <div>
-                <AlertDialogTitle className="text-base font-bold text-foreground">
-                  Confirm Sign Out
-                </AlertDialogTitle>
-                <AlertDialogDescription className="text-xs text-muted-foreground mt-0.5">
-                  Are you sure you want to end your session?
-                </AlertDialogDescription>
-              </div>
-            </div>
-          </AlertDialogHeader>
-
-          <div className="py-2 text-sm text-muted-foreground leading-relaxed">
-            You will be logged out of <strong className="text-foreground font-semibold">{user.email}</strong> and returned to the login portal.
-          </div>
-
-          <AlertDialogFooter className="gap-2 sm:gap-2 pt-2">
-            <AlertDialogCancel
-              onClick={() => setShowLogoutModal(false)}
-              className="rounded-sm text-xs font-bold px-4 py-2"
-            >
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => signOut({ callbackUrl: "/login" })}
-              className="rounded-sm text-xs font-bold px-4 py-2 bg-red-600 hover:bg-red-700 text-white cursor-pointer"
-            >
-              Log out
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmModal
+        open={showLogoutModal}
+        onOpenChange={setShowLogoutModal}
+        variant="danger"
+        icon={<LogOutIcon className="size-5 text-red-600 dark:text-red-400" />}
+        title="Confirm Sign Out"
+        description="Are you sure you want to end your session?"
+        confirmText="Log out"
+        onConfirm={() => signOut({ callbackUrl: "/login" })}
+      >
+        <div className="text-xs text-muted-foreground leading-relaxed">
+          You will be logged out of <strong className="text-foreground font-semibold">{user.email}</strong> and returned to the login portal.
+        </div>
+      </ConfirmModal>
     </>
   )
 }

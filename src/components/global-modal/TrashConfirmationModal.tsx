@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ConfirmModal, ConfirmVariant } from "./ConfirmModal";
+import { ConfirmModal, ConfirmVariant, CONFIRM_PRESETS } from "./ConfirmModal";
 
 export type TrashActionType = "trash" | "restore" | "delete" | "approve" | "unapprove" | "reply";
 
@@ -52,12 +52,7 @@ export function TrashConfirmationModal({
 
     switch (type) {
       case "trash":
-        return {
-          title: `Move ${itemType} to Trash?`,
-          description: `Are you sure you want to move ${nameDisplay} to Trash? You can restore it anytime from the Trash tab.`,
-          confirmText: "Move to Trash",
-          variant: "danger",
-        };
+        return CONFIRM_PRESETS.trash(itemType, itemName);
       case "restore":
         return {
           title: `Restore ${itemType}?`,
@@ -66,12 +61,7 @@ export function TrashConfirmationModal({
           variant: "neutral",
         };
       case "delete":
-        return {
-          title: `Permanently Delete ${itemType}?`,
-          description: `Are you sure you want to permanently delete ${nameDisplay}? This action CANNOT be undone.`,
-          confirmText: "Delete Permanently",
-          variant: "danger",
-        };
+        return CONFIRM_PRESETS.deletePermanent(itemType, itemName);
       case "approve":
         return {
           title: `Approve ${itemType}?`,

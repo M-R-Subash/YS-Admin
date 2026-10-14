@@ -28,7 +28,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/toast";
-import { ConfirmModal } from "@/components/global-modal";
+import { ConfirmModal, CONFIRM_PRESETS } from "@/components/global-modal";
 import {
   ExportColumnsModal,
   ExportColumnOption,
@@ -493,10 +493,7 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
         <ConfirmModal
           open={isPublishConfirmOpen}
           onOpenChange={setIsPublishConfirmOpen}
-          variant="warning"
-          title={`Publish ${count} ${entityName}?`}
-          description={`You are about to publish ${count} ${entityName} live to the website. Visitors will immediately be able to view these live changes.`}
-          confirmText={`Publish ${count} ${entityName}`}
+          {...CONFIRM_PRESETS.publish(entityName, count)}
           onConfirm={async () => {
             setIsPublishConfirmOpen(false);
             await handleAction("publish");
@@ -508,10 +505,7 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
         <ConfirmModal
           open={isDraftConfirmOpen}
           onOpenChange={setIsDraftConfirmOpen}
-          variant="warning"
-          title={`Move ${count} ${entityName} to Draft?`}
-          description={`You are about to unpublish ${count} ${entityName}. They will immediately become inaccessible to public visitors on the live website.`}
-          confirmText="Unpublish & Move to Draft"
+          {...CONFIRM_PRESETS.unpublish(entityName, count)}
           onConfirm={async () => {
             setIsDraftConfirmOpen(false);
             await handleAction("draft");
@@ -523,10 +517,7 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
         <ConfirmModal
           open={isTrashConfirmOpen}
           onOpenChange={setIsTrashConfirmOpen}
-          variant="danger"
-          title={`Move ${count} ${entityName} to Trash?`}
-          description={`These items will be moved to the trash folder and unpublished. You can restore them anytime from the Trash tab.`}
-          confirmText="Move to Trash"
+          {...CONFIRM_PRESETS.trash(entityName, `${count} selected`)}
           onConfirm={async () => {
             setIsTrashConfirmOpen(false);
             await handleAction("trash");
@@ -538,10 +529,7 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
         <ConfirmModal
           open={isDeletePermanentConfirmOpen}
           onOpenChange={setIsDeletePermanentConfirmOpen}
-          variant="danger"
-          title={`Permanently Delete ${count} ${entityName}?`}
-          description={`This will permanently delete ${count} ${entityName} from the database. This action CANNOT be undone.`}
-          confirmText="Delete Permanently"
+          {...CONFIRM_PRESETS.deletePermanent(entityName, `${count} selected`)}
           onConfirm={async () => {
             setIsDeletePermanentConfirmOpen(false);
             await handleAction("deletePermanent");

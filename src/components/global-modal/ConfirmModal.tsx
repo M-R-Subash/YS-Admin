@@ -31,6 +31,8 @@ export interface ConfirmModalProps {
   variant?: ConfirmVariant;
   confirmText?: string;
   cancelText?: string;
+  hideCancel?: boolean;
+  confirmClassName?: string;
   onConfirm?: () => void | Promise<void>;
   onCancel?: () => void;
   loading?: boolean;
@@ -38,6 +40,47 @@ export interface ConfirmModalProps {
   icon?: React.ReactNode;
   children?: React.ReactNode;
 }
+
+/**
+ * Standard confirmation dialog presets for common actions across the admin CMS.
+ * Usage: <ConfirmModal {...CONFIRM_PRESETS.trash("post")} open={...} onConfirm={...} />
+ */
+export const CONFIRM_PRESETS = {
+  trash: (itemType = "item", itemName?: string) => ({
+    variant: "danger" as const,
+    title: `Move ${itemType} to Trash?`,
+    description: itemName
+      ? `Are you sure you want to move "${itemName}" to Trash? You can restore it anytime from the Trash tab.`
+      : `Are you sure you want to move this ${itemType} to Trash? You can restore it anytime from the Trash tab.`,
+    confirmText: "Move to Trash",
+  }),
+  deletePermanent: (itemType = "item", itemName?: string) => ({
+    variant: "danger" as const,
+    title: `Permanently Delete ${itemType}?`,
+    description: itemName
+      ? `Are you sure you want to permanently delete "${itemName}"? This action CANNOT be undone.`
+      : `Are you sure you want to permanently delete this ${itemType}? This action CANNOT be undone.`,
+    confirmText: "Delete Permanently",
+  }),
+  publish: (itemType = "item", count?: number) => ({
+    variant: "warning" as const,
+    title: count && count > 1 ? `Publish ${count} ${itemType}s?` : `Publish ${itemType}?`,
+    description: "These changes will immediately become live and visible to all website visitors.",
+    confirmText: count && count > 1 ? `Publish ${count} ${itemType}s` : `Publish ${itemType}`,
+  }),
+  unpublish: (itemType = "item", count?: number) => ({
+    variant: "warning" as const,
+    title: count && count > 1 ? `Move ${count} ${itemType}s to Draft?` : `Move ${itemType} to Draft?`,
+    description: "These items will immediately become inaccessible to public visitors on the live website.",
+    confirmText: "Unpublish & Move to Draft",
+  }),
+  discardDraft: {
+    variant: "danger" as const,
+    title: "Discard Draft Changes?",
+    description: "This will permanently delete the current cloud draft and restore the editor to the live published version. This action cannot be undone.",
+    confirmText: "Discard Draft",
+  },
+};
 
 const VARIANT_CONFIG: Record<
   ConfirmVariant,
@@ -94,6 +137,8 @@ export function ConfirmModal({
   variant = "default",
   confirmText,
   cancelText = "Cancel",
+  hideCancel = false,
+  confirmClassName,
   onConfirm,
   onCancel,
   loading = false,
@@ -147,13 +192,15 @@ export function ConfirmModal({
         {children && <div className="mt-3">{children}</div>}
 
         <AlertDialogFooter className="mt-4 flex flex-col-reverse sm:flex-row items-center justify-end gap-2">
-          <AlertDialogCancel
-            disabled={loading}
-            onClick={handleCancel}
-            className="w-full sm:w-auto h-9 px-4 text-xs font-medium cursor-pointer"
-          >
-            {cancelText}
-          </AlertDialogCancel>
+          {!hideCancel && (
+            <AlertDialogCancel
+              disabled={loading}
+              onClick={handleCancel}
+              className="w-full sm:w-auto h-9 px-4 text-xs font-medium cursor-pointer"
+            >
+              {cancelText}
+            </AlertDialogCancel>
+          )}
 
           {secondaryAction && (
             <button
@@ -175,7 +222,8 @@ export function ConfirmModal({
               onClick={handleConfirm}
               className={cn(
                 "w-full sm:w-auto h-9 px-4 text-xs cursor-pointer shadow-sm",
-                config.actionClass
+                config.actionClass,
+                confirmClassName
               )}
             >
               {loading && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}

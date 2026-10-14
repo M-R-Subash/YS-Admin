@@ -13,16 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+import { ConfirmModal } from "@/components/global-modal";
 
 interface CloudinaryImage {
   public_id: string;
@@ -474,42 +465,17 @@ export default function MediaPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Alert Dialog */}
-      <AlertDialog
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
         open={!!deleteId}
         onOpenChange={(open) => !open && setDeleteId(null)}
-      >
-        <AlertDialogContent className="max-w-[92vw] sm:max-w-lg bg-card border border-border p-5 sm:p-6 shadow-xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-lg sm:text-xl font-bold text-foreground">
-              Are you absolutely sure?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-xs sm:text-sm text-muted-foreground mt-2 leading-relaxed">
-              This action cannot be undone. This will permanently delete this
-              image from your Cloudinary storage. Any webpage currently using
-              this image will have a broken link!
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-5 sm:mt-6 gap-2 sm:gap-3 flex-col sm:flex-row">
-            <AlertDialogCancel
-              disabled={isDeleting}
-              className="px-4 py-2 text-xs sm:text-sm"
-            >
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleDelete();
-              }}
-              disabled={isDeleting}
-              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 text-xs sm:text-sm font-bold"
-            >
-              {isDeleting ? "Deleting..." : "Permanent Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        variant="danger"
+        title="Are you absolutely sure?"
+        description="This action cannot be undone. This will permanently delete this image from your Cloudinary storage. Any webpage currently using this image will have a broken link!"
+        confirmText="Permanent Delete"
+        loading={isDeleting}
+        onConfirm={handleDelete}
+      />
     </>
   );
 }

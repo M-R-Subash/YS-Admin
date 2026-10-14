@@ -25,16 +25,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-  AlertDialogAction,
-} from "@/components/ui/alert-dialog";
+import { ConfirmModal } from "@/components/global-modal";
 import { slugify } from "@/lib/slugify";
 
 interface TagItem {
@@ -387,43 +378,26 @@ export default function TagsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Tag Alert Dialog */}
-      <AlertDialog open={!!deletingTag} onOpenChange={(open) => !open && setDeletingTag(null)}>
-        <AlertDialogContent className="text-xs">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-sm font-bold text-red-600 flex items-center gap-2">
-              <span>Delete Tag?</span>
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-xs text-muted-foreground space-y-2">
-              <p>
-                Are you sure you want to delete tag <strong>&ldquo;{deletingTag?.name}&rdquo;</strong>?
-              </p>
-              <div className="p-2.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-[11px]">
-                Articles tagged with this tag will NOT be deleted. The tag will simply be unlinked from them.
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting} className="text-xs h-8.5 cursor-pointer">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              disabled={isDeleting}
-              onClick={handleConfirmDeleteTag}
-              className="text-xs h-8.5 bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer shadow-xs"
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="size-3.5 animate-spin mr-1.5" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete Tag"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Delete Tag Confirmation Modal */}
+      <ConfirmModal
+        open={!!deletingTag}
+        onOpenChange={(open) => !open && setDeletingTag(null)}
+        variant="danger"
+        title="Delete Tag?"
+        description={
+          <div className="space-y-2 mt-1">
+            <p>
+              Are you sure you want to delete tag <strong>&ldquo;{deletingTag?.name}&rdquo;</strong>?
+            </p>
+            <div className="p-2.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-[11px]">
+              Articles tagged with this tag will NOT be deleted. The tag will simply be unlinked from them.
+            </div>
+          </div>
+        }
+        confirmText="Delete Tag"
+        loading={isDeleting}
+        onConfirm={handleConfirmDeleteTag}
+      />
     </>
   );
 }

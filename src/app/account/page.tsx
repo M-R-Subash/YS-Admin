@@ -32,14 +32,7 @@ import Image from "next/image";
 import { format } from "date-fns";
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { clientConfig } from "@/lib/config/client";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmModal } from "@/components/global-modal";
 import { ActiveSessionsCard } from "@/components/account/active-sessions-card";
 
 export default function AccountPage() {
@@ -778,44 +771,25 @@ export default function AccountPage() {
       </div>
 
       {/* Password Changed Success Modal */}
-      <AlertDialog open={showSuccessModal}>
-        <AlertDialogContent className="rounded-sm max-w-md p-6">
-          <AlertDialogHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-sm bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
-                <CheckCircle2 className="size-5" />
-              </div>
-              <div>
-                <AlertDialogTitle className="text-base font-bold text-foreground">
-                  Password Changed Successfully!
-                </AlertDialogTitle>
-                <AlertDialogDescription className="text-xs text-muted-foreground mt-0.5">
-                  Your new password is now active
-                </AlertDialogDescription>
-              </div>
-            </div>
-          </AlertDialogHeader>
-
-          <div className="py-2 text-sm text-muted-foreground leading-relaxed space-y-2">
-            <p>
-              Changing your password will sign you out. You will need to log in again with your new password to continue.
-            </p>
-            <p className="text-xs text-muted-foreground/80 font-medium">
-              Redirecting to login in <span className="font-semibold text-foreground font-mono">{countdown}</span> seconds...
-            </p>
-          </div>
-
-          <AlertDialogFooter className="pt-2">
-            <Button
-              onClick={() => signOut({ callbackUrl: "/login" })}
-              className="w-full sm:w-auto rounded-sm text-xs font-bold px-5 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer flex items-center justify-center gap-2"
-            >
-              <span>Sign in now</span>
-              <ArrowRight className="size-4" />
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmModal
+        open={showSuccessModal}
+        onOpenChange={() => {}}
+        variant="success"
+        title="Password Changed Successfully!"
+        description="Your new password is now active"
+        confirmText="Sign in now"
+        hideCancel
+        onConfirm={() => signOut({ callbackUrl: "/login" })}
+      >
+        <div className="py-2 text-xs text-muted-foreground leading-relaxed space-y-2">
+          <p>
+            Changing your password will sign you out. You will need to log in again with your new password to continue.
+          </p>
+          <p className="text-xs text-muted-foreground/80 font-medium">
+            Redirecting to login in <span className="font-semibold text-foreground font-mono">{countdown}</span> seconds...
+          </p>
+        </div>
+      </ConfirmModal>
     </>
   );
 }
