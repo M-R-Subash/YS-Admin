@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef, useDeferredValue } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { mutate as globalMutate } from "swr";
@@ -15,6 +15,10 @@ import {
   FileSpreadsheet,
   Plus,
   Search,
+  Undo2,
+  Redo2,
+  ArrowDownToLine,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,14 +30,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { ConfirmModal } from "@/components/global-modal";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/toast";
 import { ExportColumnsModal } from "./ExportColumnsModal";
 import { cn } from "@/lib/utils";
@@ -58,18 +61,20 @@ export interface SpreadsheetColumnConfig {
 }
 
 export interface UniversalSpreadsheetEditorProps<T extends { id: string; title: string; slug?: string; status?: string }> {
-  entityLabel: string; // e.g. "Blog", "Webpage"
-  backHref: string; // e.g. "/blogs", "/webpages"
+  entityLabel: string; // e.g. "Blog", "Webpage", "Subscriber"
+  primaryColumnLabel?: string; // e.g. "Blog Title", "Page Title", "Subscriber Email"
+  backHref: string; // e.g. "/blogs", "/webpages", "/newsletters"
   initialItems: T[];
   columns: SpreadsheetColumnConfig[];
   availableCategories?: { id: string; name: string }[];
   availableTags?: { id: string; name: string }[];
-  apiEndpoint: string; // e.g. "/api/blogs/bulk" or "/api/pages/bulk"
+  apiEndpoint: string; // e.g. "/api/blogs/bulk", "/api/pages/bulk"
   onSaved?: (updatedItems: T[]) => void | Promise<void>;
 }
 
 export function UniversalSpreadsheetEditor<T extends { id: string; title: string; slug?: string; status?: string }>({
   entityLabel,
+  primaryColumnLabel,
   backHref,
   initialItems,
   columns,
@@ -89,6 +94,14 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
   const [items, setItems] = useState<T[]>(() =>
     JSON.parse(JSON.stringify(initialItems))
   );
+
+  // Undo / Redo History Stack
+  const [past, setPast] = useState<T[][]>([]);
+  const [future, setFuture] = useState<T[][]>([]);
+
+  // In-Grid Search Filter State
+  const [gridSearch, setGridSearch] = useState("");
+  const deferredGridSearch = useDeferredValue(gridSearch);
 
   // Column visibility
   const [visibleColumnKeys, setVisibleColumnKeys] = useState<Set<string>>(() => {
@@ -117,6 +130,57 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
   // Local state for adding custom tags
   const [newTagInput, setNewTagInput] = useState<Record<string, string>>({});
   const [categorySearch, setCategorySearch] = useState<Record<string, string>>({});
+
+  // Helper to snapshot history before a mutating operation
+  const pushHistorySnapshot = useCallback(() => {
+    setPast((prev) => {
+      const currentJson = JSON.stringify(items);
+      if (prev.length > 0 && JSON.stringify(prev[prev.length - 1]) === currentJson) {
+        return prev;
+      }
+      return [...prev.slice(-30), JSON.parse(currentJson)];
+    });
+    setFuture([]);
+  }, [items]);
+
+  // Undo Handler
+  const handleUndo = useCallback(() => {
+    if (past.length === 0) return;
+    const previous = past[past.length - 1];
+    const newPast = past.slice(0, past.length - 1);
+    setFuture((f) => [JSON.parse(JSON.stringify(items)), ...f]);
+    setPast(newPast);
+    setItems(previous);
+  }, [past, items]);
+
+  // Redo Handler
+  const handleRedo = useCallback(() => {
+    if (future.length === 0) return;
+    const next = future[0];
+    const newFuture = future.slice(1);
+    setPast((p) => [...p, JSON.parse(JSON.stringify(items))]);
+    setFuture(newFuture);
+    setItems(next);
+  }, [future, items]);
+
+  // Keyboard shortcut listener for Ctrl+Z and Ctrl+Y
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isPublishConfirmOpen || isExportModalOpen) return;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      } else if (
+        ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") ||
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "z")
+      ) {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleUndo, handleRedo, isPublishConfirmOpen, isExportModalOpen]);
 
   // Compute dirty map comparing current items to baselineItems
   const { dirtyMap, totalDirtyCount, hasPublishAction } = useMemo(() => {
@@ -232,6 +296,7 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
 
   // Category toggle
   const toggleCategory = (itemId: string, catName: string) => {
+    pushHistorySnapshot();
     setItems((prev) =>
       prev.map((item) => {
         if (item.id !== itemId) return item;
@@ -249,6 +314,7 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
 
   // Tag toggle
   const toggleTag = (itemId: string, tagName: string) => {
+    pushHistorySnapshot();
     setItems((prev) =>
       prev.map((item) => {
         if (item.id !== itemId) return item;
@@ -269,6 +335,7 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
     const val = (newTagInput[itemId] || "").trim();
     if (!val) return;
 
+    pushHistorySnapshot();
     setItems((prev) =>
       prev.map((item) => {
         if (item.id !== itemId) return item;
@@ -283,8 +350,102 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
     setNewTagInput((prev) => ({ ...prev, [itemId]: "" }));
   };
 
+  // Excel "Apply to All" (Fill-Down) from Row 1
+  const applyFirstRowToAll = (colKey: string, fieldPath: string) => {
+    if (items.length <= 1) return;
+    pushHistorySnapshot();
+    const firstItem = items[0];
+    let sourceVal: any;
+    if (fieldPath.startsWith("seo.")) {
+      const subKey = fieldPath.replace("seo.", "");
+      sourceVal = (firstItem as any).seo?.[subKey] ?? "";
+    } else {
+      sourceVal = (firstItem as any)[colKey];
+    }
+
+    setItems((prev) =>
+      prev.map((item, idx) => {
+        if (idx === 0) return item;
+        if (fieldPath.startsWith("seo.")) {
+          const subKey = fieldPath.replace("seo.", "");
+          return {
+            ...item,
+            seo: {
+              ...((item as any).seo || {}),
+              [subKey]: JSON.parse(JSON.stringify(sourceVal)),
+            },
+          };
+        }
+        return {
+          ...item,
+          [colKey]: Array.isArray(sourceVal)
+            ? [...sourceVal]
+            : typeof sourceVal === "object" && sourceVal !== null
+            ? JSON.parse(JSON.stringify(sourceVal))
+            : sourceVal,
+        };
+      })
+    );
+
+    toast.add({
+      title: "Applied to All Rows",
+      description: `Copied Row 1's "${colKey}" across all ${items.length} rows.`,
+      type: "info",
+    });
+  };
+
+  // In-Grid Quick Search Filter
+  const filteredItems = useMemo(() => {
+    const q = deferredGridSearch.trim().toLowerCase();
+    if (!q) return items;
+
+    return items.filter((item) => {
+      if (item.title && String(item.title).toLowerCase().includes(q)) return true;
+      if (item.slug && String(item.slug).toLowerCase().includes(q)) return true;
+      if (item.status && String(item.status).toLowerCase().includes(q)) return true;
+
+      for (const col of columns) {
+        const fieldPath = col.fieldPath || col.key;
+        let val: any;
+        if (fieldPath.startsWith("seo.")) {
+          val = (item as any).seo?.[fieldPath.replace("seo.", "")];
+        } else {
+          val = (item as any)[col.key];
+        }
+        if (val !== undefined && val !== null) {
+          if (typeof val === "string" && val.toLowerCase().includes(q)) return true;
+          if (typeof val === "number" && String(val).includes(q)) return true;
+          if (Array.isArray(val) && val.some((v) => String(v).toLowerCase().includes(q))) return true;
+        }
+      }
+      return false;
+    });
+  }, [items, deferredGridSearch, columns]);
+
+  // Keyboard navigation handler for inputs
+  const handleKeyDownCell = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    rowIndex: number,
+    colKey: string
+  ) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const targetRow = e.shiftKey ? rowIndex - 1 : rowIndex + 1;
+      const targetInput = document.querySelector<HTMLInputElement>(
+        `input[data-row="${targetRow}"][data-col="${colKey}"]`
+      );
+      if (targetInput) {
+        targetInput.focus();
+        targetInput.select();
+      }
+    } else if (e.key === "Escape") {
+      e.currentTarget.blur();
+    }
+  };
+
   // Discard all changes
   const handleDiscard = () => {
+    pushHistorySnapshot();
     setItems(JSON.parse(JSON.stringify(baselineItems)));
     toast.add({
       title: "Changes Reverted",
@@ -439,50 +600,112 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
   };
 
   return (
-    <div className="w-full flex flex-col gap-3.5 animate-in fade-in duration-200">
-      {/* Top Header Bar */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 p-3.5 bg-card border border-border rounded-xl shadow-xs shrink-0">
-        <div className="flex items-center gap-3">
-          {/* Back Icon-Only Button */}
-          <Link href={backHref}>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 cursor-pointer rounded-lg border-border hover:bg-muted"
-              title={`Return to ${entityLabel}s`}
-            >
-              <ArrowLeft className="w-4 h-4 text-foreground" />
-            </Button>
-          </Link>
-          <div className="h-4 w-px bg-border hidden sm:block" />
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
-              <FileSpreadsheet className="w-4 h-4" />
-            </div>
-            <div>
-              <h1 className="text-sm font-bold text-foreground">
-                {entityLabel} Spreadsheet Bulk Editor
-              </h1>
-              <p className="text-[11px] text-muted-foreground">
-                Editing {items.length} selected {entityLabel.toLowerCase()}s in real-time
-              </p>
+    <TooltipProvider delay={100}>
+      <div className="w-full flex flex-col gap-3.5 animate-in fade-in duration-200">
+        {/* Top Header Bar */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 p-3.5 bg-card border border-border rounded-xl shadow-xs shrink-0">
+          <div className="flex items-center gap-3">
+            {/* Back Icon-Only Button */}
+            <Link href={backHref}>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 cursor-pointer rounded-lg border-border hover:bg-muted"
+                title={`Return to ${entityLabel}s`}
+              >
+                <ArrowLeft className="w-4 h-4 text-foreground" />
+              </Button>
+            </Link>
+            <div className="h-4 w-px bg-border hidden sm:block" />
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                <FileSpreadsheet className="w-4 h-4" />
+              </div>
+              <div>
+                <h1 className="text-sm font-bold text-foreground">
+                  {entityLabel} Spreadsheet Bulk Editor
+                </h1>
+                <p className="text-[11px] text-muted-foreground">
+                  Editing {items.length} selected {entityLabel.toLowerCase()}s in real-time
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Toolbar & Actions */}
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
-          {/* Export Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsExportModalOpen(true)}
-            className="h-8 text-xs cursor-pointer border-border"
-            title="Export spreadsheet data"
-          >
-            <Download className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
-            <span>Export</span>
-          </Button>
+          {/* Toolbar & Actions */}
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+            {/* Local Undo & Redo Buttons */}
+            <div className="flex items-center gap-1 border-r border-border pr-2">
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handleUndo}
+                      disabled={past.length === 0}
+                      className="h-8 w-8 text-xs cursor-pointer rounded-lg border-border hover:bg-muted disabled:opacity-40"
+                    >
+                      <Undo2 className="w-3.5 h-3.5" />
+                    </Button>
+                  }
+                />
+                <TooltipContent side="bottom" className="text-xs">
+                  Undo (Ctrl+Z)
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handleRedo}
+                      disabled={future.length === 0}
+                      className="h-8 w-8 text-xs cursor-pointer rounded-lg border-border hover:bg-muted disabled:opacity-40"
+                    >
+                      <Redo2 className="w-3.5 h-3.5" />
+                    </Button>
+                  }
+                />
+                <TooltipContent side="bottom" className="text-xs">
+                  Redo (Ctrl+Y)
+                </TooltipContent>
+              </Tooltip>
+            </div>
+
+            {/* In-Grid Quick Search Bar */}
+            <div className="relative w-40 sm:w-52">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <Input
+                value={gridSearch}
+                onChange={(e) => setGridSearch(e.target.value)}
+                placeholder={`Filter ${entityLabel.toLowerCase()}s...`}
+                className="h-8 pl-8 pr-7 text-xs bg-muted/40 border-border rounded-lg"
+              />
+              {gridSearch && (
+                <button
+                  type="button"
+                  onClick={() => setGridSearch("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Export Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsExportModalOpen(true)}
+              className="h-8 text-xs cursor-pointer border-border"
+              title="Export spreadsheet data"
+            >
+              <Download className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
+              <span>Export</span>
+            </Button>
 
           {/* Columns Selector Popover */}
           <Popover>
@@ -631,18 +854,19 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
                   className="py-3 px-3.5 text-left font-semibold text-xs sticky left-0 z-40 bg-muted border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]"
                 >
                   <div className="flex items-center justify-between">
-                    <span>{entityLabel} Title</span>
+                    <span>{primaryColumnLabel || `${entityLabel} Title`}</span>
                     <span className="text-[10px] text-muted-foreground uppercase font-mono">
                       #{items.length}
                     </span>
                   </div>
                 </th>
 
-                {/* Dynamic Columns with Resizer Handles (Uniform width by default) */}
+                {/* Dynamic Columns with Resizer Handles & Fill-Down Button */}
                 {columns
                   .filter((c) => visibleColumnKeys.has(c.key))
                   .map((col) => {
                     const width = columnWidths[col.key] || 190;
+                    const fieldPath = col.fieldPath || col.key;
                     return (
                       <th
                         key={col.key}
@@ -651,6 +875,25 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
                       >
                         <div className="flex items-center justify-between gap-1 pr-2">
                           <span className="truncate">{col.label}</span>
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    applyFirstRowToAll(col.key, fieldPath);
+                                  }}
+                                  className="opacity-0 group-hover:opacity-100 hover:text-primary hover:bg-muted/80 p-0.5 rounded transition-all cursor-pointer shrink-0"
+                                >
+                                  <ArrowDownToLine className="w-3.5 h-3.5" />
+                                </button>
+                              }
+                            />
+                            <TooltipContent side="top" className="text-xs">
+                              Fill Down: Copy Row 1 to all rows
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
 
                         {/* Column Drag Resizer Handle */}
@@ -670,317 +913,350 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
 
             {/* Table Rows */}
             <tbody className="divide-y divide-border/60">
-              {items.map((item, index) => {
-                const isSlugDupe = duplicateSlugs.has(
-                  ((item.slug as string) || "").trim().toLowerCase()
-                );
-
-                return (
-                  <tr
-                    key={item.id}
-                    className="hover:bg-muted transition-colors group"
+              {filteredItems.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={columns.filter((c) => visibleColumnKeys.has(c.key)).length + 1}
+                    className="p-8 text-center text-muted-foreground text-xs"
                   >
-                    {/* Fixed Sticky Column 1: Clean Row # + Title Only (No slug, no image) */}
-                    <td
-                      style={{ width: 260, minWidth: 260, maxWidth: 260 }}
-                      className="p-2.5 sticky left-0 z-20 bg-card group-hover:bg-muted border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]"
+                    No {entityLabel.toLowerCase()}s found matching &quot;{gridSearch}&quot;.
+                  </td>
+                </tr>
+              ) : (
+                filteredItems.map((item, index) => {
+                  const isSlugDupe = duplicateSlugs.has(
+                    ((item.slug as string) || "").trim().toLowerCase()
+                  );
+
+                  return (
+                    <tr
+                      key={item.id}
+                      className="hover:bg-muted transition-colors group"
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-muted-foreground font-mono w-4 text-right shrink-0">
-                          {index + 1}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <Input
-                            value={item.title}
-                            onChange={(e) =>
-                              updateItemField(item.id, "title", e.target.value)
-                            }
-                            placeholder="[ Empty Title ]"
-                            className={cn(
-                              "h-7 text-xs font-semibold px-2 rounded-sm border-transparent hover:border-border focus:border-primary bg-transparent",
-                              isCellDirty(item.id, "title") && "bg-amber-500/10 border-amber-500/40",
-                              !item.title && "placeholder:italic placeholder:text-muted-foreground/60"
-                            )}
-                          />
+                      {/* Fixed Sticky Column 1: Clean Row # + Title Only (No slug, no image) */}
+                      <td
+                        style={{ width: 260, minWidth: 260, maxWidth: 260 }}
+                        className="p-2.5 sticky left-0 z-20 bg-card group-hover:bg-muted border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-muted-foreground font-mono w-4 text-right shrink-0">
+                            {index + 1}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <Input
+                              data-row={index}
+                              data-col="title"
+                              value={item.title}
+                              onFocus={pushHistorySnapshot}
+                              onKeyDown={(e) => handleKeyDownCell(e, index, "title")}
+                              onChange={(e) =>
+                                updateItemField(item.id, "title", e.target.value)
+                              }
+                              placeholder="[ Empty Title ]"
+                              className={cn(
+                                "h-7 text-xs font-semibold px-2 rounded-sm border-transparent hover:border-border focus:border-primary bg-transparent",
+                                isCellDirty(item.id, "title") && "bg-amber-500/10 border-amber-500/40",
+                                !item.title && "placeholder:italic placeholder:text-muted-foreground/60"
+                              )}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Dynamic Columns */}
-                    {columns
-                      .filter((c) => visibleColumnKeys.has(c.key))
-                      .map((col) => {
-                        const width = columnWidths[col.key] || 190;
-                        const fieldPath = col.fieldPath || col.key;
-                        let cellVal: any;
+                      {/* Dynamic Columns */}
+                      {columns
+                        .filter((c) => visibleColumnKeys.has(c.key))
+                        .map((col) => {
+                          const width = columnWidths[col.key] || 190;
+                          const fieldPath = col.fieldPath || col.key;
+                          let cellVal: any;
 
-                        if (fieldPath.startsWith("seo.")) {
-                          const subKey = fieldPath.replace("seo.", "");
-                          cellVal = (item as any).seo?.[subKey] ?? "";
-                        } else {
-                          cellVal = (item as any)[col.key];
-                        }
+                          if (fieldPath.startsWith("seo.")) {
+                            const subKey = fieldPath.replace("seo.", "");
+                            cellVal = (item as any).seo?.[subKey] ?? "";
+                          } else {
+                            cellVal = (item as any)[col.key];
+                          }
 
-                        const dirty = isCellDirty(item.id, col.key);
+                          const dirty = isCellDirty(item.id, col.key);
 
-                        return (
-                          <td
-                            key={col.key}
-                            style={{ width: `${width}px`, minWidth: `${width}px`, maxWidth: `${width}px` }}
-                            className={cn(
-                              "p-2 border-r border-border/60 align-middle overflow-hidden",
-                              dirty && "bg-amber-500/5"
-                            )}
-                          >
-                            {/* Render by Column Type */}
-                            {col.type === "status" && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  updateItemField(
-                                    item.id,
-                                    "status",
-                                    cellVal === "published" ? "draft" : "published"
-                                  )
-                                }
-                                className={cn(
-                                  "px-2.5 py-1 text-[11px] font-bold rounded-sm border transition-all cursor-pointer",
-                                  cellVal === "published"
-                                    ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/20"
-                                    : "bg-amber-500/10 text-amber-600 border-amber-500/30 hover:bg-amber-500/20"
-                                )}
-                              >
-                                {(cellVal || "draft").toUpperCase()}
-                              </button>
-                            )}
+                          return (
+                            <td
+                              key={col.key}
+                              style={{ width: `${width}px`, minWidth: `${width}px`, maxWidth: `${width}px` }}
+                              className={cn(
+                                "p-2 border-r border-border/60 align-middle overflow-hidden",
+                                dirty && "bg-amber-500/5"
+                              )}
+                            >
+                              {/* Render by Column Type */}
+                              {col.type === "status" && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    pushHistorySnapshot();
+                                    updateItemField(
+                                      item.id,
+                                      "status",
+                                      cellVal === "published"
+                                        ? "draft"
+                                        : cellVal === "draft"
+                                        ? "published"
+                                        : cellVal === "active"
+                                        ? "unsubscribed"
+                                        : cellVal === "unsubscribed"
+                                        ? "active"
+                                        : "published"
+                                    );
+                                  }}
+                                  className={cn(
+                                    "px-2.5 py-1 text-[11px] font-bold rounded-sm border transition-all cursor-pointer",
+                                    cellVal === "published" || cellVal === "active"
+                                      ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/20"
+                                      : "bg-amber-500/10 text-amber-600 border-amber-500/30 hover:bg-amber-500/20"
+                                  )}
+                                >
+                                  {(cellVal || "draft").toUpperCase()}
+                                </button>
+                              )}
 
-                            {col.type === "switch" && (
-                              <div className="flex items-center justify-center">
-                                <Switch
-                                  checked={Boolean(cellVal)}
-                                  onCheckedChange={(val) =>
-                                    updateItemField(item.id, fieldPath, val)
+                              {col.type === "switch" && (
+                                <div className="flex items-center justify-center">
+                                  <Switch
+                                    checked={Boolean(cellVal)}
+                                    onCheckedChange={(val) => {
+                                      pushHistorySnapshot();
+                                      updateItemField(item.id, fieldPath, val);
+                                    }}
+                                  />
+                                </div>
+                              )}
+
+                              {col.type === "number" && (
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  data-row={index}
+                                  data-col={col.key}
+                                  value={cellVal ?? 1}
+                                  onFocus={pushHistorySnapshot}
+                                  onKeyDown={(e) => handleKeyDownCell(e, index, col.key)}
+                                  onChange={(e) =>
+                                    updateItemField(
+                                      item.id,
+                                      fieldPath,
+                                      parseInt(e.target.value, 10) || 1
+                                    )
                                   }
+                                  className={cn(
+                                    "h-8 text-xs font-mono px-2 rounded-sm",
+                                    dirty && "border-amber-500/40"
+                                  )}
                                 />
-                              </div>
-                            )}
+                              )}
 
-                            {col.type === "number" && (
-                              <Input
-                                type="number"
-                                min={1}
-                                value={cellVal ?? 1}
-                                onChange={(e) =>
-                                  updateItemField(
-                                    item.id,
-                                    fieldPath,
-                                    parseInt(e.target.value, 10) || 1
-                                  )
-                                }
-                                className={cn(
-                                  "h-8 text-xs font-mono px-2 rounded-sm",
-                                  dirty && "border-amber-500/40"
-                                )}
-                              />
-                            )}
+                              {col.type === "categories" && (
+                                <Popover>
+                                  <PopoverTrigger
+                                    render={
+                                      <button
+                                        type="button"
+                                        title={Array.isArray(cellVal) ? cellVal.join(", ") : ""}
+                                        className="w-full h-8 px-2 flex items-center justify-between gap-1 text-left rounded-sm border border-border/80 bg-background hover:border-primary/50 cursor-pointer text-xs overflow-hidden"
+                                      >
+                                        {Array.isArray(cellVal) && cellVal.length > 0 ? (
+                                          <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
+                                            <Badge
+                                              variant="secondary"
+                                              className="text-[10px] px-1.5 py-0 h-4.5 bg-muted font-medium text-foreground truncate max-w-[105px] shrink-0"
+                                            >
+                                              {cellVal[0]}
+                                            </Badge>
+                                            {cellVal.length > 1 && (
+                                              <Badge
+                                                variant="outline"
+                                                className="text-[9px] px-1 py-0 h-4 font-mono text-muted-foreground shrink-0 border-border/80"
+                                              >
+                                                +{cellVal.length - 1} ...
+                                              </Badge>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <span className="text-[11px] text-muted-foreground/60 italic">
+                                            [ Empty ]
+                                          </span>
+                                        )}
+                                      </button>
+                                    }
+                                  />
+                                  <PopoverContent align="start" className="w-56 p-2 space-y-2">
+                                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/60 border border-border/60">
+                                      <Search className="w-3 h-3 text-muted-foreground" />
+                                      <input
+                                        type="text"
+                                        value={categorySearch[item.id] || ""}
+                                        onChange={(e) =>
+                                          setCategorySearch((prev) => ({
+                                            ...prev,
+                                            [item.id]: e.target.value,
+                                          }))
+                                        }
+                                        placeholder="Search categories..."
+                                        className="text-xs bg-transparent border-none outline-hidden w-full text-foreground"
+                                      />
+                                    </div>
+                                    <div className="max-h-48 overflow-y-auto space-y-1">
+                                      {availableCategories
+                                        .filter((c) =>
+                                          c.name
+                                            .toLowerCase()
+                                            .includes(
+                                              (categorySearch[item.id] || "").toLowerCase()
+                                            )
+                                        )
+                                        .map((cat) => {
+                                          const isSelected = (cellVal || []).includes(cat.name);
+                                          return (
+                                            <div
+                                              key={cat.id}
+                                              onClick={() => toggleCategory(item.id, cat.name)}
+                                              className="flex items-center gap-2 p-1.5 rounded-md hover:bg-muted/60 cursor-pointer text-xs"
+                                            >
+                                              <Checkbox
+                                                checked={isSelected}
+                                                onCheckedChange={() =>
+                                                  toggleCategory(item.id, cat.name)
+                                                }
+                                              />
+                                              <span className="truncate">{cat.name}</span>
+                                            </div>
+                                          );
+                                        })}
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                              )}
 
-                            {col.type === "categories" && (
-                              <Popover>
-                                <PopoverTrigger
-                                  render={
-                                    <button
-                                      type="button"
-                                      title={Array.isArray(cellVal) ? cellVal.join(", ") : ""}
-                                      className="w-full h-8 px-2 flex items-center justify-between gap-1 text-left rounded-sm border border-border/80 bg-background hover:border-primary/50 cursor-pointer text-xs overflow-hidden"
-                                    >
-                                      {Array.isArray(cellVal) && cellVal.length > 0 ? (
-                                        <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
-                                          <Badge
-                                            variant="secondary"
-                                            className="text-[10px] px-1.5 py-0 h-4.5 bg-muted font-medium text-foreground truncate max-w-[105px] shrink-0"
-                                          >
-                                            {cellVal[0]}
-                                          </Badge>
-                                          {cellVal.length > 1 && (
+                              {col.type === "tags" && (
+                                <Popover>
+                                  <PopoverTrigger
+                                    render={
+                                      <button
+                                        type="button"
+                                        title={Array.isArray(cellVal) ? cellVal.map((t: string) => `#${t}`).join(", ") : ""}
+                                        className="w-full h-8 px-2 flex items-center justify-between gap-1 text-left rounded-sm border border-border/80 bg-background hover:border-primary/50 cursor-pointer text-xs overflow-hidden"
+                                      >
+                                        {Array.isArray(cellVal) && cellVal.length > 0 ? (
+                                          <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
                                             <Badge
                                               variant="outline"
-                                              className="text-[9px] px-1 py-0 h-4 font-mono text-muted-foreground shrink-0 border-border/80"
+                                              className="text-[10px] px-1.5 py-0 h-4.5 font-normal text-foreground bg-muted/40 truncate max-w-[105px] shrink-0"
                                             >
-                                              +{cellVal.length - 1} ...
+                                              #{cellVal[0]}
                                             </Badge>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <span className="text-[11px] text-muted-foreground/60 italic">
-                                          [ Empty ]
-                                        </span>
-                                      )}
-                                    </button>
-                                  }
-                                />
-                                <PopoverContent align="start" className="w-56 p-2 space-y-2">
-                                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/60 border border-border/60">
-                                    <Search className="w-3 h-3 text-muted-foreground" />
-                                    <input
-                                      type="text"
-                                      value={categorySearch[item.id] || ""}
-                                      onChange={(e) =>
-                                        setCategorySearch((prev) => ({
-                                          ...prev,
-                                          [item.id]: e.target.value,
-                                        }))
-                                      }
-                                      placeholder="Search categories..."
-                                      className="text-xs bg-transparent border-none outline-hidden w-full text-foreground"
-                                    />
-                                  </div>
-                                  <div className="max-h-48 overflow-y-auto space-y-1">
-                                    {availableCategories
-                                      .filter((c) =>
-                                        c.name
-                                          .toLowerCase()
-                                          .includes(
-                                            (categorySearch[item.id] || "").toLowerCase()
-                                          )
-                                      )
-                                      .map((cat) => {
-                                        const isSelected = (cellVal || []).includes(cat.name);
+                                            {cellVal.length > 1 && (
+                                              <Badge
+                                                variant="secondary"
+                                                className="text-[9px] px-1 py-0 h-4 font-mono text-muted-foreground shrink-0"
+                                              >
+                                                +{cellVal.length - 1} ...
+                                              </Badge>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <span className="text-[11px] text-muted-foreground/60 italic">
+                                            [ Empty ]
+                                          </span>
+                                        )}
+                                      </button>
+                                    }
+                                  />
+                                  <PopoverContent align="start" className="w-64 p-2.5 space-y-2">
+                                    {/* Inline Add / Search Tag */}
+                                    <div className="flex items-center gap-1">
+                                      <Input
+                                        value={newTagInput[item.id] || ""}
+                                        onChange={(e) =>
+                                          setNewTagInput((prev) => ({
+                                            ...prev,
+                                            [item.id]: e.target.value,
+                                          }))
+                                        }
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") {
+                                            e.preventDefault();
+                                            addCustomTag(item.id);
+                                          }
+                                        }}
+                                        placeholder="Type tag & press enter..."
+                                        className="h-7 text-xs px-2"
+                                      />
+                                      <Button
+                                        size="sm"
+                                        onClick={() => addCustomTag(item.id)}
+                                        className="h-7 px-2 text-xs cursor-pointer"
+                                      >
+                                        <Plus className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+
+                                    <div className="max-h-48 overflow-y-auto space-y-1">
+                                      {availableTags
+                                        .filter((t) =>
+                                          t.name
+                                            .toLowerCase()
+                                            .includes((newTagInput[item.id] || "").toLowerCase())
+                                        )
+                                        .map((t) => {
+                                        const isSelected = (cellVal || []).includes(t.name);
                                         return (
                                           <div
-                                            key={cat.id}
-                                            onClick={() => toggleCategory(item.id, cat.name)}
+                                            key={t.id}
+                                            onClick={() => toggleTag(item.id, t.name)}
                                             className="flex items-center gap-2 p-1.5 rounded-md hover:bg-muted/60 cursor-pointer text-xs"
                                           >
                                             <Checkbox
                                               checked={isSelected}
                                               onCheckedChange={() =>
-                                                toggleCategory(item.id, cat.name)
+                                                toggleTag(item.id, t.name)
                                               }
                                             />
-                                            <span className="truncate">{cat.name}</span>
+                                            <span className="truncate">#{t.name}</span>
                                           </div>
                                         );
                                       })}
-                                  </div>
-                                </PopoverContent>
-                              </Popover>
-                            )}
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                              )}
 
-                            {col.type === "tags" && (
-                              <Popover>
-                                <PopoverTrigger
-                                  render={
-                                    <button
-                                      type="button"
-                                      title={Array.isArray(cellVal) ? cellVal.map((t: string) => `#${t}`).join(", ") : ""}
-                                      className="w-full h-8 px-2 flex items-center justify-between gap-1 text-left rounded-sm border border-border/80 bg-background hover:border-primary/50 cursor-pointer text-xs overflow-hidden"
-                                    >
-                                      {Array.isArray(cellVal) && cellVal.length > 0 ? (
-                                        <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
-                                          <Badge
-                                            variant="outline"
-                                            className="text-[10px] px-1.5 py-0 h-4.5 font-normal text-foreground bg-muted/40 truncate max-w-[105px] shrink-0"
-                                          >
-                                            #{cellVal[0]}
-                                          </Badge>
-                                          {cellVal.length > 1 && (
-                                            <Badge
-                                              variant="secondary"
-                                              className="text-[9px] px-1 py-0 h-4 font-mono text-muted-foreground shrink-0"
-                                            >
-                                              +{cellVal.length - 1} ...
-                                            </Badge>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <span className="text-[11px] text-muted-foreground/60 italic">
-                                          [ Empty ]
-                                        </span>
-                                      )}
-                                    </button>
+                              {col.type === "text" && (
+                                <Input
+                                  data-row={index}
+                                  data-col={col.key}
+                                  value={cellVal || ""}
+                                  onFocus={pushHistorySnapshot}
+                                  onKeyDown={(e) => handleKeyDownCell(e, index, col.key)}
+                                  onChange={(e) =>
+                                    updateItemField(item.id, fieldPath, e.target.value)
                                   }
+                                  placeholder={col.placeholder || "[ Empty ]"}
+                                  className={cn(
+                                    "h-8 text-xs px-2 rounded-sm",
+                                    col.key === "slug" && isSlugDupe && "border-destructive text-destructive bg-destructive/10",
+                                    col.key === "slug" && "font-mono",
+                                    dirty && "border-amber-500/40",
+                                    !cellVal && "placeholder:italic placeholder:text-muted-foreground/60"
+                                  )}
                                 />
-                                <PopoverContent align="start" className="w-64 p-2.5 space-y-2">
-                                  {/* Inline Add / Search Tag */}
-                                  <div className="flex items-center gap-1">
-                                    <Input
-                                      value={newTagInput[item.id] || ""}
-                                      onChange={(e) =>
-                                        setNewTagInput((prev) => ({
-                                          ...prev,
-                                          [item.id]: e.target.value,
-                                        }))
-                                      }
-                                      onKeyDown={(e) => {
-                                        if (e.key === "Enter") {
-                                          e.preventDefault();
-                                          addCustomTag(item.id);
-                                        }
-                                      }}
-                                      placeholder="Type tag & press enter..."
-                                      className="h-7 text-xs px-2"
-                                    />
-                                    <Button
-                                      size="sm"
-                                      onClick={() => addCustomTag(item.id)}
-                                      className="h-7 px-2 text-xs cursor-pointer"
-                                    >
-                                      <Plus className="w-3 h-3" />
-                                    </Button>
-                                  </div>
-
-                                  <div className="max-h-48 overflow-y-auto space-y-1">
-                                    {availableTags
-                                      .filter((t) =>
-                                        t.name
-                                          .toLowerCase()
-                                          .includes((newTagInput[item.id] || "").toLowerCase())
-                                      )
-                                      .map((t) => {
-                                      const isSelected = (cellVal || []).includes(t.name);
-                                      return (
-                                        <div
-                                          key={t.id}
-                                          onClick={() => toggleTag(item.id, t.name)}
-                                          className="flex items-center gap-2 p-1.5 rounded-md hover:bg-muted/60 cursor-pointer text-xs"
-                                        >
-                                          <Checkbox
-                                            checked={isSelected}
-                                            onCheckedChange={() =>
-                                              toggleTag(item.id, t.name)
-                                            }
-                                          />
-                                          <span className="truncate">#{t.name}</span>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </PopoverContent>
-                              </Popover>
-                            )}
-
-                            {col.type === "text" && (
-                              <Input
-                                value={cellVal || ""}
-                                onChange={(e) =>
-                                  updateItemField(item.id, fieldPath, e.target.value)
-                                }
-                                placeholder={col.placeholder || "[ Empty ]"}
-                                className={cn(
-                                  "h-8 text-xs px-2 rounded-sm",
-                                  col.key === "slug" && isSlugDupe && "border-destructive text-destructive bg-destructive/10",
-                                  col.key === "slug" && "font-mono",
-                                  dirty && "border-amber-500/40",
-                                  !cellVal && "placeholder:italic placeholder:text-muted-foreground/60"
-                                )}
-                              />
-                            )}
-                          </td>
-                        );
-                      })}
-                  </tr>
-                );
-              })}
+                              )}
+                            </td>
+                          );
+                        })}
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -999,44 +1275,18 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
         data={items}
       />
 
-      {/* Confirmation Modal for Publishing */}
-      <Dialog
+      {/* Confirmation Modal for Publishing Changes using existing ConfirmModal */}
+      <ConfirmModal
         open={isPublishConfirmOpen}
-        onOpenChange={(open) => !open && setIsPublishConfirmOpen(false)}
-      >
-        <DialogContent className="sm:max-w-lg p-6 sm:p-7 space-y-5 rounded-2xl">
-          <DialogHeader className="space-y-2 pb-2 border-b border-border">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-              <DialogTitle className="text-lg font-bold text-foreground">
-                Confirm Publishing Changes
-              </DialogTitle>
-            </div>
-            <DialogDescription className="text-xs sm:text-sm text-muted-foreground leading-relaxed pt-1">
-              You are about to publish modified {entityLabel.toLowerCase()}s live to the website.
-              Visitors will immediately be able to view these live changes.
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogFooter className="flex items-center justify-end gap-3 pt-3 border-t border-border">
-            <Button
-              variant="outline"
-              onClick={() => setIsPublishConfirmOpen(false)}
-              className="h-10 px-5 text-sm font-semibold cursor-pointer rounded-lg"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={executeSave}
-              className="h-10 px-5 text-sm font-semibold cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-xs"
-            >
-              Publish & Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+        onOpenChange={setIsPublishConfirmOpen}
+        variant="warning"
+        title="Confirm Publishing Changes"
+        description={`You are about to publish modified ${entityLabel.toLowerCase()}s live to the website. Visitors will immediately be able to view these live changes.`}
+        confirmText="Publish & Save Changes"
+        onConfirm={executeSave}
+        loading={isSaving}
+      />
+      </div>
+    </TooltipProvider>
   );
 }

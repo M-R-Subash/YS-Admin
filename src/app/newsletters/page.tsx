@@ -497,6 +497,7 @@ export default function SubscribersPage() {
                   onClearSelection={clearSelection}
                   entityName="subscribers"
                   entityType="subscribers"
+                  bulkEditUrl="/newsletters/subscribers/bulk-edit"
                   onBulkAction={handleBulkAction}
                 />
               )}
