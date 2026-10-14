@@ -25,7 +25,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ConfirmModal, CONFIRM_PRESETS } from "@/components/global-modal";
+import { ConfirmModal, CONFIRM_PRESETS } from "@/components/modals/ConfirmModal";
 import { useTrashManager } from "@/hooks/useTrashManager";
 
 export interface ContentActionItem {

@@ -49,7 +49,7 @@ const RevisionHistoryDrawer = dynamic(
   () => import("./dialogs/RevisionHistoryDrawer").then((m) => m.RevisionHistoryDrawer),
   { ssr: false }
 );
-import { ConfirmModal } from "@/components/global-modal";
+import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BlogSnapshotData } from "@/types/revision";
 import { BlogDraftBanner } from "./header/BlogDraftBanner";

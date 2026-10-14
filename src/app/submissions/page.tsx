@@ -13,7 +13,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ConfirmModal, CONFIRM_PRESETS } from "@/components/global-modal";
+import { ConfirmModal, CONFIRM_PRESETS } from "@/components/modals/ConfirmModal";
 import { useTrashManager } from "@/hooks/useTrashManager";
 import {
   FormSubmission,

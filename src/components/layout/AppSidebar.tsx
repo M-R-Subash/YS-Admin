@@ -4,8 +4,8 @@ import * as React from "react"
 import useSWR from "swr"
 import { FileTextIcon, UsersIcon, PenToolIcon, ImageIcon, ArrowRightLeft, MessageSquare, CalendarClock, Mail, Send } from "lucide-react"
 
-import { NavMain } from "@/components/layout/nav-main"
-import { NavUser } from "@/components/layout/nav-user"
+import { NavMain } from "./NavMain"
+import { NavUser } from "./NavUser"
 import { useSession } from "next-auth/react"
 import {
   Sidebar,

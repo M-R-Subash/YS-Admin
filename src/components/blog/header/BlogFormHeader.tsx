@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { EditorTopBar } from "@/components/editor-shell";
+import { EditorTopBar } from "@/components/editor/shell/EditorTopBar";
 import { useBlogForm } from "../context/BlogFormContext";
 import { useNow } from "@/hooks/useNow";
 

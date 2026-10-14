@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import useSWR from "swr";
 import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/ui/data-table";
+import { DataTable } from "@/components/table/DataTable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { getUsersColumns } from "./users-columns";

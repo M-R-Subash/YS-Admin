@@ -21,7 +21,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { ConfirmModal } from "@/components/global-modal"
+import { ConfirmModal } from "@/components/modals/ConfirmModal"
 import { ChevronsUpDownIcon, SettingsIcon, LogOutIcon } from "lucide-react"
 import { signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ConfirmModal } from "@/components/global-modal";
+import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import { RotateCcw, AlertTriangle } from "lucide-react";
 
 interface RestoreConfirmDialogProps {

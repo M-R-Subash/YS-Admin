@@ -22,9 +22,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SchedulePostModal } from "@/components/blog/dialogs/SchedulePostModal";
-import { DataTable } from "@/components/ui/data-table";
-import { ContentMetricCards, MetricCardItem } from "@/components/admin/ContentMetricCards";
-import { ContentFilterBar, ContentFilterTab } from "@/components/admin/ContentFilterBar";
+import { DataTable } from "@/components/table/DataTable";
+import { ContentMetricCards, MetricCardItem } from "@/components/table/ContentMetricCards";
+import { ContentFilterBar, ContentFilterTab } from "@/components/table/ContentFilterBar";
 import {
   DropdownMenu,
   DropdownMenuContent,

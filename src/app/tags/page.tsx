@@ -25,7 +25,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { ConfirmModal } from "@/components/global-modal";
+import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import { slugify } from "@/lib/slugify";
 
 interface TagItem {

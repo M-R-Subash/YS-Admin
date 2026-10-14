@@ -11,7 +11,7 @@ import {
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ChevronDown, Layout, Globe } from "lucide-react";
-import { EditorRenderer } from "@/components/EditorRenderer";
+import { EditorRenderer } from "./EditorRenderer";
 import type { FieldSchema } from "@/lib/schemas/global-schema";
 import { ZodSchema } from "zod";
 import { clientConfig } from "@/lib/config/client";
@@ -397,4 +397,5 @@ const SchemaEditor = forwardRef<SchemaEditorRef, SchemaEditorProps>(
   );
 });
 
+export { SchemaEditor };
 export default SchemaEditor;

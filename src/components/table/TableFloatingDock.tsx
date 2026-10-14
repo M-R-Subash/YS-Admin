@@ -28,11 +28,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/toast";
-import { ConfirmModal, CONFIRM_PRESETS } from "@/components/global-modal";
+import { ConfirmModal, CONFIRM_PRESETS } from "@/components/modals/ConfirmModal";
 import {
   ExportColumnsModal,
   ExportColumnOption,
-} from "./spreadsheet/ExportColumnsModal";
+} from "@/components/spreadsheet/ExportColumnsModal";
 
 export interface TableFloatingDockProps<T = any> {
   selectedItems: T[];
@@ -201,12 +201,12 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
   return (
     <TooltipProvider delay={100}>
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-5 duration-200">
-        <div className="flex items-center gap-1.5 sm:gap-2 p-1.5 px-3 bg-card/95 backdrop-blur-md border border-border shadow-2xl rounded-xl text-foreground max-w-[95vw] overflow-x-auto">
+        <div className="flex items-center gap-1.5 sm:gap-2 p-1.5 px-3 bg-card/95 backdrop-blur-md border border-border shadow-2xl rounded-md text-foreground max-w-[95vw] overflow-x-auto">
           {/* Selected Counter Pill */}
           <div className="flex items-center gap-1.5 pl-1.5 pr-2 border-r border-border/80 shrink-0">
             <Badge
               variant="default"
-              className="h-5 px-1.5 text-[11px] font-bold rounded-md bg-primary text-primary-foreground font-mono"
+              className="h-5 px-1.5 text-[11px] font-bold rounded-sm bg-primary text-primary-foreground font-mono"
             >
               {count}
             </Badge>
@@ -224,7 +224,7 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
                     size="sm"
                     onClick={handleNavigateToBulkEdit}
                     disabled={isProcessing}
-                    className="h-8 px-3 text-xs font-semibold rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs cursor-pointer shrink-0"
+                    className="h-8 px-3 text-xs font-semibold rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs cursor-pointer shrink-0"
                   >
                     <FileSpreadsheet className="w-3.5 h-3.5 mr-1.5 shrink-0" />
                     <span>Bulk Edit</span>
@@ -250,7 +250,7 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
                         size="sm"
                         onClick={() => setIsDraftConfirmOpen(true)}
                         disabled={isProcessing}
-                        className="h-8 px-2.5 text-xs font-medium rounded-lg cursor-pointer shrink-0 border-border hover:bg-muted text-amber-600 dark:text-amber-400"
+                        className="h-8 px-2.5 text-xs font-medium rounded-sm cursor-pointer shrink-0 border-border hover:bg-muted text-amber-600 dark:text-amber-400"
                       >
                         <FileEdit className="w-3.5 h-3.5 mr-1.5 shrink-0" />
                         <span>Draft</span>
@@ -270,7 +270,7 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
                         size="sm"
                         onClick={() => setIsPublishConfirmOpen(true)}
                         disabled={isProcessing}
-                        className="h-8 px-2.5 text-xs font-medium rounded-lg cursor-pointer shrink-0 border-border hover:bg-muted text-emerald-600 dark:text-emerald-400"
+                        className="h-8 px-2.5 text-xs font-medium rounded-sm cursor-pointer shrink-0 border-border hover:bg-muted text-emerald-600 dark:text-emerald-400"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5 mr-1.5 shrink-0" />
                         <span>Publish</span>
@@ -288,7 +288,7 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
                     size="sm"
                     onClick={() => handleAction("opt-out")}
                     disabled={isProcessing}
-                    className="h-8 px-2.5 text-xs font-medium rounded-lg cursor-pointer shrink-0 border-border hover:bg-muted text-destructive"
+                    className="h-8 px-2.5 text-xs font-medium rounded-sm cursor-pointer shrink-0 border-border hover:bg-muted text-destructive"
                   >
                     <span>Opt-out</span>
                   </Button>
@@ -298,7 +298,7 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
                     size="sm"
                     onClick={() => handleAction("activate")}
                     disabled={isProcessing}
-                    className="h-8 px-2.5 text-xs font-medium rounded-lg cursor-pointer shrink-0 border-border hover:bg-muted text-emerald-600 dark:text-emerald-400"
+                    className="h-8 px-2.5 text-xs font-medium rounded-sm cursor-pointer shrink-0 border-border hover:bg-muted text-emerald-600 dark:text-emerald-400"
                   >
                     <span>Mark Active</span>
                   </Button>
@@ -310,24 +310,24 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
                           variant="outline"
                           size="sm"
                           disabled={isProcessing}
-                          className="h-8 px-2.5 text-xs font-medium rounded-lg cursor-pointer shrink-0 border-border hover:bg-muted"
+                          className="h-8 px-2.5 text-xs font-medium rounded-sm cursor-pointer shrink-0 border-border hover:bg-muted"
                         >
                           <span>Change Status</span>
                           <ChevronUp className="w-3 h-3 ml-1 text-muted-foreground" />
                         </Button>
                       }
                     />
-                    <DropdownMenuContent align="center" side="top" className="w-40 mb-2 rounded-lg">
+                    <DropdownMenuContent align="center" side="top" className="w-40 mb-2 rounded-md">
                       <DropdownMenuItem
                         onClick={() => handleAction("activate")}
-                        className="text-xs cursor-pointer flex items-center gap-2 rounded-md"
+                        className="text-xs cursor-pointer flex items-center gap-2 rounded-sm"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
                         <span>Mark as Active</span>
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => handleAction("opt-out")}
-                        className="text-xs cursor-pointer flex items-center gap-2 text-destructive rounded-md"
+                        className="text-xs cursor-pointer flex items-center gap-2 text-destructive rounded-sm"
                       >
                         <FileEdit className="w-3.5 h-3.5" />
                         <span>Opt-out Readers</span>
@@ -344,24 +344,24 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
                         variant="outline"
                         size="sm"
                         disabled={isProcessing}
-                        className="h-8 px-2.5 text-xs font-medium rounded-lg cursor-pointer shrink-0 border-border hover:bg-muted"
+                        className="h-8 px-2.5 text-xs font-medium rounded-sm cursor-pointer shrink-0 border-border hover:bg-muted"
                       >
                         <span>Set Status</span>
                         <ChevronUp className="w-3 h-3 ml-1 text-muted-foreground" />
                       </Button>
                     }
                   />
-                  <DropdownMenuContent align="center" side="top" className="w-40 mb-2 rounded-lg shadow-lg border border-border">
+                  <DropdownMenuContent align="center" side="top" className="w-40 mb-2 rounded-md shadow-lg border border-border">
                     <DropdownMenuItem
                       onClick={() => setIsPublishConfirmOpen(true)}
-                      className="text-xs cursor-pointer flex items-center gap-2 rounded-md"
+                      className="text-xs cursor-pointer flex items-center gap-2 rounded-sm"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
                       <span>Publish</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => setIsDraftConfirmOpen(true)}
-                      className="text-xs cursor-pointer flex items-center gap-2 rounded-md"
+                      className="text-xs cursor-pointer flex items-center gap-2 rounded-sm"
                     >
                       <FileEdit className="w-3.5 h-3.5 text-amber-600" />
                       <span>Move to Draft</span>
@@ -379,7 +379,7 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
                       size="sm"
                       onClick={() => setIsTrashConfirmOpen(true)}
                       disabled={isProcessing}
-                      className="h-8 px-2 text-xs font-medium rounded-lg cursor-pointer shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      className="h-8 px-2 text-xs font-medium rounded-sm cursor-pointer shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                       <span className="hidden md:inline ml-1">Trash</span>
@@ -404,7 +404,7 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
                       size="sm"
                       onClick={() => handleAction("restore")}
                       disabled={isProcessing}
-                      className="h-8 px-3 text-xs font-semibold rounded-lg cursor-pointer shrink-0 border-border hover:bg-muted"
+                      className="h-8 px-3 text-xs font-semibold rounded-sm cursor-pointer shrink-0 border-border hover:bg-muted"
                     >
                       <RotateCcw className="w-3.5 h-3.5 mr-1.5 text-green-600 shrink-0" />
                       <span>Restore</span>
@@ -424,7 +424,7 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
                       size="sm"
                       onClick={() => setIsDeletePermanentConfirmOpen(true)}
                       disabled={isProcessing}
-                      className="h-8 px-3 text-xs font-semibold rounded-lg cursor-pointer shrink-0"
+                      className="h-8 px-3 text-xs font-semibold rounded-sm cursor-pointer shrink-0"
                     >
                       <Trash2 className="w-3.5 h-3.5 mr-1.5 shrink-0" />
                       <span>Delete Permanently</span>
@@ -453,7 +453,7 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
                     }
                   }}
                   disabled={isProcessing}
-                  className="h-8 px-2.5 text-xs font-medium rounded-lg cursor-pointer shrink-0 text-muted-foreground hover:text-foreground"
+                  className="h-8 px-2.5 text-xs font-medium rounded-sm cursor-pointer shrink-0 text-muted-foreground hover:text-foreground"
                 >
                   <Download className="w-3.5 h-3.5 mr-1" />
                   <span className="hidden md:inline">Export</span>
@@ -475,7 +475,7 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
                     size="sm"
                     onClick={onClearSelection}
                     disabled={isProcessing}
-                    className="h-7 w-7 p-0 rounded-lg cursor-pointer text-muted-foreground hover:text-foreground hover:bg-muted"
+                    className="h-7 w-7 p-0 rounded-sm cursor-pointer text-muted-foreground hover:text-foreground hover:bg-muted"
                   >
                     {isProcessing ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />

@@ -33,16 +33,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { DataTable } from "@/components/table/DataTable";
 import {
   ContentMetricCards,
   MetricCardItem,
-} from "@/components/admin/ContentMetricCards";
+} from "@/components/table/ContentMetricCards";
 import {
   ContentFilterBar,
   ContentFilterTab,
-} from "@/components/admin/ContentFilterBar";
+} from "@/components/table/ContentFilterBar";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { DataTable } from "@/components/ui/data-table";
 import { getCampaignsColumns, Campaign } from "./campaigns-columns";
 import { BRAND_LOGO_URL, formatEmailBody } from "@/lib/newsletter/templates";
 import { cn } from "@/lib/utils";

@@ -22,20 +22,20 @@ import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
-import { ConfirmModal } from "@/components/global-modal";
+import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import { AddSubscribersModal } from "./AddSubscribersModal";
+import { DataTable } from "@/components/table/DataTable";
 import {
   ContentMetricCards,
   MetricCardItem,
-} from "@/components/admin/ContentMetricCards";
+} from "@/components/table/ContentMetricCards";
 import {
   ContentFilterBar,
   ContentFilterTab,
-} from "@/components/admin/ContentFilterBar";
+} from "@/components/table/ContentFilterBar";
+import { TableFloatingDock } from "@/components/table/TableFloatingDock";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { DataTable } from "@/components/ui/data-table";
 import { getSubscribersColumns, Subscriber } from "./subscribers-columns";
-import { TableFloatingDock } from "@/components/admin/TableFloatingDock";
 import { cn } from "@/lib/utils";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());

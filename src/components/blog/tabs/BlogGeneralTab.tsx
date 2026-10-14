@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Sparkles } from "lucide-react";
-import { EditorRenderer } from "@/components/EditorRenderer";
+import { EditorRenderer } from "@/components/editor/schema/EditorRenderer";
 import {
   blogGeneralLeftUiSchema,
   blogGeneralRightUiSchema,

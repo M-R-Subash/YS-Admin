@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ConfirmModal, CONFIRM_PRESETS } from "@/components/global-modal";
+import { ConfirmModal, CONFIRM_PRESETS } from "@/components/modals/ConfirmModal";
 import { useBlogForm } from "../context/BlogFormContext";
 
 export function DiscardDraftDialog() {

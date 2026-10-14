@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ConfirmModal } from "@/components/global-modal";
+import { ConfirmModal } from "@/components/modals/ConfirmModal";
 
 interface CloudinaryImage {
   public_id: string;

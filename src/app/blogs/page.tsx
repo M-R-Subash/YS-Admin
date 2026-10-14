@@ -16,12 +16,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
-import { ContentMetricCards, MetricCardItem } from "@/components/admin/ContentMetricCards";
-import { ContentFilterBar, ContentFilterTab } from "@/components/admin/ContentFilterBar";
-import { TableFloatingDock } from "@/components/admin/TableFloatingDock";
+import { DataTable } from "@/components/table/DataTable";
+import { ContentMetricCards, MetricCardItem } from "@/components/table/ContentMetricCards";
+import { ContentFilterBar, ContentFilterTab } from "@/components/table/ContentFilterBar";
+import { TableFloatingDock } from "@/components/table/TableFloatingDock";
 import { toast } from "@/components/ui/toast";
-
-import { DataTable } from "@/components/ui/data-table";
 import { getBlogsColumns } from "./blogs-columns";
 
 function BlogsContent() {

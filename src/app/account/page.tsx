@@ -32,8 +32,8 @@ import Image from "next/image";
 import { format } from "date-fns";
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { clientConfig } from "@/lib/config/client";
-import { ConfirmModal } from "@/components/global-modal";
-import { ActiveSessionsCard } from "@/components/account/active-sessions-card";
+import { ConfirmModal } from "@/components/modals/ConfirmModal";
+import { ActiveSessionsCard } from "@/components/profile/ActiveSessionsCard";
 
 export default function AccountPage() {
   const { data: session, update } = useSession();

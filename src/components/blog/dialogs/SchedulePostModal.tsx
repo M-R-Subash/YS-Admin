@@ -39,7 +39,7 @@ import {
   addDays,
 } from "date-fns";
 import { useNow } from "@/hooks/useNow";
-import { ConfirmModal } from "@/components/global-modal";
+import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import { Checkbox } from "@/components/ui/checkbox";
 
 export interface SchedulePostModalProps {

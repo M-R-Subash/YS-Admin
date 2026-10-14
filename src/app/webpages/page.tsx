@@ -8,12 +8,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Page } from "@/types";
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
-import { ContentMetricCards, MetricCardItem } from "@/components/admin/ContentMetricCards";
-import { ContentFilterBar, ContentFilterTab } from "@/components/admin/ContentFilterBar";
-
-import { DataTable } from "@/components/ui/data-table";
+import { DataTable } from "@/components/table/DataTable";
+import { ContentMetricCards, MetricCardItem } from "@/components/table/ContentMetricCards";
+import { ContentFilterBar, ContentFilterTab } from "@/components/table/ContentFilterBar";
+import { TableFloatingDock } from "@/components/table/TableFloatingDock";
 import { getWebpagesColumns } from "./webpages-columns";
-import { TableFloatingDock } from "@/components/admin/TableFloatingDock";
 import { toast } from "@/components/ui/toast";
   
 export default function WebpagesPage() {

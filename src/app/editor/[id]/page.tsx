@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { RotateCw, PenLine, Eye, Layout, Globe } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import type { PageData } from "@/types";
-import SchemaEditor, { SchemaEditorRef } from "@/components/editor-shell/SchemaEditor";
+import { SchemaEditor, SchemaEditorRef } from "@/components/editor/schema/SchemaEditor";
+import { EditorDraftBanner } from "@/components/editor/shell/EditorDraftBanner";
+import { EditorTopBar } from "@/components/editor/shell/EditorTopBar";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { homepageUiSchema } from "@/lib/schemas/homepage/homepage-ui-schema";
 import { homepageSchema } from "@/lib/schemas/homepage/homepage-validation";
@@ -15,12 +17,7 @@ import { contactUiSchema } from "@/lib/schemas/contact/contact-ui-schema";
 import { contactSchema } from "@/lib/schemas/contact/contact-validation";
 import { servicesUiSchema } from "@/lib/schemas/services/services-ui-schema";
 import { servicesSchema } from "@/lib/schemas/services/services-validation";
-import {
-  EditorDraftBanner,
-  EditorTopBar,
-  ExitConfirmModal,
-} from "@/components/editor-shell";
-import { ConfirmModal, CONFIRM_PRESETS } from "@/components/global-modal";
+import { ConfirmModal, CONFIRM_PRESETS, ExitConfirmModal } from "@/components/modals/ConfirmModal";
 import { ScreenLoader } from "@/components/ui/screen-loader";
 import { useEmergencyDraft, getEmergencyBackup } from "@/hooks/useEmergencyDraft";
 import { useDirtyManager } from "@/hooks/useDirtyManager";

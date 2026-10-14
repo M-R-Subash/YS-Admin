@@ -3,7 +3,7 @@
 import React from "react";
 import { CalendarClock, AlertCircle, RotateCcw } from "lucide-react";
 import { format, formatDistanceToNow, isToday, isTomorrow } from "date-fns";
-import { EditorDraftBanner } from "@/components/editor-shell";
+import { EditorDraftBanner } from "@/components/editor/shell/EditorDraftBanner";
 import { useBlogForm } from "../context/BlogFormContext";
 import { useNow } from "@/hooks/useNow";
 

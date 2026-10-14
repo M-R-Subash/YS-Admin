@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   UniversalSpreadsheetEditor,
   SpreadsheetColumnConfig,
-} from "@/components/admin/spreadsheet/UniversalSpreadsheetEditor";
+} from "@/components/spreadsheet/UniversalSpreadsheetEditor";
 
 export interface BulkSubscriberItem {
   id: string;

@@ -3,13 +3,13 @@
 import { useForm } from "react-hook-form";
 import { useState, useEffect, useRef } from "react";
 import { footerUiSchema, footerZodSchema } from "@/lib/schemas/footer/footer-validation";
-import { EditorRenderer } from "@/components/EditorRenderer";
+import { EditorRenderer } from "@/components/editor/schema/EditorRenderer";
 import { saveFooterData } from "./actions";
 import { ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ExitConfirmModal } from "@/components/editor-shell";
+import { ExitConfirmModal } from "@/components/modals/ConfirmModal";
 import { toast } from "@/components/ui/toast";
 import { useDirtyManager } from "@/hooks/useDirtyManager";
 import { clientConfig } from "@/lib/config/client";

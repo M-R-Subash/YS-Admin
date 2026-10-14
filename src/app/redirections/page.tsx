@@ -13,15 +13,15 @@ import useSWR from "swr";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/ui/data-table";
+import { DataTable } from "@/components/table/DataTable";
 import {
   ContentMetricCards,
   MetricCardItem,
-} from "@/components/admin/ContentMetricCards";
+} from "@/components/table/ContentMetricCards";
 import {
   ContentFilterBar,
   ContentFilterTab,
-} from "@/components/admin/ContentFilterBar";
+} from "@/components/table/ContentFilterBar";
 import {
   Dialog,
   DialogContent,
@@ -38,7 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ConfirmModal, CONFIRM_PRESETS } from "@/components/global-modal";
+import { ConfirmModal, CONFIRM_PRESETS } from "@/components/modals/ConfirmModal";
 import { useTrashManager } from "@/hooks/useTrashManager";
 import {
   getRedirectionColumns,

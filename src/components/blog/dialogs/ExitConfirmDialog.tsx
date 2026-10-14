@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { ExitConfirmModal } from "@/components/editor-shell";
+import { ExitConfirmModal } from "@/components/modals/ConfirmModal";
 import { useBlogForm } from "../context/BlogFormContext";
 
 export function ExitConfirmDialog() {

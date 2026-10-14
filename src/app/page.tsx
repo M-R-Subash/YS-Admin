@@ -20,9 +20,8 @@ import {
 import { Page } from "@/types";
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ContentMetricCards, MetricCardItem } from "@/components/admin/ContentMetricCards";
-
-import { DataTable } from "@/components/ui/data-table";
+import { DataTable } from "@/components/table/DataTable";
+import { ContentMetricCards, MetricCardItem } from "@/components/table/ContentMetricCards";
 import { getWebpagesColumns } from "@/app/webpages/webpages-columns";
 
 const QUICK_LINKS = [
