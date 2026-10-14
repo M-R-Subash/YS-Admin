@@ -13,7 +13,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { TrashConfirmationModal } from "@/components/global-modal";
+import { ConfirmModal, CONFIRM_PRESETS } from "@/components/global-modal";
 import { useTrashManager } from "@/hooks/useTrashManager";
 import {
   FormSubmission,
@@ -319,12 +319,10 @@ export default function SubmissionsPage() {
       </div>
 
       {/* Centralized Trash Confirmation Modal */}
-      <TrashConfirmationModal
+      <ConfirmModal
         open={modal.isOpen}
         onOpenChange={(open) => !open && closeModal()}
-        type={modal.type}
-        itemName={modal.targetName}
-        itemType="submission"
+        {...CONFIRM_PRESETS.action(modal.type, "submission", modal.targetName)}
         loading={trashLoading}
         onConfirm={() => handleConfirm()}
       />

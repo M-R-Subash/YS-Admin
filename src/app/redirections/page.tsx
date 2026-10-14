@@ -38,7 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TrashConfirmationModal } from "@/components/global-modal";
+import { ConfirmModal, CONFIRM_PRESETS } from "@/components/global-modal";
 import { useTrashManager } from "@/hooks/useTrashManager";
 import {
   getRedirectionColumns,
@@ -474,30 +474,28 @@ export default function RedirectionsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Trash / Delete Confirmation Modal via TrashConfirmationModal Hook */}
-      <TrashConfirmationModal
+      {/* Trash / Delete Confirmation Modal via ConfirmModal */}
+      <ConfirmModal
         open={trashModal.isOpen}
         onOpenChange={(open) => {
           if (!open) closeTrashModal();
         }}
-        type={trashModal.type}
-        itemName={trashModal.targetName}
-        itemType="Redirection Rule"
+        {...CONFIRM_PRESETS.action(trashModal.type, "Redirection Rule", trashModal.targetName)}
         onConfirm={executeTrashAction}
         loading={trashLoading}
       />
 
       {/* Non-Trash Status Toggle Confirmation Modal */}
-      <TrashConfirmationModal
+      <ConfirmModal
         open={statusConfirmModal.isOpen}
         onOpenChange={(open) => {
           if (!open) setStatusConfirmModal({ isOpen: false, item: null, nextStatus: null, loading: false });
         }}
-        type="approve"
-        customTitle={`Mark Redirect as ${statusConfirmModal.nextStatus === "active" ? "Active" : "Inactive"}?`}
-        customDescription={`Are you sure you want to change status of redirect "${statusConfirmModal.item?.sourceUrl}" to ${statusConfirmModal.nextStatus}?`}
-        customConfirmText={`Mark as ${statusConfirmModal.nextStatus === "active" ? "Active" : "Inactive"}`}
-        customActionClass={
+        variant={statusConfirmModal.nextStatus === "active" ? "success" : "warning"}
+        title={`Mark Redirect as ${statusConfirmModal.nextStatus === "active" ? "Active" : "Inactive"}?`}
+        description={`Are you sure you want to change status of redirect "${statusConfirmModal.item?.sourceUrl}" to ${statusConfirmModal.nextStatus}?`}
+        confirmText={`Mark as ${statusConfirmModal.nextStatus === "active" ? "Active" : "Inactive"}`}
+        confirmClassName={
           statusConfirmModal.nextStatus === "active"
             ? "bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
             : "bg-amber-600 hover:bg-amber-700 text-white font-bold"

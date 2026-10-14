@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { DiscardDraftModal } from "@/components/editor-shell";
+import { ConfirmModal, CONFIRM_PRESETS } from "@/components/global-modal";
 import { useBlogForm } from "../context/BlogFormContext";
 
 export function DiscardDraftDialog() {
@@ -9,13 +9,13 @@ export function DiscardDraftDialog() {
     useBlogForm();
 
   return (
-    <DiscardDraftModal
+    <ConfirmModal
       open={showDiscardConfirm}
       onOpenChange={setShowDiscardConfirm}
+      {...CONFIRM_PRESETS.discardDraft}
       onCancel={() => setShowDiscardConfirm(false)}
-      onConfirmDiscard={handleDiscardDraft}
-      isDiscarding={discarding}
+      onConfirm={handleDiscardDraft}
+      loading={discarding}
     />
   );
 }
-

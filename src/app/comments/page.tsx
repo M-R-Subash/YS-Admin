@@ -23,7 +23,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { TrashConfirmationModal } from "@/components/global-modal";
+import { ConfirmModal } from "@/components/global-modal";
 import {
   CommentItem,
   ModalActionType,
@@ -805,16 +805,14 @@ function CommentsPageContent() {
     </div>
 
       {/* Centralized Trash & Action Confirmation Modal */}
-      <TrashConfirmationModal
+      <ConfirmModal
         open={modal.isOpen}
         onOpenChange={(open) => !open && closeModal()}
-        type={modal.type}
-        itemName={modal.targetComment?.name}
-        itemType="comment"
-        customTitle={modalConfig.title}
-        customDescription={modalConfig.description}
-        customConfirmText={modalConfig.confirmText}
-        customActionClass={modalConfig.actionClass}
+        variant={modal.type === "trash" || modal.type === "delete" ? "danger" : modal.type === "approve" ? "success" : modal.type === "unapprove" ? "warning" : "default"}
+        title={modalConfig.title}
+        description={modalConfig.description}
+        confirmText={modalConfig.confirmText}
+        confirmClassName={modalConfig.actionClass}
         loading={actionLoading}
         onConfirm={handleModalConfirm}
       />

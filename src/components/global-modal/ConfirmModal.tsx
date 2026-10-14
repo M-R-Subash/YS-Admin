@@ -13,8 +13,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { AlertTriangle, AlertCircle, CheckCircle2, Info, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { UseDirtyManagerReturn } from "@/hooks/useDirtyManager";
 
 export type ConfirmVariant = "danger" | "warning" | "success" | "neutral" | "default";
+export type TrashActionType = "trash" | "delete" | "restore" | "approve" | "unapprove";
 
 export interface ConfirmModalSecondaryAction {
   label: string;
@@ -26,7 +28,7 @@ export interface ConfirmModalSecondaryAction {
 export interface ConfirmModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  title: React.ReactNode;
+  title?: React.ReactNode;
   description?: React.ReactNode;
   variant?: ConfirmVariant;
   confirmText?: string;
@@ -80,6 +82,46 @@ export const CONFIRM_PRESETS = {
     description: "This will permanently delete the current cloud draft and restore the editor to the live published version. This action cannot be undone.",
     confirmText: "Discard Draft",
   },
+  restore: (itemType = "item", itemName?: string) => ({
+    variant: "neutral" as const,
+    title: `Restore ${itemType}?`,
+    description: itemName
+      ? `Are you sure you want to restore "${itemName}" back to its active status?`
+      : `Are you sure you want to restore this ${itemType} back to its active status?`,
+    confirmText: "Restore",
+  }),
+  approve: (itemType = "item", itemName?: string) => ({
+    variant: "success" as const,
+    title: `Approve ${itemType}?`,
+    description: itemName
+      ? `Are you sure you want to approve "${itemName}"?`
+      : `Are you sure you want to approve this ${itemType}?`,
+    confirmText: "Approve",
+  }),
+  unapprove: (itemType = "item", itemName?: string) => ({
+    variant: "warning" as const,
+    title: `Unapprove ${itemType}?`,
+    description: itemName
+      ? `Are you sure you want to mark "${itemName}" as unapproved?`
+      : `Are you sure you want to mark this ${itemType} as unapproved?`,
+    confirmText: "Unapprove",
+  }),
+  action: (actionType?: TrashActionType | null, itemType = "item", itemName?: string) => {
+    switch (actionType) {
+      case "trash":
+        return CONFIRM_PRESETS.trash(itemType, itemName);
+      case "delete":
+        return CONFIRM_PRESETS.deletePermanent(itemType, itemName);
+      case "restore":
+        return CONFIRM_PRESETS.restore(itemType, itemName);
+      case "approve":
+        return CONFIRM_PRESETS.approve(itemType, itemName);
+      case "unapprove":
+        return CONFIRM_PRESETS.unapprove(itemType, itemName);
+      default:
+        return CONFIRM_PRESETS.trash(itemType, itemName);
+    }
+  },
 };
 
 const VARIANT_CONFIG: Record<
@@ -132,7 +174,7 @@ const VARIANT_CONFIG: Record<
 export function ConfirmModal({
   open,
   onOpenChange,
-  title,
+  title = "Are you sure?",
   description,
   variant = "default",
   confirmText,
@@ -235,3 +277,54 @@ export function ConfirmModal({
     </AlertDialog>
   );
 }
+
+export interface ExitConfirmModalProps {
+  manager?: UseDirtyManagerReturn;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onStay?: () => void;
+  onExitWithoutSave?: () => void;
+  onSaveAndExit?: () => void;
+  isSubmitting?: boolean;
+  title?: string;
+  description?: string;
+}
+
+export function ExitConfirmModal({
+  manager,
+  open,
+  onOpenChange,
+  onStay,
+  onExitWithoutSave,
+  onSaveAndExit,
+  isSubmitting = false,
+  title = "Unsaved Changes",
+  description = "You have modifications that haven't been saved yet. What would you like to do before leaving?",
+}: ExitConfirmModalProps) {
+  const isOpen = manager ? manager.showExitConfirm : (open ?? false);
+  const handleOpenChange = manager ? manager.setShowExitConfirm : (onOpenChange ?? (() => {}));
+  const handleStay = onStay || (manager ? manager.handleCancelExit : () => handleOpenChange(false));
+  const handleExit = onExitWithoutSave || (manager ? manager.handleConfirmExit : () => {});
+
+  return (
+    <ConfirmModal
+      open={isOpen}
+      onOpenChange={handleOpenChange}
+      variant="warning"
+      title={title}
+      description={description}
+      cancelText="Stay Here"
+      onCancel={handleStay}
+      secondaryAction={{
+        label: "Exit Without Saving",
+        onClick: handleExit,
+        disabled: isSubmitting,
+      }}
+      confirmText={onSaveAndExit ? "Save Draft & Exit" : undefined}
+      onConfirm={onSaveAndExit}
+      loading={isSubmitting}
+    />
+  );
+}
+
+export const DirtyConfirmModal = ExitConfirmModal;

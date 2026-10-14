@@ -25,7 +25,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { TrashConfirmationModal } from "@/components/global-modal";
+import { ConfirmModal, CONFIRM_PRESETS } from "@/components/global-modal";
 import { useTrashManager } from "@/hooks/useTrashManager";
 
 export interface ContentActionItem {
@@ -300,12 +300,10 @@ export function ContentActionCell<T extends ContentActionItem = ContentActionIte
       </div>
 
       {/* Centralized Confirmation Modal */}
-      <TrashConfirmationModal
+      <ConfirmModal
         open={modal.isOpen}
         onOpenChange={(open) => !open && closeModal()}
-        type={modal.type}
-        itemName={modal.targetName}
-        itemType={itemType}
+        {...CONFIRM_PRESETS.action(modal.type, itemType, modal.targetName)}
         loading={loading}
         onConfirm={onModalConfirm}
       />
