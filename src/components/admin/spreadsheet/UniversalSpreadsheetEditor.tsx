@@ -113,7 +113,6 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
   const [isSaving, setIsSaving] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isPublishConfirmOpen, setIsPublishConfirmOpen] = useState(false);
-  const [itemToPublish, setItemToPublish] = useState<{ id: string; title: string } | null>(null);
 
   // Local state for adding custom tags
   const [newTagInput, setNewTagInput] = useState<Record<string, string>>({});
@@ -737,13 +736,13 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
                             {col.type === "status" && (
                               <button
                                 type="button"
-                                onClick={() => {
-                                  if (cellVal !== "published") {
-                                    setItemToPublish({ id: item.id, title: item.title });
-                                  } else {
-                                    updateItemField(item.id, "status", "draft");
-                                  }
-                                }}
+                                onClick={() =>
+                                  updateItemField(
+                                    item.id,
+                                    "status",
+                                    cellVal === "published" ? "draft" : "published"
+                                  )
+                                }
                                 className={cn(
                                   "px-2.5 py-1 text-[11px] font-bold rounded-sm border transition-all cursor-pointer",
                                   cellVal === "published"
@@ -1034,50 +1033,6 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
               className="h-10 px-5 text-sm font-semibold cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-xs"
             >
               Publish & Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Confirmation Modal for Individual Item Publishing */}
-      <Dialog
-        open={Boolean(itemToPublish)}
-        onOpenChange={(open) => !open && setItemToPublish(null)}
-      >
-        <DialogContent className="sm:max-w-lg p-6 sm:p-7 space-y-5 rounded-2xl">
-          <DialogHeader className="space-y-2 pb-2 border-b border-border">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-              <DialogTitle className="text-lg font-bold text-foreground">
-                Confirm Publishing {entityLabel}
-              </DialogTitle>
-            </div>
-            <DialogDescription className="text-xs sm:text-sm text-muted-foreground leading-relaxed pt-1">
-              You are about to publish &quot;{itemToPublish?.title || entityLabel}&quot; live to the website.
-              Visitors will immediately be able to view this {entityLabel.toLowerCase()}.
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogFooter className="flex items-center justify-end gap-3 pt-3 border-t border-border">
-            <Button
-              variant="outline"
-              onClick={() => setItemToPublish(null)}
-              className="h-10 px-5 text-sm font-semibold cursor-pointer rounded-lg"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                if (itemToPublish) {
-                  updateItemField(itemToPublish.id, "status", "published");
-                  setItemToPublish(null);
-                }
-              }}
-              className="h-10 px-5 text-sm font-semibold cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-xs"
-            >
-              Publish Now
             </Button>
           </DialogFooter>
         </DialogContent>
