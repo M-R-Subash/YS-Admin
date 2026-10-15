@@ -242,13 +242,14 @@ export function useContentTable<T extends { id?: string; status?: string; isTras
   // Reusable bulk action handler
   const handleBulkAction = useCallback(
     async (action: string, ids: string[]) => {
-      if (!bulkActionEndpoint) return;
+      const endpoint = bulkActionEndpoint || "/api/bulk-action";
 
       try {
-        const res = await fetch(bulkActionEndpoint, {
+        const res = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            entity: entityName,
             action,
             ids,
             status:

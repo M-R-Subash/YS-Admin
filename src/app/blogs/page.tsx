@@ -63,7 +63,7 @@ function BlogsContent() {
   } = useContentTable({
     data,
     entityName: "blogs",
-    bulkActionEndpoint: "/api/blogs/bulk-action",
+    bulkActionEndpoint: "/api/bulk-action",
     totalIcon: BookOpen,
     includeScheduled: true,
     customFilter,

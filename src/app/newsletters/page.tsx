@@ -298,10 +298,10 @@ export default function SubscribersPage() {
 
   const handleBulkAction = async (action: string, ids: string[]) => {
     try {
-      const res = await fetch("/api/newsletters/subscribers/bulk-action", {
+      const res = await fetch("/api/bulk-action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, ids }),
+        body: JSON.stringify({ entity: "subscribers", action, ids }),
       });
 
       if (!res.ok) {

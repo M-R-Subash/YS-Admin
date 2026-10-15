@@ -35,7 +35,7 @@ export default function WebpagesPage() {
   } = useContentTable({
     data,
     entityName: "webpages",
-    bulkActionEndpoint: "/api/pages/bulk-action",
+    bulkActionEndpoint: "/api/bulk-action",
     totalIcon: Globe,
     mutate,
   });

@@ -54,7 +54,7 @@ export default function RedirectionsPage() {
   } = useContentTable<RedirectionItem>({
     data: redirectionsData,
     entityName: "Redirects",
-    bulkActionEndpoint: "/api/redirection/bulk-action",
+    bulkActionEndpoint: "/api/bulk-action",
     searchFields: ["sourceUrl", "destinationUrl"],
     statusLabels: {
       published: "Active",
