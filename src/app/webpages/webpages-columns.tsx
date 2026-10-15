@@ -95,7 +95,7 @@ export const getWebpagesColumns = (onDataChange: () => void): ColumnDef<Page>[] 
       const page = row.original;
       const pageSlug = page.slug === "/" ? "/" : page.slug.startsWith("/") ? page.slug : `/${page.slug}`;
       return (
-        <div className="flex items-center gap-3 w-full max-w-[240px] md:max-w-[260px] min-w-0">
+        <div className="flex items-center gap-3 w-full max-w-60 md:max-w-65 min-w-0">
           <div className="w-10 h-10 rounded-sm bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 text-primary">
             <Globe className="w-4 h-4" />
           </div>

@@ -203,7 +203,7 @@ function BlogsContent() {
       <AdminTopBar breadcrumbs="Blogs" />
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col gap-6 py-6 px-[15px] md:px-[20px] lg:px-[30px]">
+      <div className="flex flex-1 flex-col gap-6 py-6 px-3.75 md:px-5 lg:px-7.5">
         {/* 5 Status Metric Filter Cards */}
         <ContentMetricCards cards={metricCards} loading={loading} />
 

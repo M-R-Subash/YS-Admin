@@ -34,7 +34,7 @@ export default function UsersPage() {
 
   if (status === "loading" || isLoading) {
     return (
-      <div className="flex flex-1 flex-col gap-6 py-6 px-[15px] md:px-[20px] lg:px-[30px]">
+      <div className="flex flex-1 flex-col gap-6 py-6 px-3.75 md:px-5 lg:px-7.5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <Skeleton className="h-8 w-48 mb-2" />
@@ -58,7 +58,7 @@ export default function UsersPage() {
     <>
       <AdminTopBar breadcrumbs="Users" />
 
-      <div className="flex flex-1 flex-col gap-6 py-6 px-[15px] md:px-[20px] lg:px-[30px]">
+      <div className="flex flex-1 flex-col gap-6 py-6 px-3.75 md:px-5 lg:px-7.5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-extrabold text-foreground tracking-tight">User Management</h2>

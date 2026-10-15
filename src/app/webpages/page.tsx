@@ -149,7 +149,7 @@ export default function WebpagesPage() {
     <>
       <AdminTopBar breadcrumbs="Webpages" />
 
-      <div className="flex flex-1 flex-col gap-6 py-6 px-[15px] md:px-[20px] lg:px-[30px]">
+      <div className="flex flex-1 flex-col gap-6 py-6 px-3.75 md:px-5 lg:px-7.5">
         {/* Global Header & Footer Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Header Card */}

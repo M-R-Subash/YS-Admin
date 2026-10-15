@@ -4,10 +4,8 @@ import { useEffect, useState, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 import useSWR from "swr";
 import {
-  ArrowRight,
   Calendar,
   Camera,
-  CheckCircle2,
   Eye,
   EyeOff,
   KeyRound,
@@ -301,7 +299,7 @@ export default function AccountPage() {
     <>
       <AdminTopBar breadcrumbs="Account Settings" />
 
-      <div className="flex flex-1 flex-col gap-6 py-6 px-[15px] md:px-[20px] lg:px-[30px] w-full">
+      <div className="flex flex-1 flex-col gap-6 py-6 px-3.75 md:px-5 lg:px-7.5 w-full">
         <div>
           <h2 className="text-2xl font-extrabold text-foreground tracking-tight">
             Account Settings

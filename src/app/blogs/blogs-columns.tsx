@@ -145,7 +145,7 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
       const blog = row.original as any;
       const cleanSlug = blog.slug?.startsWith("/") ? blog.slug.slice(1) : (blog.slug || "");
       return (
-        <div className="flex items-center gap-3 w-full max-w-[240px] md:max-w-[260px] min-w-0">
+        <div className="flex items-center gap-3 w-full max-w-60 md:max-w-65 min-w-0">
           {blog.featuredImage ? (
             <img
               src={blog.featuredImage}
