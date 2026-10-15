@@ -3,14 +3,17 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Globe } from "lucide-react";
 import { Page } from "@/types";
-import { Checkbox } from "@/components/ui/checkbox";
 import { UniversalSeoModal } from "@/components/seo/UniversalSeoModal";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
-import { StatusBadge } from "@/components/table/StatusBadge";
-import { ContentActionCell } from "@/components/table/ContentActionCell";
 import { SeoStatusBadge } from "@/components/seo/SeoStatusBadge";
+import { ContentActionCell } from "@/components/table/ContentActionCell";
+import {
+  createSelectColumn,
+  createStatusColumn,
+  createDateColumn,
+  createActionColumn,
+} from "@/components/table/column-helpers";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { formatDate } from "@/lib/utils";
 import { clientConfig } from "@/lib/config/client";
 
 export const ActionCell = ({ page, onDataChange }: { page: Page; onDataChange: () => void }) => {
@@ -43,43 +46,7 @@ export const ActionCell = ({ page, onDataChange }: { page: Page; onDataChange: (
 };
 
 export const getWebpagesColumns = (onDataChange: () => void): ColumnDef<Page>[] => [
-  {
-    id: "select",
-    header: ({ table }) => (
-      <div className="flex items-center justify-center px-1">
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected()
-              ? true
-              : table.getIsSomePageRowsSelected()
-              ? "indeterminate"
-              : false
-          }
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-          className="cursor-pointer"
-        />
-      </div>
-    ),
-    cell: ({ row }) => (
-      <div
-        className="flex items-center justify-center px-1"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-          className="cursor-pointer"
-        />
-      </div>
-    ),
-    enableSorting: false,
-    enableHiding: false,
-    meta: {
-      className: "w-10 min-w-10 max-w-10 text-center sticky left-0 z-30 bg-card",
-    },
-  },
+  createSelectColumn<Page>(),
   {
     accessorKey: "title",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Page & Title" />,
@@ -122,11 +89,7 @@ export const getWebpagesColumns = (onDataChange: () => void): ColumnDef<Page>[] 
       );
     },
   },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => <StatusBadge status={row.getValue("status")} />,
-  },
+  createStatusColumn<Page>(),
   {
     id: "seoStatus",
     header: "SEO Score",
@@ -161,33 +124,7 @@ export const getWebpagesColumns = (onDataChange: () => void): ColumnDef<Page>[] 
       );
     },
   },
-  {
-    accessorKey: "createdAt",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Created Date" />,
-    sortingFn: (rowA, rowB, columnId) => {
-      const timeA = rowA.getValue(columnId) ? new Date(rowA.getValue(columnId) as string).getTime() : 0;
-      const timeB = rowB.getValue(columnId) ? new Date(rowB.getValue(columnId) as string).getTime() : 0;
-      return timeA - timeB;
-    },
-    cell: ({ row }) => <div className="text-muted-foreground text-xs">{formatDate(row.getValue("createdAt"))}</div>,
-  },
-  {
-    accessorKey: "updatedAt",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Last Updated" />,
-    sortingFn: (rowA, rowB, columnId) => {
-      const timeA = rowA.getValue(columnId) ? new Date(rowA.getValue(columnId) as string).getTime() : 0;
-      const timeB = rowB.getValue(columnId) ? new Date(rowB.getValue(columnId) as string).getTime() : 0;
-      return timeA - timeB;
-    },
-    cell: ({ row }) => <div className="text-muted-foreground text-xs">{formatDate(row.getValue("updatedAt"))}</div>,
-  },
-  {
-    id: "actions",
-    header: () => <div className="text-right">Actions</div>,
-    cell: ({ row }) => (
-      <div className="text-right flex justify-end">
-        <ActionCell page={row.original} onDataChange={onDataChange} />
-      </div>
-    ),
-  },
+  createDateColumn<Page>("createdAt", "Created Date"),
+  createDateColumn<Page>("updatedAt", "Last Updated"),
+  createActionColumn<Page>((page) => <ActionCell page={page} onDataChange={onDataChange} />),
 ];

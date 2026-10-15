@@ -1,104 +1,44 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useMemo, useEffect } from "react";
 import useSWR, { mutate as globalMutate } from "swr";
 import Link from "next/link";
-import { Menu, FileText, Globe, CheckCircle2, FileEdit, Trash2, Plus } from "lucide-react";
+import { Menu, FileText, Globe, Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Page } from "@/types";
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { DataTable } from "@/components/table/DataTable";
-import { ContentMetricCards, MetricCardItem } from "@/components/table/ContentMetricCards";
-import { ContentFilterBar, ContentFilterTab } from "@/components/table/ContentFilterBar";
+import { ContentMetricCards } from "@/components/table/ContentMetricCards";
+import { ContentFilterBar } from "@/components/table/ContentFilterBar";
 import { TableFloatingDock } from "@/components/table/TableFloatingDock";
+import { useContentTable } from "@/components/table/useContentTable";
 import { getWebpagesColumns } from "./webpages-columns";
-import { toast } from "@/components/ui/toast";
-  
-export default function WebpagesPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<
-    "all" | "published" | "draft" | "trash"
-  >("all");
 
+export default function WebpagesPage() {
   const { data, isLoading, mutate } = useSWR<Page[]>("/api/pages");
 
   useEffect(() => {
     mutate();
   }, [mutate]);
 
-  const pages = Array.isArray(data) ? data : [];
-  const loading = isLoading && !data;
-
-  // Filter pages based on search, status, and isTrashed
-  const filteredPages = pages.filter((page) => {
-    const matchesSearch =
-      page.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      page.slug.toLowerCase().includes(searchQuery.toLowerCase());
-      
-    if (statusFilter === "trash") {
-      return matchesSearch && page.isTrashed === true;
-    } else {
-      const matchesStatus =
-        statusFilter === "all" || page.status === statusFilter;
-      return matchesSearch && matchesStatus && page.isTrashed !== true;
-    }
+  const {
+    searchQuery,
+    setSearchQuery,
+    statusFilter,
+    setStatusFilter,
+    isTrashedView,
+    filteredData: filteredPages,
+    metricCards,
+    filterTabs,
+    handleBulkAction,
+  } = useContentTable({
+    data,
+    entityName: "webpages",
+    bulkActionEndpoint: "/api/pages/bulk-action",
+    totalIcon: Globe,
+    mutate,
   });
-
-  const totalCount = pages.filter((p) => !p.isTrashed).length;
-  const publishedCount = pages.filter(
-    (p) => !p.isTrashed && p.status === "published",
-  ).length;
-  const draftCount = pages.filter(
-    (p) => !p.isTrashed && p.status === "draft",
-  ).length;
-  const trashedCount = pages.filter((p) => p.isTrashed).length;
-
-  const metricCards = useMemo<MetricCardItem[]>(() => [
-    {
-      id: "all",
-      label: "Total Webpages",
-      count: totalCount,
-      icon: Globe,
-      color: "primary",
-      isActive: statusFilter === "all",
-      onClick: () => setStatusFilter("all"),
-    },
-    {
-      id: "published",
-      label: "Published",
-      count: publishedCount,
-      icon: CheckCircle2,
-      color: "emerald",
-      isActive: statusFilter === "published",
-      onClick: () => setStatusFilter("published"),
-    },
-    {
-      id: "draft",
-      label: "Drafted",
-      count: draftCount,
-      icon: FileEdit,
-      color: "amber",
-      isActive: statusFilter === "draft",
-      onClick: () => setStatusFilter("draft"),
-    },
-    {
-      id: "trash",
-      label: "Trashed",
-      count: trashedCount,
-      icon: Trash2,
-      color: "red",
-      isActive: statusFilter === "trash",
-      onClick: () => setStatusFilter("trash"),
-    },
-  ], [totalCount, publishedCount, draftCount, trashedCount, statusFilter]);
-
-  const filterTabs = useMemo<ContentFilterTab[]>(() => [
-    { id: "all", label: "All", count: totalCount, color: "primary" },
-    { id: "published", label: "Published", count: publishedCount, color: "emerald" },
-    { id: "draft", label: "Drafts", count: draftCount, color: "amber" },
-    { id: "trash", label: "Trash", count: trashedCount, color: "red" },
-  ], [totalCount, publishedCount, draftCount, trashedCount]);
 
   const handleDataChange = useMemo(() => {
     return () => {
@@ -107,43 +47,8 @@ export default function WebpagesPage() {
     };
   }, [mutate]);
 
-  const handleBulkAction = async (action: string, ids: string[]) => {
-    try {
-      const res = await fetch("/api/pages/bulk-action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action,
-          ids,
-          status: action === "publish" ? "published" : action === "draft" ? "draft" : undefined,
-        }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || err.error || "Bulk action failed");
-      }
-
-      toast.add({
-        title: "Bulk Action Applied",
-        description: `Successfully applied "${action}" to ${ids.length} webpages.`,
-        type: "success",
-      });
-
-      await mutate();
-      globalMutate("/api/dashboard/stats");
-      globalMutate("/api/badges");
-    } catch (err: any) {
-      toast.add({
-        title: "Action Failed",
-        description: err.message,
-        type: "error",
-      });
-      throw err;
-    }
-  };
-
   const columns = useMemo(() => getWebpagesColumns(handleDataChange), [handleDataChange]);
+  const loading = isLoading && !data;
 
   return (
     <>
@@ -152,19 +57,14 @@ export default function WebpagesPage() {
       <div className="flex flex-1 flex-col gap-6 py-6 px-3.75 md:px-5 lg:px-7.5">
         {/* Global Header & Footer Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Header Card */}
           <div className="bg-card border border-border p-5 rounded-sm flex items-center justify-between shadow-sm hover:border-primary/30 transition-all">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-sm bg-muted border border-border flex items-center justify-center text-foreground">
                 <Menu className="w-5 h-5" strokeWidth={2.5} />
               </div>
               <div>
-                <h3 className="text-base font-bold text-foreground tracking-tight">
-                  Header
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Navigation links & CTA button
-                </p>
+                <h3 className="text-base font-bold text-foreground tracking-tight">Header</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Navigation links & CTA button</p>
               </div>
             </div>
             <Link
@@ -175,19 +75,14 @@ export default function WebpagesPage() {
             </Link>
           </div>
 
-          {/* Footer Card */}
           <div className="bg-card border border-border p-5 rounded-sm flex items-center justify-between shadow-sm hover:border-primary/30 transition-all">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-sm bg-muted border border-border flex items-center justify-center text-foreground">
                 <Menu className="w-5 h-5 rotate-180" strokeWidth={2.5} />
               </div>
               <div>
-                <h3 className="text-base font-bold text-foreground tracking-tight">
-                  Footer
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  CTA banner, links & contact info
-                </p>
+                <h3 className="text-base font-bold text-foreground tracking-tight">Footer</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">CTA banner, links & contact info</p>
               </div>
             </div>
             <Link
@@ -206,7 +101,7 @@ export default function WebpagesPage() {
         <ContentFilterBar
           tabs={filterTabs}
           activeTab={statusFilter}
-          onTabChange={(id) => setStatusFilter(id as any)}
+          onTabChange={setStatusFilter}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           searchPlaceholder="Search by title or slug..."
@@ -250,7 +145,7 @@ export default function WebpagesPage() {
                 entityName="webpages"
                 entityType="pages"
                 bulkEditUrl="/webpages/bulk-edit"
-                isTrashedView={statusFilter === "trash"}
+                isTrashedView={isTrashedView}
                 onBulkAction={handleBulkAction}
               />
             )}

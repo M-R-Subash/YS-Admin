@@ -1,13 +1,19 @@
 "use client";
 
-import { useState, useMemo, useEffect, useDeferredValue, Suspense } from "react";
-import useSWR, { mutate as globalMutate } from "swr";
+import { useState, useMemo, useEffect, Suspense, useCallback } from "react";
+import useSWR from "swr";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { PenTool, Plus, BookOpen, CheckCircle2, FileEdit, Trash2, Clock, X, FolderTree } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+  BookOpen,
+  Plus,
+  FolderTree,
+  X,
+  PenTool,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -17,21 +23,15 @@ import {
 } from "@/components/ui/select";
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { DataTable } from "@/components/table/DataTable";
-import { ContentMetricCards, MetricCardItem } from "@/components/table/ContentMetricCards";
-import { ContentFilterBar, ContentFilterTab } from "@/components/table/ContentFilterBar";
+import { ContentMetricCards } from "@/components/table/ContentMetricCards";
+import { ContentFilterBar } from "@/components/table/ContentFilterBar";
 import { TableFloatingDock } from "@/components/table/TableFloatingDock";
-import { toast } from "@/components/ui/toast";
+import { useContentTable } from "@/components/table/useContentTable";
 import { getBlogsColumns } from "./blogs-columns";
 
 function BlogsContent() {
   const searchParams = useSearchParams();
   const urlCategory = searchParams.get("category");
-
-  const [searchQuery, setSearchQuery] = useState("");
-  const deferredSearch = useDeferredValue(searchQuery);
-  const [statusFilter, setStatusFilter] = useState<
-    "all" | "published" | "scheduled" | "draft" | "trash"
-  >("all");
   const [categoryFilter, setCategoryFilter] = useState<string>(urlCategory || "all");
 
   const { data, isLoading, mutate } = useSWR<any[]>("/api/blogs");
@@ -42,161 +42,40 @@ function BlogsContent() {
     mutate();
   }, [mutate]);
 
-  const blogs = useMemo(() => (Array.isArray(data) ? data : []), [data]);
-  const loading = isLoading && !data;
-
-  // Filter blogs based on search, status, category, and isTrashed (memoized with deferred search)
-  const filteredBlogs = useMemo(() => {
-    const query = deferredSearch.toLowerCase().trim();
-    return blogs.filter((blog) => {
-      const matchesSearch =
-        !query ||
-        blog.title.toLowerCase().includes(query) ||
-        blog.slug.toLowerCase().includes(query);
-
-      const matchesCategory =
-        categoryFilter === "all" ||
-        (Array.isArray(blog.categories) && blog.categories.includes(categoryFilter));
-
-      if (statusFilter === "trash") {
-        return matchesSearch && matchesCategory && blog.isTrashed === true;
-      } else {
-        const matchesStatus = statusFilter === "all" || blog.status === statusFilter;
-        return matchesSearch && matchesCategory && matchesStatus && blog.isTrashed !== true;
-      }
-    });
-  }, [blogs, deferredSearch, categoryFilter, statusFilter]);
-
-  // Single-pass computation for metric counts
-  const { totalCount, publishedCount, scheduledCount, draftCount, trashedCount } = useMemo(() => {
-    let total = 0;
-    let published = 0;
-    let scheduled = 0;
-    let draft = 0;
-    let trashed = 0;
-
-    for (const b of blogs) {
-      if (b.isTrashed) {
-        trashed++;
-      } else {
-        total++;
-        if (b.status === "published") published++;
-        else if (b.status === "scheduled") scheduled++;
-        else if (b.status === "draft") draft++;
-      }
-    }
-
-    return {
-      totalCount: total,
-      publishedCount: published,
-      scheduledCount: scheduled,
-      draftCount: draft,
-      trashedCount: trashed,
-    };
-  }, [blogs]);
-
-  const metricCards = useMemo<MetricCardItem[]>(() => [
-    {
-      id: "all",
-      label: "Total Blogs",
-      count: totalCount,
-      icon: BookOpen,
-      color: "primary",
-      isActive: statusFilter === "all",
-      onClick: () => setStatusFilter("all"),
+  const customFilter = useCallback(
+    (blog: any) => {
+      if (categoryFilter === "all") return true;
+      return Array.isArray(blog.categories) && blog.categories.includes(categoryFilter);
     },
-    {
-      id: "published",
-      label: "Published",
-      count: publishedCount,
-      icon: CheckCircle2,
-      color: "emerald",
-      isActive: statusFilter === "published",
-      onClick: () => setStatusFilter("published"),
-    },
-    {
-      id: "scheduled",
-      label: "Scheduled",
-      count: scheduledCount,
-      icon: Clock,
-      color: "purple",
-      isActive: statusFilter === "scheduled",
-      onClick: () => setStatusFilter("scheduled"),
-    },
-    {
-      id: "draft",
-      label: "Drafted",
-      count: draftCount,
-      icon: FileEdit,
-      color: "amber",
-      isActive: statusFilter === "draft",
-      onClick: () => setStatusFilter("draft"),
-    },
-    {
-      id: "trash",
-      label: "Trashed",
-      count: trashedCount,
-      icon: Trash2,
-      color: "red",
-      isActive: statusFilter === "trash",
-      onClick: () => setStatusFilter("trash"),
-    },
-  ], [totalCount, publishedCount, scheduledCount, draftCount, trashedCount, statusFilter]);
+    [categoryFilter]
+  );
 
-  const filterTabs = useMemo<ContentFilterTab[]>(() => [
-    { id: "all", label: "All", count: totalCount, color: "primary" },
-    { id: "published", label: "Published", count: publishedCount, color: "emerald" },
-    { id: "scheduled", label: "Scheduled", count: scheduledCount, color: "purple" },
-    { id: "draft", label: "Drafts", count: draftCount, color: "amber" },
-    { id: "trash", label: "Trash", count: trashedCount, color: "red" },
-  ], [totalCount, publishedCount, scheduledCount, draftCount, trashedCount]);
+  const {
+    searchQuery,
+    setSearchQuery,
+    statusFilter,
+    setStatusFilter,
+    isTrashedView,
+    filteredData: filteredBlogs,
+    metricCards,
+    filterTabs,
+    handleBulkAction,
+  } = useContentTable({
+    data,
+    entityName: "blogs",
+    bulkActionEndpoint: "/api/blogs/bulk-action",
+    totalIcon: BookOpen,
+    includeScheduled: true,
+    customFilter,
+    mutate,
+  });
 
-  const handleDataChange = useMemo(() => {
-    return () => {
-      mutate();
-      globalMutate("/api/dashboard/stats");
-      globalMutate("/api/categories");
-      globalMutate("/api/tags");
-    };
+  const handleDataChange = useCallback(() => {
+    mutate();
   }, [mutate]);
 
-  const handleBulkAction = async (action: string, ids: string[]) => {
-    try {
-      const res = await fetch("/api/blogs/bulk-action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action,
-          ids,
-          status: action === "publish" ? "published" : action === "draft" ? "draft" : undefined,
-        }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || err.error || "Bulk action failed");
-      }
-
-      toast.add({
-        title: "Bulk Action Applied",
-        description: `Successfully applied "${action}" to ${ids.length} blogs.`,
-        type: "success",
-      });
-
-      await mutate();
-      globalMutate("/api/dashboard/stats");
-      globalMutate("/api/badges");
-    } catch (err: any) {
-      toast.add({
-        title: "Action Failed",
-        description: err.message,
-        type: "error",
-      });
-      throw err;
-    }
-  };
-
   const columns = useMemo(() => getBlogsColumns(handleDataChange), [handleDataChange]);
+  const loading = isLoading && !data;
 
   return (
     <>
@@ -211,7 +90,7 @@ function BlogsContent() {
         <ContentFilterBar
           tabs={filterTabs}
           activeTab={statusFilter}
-          onTabChange={(id) => setStatusFilter(id as any)}
+          onTabChange={setStatusFilter}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           searchPlaceholder="Search by title or slug..."
@@ -321,7 +200,7 @@ function BlogsContent() {
                 entityName="blogs"
                 entityType="blogs"
                 bulkEditUrl="/blogs/bulk-edit"
-                isTrashedView={statusFilter === "trash"}
+                isTrashedView={isTrashedView}
                 onBulkAction={handleBulkAction}
               />
             )}

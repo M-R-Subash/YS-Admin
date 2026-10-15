@@ -9,14 +9,18 @@ import { SchedulePostModal } from "@/components/blog/dialogs/SchedulePostModal";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
-import { StatusBadge } from "@/components/table/StatusBadge";
-import { ContentActionCell } from "@/components/table/ContentActionCell";
 import { SeoStatusBadge } from "@/components/seo/SeoStatusBadge";
+import { ContentActionCell } from "@/components/table/ContentActionCell";
+import {
+  createSelectColumn,
+  createStatusColumn,
+  createDateColumn,
+  createActionColumn,
+} from "@/components/table/column-helpers";
 import { formatDate } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
 import { format } from "date-fns";
 import { clientConfig } from "@/lib/config/client";
-import { Checkbox } from "@/components/ui/checkbox";
 
 // Action Component
 export const ActionCell = ({ blog, onDataChange }: { blog: any; onDataChange: () => void }) => {
@@ -100,36 +104,7 @@ export const ActionCell = ({ blog, onDataChange }: { blog: any; onDataChange: ()
 };
 
 export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
-  {
-    id: "select",
-    header: ({ table }) => (
-      <div className="flex items-center justify-center px-1">
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && "indeterminate")
-          }
-          onCheckedChange={(val) => table.toggleAllPageRowsSelected(!!val)}
-          aria-label="Select all rows"
-        />
-      </div>
-    ),
-    cell: ({ row }) => (
-      <div className="flex items-center justify-center px-1">
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(val) => row.toggleSelected(!!val)}
-          aria-label="Select row"
-        />
-      </div>
-    ),
-    enableSorting: false,
-    enableHiding: false,
-    meta: {
-      className: "w-[40px] px-2 text-center",
-      headerClassName: "w-[40px] px-2 text-center",
-    },
-  },
+  createSelectColumn<any>(),
   {
     accessorKey: "title",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Post & Title" />,
@@ -185,14 +160,7 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
       );
     },
   },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => {
-      const blog = row.original as any;
-      return <StatusBadge status={blog.status} scheduledAt={blog.scheduledAt} />;
-    },
-  },
+  createStatusColumn<any>(),
   {
     id: "seoStatus",
     header: "SEO Score",
@@ -290,27 +258,6 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
       return <div className="text-muted-foreground text-xs">{formatDate(publishedAt)}</div>;
     },
   },
-  {
-    accessorKey: "updatedAt",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Last Updated" />,
-    sortingFn: (rowA, rowB, columnId) => {
-      const timeA = rowA.getValue(columnId) ? new Date(rowA.getValue(columnId) as string).getTime() : 0;
-      const timeB = rowB.getValue(columnId) ? new Date(rowB.getValue(columnId) as string).getTime() : 0;
-      return timeA - timeB;
-    },
-    cell: ({ row }) => {
-      const updatedAt = row.getValue("updatedAt") as string | null;
-      if (!updatedAt) return <span className="text-muted-foreground italic text-xs">Unknown</span>;
-      return <div className="text-muted-foreground text-xs">{formatDate(updatedAt)}</div>;
-    },
-  },
-  {
-    id: "actions",
-    header: () => <div className="text-right">Actions</div>,
-    cell: ({ row }) => (
-      <div className="text-right flex justify-end">
-        <ActionCell blog={row.original} onDataChange={onDataChange} />
-      </div>
-    ),
-  },
+  createDateColumn<any>("updatedAt", "Last Updated"),
+  createActionColumn<any>((blog) => <ActionCell blog={blog} onDataChange={onDataChange} />),
 ];

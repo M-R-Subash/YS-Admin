@@ -15,8 +15,8 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
+import { createSelectColumn, createActionColumn } from "@/components/table/column-helpers";
 import {
   Tooltip,
   TooltipContent,
@@ -74,43 +74,7 @@ export function getSubscribersColumns({
   onCopyEmail,
 }: SubscribersColumnsOptions): ColumnDef<Subscriber>[] {
   return [
-    {
-      id: "select",
-      header: ({ table }) => (
-        <div className="flex items-center justify-center px-1">
-          <Checkbox
-            checked={
-              table.getIsAllPageRowsSelected()
-                ? true
-                : table.getIsSomePageRowsSelected()
-                ? "indeterminate"
-                : false
-            }
-            onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-            aria-label="Select all"
-            className="cursor-pointer"
-          />
-        </div>
-      ),
-      cell: ({ row }) => (
-        <div
-          className="flex items-center justify-center px-1"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Checkbox
-            checked={row.getIsSelected()}
-            onCheckedChange={(value) => row.toggleSelected(!!value)}
-            aria-label="Select row"
-            className="cursor-pointer"
-          />
-        </div>
-      ),
-      enableSorting: false,
-      enableHiding: false,
-      meta: {
-        className: "w-10 min-w-10 max-w-10 text-center sticky left-0 z-30 bg-card",
-      },
-    },
+    createSelectColumn<Subscriber>(),
     {
       accessorKey: "email",
       header: ({ column }) => (
@@ -257,62 +221,54 @@ export function getSubscribersColumns({
         );
       },
     },
-    {
-      id: "actions",
-      header: () => <div className="text-right">Actions</div>,
-      cell: ({ row }) => {
-        const sub = row.original;
+    createActionColumn<Subscriber>((sub) => (
+      <div className="flex items-center justify-end gap-1">
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onToggleStatus(sub)}
+                className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground cursor-pointer rounded-sm"
+              >
+                {sub.status === "active" ? (
+                  <span className="flex items-center gap-1 text-rose-400">
+                    <UserX className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Opt-out</span>
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-emerald-400">
+                    <UserCheck className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Activate</span>
+                  </span>
+                )}
+              </Button>
+            }
+          />
+          <TooltipContent side="top">
+            {sub.status === "active"
+              ? "Mark as Unsubscribed"
+              : "Re-activate subscriber"}
+          </TooltipContent>
+        </Tooltip>
 
-        return (
-          <div className="flex items-center justify-end gap-1">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onToggleStatus(sub)}
-                    className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground cursor-pointer rounded-sm"
-                  >
-                    {sub.status === "active" ? (
-                      <span className="flex items-center gap-1 text-rose-400">
-                        <UserX className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">Opt-out</span>
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-emerald-400">
-                        <UserCheck className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">Activate</span>
-                      </span>
-                    )}
-                  </Button>
-                }
-              />
-              <TooltipContent side="top">
-                {sub.status === "active"
-                  ? "Mark as Unsubscribed"
-                  : "Re-activate subscriber"}
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onDelete(sub.id)}
-                    className="h-8 w-8 p-0 text-muted-foreground hover:text-rose-500 cursor-pointer rounded-sm"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                }
-              />
-              <TooltipContent side="top">Delete permanently</TooltipContent>
-            </Tooltip>
-          </div>
-        );
-      },
-    },
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onDelete(sub.id)}
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-rose-500 cursor-pointer rounded-sm"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            }
+          />
+          <TooltipContent side="top">Delete permanently</TooltipContent>
+        </Tooltip>
+      </div>
+    )),
   ];
 }

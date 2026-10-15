@@ -4,9 +4,6 @@ import { useState, useMemo } from "react";
 import { 
   ArrowRightLeft, 
   Plus, 
-  Trash2, 
-  CheckCircle2, 
-  AlertCircle,
   Link2,
 } from "lucide-react";
 import useSWR from "swr";
@@ -14,14 +11,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/table/DataTable";
-import {
-  ContentMetricCards,
-  MetricCardItem,
-} from "@/components/table/ContentMetricCards";
-import {
-  ContentFilterBar,
-  ContentFilterTab,
-} from "@/components/table/ContentFilterBar";
+import { ContentMetricCards } from "@/components/table/ContentMetricCards";
+import { ContentFilterBar } from "@/components/table/ContentFilterBar";
+import { useContentTable } from "@/components/table/useContentTable";
 import {
   Dialog,
   DialogContent,
@@ -46,11 +38,28 @@ import {
 } from "./redirection-columns";
 
 export default function RedirectionsPage() {
-  const { data: redirectionsData, isLoading: loading, mutate } = useSWR("/api/redirection?status=all");
-  const redirections = useMemo<RedirectionItem[]>(() => redirectionsData || [], [redirectionsData]);
-  
-  const [activeTab, setActiveTab] = useState<"all" | "active" | "inactive" | "trashed">("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const { data: redirectionsData, isLoading: loading, mutate } = useSWR<RedirectionItem[]>("/api/redirection?status=all");
+
+  const {
+    searchQuery,
+    setSearchQuery,
+    statusFilter,
+    setStatusFilter,
+    filteredData: filteredList,
+    metricCards,
+    filterTabs,
+  } = useContentTable<RedirectionItem>({
+    data: redirectionsData,
+    entityName: "Redirects",
+    searchFields: ["sourceUrl", "destinationUrl"],
+    statusLabels: {
+      published: "Active",
+      draft: "Inactive",
+      trash: "Trashed",
+    },
+    totalIcon: Link2,
+    mutate,
+  });
 
   // Modal State for Create/Edit
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -64,7 +73,7 @@ export default function RedirectionsPage() {
   // Trash Manager Hook for confirmations
   const { modal: trashModal, loading: trashLoading, openTrashModal, closeModal: closeTrashModal, handleConfirm: handleTrashConfirm } = useTrashManager<RedirectionItem>({
     itemType: "Redirection Rule",
-    onSuccess: () => mutate(),
+    onSuccess: () => { mutate(); },
   });
 
   // Additional Confirmation State for Non-Trash Status Toggles
@@ -79,81 +88,6 @@ export default function RedirectionsPage() {
     nextStatus: null,
     loading: false,
   });
-
-  // Stats
-  const stats = useMemo(() => {
-    const total = redirections.length;
-    const active = redirections.filter((r) => r.status === "active").length;
-    const inactive = redirections.filter((r) => r.status === "inactive").length;
-    const trashed = redirections.filter((r) => r.status === "trashed").length;
-    return { total, active, inactive, trashed };
-  }, [redirections]);
-
-  // Metric Cards
-  const metricCards = useMemo<MetricCardItem[]>(
-    () => [
-      {
-        id: "all",
-        label: "Total Redirects",
-        count: stats.total - stats.trashed,
-        icon: Link2,
-        color: "primary",
-        isActive: activeTab === "all",
-        onClick: () => setActiveTab("all"),
-      },
-      {
-        id: "active",
-        label: "Active",
-        count: stats.active,
-        icon: CheckCircle2,
-        color: "emerald",
-        isActive: activeTab === "active",
-        onClick: () => setActiveTab("active"),
-      },
-      {
-        id: "inactive",
-        label: "Inactive",
-        count: stats.inactive,
-        icon: AlertCircle,
-        color: "amber",
-        isActive: activeTab === "inactive",
-        onClick: () => setActiveTab("inactive"),
-      },
-      {
-        id: "trashed",
-        label: "Trashed",
-        count: stats.trashed,
-        icon: Trash2,
-        color: "red",
-        isActive: activeTab === "trashed",
-        onClick: () => setActiveTab("trashed"),
-      },
-    ],
-    [stats, activeTab]
-  );
-
-  // Filter Tabs
-  const filterTabs = useMemo<ContentFilterTab[]>(
-    () => [
-      { id: "all", label: "All", count: stats.total - stats.trashed, color: "primary" },
-      { id: "active", label: "Active", count: stats.active, color: "emerald" },
-      { id: "inactive", label: "Inactive", count: stats.inactive, color: "amber" },
-      { id: "trashed", label: "Trash", count: stats.trashed, color: "red" },
-    ],
-    [stats]
-  );
-
-  // Filtered List
-  const filteredList = useMemo(() => {
-    return redirections.filter((item) => {
-      const matchesTab =
-        activeTab === "all" ? item.status !== "trashed" : item.status === activeTab;
-      const matchesSearch =
-        item.sourceUrl.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.destinationUrl.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesTab && matchesSearch;
-    });
-  }, [redirections, activeTab, searchQuery]);
 
   // Open Create Modal
   const handleOpenCreate = () => {
@@ -340,8 +274,8 @@ export default function RedirectionsPage() {
         {/* Global Filter & Search Bar */}
         <ContentFilterBar
           tabs={filterTabs}
-          activeTab={activeTab}
-          onTabChange={(id) => setActiveTab(id as any)}
+          activeTab={statusFilter}
+          onTabChange={(id) => setStatusFilter(id)}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           searchPlaceholder="Search source or destination..."
@@ -364,7 +298,7 @@ export default function RedirectionsPage() {
               No matching redirections found
             </div>
             <p className="text-muted-foreground text-xs max-w-sm mx-auto">
-              {searchQuery || activeTab !== "all"
+              {searchQuery || statusFilter !== "all"
                 ? "Try adjusting your search terms or filters."
                 : "No redirection rules exist in the database."}
             </p>

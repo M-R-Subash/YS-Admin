@@ -18,6 +18,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
+import { createActionColumn } from "@/components/table/column-helpers";
 import {
   Tooltip,
   TooltipContent,
@@ -254,92 +255,84 @@ export function getCampaignsColumns({
         );
       },
     },
-    {
-      id: "actions",
-      header: () => <div className="text-right">Actions</div>,
-      cell: ({ row }) => {
-        const camp = row.original;
-
-        return (
-          <div className="flex items-center justify-end gap-1.5">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => onSelectCampaign(camp)}
-              className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1.5 cursor-pointer rounded-sm"
-              title="View delivery breakdown and error details"
-            >
-              <Eye className="w-3.5 h-3.5" />
-              <span>Details</span>
-            </Button>
-            {camp.status === "scheduled" && (
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={actionCampaignId === camp.id}
-                      className="h-8 px-2.5 text-xs gap-1 cursor-pointer rounded-sm border-violet-500/30 text-violet-600 dark:text-violet-400 hover:bg-violet-500/10"
-                    >
-                      {actionCampaignId === camp.id ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Calendar className="w-3.5 h-3.5" />
-                      )}
-                      <span>Manage</span>
-                      <MoreHorizontal className="w-3 h-3 ml-0.5" />
-                    </Button>
-                  }
-                />
-                <DropdownMenuContent align="end" className="w-44">
-                  <DropdownMenuItem
-                    onClick={() => onSendNowCampaign?.(camp.id)}
-                    className="text-xs cursor-pointer gap-2"
-                  >
-                    <Send className="w-3.5 h-3.5 text-blue-500" />
-                    <span>Send Now</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => onRescheduleCampaign?.(camp)}
-                    className="text-xs cursor-pointer gap-2"
-                  >
-                    <Calendar className="w-3.5 h-3.5 text-violet-500" />
-                    <span>Reschedule</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => onCancelScheduleCampaign?.(camp.id)}
-                    className="text-xs cursor-pointer gap-2 text-rose-500 focus:text-rose-500"
-                  >
-                    <XCircle className="w-3.5 h-3.5" />
-                    <span>Cancel Schedule</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            {camp.failedCount > 0 && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onRetryCampaign(camp.id)}
-                disabled={
-                  retryingCampaignId === camp.id || camp.status === "processing"
-                }
-                className="h-8 px-2.5 text-xs text-amber-500 hover:text-amber-400 border-amber-500/30 hover:bg-amber-500/10 gap-1.5 cursor-pointer font-medium rounded-sm"
-                title="Resend email only to failed recipients"
+    createActionColumn<Campaign>((camp) => (
+      <div className="flex items-center justify-end gap-1.5">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => onSelectCampaign(camp)}
+          className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1.5 cursor-pointer rounded-sm"
+          title="View delivery breakdown and error details"
+        >
+          <Eye className="w-3.5 h-3.5" />
+          <span>Details</span>
+        </Button>
+        {camp.status === "scheduled" && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={actionCampaignId === camp.id}
+                  className="h-8 px-2.5 text-xs gap-1 cursor-pointer rounded-sm border-violet-500/30 text-violet-600 dark:text-violet-400 hover:bg-violet-500/10"
+                >
+                  {actionCampaignId === camp.id ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Calendar className="w-3.5 h-3.5" />
+                  )}
+                  <span>Manage</span>
+                  <MoreHorizontal className="w-3 h-3 ml-0.5" />
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem
+                onClick={() => onSendNowCampaign?.(camp.id)}
+                className="text-xs cursor-pointer gap-2"
               >
-                {retryingCampaignId === camp.id ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-3.5 h-3.5" />
-                )}
-                <span>Retry ({camp.failedCount})</span>
-              </Button>
+                <Send className="w-3.5 h-3.5 text-blue-500" />
+                <span>Send Now</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onRescheduleCampaign?.(camp)}
+                className="text-xs cursor-pointer gap-2"
+              >
+                <Calendar className="w-3.5 h-3.5 text-violet-500" />
+                <span>Reschedule</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => onCancelScheduleCampaign?.(camp.id)}
+                className="text-xs cursor-pointer gap-2 text-rose-500 focus:text-rose-500"
+              >
+                <XCircle className="w-3.5 h-3.5" />
+                <span>Cancel Schedule</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        {camp.failedCount > 0 && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onRetryCampaign(camp.id)}
+            disabled={
+              retryingCampaignId === camp.id || camp.status === "processing"
+            }
+            className="h-8 px-2.5 text-xs text-amber-500 hover:text-amber-400 border-amber-500/30 hover:bg-amber-500/10 gap-1.5 cursor-pointer font-medium rounded-sm"
+            title="Resend email only to failed recipients"
+          >
+            {retryingCampaignId === camp.id ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="w-3.5 h-3.5" />
             )}
-          </div>
-        );
-      },
-    },
+            <span>Retry ({camp.failedCount})</span>
+          </Button>
+        )}
+      </div>
+    )),
   ];
 }

@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
+import { createActionColumn } from "@/components/table/column-helpers";
 
 export interface ScheduledItem {
   id: string;
@@ -298,176 +299,171 @@ export const getScheduledColumns = ({
       );
     },
   },
-  {
-    id: "actions",
-    header: () => <div className="text-right">Actions</div>,
-    cell: ({ row }) => {
-      const item = row.original;
-      const cleanSlug = item.slug?.startsWith("/") ? item.slug.slice(1) : item.slug;
-      const publicUrl = siteUrl && item.itemType === "blog" ? `${siteUrl}/blogs/${cleanSlug}` : undefined;
-      const isNewsletter = item.itemType === "newsletter";
-      const isQueue =
-        item.scheduleState === "upcoming" ||
-        item.scheduleState === "pending" ||
-        item.scheduleState === "failed";
+  createActionColumn<ScheduledItem>((item) => {
+    const cleanSlug = item.slug?.startsWith("/") ? item.slug.slice(1) : item.slug;
+    const publicUrl = siteUrl && item.itemType === "blog" ? `${siteUrl}/blogs/${cleanSlug}` : undefined;
+    const isNewsletter = item.itemType === "newsletter";
+    const isQueue =
+      item.scheduleState === "upcoming" ||
+      item.scheduleState === "pending" ||
+      item.scheduleState === "failed";
 
-      return (
-        <div className="text-right flex items-center justify-end gap-1.5">
-          {isQueue ? (
-            <>
+    return (
+      <div className="flex items-center justify-end gap-1.5">
+        {isQueue ? (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={actionLoadingId === item.id}
+              onClick={() => onPublishNow(item)}
+              className={`h-7 px-2.5 text-[11px] font-semibold gap-1 cursor-pointer hidden sm:inline-flex ${
+                item.scheduleState === "failed"
+                  ? "border-red-500/40 text-red-600 dark:text-red-400 hover:bg-red-500/10"
+                  : isNewsletter
+                  ? "border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
+                  : "border-purple-500/30 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10"
+              }`}
+            >
+              {isNewsletter ? (
+                <>
+                  <Send className="w-3 h-3" />
+                  <span>Send Now</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-3 h-3 fill-current" />
+                  <span>Publish Now</span>
+                </>
+              )}
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onOpenReschedule(item)}
+              className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer hidden sm:inline-flex"
+            >
+              Reschedule
+            </Button>
+          </>
+        ) : (
+          isNewsletter ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open("/newsletters/campaigns", "_self")}
+              className="h-7 px-2.5 text-[11px] font-semibold gap-1 text-violet-600 dark:text-violet-400 border-violet-500/30 hover:bg-violet-500/10 cursor-pointer hidden sm:inline-flex"
+            >
+              <Mail className="w-3 h-3" />
+              <span>Campaign History</span>
+            </Button>
+          ) : (
+            publicUrl && item.status === "published" && (
               <Button
                 variant="outline"
                 size="sm"
-                disabled={actionLoadingId === item.id}
-                onClick={() => onPublishNow(item)}
-                className={`h-7 px-2.5 text-[11px] font-semibold gap-1 cursor-pointer hidden sm:inline-flex ${
-                  item.scheduleState === "failed"
-                    ? "border-red-500/40 text-red-600 dark:text-red-400 hover:bg-red-500/10"
-                    : isNewsletter
-                    ? "border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
-                    : "border-purple-500/30 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10"
-                }`}
+                onClick={() => {
+                  const separator = publicUrl.includes("?") ? "&" : "?";
+                  window.open(`${publicUrl}${separator}nocache=${Date.now()}`, "_blank");
+                }}
+                className="h-7 px-2.5 text-[11px] font-semibold gap-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 cursor-pointer hidden sm:inline-flex"
               >
-                {isNewsletter ? (
-                  <>
-                    <Send className="w-3 h-3" />
-                    <span>Send Now</span>
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-3 h-3 fill-current" />
-                    <span>Publish Now</span>
-                  </>
-                )}
+                <Globe className="w-3 h-3" />
+                <span>View Live</span>
               </Button>
+            )
+          )
+        )}
 
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => onOpenReschedule(item)}
-                className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer hidden sm:inline-flex"
+                className="h-7 w-7 p-0 cursor-pointer text-muted-foreground hover:text-foreground"
               >
-                Reschedule
+                <MoreHorizontal className="w-4 h-4" />
               </Button>
-            </>
-          ) : (
-            isNewsletter ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.open("/newsletters/campaigns", "_self")}
-                className="h-7 px-2.5 text-[11px] font-semibold gap-1 text-violet-600 dark:text-violet-400 border-violet-500/30 hover:bg-violet-500/10 cursor-pointer hidden sm:inline-flex"
-              >
-                <Mail className="w-3 h-3" />
-                <span>Campaign History</span>
-              </Button>
-            ) : (
-              publicUrl && item.status === "published" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const separator = publicUrl.includes("?") ? "&" : "?";
-                    window.open(`${publicUrl}${separator}nocache=${Date.now()}`, "_blank");
-                  }}
-                  className="h-7 px-2.5 text-[11px] font-semibold gap-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 cursor-pointer hidden sm:inline-flex"
-                >
-                  <Globe className="w-3 h-3" />
-                  <span>View Live</span>
-                </Button>
-              )
-            )
-          )}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0 cursor-pointer text-muted-foreground hover:text-foreground"
-                >
-                  <MoreHorizontal className="w-4 h-4" />
-                </Button>
-              }
-            />
-            <DropdownMenuContent align="end" className="w-44 text-xs">
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>{isNewsletter ? "Newsletter Actions" : "Post Actions"}</DropdownMenuLabel>
-                {isNewsletter ? (
+            }
+          />
+          <DropdownMenuContent align="end" className="w-44 text-xs">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>{isNewsletter ? "Newsletter Actions" : "Post Actions"}</DropdownMenuLabel>
+              {isNewsletter ? (
+                <DropdownMenuItem className="cursor-pointer p-0">
+                  <Link href="/newsletters/campaigns" className="flex items-center w-full px-2 py-1.5">
+                    <Mail className="w-3.5 h-3.5 mr-2" />
+                    <span>View in Campaigns</span>
+                  </Link>
+                </DropdownMenuItem>
+              ) : (
+                <>
                   <DropdownMenuItem className="cursor-pointer p-0">
-                    <Link href="/newsletters/campaigns" className="flex items-center w-full px-2 py-1.5">
-                      <Mail className="w-3.5 h-3.5 mr-2" />
-                      <span>View in Campaigns</span>
+                    <Link href={`/blogs/edit/${item.id}`} className="flex items-center w-full px-2 py-1.5">
+                      <PenTool className="w-3.5 h-3.5 mr-2" />
+                      <span>Edit in Builder</span>
                     </Link>
                   </DropdownMenuItem>
-                ) : (
-                  <>
-                    <DropdownMenuItem className="cursor-pointer p-0">
-                      <Link href={`/blogs/edit/${item.id}`} className="flex items-center w-full px-2 py-1.5">
-                        <PenTool className="w-3.5 h-3.5 mr-2" />
-                        <span>Edit in Builder</span>
-                      </Link>
+                  <DropdownMenuItem
+                    onClick={() => window.open(`/blogs/preview/${item.id}`, `preview_${item.id}`)}
+                    className="cursor-pointer"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 mr-2" />
+                    <span>Live Preview</span>
+                  </DropdownMenuItem>
+                  {publicUrl && item.status === "published" && (
+                    <DropdownMenuItem onClick={() => window.open(publicUrl, "_blank")} className="cursor-pointer">
+                      <Globe className="w-3.5 h-3.5 mr-2" />
+                      <span>View Live Post</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => window.open(`/blogs/preview/${item.id}`, `preview_${item.id}`)}
-                      className="cursor-pointer"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5 mr-2" />
-                      <span>Live Preview</span>
-                    </DropdownMenuItem>
-                    {publicUrl && item.status === "published" && (
-                      <DropdownMenuItem onClick={() => window.open(publicUrl, "_blank")} className="cursor-pointer">
-                        <Globe className="w-3.5 h-3.5 mr-2" />
-                        <span>View Live Post</span>
-                      </DropdownMenuItem>
-                    )}
-                  </>
-                )}
-              </DropdownMenuGroup>
-
-              {isQueue && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem
-                      onClick={() => onPublishNow(item)}
-                      disabled={actionLoadingId === item.id}
-                      className="cursor-pointer sm:hidden text-purple-600 font-semibold"
-                    >
-                      {isNewsletter ? (
-                        <>
-                          <Send className="w-3.5 h-3.5 mr-2" />
-                          <span>Send Now</span>
-                        </>
-                      ) : (
-                        <>
-                          <Play className="w-3.5 h-3.5 mr-2 fill-current" />
-                          <span>Publish Now</span>
-                        </>
-                      )}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => onOpenReschedule(item)}
-                      className="cursor-pointer sm:hidden"
-                    >
-                      <Clock className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
-                      <span>Reschedule</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => onCancelSchedule(item)}
-                      className="text-amber-600 focus:text-amber-600 cursor-pointer"
-                    >
-                      <Undo2 className="w-3.5 h-3.5 mr-2 text-amber-600" />
-                      <span>{isNewsletter ? "Cancel Schedule" : "Revert to Draft"}</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
+                  )}
                 </>
               )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      );
-    },
-  },
+            </DropdownMenuGroup>
+
+            {isQueue && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    onClick={() => onPublishNow(item)}
+                    disabled={actionLoadingId === item.id}
+                    className="cursor-pointer sm:hidden text-purple-600 font-semibold"
+                  >
+                    {isNewsletter ? (
+                      <>
+                        <Send className="w-3.5 h-3.5 mr-2" />
+                        <span>Send Now</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-3.5 h-3.5 mr-2 fill-current" />
+                        <span>Publish Now</span>
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onOpenReschedule(item)}
+                    className="cursor-pointer sm:hidden"
+                  >
+                    <Clock className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
+                    <span>Reschedule</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onCancelSchedule(item)}
+                    className="text-amber-600 focus:text-amber-600 cursor-pointer"
+                  >
+                    <Undo2 className="w-3.5 h-3.5 mr-2 text-amber-600" />
+                    <span>{isNewsletter ? "Cancel Schedule" : "Revert to Draft"}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    );
+  }),
 ];
