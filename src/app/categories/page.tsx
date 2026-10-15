@@ -5,14 +5,13 @@ import useSWR from "swr";
 import {
   FolderTree,
   Search,
-  Edit2,
-  Trash2,
   Loader2,
   Sparkles,
   Globe,
-  CheckCircle2,
 } from "lucide-react";
 import { CategoryCreateForm } from "./CategoryCreateForm";
+import { DataTable } from "@/components/table/DataTable";
+import { getCategoriesColumns, CategoryItem } from "./categories-columns";
 
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { clientConfig } from "@/lib/config/client";
@@ -20,7 +19,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import {
@@ -32,21 +30,6 @@ import {
 } from "@/components/ui/dialog";
 import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import { slugify } from "@/lib/slugify";
-
-interface CategoryItem {
-  id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  metaTitle: string | null;
-  metaDesc: string | null;
-  focusKeyword: string | null;
-  ogImage: string | null;
-  canonicalUrl: string | null;
-  noIndex: boolean;
-  postCount: number;
-  createdAt: string;
-}
 
 export default function CategoriesPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -190,6 +173,15 @@ export default function CategoriesPage() {
     );
   }, [rawCategories, deferredSearch]);
 
+  const columns = useMemo(
+    () =>
+      getCategoriesColumns({
+        onEdit: openEditModal,
+        onDelete: (cat) => setDeletingCategory(cat),
+      }),
+    []
+  );
+
   const totalCatCount = rawCategories.length;
   const siteUrl = clientConfig.app.frontendUrl;
 
@@ -236,117 +228,28 @@ export default function CategoriesPage() {
             </div>
 
             {/* Categories Table */}
-            <div className="bg-card border rounded-xl overflow-hidden shadow-xs">
-              {loadingCategories ? (
-                <div className="p-6 space-y-3">
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-14 w-full" />
-                  <Skeleton className="h-14 w-full" />
-                  <Skeleton className="h-14 w-full" />
+            {loadingCategories ? (
+              <div className="bg-card border rounded-xl p-6 space-y-3 shadow-xs">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-14 w-full" />
+                <Skeleton className="h-14 w-full" />
+                <Skeleton className="h-14 w-full" />
+              </div>
+            ) : filteredCategories.length === 0 ? (
+              <div className="bg-card border rounded-xl text-center py-12 px-4 shadow-xs">
+                <div className="size-12 rounded-2xl bg-muted/60 text-muted-foreground flex items-center justify-center mx-auto mb-3">
+                  <FolderTree className="size-6 text-muted-foreground" />
                 </div>
-              ) : filteredCategories.length === 0 ? (
-                <div className="text-center py-12 px-4">
-                  <div className="size-12 rounded-2xl bg-muted/60 text-muted-foreground flex items-center justify-center mx-auto mb-3">
-                    <FolderTree className="size-6 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-sm font-bold text-foreground">No categories found</h3>
-                  <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                    {searchQuery
-                      ? `No category matches "${searchQuery}".`
-                      : "Create your first category using the form on the left."}
-                  </p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-muted/50 border-b text-muted-foreground font-semibold uppercase tracking-wider text-[11px]">
-                      <tr>
-                        <th className="py-3 px-4">Name</th>
-                        <th className="py-3 px-4">Slug</th>
-                        <th className="py-3 px-4">Description</th>
-                        <th className="py-3 px-4 text-center">SEO</th>
-                        <th className="py-3 px-4 text-center">Articles</th>
-                        <th className="py-3 px-4 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {filteredCategories.map((cat) => {
-                        const hasCustomSeo = Boolean(cat.metaTitle || cat.metaDesc || cat.focusKeyword);
-                        return (
-                          <tr
-                            key={cat.id}
-                            className="hover:bg-muted/30 transition-colors group"
-                          >
-                            <td className="py-3 px-4 font-semibold text-foreground">
-                              <div className="flex items-center gap-2">
-                                <FolderTree className="size-3.5 text-primary shrink-0" />
-                                <span>{cat.name}</span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4 font-mono text-[11px] text-muted-foreground">
-                              {cat.slug}
-                            </td>
-                            <td className="py-3 px-4 text-muted-foreground max-w-xs truncate">
-                              {cat.description || (
-                                <span className="italic text-muted-foreground/60">—</span>
-                              )}
-                            </td>
-                            <td className="py-3 px-4 text-center">
-                              {hasCustomSeo ? (
-                                <Badge
-                                  variant="secondary"
-                                  className="text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20 inline-flex items-center gap-1"
-                                >
-                                  <CheckCircle2 className="size-2.5" />
-                                  Custom SEO
-                                </Badge>
-                              ) : (
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] text-muted-foreground inline-flex items-center gap-1"
-                                >
-                                  Default
-                                </Badge>
-                              )}
-                            </td>
-                            <td className="py-3 px-4 text-center font-medium">
-                              <Badge
-                                variant="secondary"
-                                className="text-[11px] font-semibold px-2 py-0.5"
-                              >
-                                {cat.postCount} {cat.postCount === 1 ? "post" : "posts"}
-                              </Badge>
-                            </td>
-                            <td className="py-3 px-4 text-right">
-                              <div className="inline-flex items-center gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => openEditModal(cat)}
-                                  className="h-7 w-7 p-0 cursor-pointer text-muted-foreground hover:text-foreground"
-                                  title="Edit Category & SEO"
-                                >
-                                  <Edit2 className="size-3.5" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setDeletingCategory(cat)}
-                                  className="h-7 w-7 p-0 cursor-pointer text-destructive hover:bg-destructive/10"
-                                  title="Delete Category"
-                                >
-                                  <Trash2 className="size-3.5" />
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+                <h3 className="text-sm font-bold text-foreground">No categories found</h3>
+                <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                  {searchQuery
+                    ? `No category matches "${searchQuery}".`
+                    : "Create your first category using the form on the left."}
+                </p>
+              </div>
+            ) : (
+              <DataTable columns={columns} data={filteredCategories} />
+            )}
           </div>
         </div>
       </div>

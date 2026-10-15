@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/table/DataTable";
 import { ContentMetricCards } from "@/components/table/ContentMetricCards";
 import { ContentFilterBar } from "@/components/table/ContentFilterBar";
+import { TableFloatingDock } from "@/components/table/TableFloatingDock";
 import { useContentTable } from "@/components/table/useContentTable";
 import {
   Dialog,
@@ -45,12 +46,15 @@ export default function RedirectionsPage() {
     setSearchQuery,
     statusFilter,
     setStatusFilter,
+    isTrashedView,
     filteredData: filteredList,
     metricCards,
     filterTabs,
+    handleBulkAction,
   } = useContentTable<RedirectionItem>({
     data: redirectionsData,
     entityName: "Redirects",
+    bulkActionEndpoint: "/api/redirection/bulk-action",
     searchFields: ["sourceUrl", "destinationUrl"],
     statusLabels: {
       published: "Active",
@@ -307,6 +311,16 @@ export default function RedirectionsPage() {
           <DataTable
             columns={columns}
             data={filteredList}
+            renderBulkActionDock={(selectedRows, clearSelection) => (
+              <TableFloatingDock
+                selectedItems={selectedRows}
+                onClearSelection={clearSelection}
+                entityName="redirection rules"
+                entityType="redirections"
+                isTrashedView={isTrashedView}
+                onBulkAction={handleBulkAction}
+              />
+            )}
           />
         )}
       </div>

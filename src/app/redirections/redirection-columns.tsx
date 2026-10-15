@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
 
-import { createActionColumn } from "@/components/table/column-helpers";
+import { createActionColumn, createSelectColumn } from "@/components/table/column-helpers";
 
 export interface RedirectionItem {
   id: string;
@@ -51,6 +51,7 @@ export function getRedirectionColumns({
   onDelete,
 }: RedirectionColumnsProps): ColumnDef<RedirectionItem>[] {
   return [
+    createSelectColumn<RedirectionItem>(),
     {
       accessorKey: "sourceUrl",
       id: "title",

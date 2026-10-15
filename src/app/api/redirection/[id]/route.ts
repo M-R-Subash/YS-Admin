@@ -28,7 +28,7 @@ function normalizeUrl(url: string): string {
 }
 
 const updateRedirectionSchema = z.object({
-  status: z.enum(["active", "inactive"]).optional(),
+  status: z.enum(["active", "inactive", "trashed"]).optional(),
   statusCode: z.number().int().refine((val) => val === 301 || val === 302, {
     message: "Status code must be 301 or 302",
   }).optional(),

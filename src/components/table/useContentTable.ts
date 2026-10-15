@@ -251,7 +251,12 @@ export function useContentTable<T extends { id?: string; status?: string; isTras
           body: JSON.stringify({
             action,
             ids,
-            status: action === "publish" ? "published" : action === "draft" ? "draft" : undefined,
+            status:
+              action === "publish" || action === "activate"
+                ? (statusLabels?.published === "Active" ? "active" : "published")
+                : action === "draft" || action === "deactivate"
+                ? (statusLabels?.draft === "Inactive" ? "inactive" : "draft")
+                : undefined,
           }),
         });
 
@@ -279,7 +284,7 @@ export function useContentTable<T extends { id?: string; status?: string; isTras
         });
       }
     },
-    [bulkActionEndpoint, entityName, mutate]
+    [bulkActionEndpoint, entityName, mutate, statusLabels]
   );
 
   return {

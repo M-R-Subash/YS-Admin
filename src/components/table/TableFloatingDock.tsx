@@ -37,8 +37,8 @@ import {
 export interface TableFloatingDockProps<T = any> {
   selectedItems: T[];
   onClearSelection: () => void;
-  entityName?: string; // e.g. "blogs", "webpages", "subscribers"
-  entityType?: "blogs" | "pages" | "subscribers";
+  entityName?: string; // e.g. "blogs", "webpages", "subscribers", "redirection rules"
+  entityType?: "blogs" | "pages" | "subscribers" | "redirections";
   bulkEditUrl?: string; // e.g. "/blogs/bulk-edit", "/webpages/bulk-edit"
   isTrashedView?: boolean;
   onBulkAction?: (action: string, ids: string[]) => Promise<boolean | void>;
@@ -63,7 +63,10 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
   // Confirmation Modals State using existing ConfirmModal & ExportColumnsModal
   const [isPublishConfirmOpen, setIsPublishConfirmOpen] = useState(false);
   const [isDraftConfirmOpen, setIsDraftConfirmOpen] = useState(false);
+  const [isActivateConfirmOpen, setIsActivateConfirmOpen] = useState(false);
+  const [isDeactivateConfirmOpen, setIsDeactivateConfirmOpen] = useState(false);
   const [isTrashConfirmOpen, setIsTrashConfirmOpen] = useState(false);
+  const [isRestoreConfirmOpen, setIsRestoreConfirmOpen] = useState(false);
   const [isDeletePermanentConfirmOpen, setIsDeletePermanentConfirmOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
@@ -73,11 +76,16 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
   // Compute status metrics for intelligent button rendering
   const isSubscriber =
     entityName.includes("subscriber") || entityType === "subscribers";
+  const isRedirection =
+    entityName.includes("redirect") || entityType === "redirections";
+
   const statuses = selectedItems
     .map((item) => (item.status ? String(item.status).toLowerCase().trim() : ""))
     .filter((s): s is string => s.length > 0);
   const allPublished = statuses.length === count && count > 0 && statuses.every((s) => s === "published");
   const allDraft = statuses.length === count && count > 0 && statuses.every((s) => s === "draft");
+  const allActive = statuses.length === count && count > 0 && statuses.every((s) => s === "active");
+  const allInactive = statuses.length === count && count > 0 && statuses.every((s) => s === "inactive");
   const allActiveSubscribers = statuses.length === count && count > 0 && statuses.every((s) => s === "active");
   const allUnsubscribed = statuses.length === count && count > 0 && statuses.every((s) => s === "unsubscribed");
 
@@ -95,7 +103,20 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
         ? "pages"
         : entityName.includes("subscriber")
         ? "subscribers"
+        : entityName.includes("redirect")
+        ? "redirections"
         : null);
+
+    if (resolved === "redirections") {
+      return [
+        { key: "sourceUrl", label: "Source URL", category: "General" },
+        { key: "destinationUrl", label: "Destination URL", category: "General" },
+        { key: "statusCode", label: "HTTP Status", category: "General" },
+        { key: "status", label: "State", category: "Publishing" },
+        { key: "createdAt", label: "Created Date", category: "Publishing" },
+        { key: "updatedAt", label: "Last Updated", category: "Publishing" },
+      ];
+    }
 
     if (resolved === "blogs") {
       return [
@@ -240,8 +261,135 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
           {/* Intelligent Status Actions for Regular Views */}
           {!isTrashedView && onBulkAction && (
             <>
-              {/* If all selected items are already published: show Draft */}
-              {allPublished ? (
+              {isRedirection ? (
+                allActive ? (
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsDeactivateConfirmOpen(true)}
+                          disabled={isProcessing}
+                          className="h-8 px-2.5 text-xs font-medium rounded-sm cursor-pointer shrink-0 border-border hover:bg-muted text-amber-600 dark:text-amber-400"
+                        >
+                          <FileEdit className="w-3.5 h-3.5 mr-1.5 shrink-0" />
+                          <span>Deactivate</span>
+                        </Button>
+                      }
+                    />
+                    <TooltipContent side="top" className="text-xs">
+                      Deactivate selected redirection rules
+                    </TooltipContent>
+                  </Tooltip>
+                ) : allInactive ? (
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsActivateConfirmOpen(true)}
+                          disabled={isProcessing}
+                          className="h-8 px-2.5 text-xs font-medium rounded-sm cursor-pointer shrink-0 border-border hover:bg-muted text-emerald-600 dark:text-emerald-400"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5 mr-1.5 shrink-0" />
+                          <span>Activate</span>
+                        </Button>
+                      }
+                    />
+                    <TooltipContent side="top" className="text-xs">
+                      Activate selected redirection rules
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={isProcessing}
+                          className="h-8 px-2.5 text-xs font-medium rounded-sm cursor-pointer shrink-0 border-border hover:bg-muted"
+                        >
+                          <span>Set Status</span>
+                          <ChevronUp className="w-3 h-3 ml-1 text-muted-foreground" />
+                        </Button>
+                      }
+                    />
+                    <DropdownMenuContent align="center" side="top" className="w-40 mb-2 rounded-md shadow-lg border border-border">
+                      <DropdownMenuItem
+                        onClick={() => setIsActivateConfirmOpen(true)}
+                        className="text-xs cursor-pointer flex items-center gap-2 rounded-sm"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                        <span>Activate</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setIsDeactivateConfirmOpen(true)}
+                        className="text-xs cursor-pointer flex items-center gap-2 rounded-sm"
+                      >
+                        <FileEdit className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Deactivate</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )
+              ) : isSubscriber ? (
+                allActiveSubscribers ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsDeactivateConfirmOpen(true)}
+                    disabled={isProcessing}
+                    className="h-8 px-2.5 text-xs font-medium rounded-sm cursor-pointer shrink-0 border-border hover:bg-muted text-destructive"
+                  >
+                    <span>Opt-out</span>
+                  </Button>
+                ) : allUnsubscribed ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsActivateConfirmOpen(true)}
+                    disabled={isProcessing}
+                    className="h-8 px-2.5 text-xs font-medium rounded-sm cursor-pointer shrink-0 border-border hover:bg-muted text-emerald-600 dark:text-emerald-400"
+                  >
+                    <span>Mark Active</span>
+                  </Button>
+                ) : (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={isProcessing}
+                          className="h-8 px-2.5 text-xs font-medium rounded-sm cursor-pointer shrink-0 border-border hover:bg-muted"
+                        >
+                          <span>Change Status</span>
+                          <ChevronUp className="w-3 h-3 ml-1 text-muted-foreground" />
+                        </Button>
+                      }
+                    />
+                    <DropdownMenuContent align="center" side="top" className="w-40 mb-2 rounded-md">
+                      <DropdownMenuItem
+                        onClick={() => setIsActivateConfirmOpen(true)}
+                        className="text-xs cursor-pointer flex items-center gap-2 rounded-sm"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                        <span>Mark as Active</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setIsDeactivateConfirmOpen(true)}
+                        className="text-xs cursor-pointer flex items-center gap-2 text-destructive rounded-sm"
+                      >
+                        <FileEdit className="w-3.5 h-3.5" />
+                        <span>Opt-out Readers</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )
+              ) : allPublished ? (
                 <Tooltip>
                   <TooltipTrigger
                     render={
@@ -281,60 +429,6 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
                     Publish all selected drafts live
                   </TooltipContent>
                 </Tooltip>
-              ) : isSubscriber ? (
-                allActiveSubscribers ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleAction("opt-out")}
-                    disabled={isProcessing}
-                    className="h-8 px-2.5 text-xs font-medium rounded-sm cursor-pointer shrink-0 border-border hover:bg-muted text-destructive"
-                  >
-                    <span>Opt-out</span>
-                  </Button>
-                ) : allUnsubscribed ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleAction("activate")}
-                    disabled={isProcessing}
-                    className="h-8 px-2.5 text-xs font-medium rounded-sm cursor-pointer shrink-0 border-border hover:bg-muted text-emerald-600 dark:text-emerald-400"
-                  >
-                    <span>Mark Active</span>
-                  </Button>
-                ) : (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={isProcessing}
-                          className="h-8 px-2.5 text-xs font-medium rounded-sm cursor-pointer shrink-0 border-border hover:bg-muted"
-                        >
-                          <span>Change Status</span>
-                          <ChevronUp className="w-3 h-3 ml-1 text-muted-foreground" />
-                        </Button>
-                      }
-                    />
-                    <DropdownMenuContent align="center" side="top" className="w-40 mb-2 rounded-md">
-                      <DropdownMenuItem
-                        onClick={() => handleAction("activate")}
-                        className="text-xs cursor-pointer flex items-center gap-2 rounded-sm"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
-                        <span>Mark as Active</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleAction("opt-out")}
-                        className="text-xs cursor-pointer flex items-center gap-2 text-destructive rounded-sm"
-                      >
-                        <FileEdit className="w-3.5 h-3.5" />
-                        <span>Opt-out Readers</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )
               ) : (
                 /* Messy / Mixed selection: show Set Status dropdown with both options */
                 <DropdownMenu>
@@ -402,11 +496,11 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleAction("restore")}
+                      onClick={() => setIsRestoreConfirmOpen(true)}
                       disabled={isProcessing}
-                      className="h-8 px-3 text-xs font-semibold rounded-sm cursor-pointer shrink-0 border-border hover:bg-muted"
+                      className="h-8 px-3 text-xs font-semibold rounded-sm cursor-pointer shrink-0 border-border hover:bg-muted text-emerald-600 dark:text-emerald-400"
                     >
-                      <RotateCcw className="w-3.5 h-3.5 mr-1.5 text-green-600 shrink-0" />
+                      <RotateCcw className="w-3.5 h-3.5 mr-1.5 shrink-0" />
                       <span>Restore</span>
                     </Button>
                   }
@@ -516,7 +610,37 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
           loading={isProcessing}
         />
 
-        {/* 3. Universal Confirmation Modal for Moving to Trash */}
+        {/* 3. Universal Confirmation Modal for Activating */}
+        <ConfirmModal
+          open={isActivateConfirmOpen}
+          onOpenChange={setIsActivateConfirmOpen}
+          variant="success"
+          title={`Activate ${count} ${entityName}?`}
+          description={`Are you sure you want to activate the ${count} selected ${entityName}? They will immediately become active.`}
+          confirmText={`Activate ${count} ${entityName}`}
+          onConfirm={async () => {
+            setIsActivateConfirmOpen(false);
+            await handleAction("activate");
+          }}
+          loading={isProcessing}
+        />
+
+        {/* 4. Universal Confirmation Modal for Deactivating */}
+        <ConfirmModal
+          open={isDeactivateConfirmOpen}
+          onOpenChange={setIsDeactivateConfirmOpen}
+          variant="warning"
+          title={`Deactivate ${count} ${entityName}?`}
+          description={`Are you sure you want to deactivate the ${count} selected ${entityName}? They will be marked as inactive.`}
+          confirmText={`Deactivate ${count} ${entityName}`}
+          onConfirm={async () => {
+            setIsDeactivateConfirmOpen(false);
+            await handleAction("deactivate");
+          }}
+          loading={isProcessing}
+        />
+
+        {/* 5. Universal Confirmation Modal for Moving to Trash */}
         <ConfirmModal
           open={isTrashConfirmOpen}
           onOpenChange={setIsTrashConfirmOpen}
@@ -528,7 +652,19 @@ export function TableFloatingDock<T extends { id: string; title?: string; status
           loading={isProcessing}
         />
 
-        {/* 4. Universal Confirmation Modal for Permanent Delete (in Trashed View) */}
+        {/* 6. Universal Confirmation Modal for Restoring from Trash */}
+        <ConfirmModal
+          open={isRestoreConfirmOpen}
+          onOpenChange={setIsRestoreConfirmOpen}
+          {...CONFIRM_PRESETS.restore(entityName, `${count} selected`)}
+          onConfirm={async () => {
+            setIsRestoreConfirmOpen(false);
+            await handleAction("restore");
+          }}
+          loading={isProcessing}
+        />
+
+        {/* 7. Universal Confirmation Modal for Permanent Delete (in Trashed View) */}
         <ConfirmModal
           open={isDeletePermanentConfirmOpen}
           onOpenChange={setIsDeletePermanentConfirmOpen}

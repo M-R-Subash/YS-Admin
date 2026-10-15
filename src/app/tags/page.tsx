@@ -5,17 +5,16 @@ import useSWR from "swr";
 import {
   Hash,
   Search,
-  Edit2,
-  Trash2,
   Loader2,
 } from "lucide-react";
 import { TagCreateForm } from "./TagCreateForm";
+import { DataTable } from "@/components/table/DataTable";
+import { getTagsColumns, TagItem } from "./tags-columns";
 
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import {
@@ -27,15 +26,6 @@ import {
 } from "@/components/ui/dialog";
 import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import { slugify } from "@/lib/slugify";
-
-interface TagItem {
-  id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  postCount: number;
-  createdAt: string;
-}
 
 export default function TagsPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -161,6 +151,15 @@ export default function TagsPage() {
     );
   }, [rawTags, deferredSearch]);
 
+  const columns = useMemo(
+    () =>
+      getTagsColumns({
+        onEdit: openEditModal,
+        onDelete: (tag) => setDeletingTag(tag),
+      }),
+    []
+  );
+
   const totalTagCount = rawTags.length;
 
   return (
@@ -206,100 +205,28 @@ export default function TagsPage() {
             </div>
 
             {/* Tags Table */}
-            <div className="bg-card border rounded-xl overflow-hidden shadow-xs">
-              {loadingTags ? (
-                <div className="p-6 space-y-3">
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-14 w-full" />
-                  <Skeleton className="h-14 w-full" />
-                  <Skeleton className="h-14 w-full" />
+            {loadingTags ? (
+              <div className="bg-card border rounded-xl p-6 space-y-3 shadow-xs">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-14 w-full" />
+                <Skeleton className="h-14 w-full" />
+                <Skeleton className="h-14 w-full" />
+              </div>
+            ) : filteredTags.length === 0 ? (
+              <div className="bg-card border rounded-xl text-center py-12 px-4 shadow-xs">
+                <div className="size-12 rounded-2xl bg-muted/60 text-muted-foreground flex items-center justify-center mx-auto mb-3">
+                  <Hash className="size-6 text-muted-foreground" />
                 </div>
-              ) : filteredTags.length === 0 ? (
-                <div className="text-center py-12 px-4">
-                  <div className="size-12 rounded-2xl bg-muted/60 text-muted-foreground flex items-center justify-center mx-auto mb-3">
-                    <Hash className="size-6 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-sm font-bold text-foreground">No tags found</h3>
-                  <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                    {searchQuery
-                      ? `No tag matches "${searchQuery}".`
-                      : "Create your first tag using the form on the left."}
-                  </p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-muted/50 border-b text-muted-foreground font-semibold uppercase tracking-wider text-[11px]">
-                      <tr>
-                        <th className="py-3 px-4">Name</th>
-                        <th className="py-3 px-4">Slug</th>
-                        <th className="py-3 px-4">Description</th>
-                        <th className="py-3 px-4 text-center">Articles</th>
-                        <th className="py-3 px-4 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {filteredTags.map((tag) => (
-                        <tr
-                          key={tag.id}
-                          className="hover:bg-muted/30 transition-colors group"
-                        >
-                          <td className="py-3 px-4 font-semibold text-foreground">
-                            <div className="flex items-center gap-1.5">
-                              <Badge
-                                variant="secondary"
-                                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-sm bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20"
-                              >
-                                <Hash className="size-2.5 text-purple-500 shrink-0" />
-                                <span>{tag.name}</span>
-                              </Badge>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4 font-mono text-[11px] text-muted-foreground">
-                            {tag.slug}
-                          </td>
-                          <td className="py-3 px-4 text-muted-foreground max-w-xs truncate">
-                            {tag.description || (
-                              <span className="italic text-muted-foreground/60">—</span>
-                            )}
-                          </td>
-                          <td className="py-3 px-4 text-center font-medium">
-                            <Badge
-                              variant="secondary"
-                              className="text-[11px] font-semibold px-2 py-0.5"
-                            >
-                              {tag.postCount} {tag.postCount === 1 ? "article" : "articles"}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            <div className="inline-flex items-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => openEditModal(tag)}
-                                className="h-7 w-7 p-0 cursor-pointer text-muted-foreground hover:text-foreground"
-                                title="Edit Tag"
-                              >
-                                <Edit2 className="size-3.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setDeletingTag(tag)}
-                                className="h-7 w-7 p-0 cursor-pointer text-destructive hover:bg-destructive/10"
-                                title="Delete Tag"
-                              >
-                                <Trash2 className="size-3.5" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+                <h3 className="text-sm font-bold text-foreground">No tags found</h3>
+                <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                  {searchQuery
+                    ? `No tag matches "${searchQuery}".`
+                    : "Create your first tag using the form on the left."}
+                </p>
+              </div>
+            ) : (
+              <DataTable columns={columns} data={filteredTags} />
+            )}
           </div>
         </div>
       </div>
