@@ -40,6 +40,7 @@ model Page {
   slug      String   @unique
   status    String   @default("draft")
   isTrashed Boolean  @default(false)
+  viewCount Int      @default(0)
   content      Json
   draftContent Json?
   createdAt    DateTime @default(now())
@@ -52,6 +53,7 @@ model Page {
 
   @@index([status, isTrashed])
   @@index([isTrashed, updatedAt])
+  @@index([viewCount])
 }
 
 model SeoMeta {
@@ -98,6 +100,7 @@ model Blog {
   allowComments Boolean   @default(true)
   status        String    @default("draft")
   isTrashed     Boolean   @default(false)
+  viewCount     Int       @default(0)
   content       Json
   draftContent  Json?
   excerpt       String?
@@ -125,6 +128,7 @@ model Blog {
   campaigns        NewsletterCampaign[]
 
   @@index([status, isTrashed, scheduledAt, publishedAt])
+  @@index([viewCount])
 }
 
 model Category {
@@ -301,4 +305,74 @@ model NewsletterCampaign {
 
   @@index([status, createdAt])
   @@index([status, scheduledAt])
+}
+
+model AnalyticsDaily {
+  id             String   @id @default(cuid())
+  date           String   @unique // YYYY-MM-DD in UTC
+  totalViews     Int      @default(0)
+  uniqueVisitors Int      @default(0)
+  engagedVisits  Int      @default(0)
+  desktopViews   Int      @default(0)
+  mobileViews    Int      @default(0)
+  tabletViews    Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([date])
+}
+
+model AnalyticsPage {
+  id             String   @id @default(cuid())
+  date           String   // YYYY-MM-DD in UTC
+  path           String   // Normalized path e.g. "/blogs/my-post"
+  title          String?
+  resourceType   String?  // "blog" | "page" | "home" | "other"
+  resourceId     String?  // Associated Blog or Page ID
+  views          Int      @default(0)
+  uniqueVisitors Int      @default(0)
+  engagedVisits  Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([date, path])
+  @@index([date])
+  @@index([path])
+  @@index([resourceType, resourceId])
+}
+
+model AnalyticsReferrer {
+  id          String   @id @default(cuid())
+  date        String   // YYYY-MM-DD in UTC
+  source      String   // "Google", "LinkedIn", "X / Twitter", "Direct", etc.
+  utmCampaign String   @default("")
+  views       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([date, source, utmCampaign])
+  @@index([date])
+  @@index([source])
+}
+
+model AnalyticsCountry {
+  id          String   @id @default(cuid())
+  date        String   // YYYY-MM-DD in UTC
+  countryCode String   // 2-letter uppercase e.g. "US", "IN", "GB", "UNKNOWN"
+  views       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([date, countryCode])
+  @@index([date])
+  @@index([countryCode])
+}
+
+model AnalyticsVisitorSession {
+  visitorHash String   @id // Salted HMAC-SHA256 of IP + UA + Daily Salt
+  lastPath    String
+  isEngaged   Boolean  @default(false)
+  lastSeenAt  DateTime @default(now())
+
+  @@index([lastSeenAt])
 }
