@@ -445,14 +445,17 @@ export default function DashboardPage() {
                     tickLine={false}
                     axisLine={false}
                     tickMargin={8}
+                    minTickGap={20}
                     className="text-[11px] fill-muted-foreground"
                   />
                   <YAxis
+                    allowDecimals={false}
+                    domain={[0, (dataMax: number) => Math.max(dataMax, 4)]}
                     tickLine={false}
                     axisLine={false}
                     tickMargin={8}
                     className="text-[11px] fill-muted-foreground"
-                    tickFormatter={(val) => (val >= 1000 ? `${(val / 1000).toFixed(0)}K` : val)}
+                    tickFormatter={(val) => (val >= 1000 ? `${(val / 1000).toFixed(0)}K` : Math.round(val).toString())}
                   />
                   <ChartTooltip
                     content={
@@ -470,6 +473,8 @@ export default function DashboardPage() {
                     strokeWidth={2}
                     fillOpacity={1}
                     fill="url(#fillViews)"
+                    dot={{ r: 3, fill: "#3b82f6", strokeWidth: 1 }}
+                    activeDot={{ r: 5, strokeWidth: 2 }}
                   />
                   <Area
                     type="monotone"
@@ -479,6 +484,8 @@ export default function DashboardPage() {
                     strokeWidth={2}
                     fillOpacity={1}
                     fill="url(#fillVisitors)"
+                    dot={{ r: 3, fill: "#10b981", strokeWidth: 1 }}
+                    activeDot={{ r: 5, strokeWidth: 2 }}
                   />
                 </AreaChart>
               </ChartContainer>

@@ -89,6 +89,7 @@ export async function GET(request: Request) {
           countryRecords,
           recentDraftBlogs,
           recentPagesRaw,
+          todayVisitorSessions,
         ] = await Promise.all([
           prisma.page.count({ where: { isTrashed: false, status: "published" } }),
           prisma.blog.count({ where: { isTrashed: false } }),
@@ -160,26 +161,90 @@ export async function GET(request: Request) {
             orderBy: { updatedAt: "desc" },
             take: 10,
           }),
+          prisma.analyticsVisitorSession.findMany({
+            where: {
+              lastSeenAt: {
+                gte: new Date(new Date().setHours(0, 0, 0, 0)),
+              },
+            },
+            select: { lastSeenAt: true, isEngaged: true },
+          }),
         ]);
 
         // 4. Construct Zero-Filled Time Series Array
-        const allDates = getDateRangeArray(startDate, endDate);
-        const dailyMap = new Map<string, (typeof currentDailyRecords)[0]>();
-        for (const item of currentDailyRecords) {
-          dailyMap.set(item.date, item);
-        }
+        let timeSeries: Array<{
+          date: string;
+          label: string;
+          totalViews: number;
+          uniqueVisitors: number;
+          engagedVisits: number;
+        }> = [];
 
-        const timeSeries = allDates.map((dateStr) => {
-          const match = dailyMap.get(dateStr);
-          const dateObj = new Date(dateStr + "T00:00:00Z");
-          return {
-            date: dateStr,
-            label: daysCount === 1 ? "Today" : format(dateObj, "MMM d"),
-            totalViews: match?.totalViews ?? 0,
-            uniqueVisitors: match?.uniqueVisitors ?? 0,
-            engagedVisits: match?.engagedVisits ?? 0,
-          };
-        });
+        if (rangeParam === "24h") {
+          const todayRecord = currentDailyRecords.find((r) => r.date === todayUtcStr);
+          const totalViewsToday = todayRecord?.totalViews ?? 0;
+          const totalVisitorsToday = todayRecord?.uniqueVisitors ?? 0;
+          const totalEngagedToday = todayRecord?.engagedVisits ?? 0;
+
+          const hourlyVisitorsMap = new Map<number, number>();
+          const hourlyEngagedMap = new Map<number, number>();
+          for (const s of todayVisitorSessions) {
+            const h = new Date(s.lastSeenAt).getHours();
+            hourlyVisitorsMap.set(h, (hourlyVisitorsMap.get(h) ?? 0) + 1);
+            if (s.isEngaged) {
+              hourlyEngagedMap.set(h, (hourlyEngagedMap.get(h) ?? 0) + 1);
+            }
+          }
+
+          const activeHours = Array.from(hourlyVisitorsMap.keys());
+          const fallbackHour = now.getHours();
+          const targetHour = activeHours.length > 0 ? activeHours[0] : fallbackHour;
+
+          timeSeries = Array.from({ length: 24 }, (_, hour) => {
+            const sessionVisitors = hourlyVisitorsMap.get(hour) ?? 0;
+            const sessionEngaged = hourlyEngagedMap.get(hour) ?? 0;
+
+            let views = sessionVisitors;
+            let visitors = sessionVisitors;
+            let engaged = sessionEngaged;
+
+            if (activeHours.length <= 1 && hour === targetHour) {
+              views = Math.max(views, totalViewsToday);
+              visitors = Math.max(visitors, totalVisitorsToday);
+              engaged = Math.max(engaged, totalEngagedToday);
+            }
+
+            const d = new Date();
+            d.setHours(hour, 0, 0, 0);
+            const hourLabel = format(d, "h a");
+
+            return {
+              date: `${todayUtcStr}T${hour.toString().padStart(2, "0")}:00:00`,
+              label: hourLabel,
+              totalViews: views,
+              uniqueVisitors: visitors,
+              engagedVisits: engaged,
+            };
+          });
+        } else {
+          const allDates = getDateRangeArray(startDate, endDate);
+          const dailyMap = new Map<string, (typeof currentDailyRecords)[0]>();
+          for (const item of currentDailyRecords) {
+            dailyMap.set(item.date, item);
+          }
+
+          timeSeries = allDates.map((dateStr) => {
+            const match = dailyMap.get(dateStr);
+            const dateObj = new Date(dateStr + "T00:00:00Z");
+            return {
+              date: dateStr,
+              label: format(dateObj, "MMM d"),
+              totalViews: match?.totalViews ?? 0,
+              uniqueVisitors: match?.uniqueVisitors ?? 0,
+              engagedVisits: match?.engagedVisits ?? 0,
+            };
+          });
+        }
 
         // 5. Aggregate Current Period Totals
         let totalViews = 0;
