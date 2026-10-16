@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -104,11 +104,16 @@ export default function DashboardPage() {
   const [acquisitionTab, setAcquisitionTab] = useState<"referrers" | "campaigns">("referrers");
   const [rightPanelTab, setRightPanelTab] = useState<"countries" | "editorial">("countries");
 
-  const mounted = React.useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false
-  );
+  const [mounted, setMounted] = useState(false);
+  const [greeting, setGreeting] = useState("Good day");
+
+  useEffect(() => {
+    setMounted(true);
+    const hour = new Date().getHours();
+    if (hour < 12) setGreeting("Good morning");
+    else if (hour < 17) setGreeting("Good afternoon");
+    else setGreeting("Good evening");
+  }, []);
 
   const { data, isLoading, mutate, isValidating } = useSWR(
     `/api/dashboard/stats?range=${range}`,
@@ -117,14 +122,6 @@ export default function DashboardPage() {
       dedupingInterval: 5000,
     }
   );
-
-  // Time of day greeting
-  const greeting = useMemo(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 17) return "Good afternoon";
-    return "Good evening";
-  }, []);
 
   const summary = data?.summary;
   const timeSeries = data?.timeSeries || [];
@@ -163,12 +160,12 @@ export default function DashboardPage() {
         }
       />
 
-      <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full space-y-6">
+      <main className="flex-1 flex flex-col gap-6 py-6 px-3.75 md:px-5 lg:px-7.5 w-full">
         {/* TOP CONTROL BAR: Greeting, Pulse Badge, Range Switcher & Auto-refresh */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-2 border-b border-border/50">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/50">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight text-foreground font-heading">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground font-heading" suppressHydrationWarning>
                 {greeting}, {session?.user?.name?.split(" ")[0] || "Admin"}
               </h1>
               {/* LIVE PULSE INDICATOR */}
@@ -231,20 +228,27 @@ export default function DashboardPage() {
           {/* TOP 4 INTERACTIVE KPI TABS */}
           <div className="grid grid-cols-2 lg:grid-cols-4 border-b border-border/60 divide-x divide-y lg:divide-y-0 divide-border/60 bg-muted/20">
             {/* KPI 1: Unique Visitors */}
-            <button
-              type="button"
+            <div
+              role="button"
+              tabIndex={0}
               onClick={() => setActiveKpiTab("visitors")}
-              className={`p-4 text-left transition-colors cursor-pointer group hover:bg-muted/40 ${
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setActiveKpiTab("visitors");
+                }
+              }}
+              className={`p-4 sm:p-5 lg:p-6 text-left transition-colors cursor-pointer group hover:bg-muted/40 select-none ${
                 activeKpiTab === "visitors" ? "bg-background shadow-xs ring-1 ring-primary/20" : ""
               }`}
             >
-              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
                 <span className="font-medium group-hover:text-foreground">Unique Visitors</span>
                 <Users className="size-3.5" />
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold tracking-tight text-foreground font-mono">
-                  {isLoading ? <Skeleton className="h-7 w-16" /> : formatNumber(summary?.uniqueVisitors ?? 0)}
+                <span className="text-2xl lg:text-3xl font-bold tracking-tight text-foreground font-mono">
+                  {isLoading ? <Skeleton className="h-8 w-20" /> : formatNumber(summary?.uniqueVisitors ?? 0)}
                 </span>
                 {!isLoading && (
                   <Badge
@@ -267,23 +271,30 @@ export default function DashboardPage() {
               <span className="text-[11px] text-muted-foreground/80 mt-1 block">
                 vs previous {range.toUpperCase()} period
               </span>
-            </button>
+            </div>
 
             {/* KPI 2: Total Pageviews */}
-            <button
-              type="button"
+            <div
+              role="button"
+              tabIndex={0}
               onClick={() => setActiveKpiTab("views")}
-              className={`p-4 text-left transition-colors cursor-pointer group hover:bg-muted/40 ${
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setActiveKpiTab("views");
+                }
+              }}
+              className={`p-4 sm:p-5 lg:p-6 text-left transition-colors cursor-pointer group hover:bg-muted/40 select-none ${
                 activeKpiTab === "views" ? "bg-background shadow-xs ring-1 ring-primary/20" : ""
               }`}
             >
-              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
                 <span className="font-medium group-hover:text-foreground">Total Pageviews</span>
                 <Eye className="size-3.5" />
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold tracking-tight text-foreground font-mono">
-                  {isLoading ? <Skeleton className="h-7 w-16" /> : formatNumber(summary?.totalViews ?? 0)}
+                <span className="text-2xl lg:text-3xl font-bold tracking-tight text-foreground font-mono">
+                  {isLoading ? <Skeleton className="h-8 w-20" /> : formatNumber(summary?.totalViews ?? 0)}
                 </span>
                 {!isLoading && (
                   <Badge
@@ -306,22 +317,32 @@ export default function DashboardPage() {
               <span className="text-[11px] text-muted-foreground/80 mt-1 block">
                 Total page impressions
               </span>
-            </button>
+            </div>
 
             {/* KPI 3: Engagement Rate */}
-            <button
-              type="button"
+            <div
+              role="button"
+              tabIndex={0}
               onClick={() => setActiveKpiTab("engagement")}
-              className={`p-4 text-left transition-colors cursor-pointer group hover:bg-muted/40 ${
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setActiveKpiTab("engagement");
+                }
+              }}
+              className={`p-4 sm:p-5 lg:p-6 text-left transition-colors cursor-pointer group hover:bg-muted/40 select-none ${
                 activeKpiTab === "engagement" ? "bg-background shadow-xs ring-1 ring-primary/20" : ""
               }`}
             >
-              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
                 <div className="inline-flex items-center gap-1">
                   <span className="font-medium group-hover:text-foreground">Engagement Rate</span>
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger className="cursor-help">
+                      <TooltipTrigger
+                        className="cursor-help inline-flex items-center justify-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <Info className="size-3 text-muted-foreground/60 hover:text-foreground" />
                       </TooltipTrigger>
                       <TooltipContent side="top">
@@ -333,8 +354,8 @@ export default function DashboardPage() {
                 <Activity className="size-3.5" />
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold tracking-tight text-foreground font-mono">
-                  {isLoading ? <Skeleton className="h-7 w-16" /> : `${summary?.engagementRate ?? 0}%`}
+                <span className="text-2xl lg:text-3xl font-bold tracking-tight text-foreground font-mono">
+                  {isLoading ? <Skeleton className="h-8 w-20" /> : `${summary?.engagementRate ?? 0}%`}
                 </span>
                 {!isLoading && (
                   <Badge
@@ -357,38 +378,45 @@ export default function DashboardPage() {
               <span className="text-[11px] text-muted-foreground/80 mt-1 block">
                 High-interest readers
               </span>
-            </button>
+            </div>
 
             {/* KPI 4: Active Subscribers & Content */}
-            <button
-              type="button"
+            <div
+              role="button"
+              tabIndex={0}
               onClick={() => router.push("/newsletters")}
-              className="p-4 text-left transition-colors cursor-pointer group hover:bg-muted/40"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  router.push("/newsletters");
+                }
+              }}
+              className="p-4 sm:p-5 lg:p-6 text-left transition-colors cursor-pointer group hover:bg-muted/40 select-none"
             >
-              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
                 <span className="font-medium group-hover:text-foreground">Newsletter Subscribers</span>
                 <Mail className="size-3.5" />
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold tracking-tight text-foreground font-mono">
-                  {isLoading ? <Skeleton className="h-7 w-16" /> : formatNumber(summary?.subscribersCount ?? 0)}
+                <span className="text-2xl lg:text-3xl font-bold tracking-tight text-foreground font-mono">
+                  {isLoading ? <Skeleton className="h-8 w-20" /> : formatNumber(summary?.subscribersCount ?? 0)}
                 </span>
                 <span className="text-xs text-muted-foreground font-medium">Subscribers</span>
               </div>
               <span className="text-[11px] text-muted-foreground/80 mt-1 block inline-flex items-center gap-1 text-primary">
                 View Subscribers &rarr;
               </span>
-            </button>
+            </div>
           </div>
 
           {/* DUAL-GRADIENT AREA CHART */}
           <CardContent className="p-4 sm:p-6">
             {!mounted || isLoading ? (
-              <div className="h-[280px] w-full flex items-center justify-center">
+              <div className="h-[300px] sm:h-[340px] lg:h-[360px] w-full flex items-center justify-center">
                 <Skeleton className="h-full w-full rounded-md" />
               </div>
             ) : timeSeries.length === 0 ? (
-              <div className="h-[280px] w-full flex flex-col items-center justify-center text-center p-6 text-muted-foreground">
+              <div className="h-[300px] sm:h-[340px] lg:h-[360px] w-full flex flex-col items-center justify-center text-center p-6 text-muted-foreground">
                 <Sparkles className="size-8 mb-2 text-muted-foreground/40" />
                 <p className="text-sm font-medium">No traffic recorded yet for this period</p>
                 <p className="text-xs text-muted-foreground/70 mt-1">
@@ -396,10 +424,10 @@ export default function DashboardPage() {
                 </p>
               </div>
             ) : (
-              <ChartContainer config={chartConfig} className="h-[280px] w-full">
+              <ChartContainer config={chartConfig} className="h-[300px] sm:h-[340px] lg:h-[360px] w-full">
                 <AreaChart
                   data={timeSeries}
-                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                  margin={{ top: 12, right: 12, left: -20, bottom: 0 }}
                 >
                   <defs>
                     <linearGradient id="fillViews" x1="0" y1="0" x2="0" y2="1">
@@ -518,12 +546,12 @@ export default function DashboardPage() {
                       />
 
                       {/* FOREGROUND TITLE & URL */}
-                      <div className="relative z-10 flex items-center gap-2.5 min-w-0 pr-4">
-                        <span className="font-mono text-[11px] text-muted-foreground/60 w-4 shrink-0">
+                      <div className="relative z-10 flex items-center gap-2.5 min-w-0 pr-4 flex-1">
+                        <span className="font-mono text-[11px] text-muted-foreground/60 w-5 shrink-0">
                           #{index + 1}
                         </span>
-                        <div className="min-w-0">
-                          <p className="font-medium text-foreground truncate max-w-xs sm:max-w-md">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-foreground truncate">
                             {item.title}
                           </p>
                           <p className="text-[10px] text-muted-foreground font-mono truncate">
@@ -720,7 +748,7 @@ export default function DashboardPage() {
                         />
 
                         {/* FOREGROUND SOURCE LABEL */}
-                        <div className="relative z-10 flex items-center gap-2 min-w-0 pr-4">
+                        <div className="relative z-10 flex items-center gap-2 min-w-0 pr-4 flex-1">
                           <IconComponent className="size-3.5 text-muted-foreground shrink-0" />
                           <span className="font-medium text-foreground truncate">
                             {label || "Untracked Campaign"}
@@ -800,7 +828,7 @@ export default function DashboardPage() {
                         />
 
                         {/* COUNTRY FLAG & CODE */}
-                        <div className="relative z-10 flex items-center gap-2.5 min-w-0 pr-4">
+                        <div className="relative z-10 flex items-center gap-2.5 min-w-0 pr-4 flex-1">
                           <span className="text-base leading-none">{c.flag}</span>
                           <span className="font-semibold text-foreground font-mono">
                             {c.code}
