@@ -161,14 +161,17 @@ export async function GET(request: Request) {
             orderBy: { updatedAt: "desc" },
             take: 10,
           }),
-          prisma.analyticsVisitorSession.findMany({
-            where: {
-              lastSeenAt: {
-                gte: new Date(new Date().setHours(0, 0, 0, 0)),
-              },
-            },
-            select: { lastSeenAt: true, isEngaged: true },
-          }),
+          rangeParam === "24h"
+            ? prisma.$queryRaw<Array<{ hour: number; visitors: number; engaged: number }>>`
+                SELECT 
+                  EXTRACT(HOUR FROM "lastSeenAt")::int AS hour,
+                  COUNT(*)::int AS visitors,
+                  COUNT(*) FILTER (WHERE "isEngaged" = true)::int AS engaged
+                FROM "AnalyticsVisitorSession"
+                WHERE "lastSeenAt" >= ${new Date(todayUtcStr + "T00:00:00Z")}
+                GROUP BY 1
+              `
+            : Promise.resolve([]),
         ]);
 
         // 4. Construct Zero-Filled Time Series Array
@@ -189,15 +192,13 @@ export async function GET(request: Request) {
           const hourlyVisitorsMap = new Map<number, number>();
           const hourlyEngagedMap = new Map<number, number>();
           for (const s of todayVisitorSessions) {
-            const h = new Date(s.lastSeenAt).getHours();
-            hourlyVisitorsMap.set(h, (hourlyVisitorsMap.get(h) ?? 0) + 1);
-            if (s.isEngaged) {
-              hourlyEngagedMap.set(h, (hourlyEngagedMap.get(h) ?? 0) + 1);
-            }
+            const h = Number(s.hour);
+            hourlyVisitorsMap.set(h, Number(s.visitors) || 0);
+            hourlyEngagedMap.set(h, Number(s.engaged) || 0);
           }
 
           const activeHours = Array.from(hourlyVisitorsMap.keys());
-          const fallbackHour = now.getHours();
+          const fallbackHour = now.getUTCHours();
           const targetHour = activeHours.length > 0 ? activeHours[0] : fallbackHour;
 
           timeSeries = Array.from({ length: 24 }, (_, hour) => {
@@ -214,12 +215,11 @@ export async function GET(request: Request) {
               engaged = Math.max(engaged, totalEngagedToday);
             }
 
-            const d = new Date();
-            d.setHours(hour, 0, 0, 0);
+            const d = new Date(2026, 0, 1, hour);
             const hourLabel = format(d, "h a");
 
             return {
-              date: `${todayUtcStr}T${hour.toString().padStart(2, "0")}:00:00`,
+              date: `${todayUtcStr}T${hour.toString().padStart(2, "0")}:00:00Z`,
               label: hourLabel,
               totalViews: views,
               uniqueVisitors: visitors,

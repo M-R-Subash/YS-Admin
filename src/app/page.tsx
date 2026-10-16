@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
+import { clientConfig } from "@/lib/config/client";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -465,28 +466,34 @@ export default function DashboardPage() {
                       />
                     }
                   />
-                  <Area
-                    type="monotone"
-                    dataKey="totalViews"
-                    name="Total Views"
-                    stroke="#3b82f6"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#fillViews)"
-                    dot={{ r: 3, fill: "#3b82f6", strokeWidth: 1 }}
-                    activeDot={{ r: 5, strokeWidth: 2 }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="uniqueVisitors"
-                    name="Unique Visitors"
-                    stroke="#10b981"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#fillVisitors)"
-                    dot={{ r: 3, fill: "#10b981", strokeWidth: 1 }}
-                    activeDot={{ r: 5, strokeWidth: 2 }}
-                  />
+                  {/* Total Views (shown when Views or Engagement is active) */}
+                  {(activeKpiTab === "views" || activeKpiTab === "engagement" || activeKpiTab === "subscribers") && (
+                    <Area
+                      type="monotone"
+                      dataKey="totalViews"
+                      name="Total Views"
+                      stroke="#3b82f6"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#fillViews)"
+                      dot={{ r: 3, fill: "#3b82f6", strokeWidth: 1 }}
+                      activeDot={{ r: 5, strokeWidth: 2 }}
+                    />
+                  )}
+                  {/* Unique Visitors (shown when Visitors or Engagement is active) */}
+                  {(activeKpiTab === "visitors" || activeKpiTab === "engagement" || activeKpiTab === "subscribers") && (
+                    <Area
+                      type="monotone"
+                      dataKey="uniqueVisitors"
+                      name="Unique Visitors"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#fillVisitors)"
+                      dot={{ r: 3, fill: "#10b981", strokeWidth: 1 }}
+                      activeDot={{ r: 5, strokeWidth: 2 }}
+                    />
+                  )}
                 </AreaChart>
               </ChartContainer>
             )}
@@ -576,7 +583,7 @@ export default function DashboardPage() {
                           {formatNumber(item.views)} views
                         </Badge>
                         <a
-                          href={`http://localhost:3001${item.path}`}
+                          href={`${clientConfig.app.frontendUrl}${item.path}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-muted-foreground hover:text-primary transition-colors p-1"

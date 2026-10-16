@@ -318,8 +318,6 @@ model AnalyticsDaily {
   tabletViews    Int      @default(0)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-
-  @@index([date])
 }
 
 model AnalyticsPage {
@@ -369,10 +367,12 @@ model AnalyticsCountry {
 }
 
 model AnalyticsVisitorSession {
-  visitorHash String   @id // Salted HMAC-SHA256 of IP + UA + Daily Salt
-  lastPath    String
-  isEngaged   Boolean  @default(false)
-  lastSeenAt  DateTime @default(now())
+  visitorHash  String   @id // Salted HMAC-SHA256 of IP + UA + Daily Salt
+  lastPath     String
+  visitedPaths String[] @default([])
+  engagedPaths String[] @default([])
+  isEngaged    Boolean  @default(false)
+  lastSeenAt   DateTime @default(now())
 
   @@index([lastSeenAt])
 }
