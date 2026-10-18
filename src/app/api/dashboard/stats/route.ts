@@ -80,7 +80,7 @@ export async function GET(request: Request) {
           unapprovedCommentsCount,
           totalSubmissionsCount,
           unreadSubmissionsCount,
-          subscribersCount,
+          activeSubscribersList,
           activeNowCount,
           currentDailyRecords,
           prevDailyRecords,
@@ -105,7 +105,10 @@ export async function GET(request: Request) {
           isUserAdmin
             ? prisma.formSubmission.count({ where: { isTrashed: false, isRead: false } })
             : Promise.resolve(0),
-          prisma.subscriber.count({ where: { status: "active" } }),
+          prisma.subscriber.findMany({
+            where: { status: "active" },
+            select: { createdAt: true },
+          }),
           prisma.analyticsVisitorSession.count({
             where: { lastSeenAt: { gte: fiveMinutesAgo } },
           }),
@@ -174,6 +177,8 @@ export async function GET(request: Request) {
             : Promise.resolve([]),
         ]);
 
+        const subscribersCount = activeSubscribersList.length;
+
         // 4. Construct Zero-Filled Time Series Array
         let timeSeries: Array<{
           date: string;
@@ -181,6 +186,7 @@ export async function GET(request: Request) {
           totalViews: number;
           uniqueVisitors: number;
           engagedVisits: number;
+          subscribers: number;
         }> = [];
 
         if (rangeParam === "24h") {
@@ -217,6 +223,8 @@ export async function GET(request: Request) {
 
             const d = new Date(2026, 0, 1, hour);
             const hourLabel = format(d, "h a");
+            const hourDate = new Date(`${todayUtcStr}T${hour.toString().padStart(2, "0")}:59:59Z`);
+            const subsAtHour = activeSubscribersList.filter((s) => s.createdAt <= hourDate).length;
 
             return {
               date: `${todayUtcStr}T${hour.toString().padStart(2, "0")}:00:00Z`,
@@ -224,6 +232,7 @@ export async function GET(request: Request) {
               totalViews: views,
               uniqueVisitors: visitors,
               engagedVisits: engaged,
+              subscribers: subsAtHour,
             };
           });
         } else {
@@ -236,12 +245,16 @@ export async function GET(request: Request) {
           timeSeries = allDates.map((dateStr) => {
             const match = dailyMap.get(dateStr);
             const dateObj = new Date(dateStr + "T00:00:00Z");
+            const dayEndDate = new Date(dateStr + "T23:59:59Z");
+            const subsAtDay = activeSubscribersList.filter((s) => s.createdAt <= dayEndDate).length;
+
             return {
               date: dateStr,
               label: format(dateObj, "MMM d"),
               totalViews: match?.totalViews ?? 0,
               uniqueVisitors: match?.uniqueVisitors ?? 0,
               engagedVisits: match?.engagedVisits ?? 0,
+              subscribers: subsAtDay,
             };
           });
         }

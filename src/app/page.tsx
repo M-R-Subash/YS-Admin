@@ -71,6 +71,10 @@ const chartConfig: ChartConfig = {
     label: "Engaged Visits",
     color: "#8b5cf6",
   },
+  subscribers: {
+    label: "Subscribers",
+    color: "#a855f7",
+  },
 };
 
 function formatNumber(num: number): string {
@@ -381,18 +385,20 @@ export default function DashboardPage() {
               </span>
             </div>
 
-            {/* KPI 4: Active Subscribers & Content */}
+            {/* KPI 4: Active Subscribers */}
             <div
               role="button"
               tabIndex={0}
-              onClick={() => router.push("/newsletters")}
+              onClick={() => setActiveKpiTab("subscribers")}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  router.push("/newsletters");
+                  setActiveKpiTab("subscribers");
                 }
               }}
-              className="p-4 sm:p-5 lg:p-6 text-left transition-colors cursor-pointer group hover:bg-muted/40 select-none"
+              className={`p-4 sm:p-5 lg:p-6 text-left transition-colors cursor-pointer group hover:bg-muted/40 select-none ${
+                activeKpiTab === "subscribers" ? "bg-background shadow-xs ring-1 ring-primary/20" : ""
+              }`}
             >
               <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
                 <span className="font-medium group-hover:text-foreground">Newsletter Subscribers</span>
@@ -404,8 +410,14 @@ export default function DashboardPage() {
                 </span>
                 <span className="text-xs text-muted-foreground font-medium">Subscribers</span>
               </div>
-              <span className="text-[11px] text-muted-foreground/80 mt-1 block inline-flex items-center gap-1 text-primary">
-                View Subscribers &rarr;
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  router.push("/newsletters");
+                }}
+                className="text-[11px] text-muted-foreground/80 mt-1 block inline-flex items-center gap-1 text-primary hover:underline"
+              >
+                Manage Subscribers &rarr;
               </span>
             </div>
           </div>
@@ -439,6 +451,10 @@ export default function DashboardPage() {
                       <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
                       <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
                     </linearGradient>
+                    <linearGradient id="fillSubscribers" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#a855f7" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#a855f7" stopOpacity={0.0} />
+                    </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/40" />
                   <XAxis
@@ -451,7 +467,7 @@ export default function DashboardPage() {
                   />
                   <YAxis
                     allowDecimals={false}
-                    domain={[0, (dataMax: number) => Math.max(dataMax, 4)]}
+                    domain={[0, (dataMax: number) => (Number.isFinite(dataMax) && dataMax > 0 ? Math.max(dataMax, 4) : 4)]}
                     tickLine={false}
                     axisLine={false}
                     tickMargin={8}
@@ -467,7 +483,7 @@ export default function DashboardPage() {
                     }
                   />
                   {/* Total Views (shown when Views or Engagement is active) */}
-                  {(activeKpiTab === "views" || activeKpiTab === "engagement" || activeKpiTab === "subscribers") && (
+                  {(activeKpiTab === "views" || activeKpiTab === "engagement") && (
                     <Area
                       type="monotone"
                       dataKey="totalViews"
@@ -481,7 +497,7 @@ export default function DashboardPage() {
                     />
                   )}
                   {/* Unique Visitors (shown when Visitors or Engagement is active) */}
-                  {(activeKpiTab === "visitors" || activeKpiTab === "engagement" || activeKpiTab === "subscribers") && (
+                  {(activeKpiTab === "visitors" || activeKpiTab === "engagement") && (
                     <Area
                       type="monotone"
                       dataKey="uniqueVisitors"
@@ -491,6 +507,20 @@ export default function DashboardPage() {
                       fillOpacity={1}
                       fill="url(#fillVisitors)"
                       dot={{ r: 3, fill: "#10b981", strokeWidth: 1 }}
+                      activeDot={{ r: 5, strokeWidth: 2 }}
+                    />
+                  )}
+                  {/* Subscribers (shown when Subscribers tab is active) */}
+                  {activeKpiTab === "subscribers" && (
+                    <Area
+                      type="monotone"
+                      dataKey="subscribers"
+                      name="Subscribers"
+                      stroke="#a855f7"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#fillSubscribers)"
+                      dot={{ r: 3, fill: "#a855f7", strokeWidth: 1 }}
                       activeDot={{ r: 5, strokeWidth: 2 }}
                     />
                   )}
