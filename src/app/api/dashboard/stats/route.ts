@@ -106,8 +106,8 @@ export async function GET(request: Request) {
           totalSubmissionsCount,
           unreadSubmissionsCount,
           subscribersCount,
-          currentPeriodSubs,
-          prevPeriodSubs,
+          currentPeriodSubsCount,
+          prevPeriodSubsCount,
           activeNowCount,
           recentDraftBlogs,
           recentPagesRaw,
@@ -128,8 +128,8 @@ export async function GET(request: Request) {
             ? prisma.formSubmission.count({ where: { isTrashed: false, isRead: false } })
             : Promise.resolve(0),
           prisma.subscriber.count({ where: { status: "active" } }),
-          // Real subscriber signups in current period (only createdAt selected for O(1) RAM)
-          prisma.subscriber.findMany({
+          // Real subscriber signups in current period (indexed count for O(1) memory)
+          prisma.subscriber.count({
             where: {
               status: "active",
               createdAt: {
@@ -137,10 +137,9 @@ export async function GET(request: Request) {
                 lt: startOfNextDay,
               },
             },
-            select: { createdAt: true },
           }),
           // Real subscriber signups in previous period
-          prisma.subscriber.findMany({
+          prisma.subscriber.count({
             where: {
               status: "active",
               createdAt: {
@@ -148,7 +147,6 @@ export async function GET(request: Request) {
                 lt: startOfNextPrevDay,
               },
             },
-            select: { createdAt: true },
           }),
           prisma.analyticsVisitorSession.count({
             where: { lastSeenAt: { gte: activeNowThreshold } },
@@ -201,19 +199,65 @@ export async function GET(request: Request) {
             : Promise.resolve(0),
         ]);
 
-        const currentPeriodSubsCount = currentPeriodSubs.length;
-        const prevPeriodSubsCount = prevPeriodSubs.length;
         const subscribersTrend = calculateTrend(currentPeriodSubsCount, prevPeriodSubsCount);
 
         // =========================================================================
         // QUERY BLOCK 2: Analytics Time Series & Database GroupBy Aggregations
         // (Postgres calculates sums and array cardinality directly in C)
         // =========================================================================
+        const currentSubsGroupedQuery =
+          rangeParam === "24h"
+            ? prisma.$queryRaw<Array<{ key: number; count: number }>>`
+                SELECT 
+                  EXTRACT(HOUR FROM "createdAt" AT TIME ZONE 'UTC')::int AS key,
+                  COUNT(*)::int AS count
+                FROM "Subscriber"
+                WHERE status::text = 'active'
+                  AND "createdAt" >= ${startOfPeriod}
+                  AND "createdAt" < ${startOfNextDay}
+                GROUP BY 1
+              `
+            : prisma.$queryRaw<Array<{ key: string; count: number }>>`
+                SELECT 
+                  TO_CHAR("createdAt" AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS key,
+                  COUNT(*)::int AS count
+                FROM "Subscriber"
+                WHERE status::text = 'active'
+                  AND "createdAt" >= ${startOfPeriod}
+                  AND "createdAt" < ${startOfNextDay}
+                GROUP BY 1
+              `;
+
+        const prevSubsGroupedQuery =
+          rangeParam === "24h"
+            ? prisma.$queryRaw<Array<{ key: number; count: number }>>`
+                SELECT 
+                  EXTRACT(HOUR FROM "createdAt" AT TIME ZONE 'UTC')::int AS key,
+                  COUNT(*)::int AS count
+                FROM "Subscriber"
+                WHERE status::text = 'active'
+                  AND "createdAt" >= ${startOfPrevPeriod}
+                  AND "createdAt" < ${startOfNextPrevDay}
+                GROUP BY 1
+              `
+            : prisma.$queryRaw<Array<{ key: string; count: number }>>`
+                SELECT 
+                  TO_CHAR("createdAt" AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS key,
+                  COUNT(*)::int AS count
+                FROM "Subscriber"
+                WHERE status::text = 'active'
+                  AND "createdAt" >= ${startOfPrevPeriod}
+                  AND "createdAt" < ${startOfNextPrevDay}
+                GROUP BY 1
+              `;
+
         const [
           currentDailyRecords,
           prevDailyRecords,
           todayVisitorSessions,
           yesterdayVisitorSessions,
+          currentSubsGrouped,
+          prevSubsGrouped,
           recentLiveSessionsRaw,
           topBlogsGrouped,
           topPagesGrouped,
@@ -256,6 +300,8 @@ export async function GET(request: Request) {
                 GROUP BY 1
               `
             : Promise.resolve([]),
+          currentSubsGroupedQuery,
+          prevSubsGroupedQuery,
           // Filter live sessions strictly to active visitors in the last 15m
           prisma.analyticsVisitorSession.findMany({
             where: { lastSeenAt: { gte: liveStreamThreshold } },
@@ -386,6 +432,16 @@ export async function GET(request: Request) {
           prevLabel: string;
         }> = [];
 
+        const currentSubsMap = new Map<number | string, number>();
+        for (const s of currentSubsGrouped as Array<{ key: number | string; count: number }>) {
+          currentSubsMap.set(rangeParam === "24h" ? Number(s.key) : String(s.key), Number(s.count) || 0);
+        }
+
+        const prevSubsMap = new Map<number | string, number>();
+        for (const s of prevSubsGrouped as Array<{ key: number | string; count: number }>) {
+          prevSubsMap.set(rangeParam === "24h" ? Number(s.key) : String(s.key), Number(s.count) || 0);
+        }
+
         if (rangeParam === "24h") {
           const hourlyVisitorsMap = new Map<number, number>();
           const hourlyViewsMap = new Map<number, number>();
@@ -416,9 +472,9 @@ export async function GET(request: Request) {
             const prevViews = yesterdayHourlyViewsMap.get(hour) ?? 0;
             const prevEngaged = yesterdayHourlyEngagedMap.get(hour) ?? 0;
 
-            // Actual subscriber signups during this specific hour
-            const subsAtHour = currentPeriodSubs.filter((s) => s.createdAt.getUTCHours() === hour).length;
-            const prevSubsAtHour = prevPeriodSubs.filter((s) => s.createdAt.getUTCHours() === hour).length;
+            // Actual subscriber signups during this specific hour (O(1) Map lookup)
+            const subsAtHour = currentSubsMap.get(hour) ?? 0;
+            const prevSubsAtHour = prevSubsMap.get(hour) ?? 0;
 
             const d = new Date(2026, 0, 1, hour);
             const hourLabel = format(d, "h a");
@@ -459,13 +515,9 @@ export async function GET(request: Request) {
             const dateObj = new Date(dateStr + "T00:00:00Z");
             const prevDateObj = new Date(prevDateStr + "T00:00:00Z");
 
-            // Actual subscriber signups on this specific calendar date
-            const subsAtDay = currentPeriodSubs.filter(
-              (s) => s.createdAt.toISOString().split("T")[0] === dateStr
-            ).length;
-            const prevSubsAtDay = prevPeriodSubs.filter(
-              (s) => s.createdAt.toISOString().split("T")[0] === prevDateStr
-            ).length;
+            // Actual subscriber signups on this specific calendar date (O(1) Map lookup)
+            const subsAtDay = currentSubsMap.get(dateStr) ?? 0;
+            const prevSubsAtDay = prevSubsMap.get(prevDateStr) ?? 0;
 
             return {
               date: dateStr,
