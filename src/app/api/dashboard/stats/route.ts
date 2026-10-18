@@ -7,8 +7,13 @@ import { format, subDays } from "date-fns";
 
 export const dynamic = "force-dynamic";
 
-function calculateTrend(current: number, previous: number): number {
-  if (previous === 0) return current > 0 ? 100 : 0;
+const ALLOWED_RANGES = ["24h", "7d", "30d", "90d"] as const;
+type DashboardRange = (typeof ALLOWED_RANGES)[number];
+
+function calculateTrend(current: number, previous: number): number | null {
+  if (previous === 0) {
+    return current > 0 ? null : 0;
+  }
   return Math.round(((current - previous) / previous) * 100);
 }
 
@@ -38,17 +43,26 @@ function getDateRangeArray(startDateStr: string, endDateStr: string): string[] {
 
 export async function GET(request: Request) {
   try {
+    // 1. Strict Authentication & User ID Verification
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session?.user?.id) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
+    // 2. Strict Range Parameter Whitelisting (prevents cache poisoning / pollution)
     const { searchParams } = new URL(request.url);
-    const rangeParam = (searchParams.get("range") || "7d").toLowerCase();
+    const rawRange = (searchParams.get("range") || "7d").toLowerCase();
+    if (!ALLOWED_RANGES.includes(rawRange as DashboardRange)) {
+      return NextResponse.json(
+        { message: "Invalid range parameter. Supported ranges: 24h, 7d, 30d, 90d" },
+        { status: 400 }
+      );
+    }
+    const rangeParam = rawRange as DashboardRange;
     const daysCount = rangeParam === "24h" ? 1 : rangeParam === "30d" ? 30 : rangeParam === "90d" ? 90 : 7;
 
     const isUserAdmin = session.user.role === "ADMIN";
-    const cacheKey = `dashboard-stats-v2:${rangeParam}:${isUserAdmin ? "admin" : "editor"}`;
+    const cacheKey = `dashboard-stats-v6:${rangeParam}:${isUserAdmin ? "admin" : "editor"}`;
 
     const stats = await fetchWithMemoryCache(
       cacheKey,
@@ -56,13 +70,16 @@ export async function GET(request: Request) {
         const now = new Date();
         const todayUtcStr = now.toISOString().split("T")[0];
 
-        // 1. Current Period Boundaries (UTC)
+        // 3. Current Period Boundaries (Inclusive start, exclusive end for zero microsecond edge loss)
         const startDate = subDays(new Date(todayUtcStr + "T00:00:00Z"), daysCount - 1)
           .toISOString()
           .split("T")[0];
         const endDate = todayUtcStr;
 
-        // 2. Previous Period Boundaries (for trends)
+        const startOfPeriod = new Date(startDate + "T00:00:00.000Z");
+        const startOfNextDay = new Date(new Date(endDate + "T00:00:00.000Z").getTime() + 24 * 60 * 60 * 1000);
+
+        // 4. Previous Period Boundaries (for genuine comparison)
         const prevEndDate = subDays(new Date(startDate + "T00:00:00Z"), 1)
           .toISOString()
           .split("T")[0];
@@ -70,9 +87,17 @@ export async function GET(request: Request) {
           .toISOString()
           .split("T")[0];
 
-        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        const startOfPrevPeriod = new Date(prevStartDate + "T00:00:00.000Z");
+        const startOfNextPrevDay = new Date(new Date(prevEndDate + "T00:00:00.000Z").getTime() + 24 * 60 * 60 * 1000);
 
-        // 3. Parallel Queries
+        // Active window for live sessions: visitors active in the last 15 minutes
+        const activeNowThreshold = new Date(Date.now() - 5 * 60 * 1000);
+        const liveStreamThreshold = new Date(Date.now() - 15 * 60 * 1000);
+
+        // =========================================================================
+        // QUERY BLOCK 1: Fast Aggregate Counts & Recent Editorial Fetch
+        // (Mitigates DB connection pool exhaustion by bounding concurrency)
+        // =========================================================================
         const [
           publishedPagesCount,
           totalBlogsCount,
@@ -80,16 +105,13 @@ export async function GET(request: Request) {
           unapprovedCommentsCount,
           totalSubmissionsCount,
           unreadSubmissionsCount,
-          activeSubscribersList,
+          subscribersCount,
+          currentPeriodSubs,
+          prevPeriodSubs,
           activeNowCount,
-          currentDailyRecords,
-          prevDailyRecords,
-          pageRecords,
-          referrerRecords,
-          countryRecords,
           recentDraftBlogs,
           recentPagesRaw,
-          todayVisitorSessions,
+          currentPeriodSubmissionsCount,
         ] = await Promise.all([
           prisma.page.count({ where: { isTrashed: false, status: "published" } }),
           prisma.blog.count({ where: { isTrashed: false } }),
@@ -105,28 +127,31 @@ export async function GET(request: Request) {
           isUserAdmin
             ? prisma.formSubmission.count({ where: { isTrashed: false, isRead: false } })
             : Promise.resolve(0),
+          prisma.subscriber.count({ where: { status: "active" } }),
+          // Real subscriber signups in current period (only createdAt selected for O(1) RAM)
           prisma.subscriber.findMany({
-            where: { status: "active" },
+            where: {
+              status: "active",
+              createdAt: {
+                gte: startOfPeriod,
+                lt: startOfNextDay,
+              },
+            },
+            select: { createdAt: true },
+          }),
+          // Real subscriber signups in previous period
+          prisma.subscriber.findMany({
+            where: {
+              status: "active",
+              createdAt: {
+                gte: startOfPrevPeriod,
+                lt: startOfNextPrevDay,
+              },
+            },
             select: { createdAt: true },
           }),
           prisma.analyticsVisitorSession.count({
-            where: { lastSeenAt: { gte: fiveMinutesAgo } },
-          }),
-          prisma.analyticsDaily.findMany({
-            where: { date: { gte: startDate, lte: endDate } },
-            orderBy: { date: "asc" },
-          }),
-          prisma.analyticsDaily.findMany({
-            where: { date: { gte: prevStartDate, lte: prevEndDate } },
-          }),
-          prisma.analyticsPage.findMany({
-            where: { date: { gte: startDate, lte: endDate } },
-          }),
-          prisma.analyticsReferrer.findMany({
-            where: { date: { gte: startDate, lte: endDate } },
-          }),
-          prisma.analyticsCountry.findMany({
-            where: { date: { gte: startDate, lte: endDate } },
+            where: { lastSeenAt: { gte: activeNowThreshold } },
           }),
           prisma.blog.findMany({
             where: { isTrashed: false, status: { in: ["draft", "scheduled"] } },
@@ -156,7 +181,6 @@ export async function GET(request: Request) {
                 select: {
                   id: true,
                   name: true,
-                  email: true,
                   profilePicture: true,
                 },
               },
@@ -164,104 +188,146 @@ export async function GET(request: Request) {
             orderBy: { updatedAt: "desc" },
             take: 10,
           }),
+          isUserAdmin
+            ? prisma.formSubmission.count({
+                where: {
+                  isTrashed: false,
+                  createdAt: {
+                    gte: startOfPeriod,
+                    lt: startOfNextDay,
+                  },
+                },
+              })
+            : Promise.resolve(0),
+        ]);
+
+        const currentPeriodSubsCount = currentPeriodSubs.length;
+        const prevPeriodSubsCount = prevPeriodSubs.length;
+        const subscribersTrend = calculateTrend(currentPeriodSubsCount, prevPeriodSubsCount);
+
+        // =========================================================================
+        // QUERY BLOCK 2: Analytics Time Series & Database GroupBy Aggregations
+        // (Postgres calculates sums and array cardinality directly in C)
+        // =========================================================================
+        const [
+          currentDailyRecords,
+          prevDailyRecords,
+          todayVisitorSessions,
+          yesterdayVisitorSessions,
+          recentLiveSessionsRaw,
+          topBlogsGrouped,
+          topPagesGrouped,
+          topReferrersGrouped,
+          topCampaignsGrouped,
+          topCountriesGrouped,
+        ] = await Promise.all([
+          prisma.analyticsDaily.findMany({
+            where: { date: { gte: startDate, lte: endDate } },
+            orderBy: { date: "asc" },
+          }),
+          prisma.analyticsDaily.findMany({
+            where: { date: { gte: prevStartDate, lte: prevEndDate } },
+            orderBy: { date: "asc" },
+          }),
+          // Accurate 24h query: views computed from session visitedPaths cardinality
           rangeParam === "24h"
-            ? prisma.$queryRaw<Array<{ hour: number; visitors: number; engaged: number }>>`
+            ? prisma.$queryRaw<Array<{ hour: number; visitors: number; views: number; engaged: number }>>`
                 SELECT 
                   EXTRACT(HOUR FROM "lastSeenAt")::int AS hour,
                   COUNT(*)::int AS visitors,
+                  COALESCE(SUM(GREATEST(cardinality("visitedPaths"), 1)), COUNT(*))::int AS views,
                   COUNT(*) FILTER (WHERE "isEngaged" = true)::int AS engaged
                 FROM "AnalyticsVisitorSession"
                 WHERE "lastSeenAt" >= ${new Date(todayUtcStr + "T00:00:00Z")}
+                  AND "lastSeenAt" < ${startOfNextDay}
                 GROUP BY 1
               `
             : Promise.resolve([]),
+          rangeParam === "24h"
+            ? prisma.$queryRaw<Array<{ hour: number; visitors: number; views: number; engaged: number }>>`
+                SELECT 
+                  EXTRACT(HOUR FROM "lastSeenAt")::int AS hour,
+                  COUNT(*)::int AS visitors,
+                  COALESCE(SUM(GREATEST(cardinality("visitedPaths"), 1)), COUNT(*))::int AS views,
+                  COUNT(*) FILTER (WHERE "isEngaged" = true)::int AS engaged
+                FROM "AnalyticsVisitorSession"
+                WHERE "lastSeenAt" >= ${new Date(prevEndDate + "T00:00:00Z")}
+                  AND "lastSeenAt" < ${new Date(startDate + "T00:00:00Z")}
+                GROUP BY 1
+              `
+            : Promise.resolve([]),
+          // Filter live sessions strictly to active visitors in the last 15m
+          prisma.analyticsVisitorSession.findMany({
+            where: { lastSeenAt: { gte: liveStreamThreshold } },
+            orderBy: { lastSeenAt: "desc" },
+            take: 8,
+            select: {
+              visitorHash: true,
+              lastPath: true,
+              visitedPaths: true,
+              isEngaged: true,
+              lastSeenAt: true,
+            },
+          }),
+          prisma.analyticsPage.groupBy({
+            by: ["path", "title"],
+            where: {
+              date: { gte: startDate, lte: endDate },
+              OR: [
+                { resourceType: "blog" },
+                { path: { startsWith: "/blogs/" } },
+                { path: { startsWith: "/blog/" } },
+              ],
+            },
+            _sum: { views: true, uniqueVisitors: true },
+            orderBy: { _sum: { views: "desc" } },
+            take: 12,
+          }),
+          prisma.analyticsPage.groupBy({
+            by: ["path", "title"],
+            where: {
+              date: { gte: startDate, lte: endDate },
+              NOT: [
+                { resourceType: "blog" },
+                { path: { startsWith: "/blogs/" } },
+                { path: { startsWith: "/blog/" } },
+              ],
+            },
+            _sum: { views: true, uniqueVisitors: true },
+            orderBy: { _sum: { views: "desc" } },
+            take: 12,
+          }),
+          prisma.analyticsReferrer.groupBy({
+            by: ["source"],
+            where: { date: { gte: startDate, lte: endDate } },
+            _sum: { views: true },
+            orderBy: { _sum: { views: "desc" } },
+            take: 10,
+          }),
+          prisma.analyticsReferrer.groupBy({
+            by: ["utmCampaign"],
+            where: {
+              date: { gte: startDate, lte: endDate },
+              utmCampaign: { not: "" },
+            },
+            _sum: { views: true },
+            orderBy: { _sum: { views: "desc" } },
+            take: 10,
+          }),
+          prisma.analyticsCountry.groupBy({
+            by: ["countryCode"],
+            where: { date: { gte: startDate, lte: endDate } },
+            _sum: { views: true },
+            orderBy: { _sum: { views: "desc" } },
+            take: 10,
+          }),
         ]);
 
-        const subscribersCount = activeSubscribersList.length;
-
-        // 4. Construct Zero-Filled Time Series Array
-        let timeSeries: Array<{
-          date: string;
-          label: string;
-          totalViews: number;
-          uniqueVisitors: number;
-          engagedVisits: number;
-          subscribers: number;
-        }> = [];
-
-        if (rangeParam === "24h") {
-          const todayRecord = currentDailyRecords.find((r) => r.date === todayUtcStr);
-          const totalViewsToday = todayRecord?.totalViews ?? 0;
-          const totalVisitorsToday = todayRecord?.uniqueVisitors ?? 0;
-          const totalEngagedToday = todayRecord?.engagedVisits ?? 0;
-
-          const hourlyVisitorsMap = new Map<number, number>();
-          const hourlyEngagedMap = new Map<number, number>();
-          for (const s of todayVisitorSessions) {
-            const h = Number(s.hour);
-            hourlyVisitorsMap.set(h, Number(s.visitors) || 0);
-            hourlyEngagedMap.set(h, Number(s.engaged) || 0);
-          }
-
-          const activeHours = Array.from(hourlyVisitorsMap.keys());
-          const fallbackHour = now.getUTCHours();
-          const targetHour = activeHours.length > 0 ? activeHours[0] : fallbackHour;
-
-          timeSeries = Array.from({ length: 24 }, (_, hour) => {
-            const sessionVisitors = hourlyVisitorsMap.get(hour) ?? 0;
-            const sessionEngaged = hourlyEngagedMap.get(hour) ?? 0;
-
-            let views = sessionVisitors;
-            let visitors = sessionVisitors;
-            let engaged = sessionEngaged;
-
-            if (activeHours.length <= 1 && hour === targetHour) {
-              views = Math.max(views, totalViewsToday);
-              visitors = Math.max(visitors, totalVisitorsToday);
-              engaged = Math.max(engaged, totalEngagedToday);
-            }
-
-            const d = new Date(2026, 0, 1, hour);
-            const hourLabel = format(d, "h a");
-            const hourDate = new Date(`${todayUtcStr}T${hour.toString().padStart(2, "0")}:59:59Z`);
-            const subsAtHour = activeSubscribersList.filter((s) => s.createdAt <= hourDate).length;
-
-            return {
-              date: `${todayUtcStr}T${hour.toString().padStart(2, "0")}:00:00Z`,
-              label: hourLabel,
-              totalViews: views,
-              uniqueVisitors: visitors,
-              engagedVisits: engaged,
-              subscribers: subsAtHour,
-            };
-          });
-        } else {
-          const allDates = getDateRangeArray(startDate, endDate);
-          const dailyMap = new Map<string, (typeof currentDailyRecords)[0]>();
-          for (const item of currentDailyRecords) {
-            dailyMap.set(item.date, item);
-          }
-
-          timeSeries = allDates.map((dateStr) => {
-            const match = dailyMap.get(dateStr);
-            const dateObj = new Date(dateStr + "T00:00:00Z");
-            const dayEndDate = new Date(dateStr + "T23:59:59Z");
-            const subsAtDay = activeSubscribersList.filter((s) => s.createdAt <= dayEndDate).length;
-
-            return {
-              date: dateStr,
-              label: format(dateObj, "MMM d"),
-              totalViews: match?.totalViews ?? 0,
-              uniqueVisitors: match?.uniqueVisitors ?? 0,
-              engagedVisits: match?.engagedVisits ?? 0,
-              subscribers: subsAtDay,
-            };
-          });
-        }
-
-        // 5. Aggregate Current Period Totals
+        // =========================================================================
+        // 5. Aggregate Current & Previous Period Totals (Unit-Consistent Math)
+        // =========================================================================
         let totalViews = 0;
-        let uniqueVisitors = 0;
+        let dailyUniquesSum = 0;
         let engagedVisits = 0;
         let desktopViews = 0;
         let mobileViews = 0;
@@ -269,34 +335,165 @@ export async function GET(request: Request) {
 
         for (const rec of currentDailyRecords) {
           totalViews += rec.totalViews;
-          uniqueVisitors += rec.uniqueVisitors;
+          dailyUniquesSum += rec.uniqueVisitors;
           engagedVisits += rec.engagedVisits;
           desktopViews += rec.desktopViews;
           mobileViews += rec.mobileViews;
           tabletViews += rec.tabletViews;
         }
 
-        const engagementRate = totalViews > 0 ? Math.round((engagedVisits / totalViews) * 100) : 0;
-
-        // 6. Aggregate Previous Period Totals
         let prevTotalViews = 0;
-        let prevUniqueVisitors = 0;
+        let prevDailyUniquesSum = 0;
         let prevEngagedVisits = 0;
 
         for (const rec of prevDailyRecords) {
           prevTotalViews += rec.totalViews;
-          prevUniqueVisitors += rec.uniqueVisitors;
+          prevDailyUniquesSum += rec.uniqueVisitors;
           prevEngagedVisits += rec.engagedVisits;
         }
 
-        const prevEngagementRate = prevTotalViews > 0 ? Math.round((prevEngagedVisits / prevTotalViews) * 100) : 0;
+        // Consistent units: engaged sessions divided by total unique sessions
+        const engagementRate = dailyUniquesSum > 0 ? Math.min(100, Math.round((engagedVisits / dailyUniquesSum) * 100)) : 0;
+        const prevEngagementRate = prevDailyUniquesSum > 0 ? Math.min(100, Math.round((prevEngagedVisits / prevDailyUniquesSum) * 100)) : 0;
 
-        // 7. Calculate Trends
+        // Bounce rate is the genuine complement of session engagement
+        const bounceRate = Math.max(0, 100 - engagementRate);
+        const prevBounceRate = Math.max(0, 100 - prevEngagementRate);
+
         const viewsTrend = calculateTrend(totalViews, prevTotalViews);
-        const visitorsTrend = calculateTrend(uniqueVisitors, prevUniqueVisitors);
+        const visitorsTrend = calculateTrend(dailyUniquesSum, prevDailyUniquesSum);
         const engagementRateTrend = calculateTrend(engagementRate, prevEngagementRate);
+        const bounceRateTrend = calculateTrend(bounceRate, prevBounceRate);
 
+        const pagesPerVisit = dailyUniquesSum > 0 ? Number((totalViews / dailyUniquesSum).toFixed(2)) : 1.0;
+        const prevPagesPerVisit = prevDailyUniquesSum > 0 ? Number((prevTotalViews / prevDailyUniquesSum).toFixed(2)) : 1.0;
+        const pagesPerVisitTrend = calculateTrend(pagesPerVisit, prevPagesPerVisit);
+
+        // =========================================================================
+        // 6. Zero-Filled Time Series Array (100% Measured Data, Zero Fake Multipliers)
+        // =========================================================================
+        let timeSeries: Array<{
+          date: string;
+          label: string;
+          totalViews: number;
+          uniqueVisitors: number;
+          engagedVisits: number;
+          subscribers: number;
+          prevTotalViews: number;
+          prevUniqueVisitors: number;
+          prevEngagedVisits: number;
+          prevSubscribers: number;
+          prevLabel: string;
+        }> = [];
+
+        if (rangeParam === "24h") {
+          const hourlyVisitorsMap = new Map<number, number>();
+          const hourlyViewsMap = new Map<number, number>();
+          const hourlyEngagedMap = new Map<number, number>();
+          for (const s of todayVisitorSessions) {
+            const h = Number(s.hour);
+            hourlyVisitorsMap.set(h, Number(s.visitors) || 0);
+            hourlyViewsMap.set(h, Number(s.views) || 0);
+            hourlyEngagedMap.set(h, Number(s.engaged) || 0);
+          }
+
+          const yesterdayHourlyVisitorsMap = new Map<number, number>();
+          const yesterdayHourlyViewsMap = new Map<number, number>();
+          const yesterdayHourlyEngagedMap = new Map<number, number>();
+          for (const s of yesterdayVisitorSessions) {
+            const h = Number(s.hour);
+            yesterdayHourlyVisitorsMap.set(h, Number(s.visitors) || 0);
+            yesterdayHourlyViewsMap.set(h, Number(s.views) || 0);
+            yesterdayHourlyEngagedMap.set(h, Number(s.engaged) || 0);
+          }
+
+          timeSeries = Array.from({ length: 24 }, (_, hour) => {
+            const sessionVisitors = hourlyVisitorsMap.get(hour) ?? 0;
+            const sessionViews = hourlyViewsMap.get(hour) ?? 0;
+            const sessionEngaged = hourlyEngagedMap.get(hour) ?? 0;
+
+            const prevVisitors = yesterdayHourlyVisitorsMap.get(hour) ?? 0;
+            const prevViews = yesterdayHourlyViewsMap.get(hour) ?? 0;
+            const prevEngaged = yesterdayHourlyEngagedMap.get(hour) ?? 0;
+
+            // Actual subscriber signups during this specific hour
+            const subsAtHour = currentPeriodSubs.filter((s) => s.createdAt.getUTCHours() === hour).length;
+            const prevSubsAtHour = prevPeriodSubs.filter((s) => s.createdAt.getUTCHours() === hour).length;
+
+            const d = new Date(2026, 0, 1, hour);
+            const hourLabel = format(d, "h a");
+
+            return {
+              date: `${todayUtcStr}T${hour.toString().padStart(2, "0")}:00:00Z`,
+              label: hourLabel,
+              totalViews: sessionViews,
+              uniqueVisitors: sessionVisitors,
+              engagedVisits: sessionEngaged,
+              subscribers: subsAtHour,
+              prevTotalViews: prevViews,
+              prevUniqueVisitors: prevVisitors,
+              prevEngagedVisits: prevEngaged,
+              prevSubscribers: prevSubsAtHour,
+              prevLabel: `Yesterday ${hourLabel}`,
+            };
+          });
+        } else {
+          const allDates = getDateRangeArray(startDate, endDate);
+          const prevDates = getDateRangeArray(prevStartDate, prevEndDate);
+
+          const dailyMap = new Map<string, (typeof currentDailyRecords)[0]>();
+          for (const item of currentDailyRecords) {
+            dailyMap.set(item.date, item);
+          }
+
+          const prevDailyMap = new Map<string, (typeof prevDailyRecords)[0]>();
+          for (const item of prevDailyRecords) {
+            prevDailyMap.set(item.date, item);
+          }
+
+          timeSeries = allDates.map((dateStr, index) => {
+            const match = dailyMap.get(dateStr);
+            const prevDateStr = prevDates[index] || prevDates[prevDates.length - 1];
+            const prevMatch = prevDailyMap.get(prevDateStr);
+
+            const dateObj = new Date(dateStr + "T00:00:00Z");
+            const prevDateObj = new Date(prevDateStr + "T00:00:00Z");
+
+            // Actual subscriber signups on this specific calendar date
+            const subsAtDay = currentPeriodSubs.filter(
+              (s) => s.createdAt.toISOString().split("T")[0] === dateStr
+            ).length;
+            const prevSubsAtDay = prevPeriodSubs.filter(
+              (s) => s.createdAt.toISOString().split("T")[0] === prevDateStr
+            ).length;
+
+            return {
+              date: dateStr,
+              label: format(dateObj, "MMM d"),
+              totalViews: match?.totalViews ?? 0,
+              uniqueVisitors: match?.uniqueVisitors ?? 0,
+              engagedVisits: match?.engagedVisits ?? 0,
+              subscribers: subsAtDay, // Real measured daily signups!
+              prevTotalViews: prevMatch?.totalViews ?? 0,
+              prevUniqueVisitors: prevMatch?.uniqueVisitors ?? 0,
+              prevEngagedVisits: prevMatch?.engagedVisits ?? 0,
+              prevSubscribers: prevSubsAtDay, // Real measured previous daily signups!
+              prevLabel: format(prevDateObj, "MMM d"),
+            };
+          });
+        }
+
+        // =========================================================================
+        // 7. Audience Conversion Funnel (Consistent Session Population)
+        // =========================================================================
+        const totalConversions = currentPeriodSubsCount + currentPeriodSubmissionsCount;
+        const funnelRetentionRate = dailyUniquesSum > 0 ? Math.min(100, Math.round((engagedVisits / dailyUniquesSum) * 100)) : 0;
+        const funnelConversionRate = dailyUniquesSum > 0 ? Number(((totalConversions / dailyUniquesSum) * 100).toFixed(2)) : 0;
+        const dropOffVisitorsToEngaged = Math.max(0, 100 - funnelRetentionRate);
+
+        // =========================================================================
         // 8. Device Split
+        // =========================================================================
         const totalDeviceViews = desktopViews + mobileViews + tabletViews;
         const devices = [
           {
@@ -319,90 +516,164 @@ export async function GET(request: Request) {
           },
         ];
 
-        // 9. Aggregate Top Content (Blogs vs Pages)
-        const blogsAggMap = new Map<string, { title: string; path: string; views: number }>();
-        const pagesAggMap = new Map<string, { title: string; path: string; views: number }>();
-
-        for (const row of pageRecords) {
-          const isBlog = row.resourceType === "blog" || row.path.startsWith("/blogs/") || row.path.startsWith("/blog/");
-          const targetMap = isBlog ? blogsAggMap : pagesAggMap;
-          const existing = targetMap.get(row.path);
-
-          if (existing) {
-            existing.views += row.views;
-            if (row.title && existing.title === existing.path) {
-              existing.title = row.title;
-            }
-          } else {
-            targetMap.set(row.path, {
-              title: row.title || row.path,
-              path: row.path,
-              views: row.views,
-            });
-          }
-        }
-
-        const sortedBlogs = Array.from(blogsAggMap.values()).sort((a, b) => b.views - a.views);
-        const maxBlogViews = sortedBlogs[0]?.views || 1;
-        const topBlogs = sortedBlogs.slice(0, 6).map((item) => ({
-          ...item,
-          percentShare: Math.min(100, Math.round((item.views / maxBlogViews) * 100)),
-        }));
-
-        const sortedPages = Array.from(pagesAggMap.values()).sort((a, b) => b.views - a.views);
-        const maxPageViews = sortedPages[0]?.views || 1;
-        const topPages = sortedPages.slice(0, 6).map((item) => ({
-          ...item,
-          percentShare: Math.min(100, Math.round((item.views / maxPageViews) * 100)),
-        }));
-
-        // 10. Aggregate Referrers & Campaigns
-        const referrerMap = new Map<string, number>();
-        const campaignMap = new Map<string, number>();
-
-        for (const row of referrerRecords) {
-          referrerMap.set(row.source, (referrerMap.get(row.source) || 0) + row.views);
-          if (row.utmCampaign && row.utmCampaign.length > 0) {
-            campaignMap.set(row.utmCampaign, (campaignMap.get(row.utmCampaign) || 0) + row.views);
-          }
-        }
-
-        const sortedReferrers = Array.from(referrerMap.entries())
-          .map(([source, views]) => ({ source, views }))
-          .sort((a, b) => b.views - a.views);
-        const maxReferrerViews = sortedReferrers[0]?.views || 1;
-        const topReferrers = sortedReferrers.slice(0, 6).map((r) => ({
-          ...r,
-          percentShare: Math.min(100, Math.round((r.views / maxReferrerViews) * 100)),
-        }));
-
-        const sortedCampaigns = Array.from(campaignMap.entries())
-          .map(([campaign, views]) => ({ campaign, views }))
-          .sort((a, b) => b.views - a.views);
-        const maxCampaignViews = sortedCampaigns[0]?.views || 1;
-        const topCampaigns = sortedCampaigns.slice(0, 6).map((c) => ({
-          ...c,
-          percentShare: Math.min(100, Math.round((c.views / maxCampaignViews) * 100)),
-        }));
-
-        // 11. Aggregate Countries
-        const countryMap = new Map<string, number>();
-        for (const row of countryRecords) {
-          countryMap.set(row.countryCode, (countryMap.get(row.countryCode) || 0) + row.views);
-        }
-
-        const sortedCountries = Array.from(countryMap.entries())
-          .map(([code, views]) => ({
-            code,
-            flag: getCountryFlag(code),
+        // =========================================================================
+        // 9. Top Content & Acquisition Channels (With Total Share & Relative Scale)
+        // =========================================================================
+        const maxBlogViews = topBlogsGrouped[0]?._sum?.views || 1;
+        const topBlogs = topBlogsGrouped.slice(0, 8).map((item) => {
+          const views = item._sum?.views ?? 0;
+          return {
+            path: item.path,
+            title: item.title || item.path,
             views,
-          }))
-          .sort((a, b) => b.views - a.views);
-        const maxCountryViews = sortedCountries[0]?.views || 1;
-        const topCountries = sortedCountries.slice(0, 6).map((c) => ({
-          ...c,
-          percentShare: Math.min(100, Math.round((c.views / maxCountryViews) * 100)),
-        }));
+            uniqueVisitors: item._sum?.uniqueVisitors ?? 0,
+            totalShare: totalViews > 0 ? Number(((views / totalViews) * 100).toFixed(1)) : 0,
+            relativeScale: Math.min(100, Math.round((views / maxBlogViews) * 100)),
+          };
+        });
+
+        const maxPageViews = topPagesGrouped[0]?._sum?.views || 1;
+        const topPages = topPagesGrouped.slice(0, 8).map((item) => {
+          const views = item._sum?.views ?? 0;
+          return {
+            path: item.path,
+            title: item.title || item.path,
+            views,
+            uniqueVisitors: item._sum?.uniqueVisitors ?? 0,
+            totalShare: totalViews > 0 ? Number(((views / totalViews) * 100).toFixed(1)) : 0,
+            relativeScale: Math.min(100, Math.round((views / maxPageViews) * 100)),
+          };
+        });
+
+        const maxReferrerViews = topReferrersGrouped[0]?._sum?.views || 1;
+        const topReferrers = topReferrersGrouped.slice(0, 6).map((item) => {
+          const views = item._sum?.views ?? 0;
+          return {
+            source: item.source,
+            views,
+            totalShare: totalViews > 0 ? Number(((views / totalViews) * 100).toFixed(1)) : 0,
+            relativeScale: Math.min(100, Math.round((views / maxReferrerViews) * 100)),
+          };
+        });
+
+        const maxCampaignViews = topCampaignsGrouped[0]?._sum?.views || 1;
+        const topCampaigns = topCampaignsGrouped.slice(0, 6).map((item) => {
+          const views = item._sum?.views ?? 0;
+          return {
+            campaign: item.utmCampaign,
+            views,
+            totalShare: totalViews > 0 ? Number(((views / totalViews) * 100).toFixed(1)) : 0,
+            relativeScale: Math.min(100, Math.round((views / maxCampaignViews) * 100)),
+          };
+        });
+
+        const maxCountryViews = topCountriesGrouped[0]?._sum?.views || 1;
+        const topCountries = topCountriesGrouped.slice(0, 6).map((item) => {
+          const views = item._sum?.views ?? 0;
+          return {
+            code: item.countryCode,
+            flag: getCountryFlag(item.countryCode),
+            views,
+            totalShare: totalViews > 0 ? Number(((views / totalViews) * 100).toFixed(1)) : 0,
+            relativeScale: Math.min(100, Math.round((views / maxCountryViews) * 100)),
+          };
+        });
+
+        // =========================================================================
+        // 10. Live Visitor Activity (Strictly Filtered to Active Sessions in Last 15m)
+        // =========================================================================
+        const liveVisitors = recentLiveSessionsRaw.map((s, idx) => {
+          const elapsedSecs = Math.max(2, Math.floor((Date.now() - s.lastSeenAt.getTime()) / 1000));
+          const timeAgo =
+            elapsedSecs < 60
+              ? `${elapsedSecs}s ago`
+              : elapsedSecs < 3600
+              ? `${Math.floor(elapsedSecs / 60)}m ago`
+              : `${Math.floor(elapsedSecs / 3600)}h ago`;
+
+          const cleanPath = s.lastPath || "/";
+          const matchedTitle =
+            topBlogs.find((b) => b.path === cleanPath)?.title ||
+            topPages.find((p) => p.path === cleanPath)?.title ||
+            cleanPath;
+
+          return {
+            id: `visitor_${idx + 1}`,
+            hashMask: `#${s.visitorHash.slice(-4).toUpperCase()}`,
+            path: cleanPath,
+            title: matchedTitle,
+            pagesVisited: Math.max(1, s.visitedPaths?.length || 1),
+            isEngaged: s.isEngaged,
+            timeAgo,
+            lastSeenAt: s.lastSeenAt.toISOString(),
+          };
+        });
+
+        // =========================================================================
+        // 11. Dynamic Executive Intelligence Insights
+        // =========================================================================
+        const dominantDevice = [...devices].sort((a, b) => b.value - a.value)[0] || { name: "Desktop", percentage: 50 };
+        const insights: Array<{ id: string; category: "growth" | "content" | "channel" | "audience"; text: string; highlight: string }> = [];
+
+        if (viewsTrend !== null && viewsTrend > 0) {
+          insights.push({
+            id: "ins-growth",
+            category: "growth",
+            highlight: `+${viewsTrend}%`,
+            text: `Traffic accelerated by +${viewsTrend}% vs previous ${rangeParam.toUpperCase()} period (${totalViews.toLocaleString()} views).`,
+          });
+        } else if (viewsTrend !== null && viewsTrend < 0) {
+          insights.push({
+            id: "ins-growth",
+            category: "growth",
+            highlight: `${viewsTrend}%`,
+            text: `Readership decreased ${Math.abs(viewsTrend)}% compared to the prior timeframe.`,
+          });
+        } else {
+          insights.push({
+            id: "ins-growth",
+            category: "growth",
+            highlight: "Steady",
+            text: `Traffic is holding steady with ${totalViews.toLocaleString()} total page impressions.`,
+          });
+        }
+
+        if (topBlogs[0]) {
+          insights.push({
+            id: "ins-content",
+            category: "content",
+            highlight: `${topBlogs[0].totalShare}% share`,
+            text: `"${topBlogs[0].title}" is your #1 driver, capturing ${topBlogs[0].totalShare}% of total reading volume.`,
+          });
+        }
+
+        if (topReferrers[0]) {
+          insights.push({
+            id: "ins-channel",
+            category: "channel",
+            highlight: topReferrers[0].source,
+            text: `${topReferrers[0].source} dominates acquisition with ${topReferrers[0].views.toLocaleString()} visits (${topReferrers[0].totalShare}% share).`,
+          });
+        }
+
+        if (dominantDevice.percentage > 0) {
+          insights.push({
+            id: "ins-audience",
+            category: "audience",
+            highlight: `${dominantDevice.percentage}% ${dominantDevice.name}`,
+            text: `${dominantDevice.name} is the primary reading environment (${dominantDevice.percentage}% of readers).`,
+          });
+        }
+
+        // =========================================================================
+        // 12. Micro-Sparklines Payload for KPI Cards
+        // =========================================================================
+        const sparklines = {
+          views: timeSeries.map((t) => t.totalViews),
+          visitors: timeSeries.map((t) => t.uniqueVisitors),
+          engagement: timeSeries.map((t) => t.engagedVisits),
+          subscribers: timeSeries.map((t) => t.subscribers),
+        };
 
         const recentPages = recentPagesRaw.map(mapDbToPageData);
 
@@ -411,15 +682,36 @@ export async function GET(request: Request) {
           summary: {
             totalViews,
             viewsTrend,
-            uniqueVisitors,
+            uniqueVisitors: dailyUniquesSum,
             visitorsTrend,
             engagementRate,
             engagementRateTrend,
             subscribersCount,
+            subscribersTrend,
+            currentPeriodSubsCount,
             publishedPagesCount,
             totalBlogsCount,
             activeNow: activeNowCount,
+            // Reading Depth & Efficiency
+            pagesPerVisit,
+            pagesPerVisitTrend,
+            bounceRate,
+            bounceRateTrend,
+            engagedVisitsCount: engagedVisits,
           },
+          funnel: {
+            visitors: dailyUniquesSum,
+            engaged: engagedVisits,
+            conversions: totalConversions,
+            retentionRate: funnelRetentionRate,
+            conversionRate: funnelConversionRate,
+            dropOffVisitorsToEngaged,
+            subscribersGained: currentPeriodSubsCount,
+            submissionsGained: currentPeriodSubmissionsCount,
+          },
+          insights,
+          sparklines,
+          liveVisitors,
           timeSeries,
           devices,
           topContent: {
@@ -449,10 +741,11 @@ export async function GET(request: Request) {
     );
 
     return NextResponse.json(stats);
-  } catch (error: any) {
+  } catch (error) {
     console.error("Dashboard stats fetch error:", error);
+    // Secure generic 500 error response (no internal stack trace or DB details leaked)
     return NextResponse.json(
-      { message: "Failed to fetch dashboard stats", error: error.message },
+      { message: "Failed to fetch dashboard stats" },
       { status: 500 }
     );
   }
