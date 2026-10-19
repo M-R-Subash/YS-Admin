@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { universalSeoFormSchema } from "@/lib/schemas/seo-validation";
 import { revalidateFrontendPath } from "@/lib/revalidate";
-import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
+import { recordAuditLog, getClientAuditMeta, logEntityMutation } from "@/lib/server/audit";
 
 export async function PUT(
   req: Request,
@@ -24,7 +24,7 @@ export async function PUT(
 
     const existingPage = await prisma.page.findUnique({
       where: { id },
-      select: { id: true, title: true, slug: true },
+      include: { seo: true },
     });
 
     if (!existingPage) {
@@ -110,41 +110,12 @@ export async function PUT(
       revalidateFrontendPath(updatedPage.slug);
     }
 
-    const clientMeta = await getClientAuditMeta(req);
-    const titleChanged = existingPage.title !== updatedPage.title;
-    const slugChanged = existingPage.slug !== updatedPage.slug;
-
-    let eventType = "PAGE.SEO_UPDATED";
-    let actionDesc = `Updated SEO configuration for page "${updatedPage.title}"`;
-
-    if (titleChanged) {
-      eventType = "PAGE.UPDATED";
-      actionDesc = `Renamed page from "${existingPage.title}" to "${updatedPage.title}"`;
-    } else if (slugChanged) {
-      eventType = "PAGE.UPDATED";
-      actionDesc = `Changed page URL slug from "/${existingPage.slug}" to "/${updatedPage.slug}"`;
-    }
-
-    await recordAuditLog({
-      eventType,
+    await logEntityMutation({
       category: "PAGES",
-      action: actionDesc,
-      target: `Page: ${updatedPage.title}`,
+      before: existingPage,
+      after: updatedPage,
       userId: session.user.id,
-      status: "SUCCESS",
-      ipAddress: clientMeta.ipAddress,
-      userAgent: clientMeta.userAgent,
-      metadata: {
-        pageId: updatedPage.id,
-        slug: updatedPage.slug,
-        fromTitle: existingPage.title,
-        toTitle: updatedPage.title,
-        fromSlug: existingPage.slug,
-        toSlug: updatedPage.slug,
-        titleChanged,
-        slugChanged,
-        metaTitle: validatedData.metaTitle,
-      },
+      request: req,
     });
 
     return NextResponse.json({ success: true, page: updatedPage });

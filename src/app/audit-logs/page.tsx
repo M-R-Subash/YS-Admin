@@ -187,6 +187,14 @@ function getTransitionInfo(item: AuditLogItem): TransitionInfo {
       if (meta.fromTitle && meta.toTitle && meta.fromTitle !== meta.toTitle) {
         return { from: "Title", to: "Renamed", type: "update", pillText: "Title Renamed" };
       }
+      if (meta.changedFields && Array.isArray(meta.changedFields) && meta.changedFields.length > 0) {
+        if (meta.changedFields.length === 1) {
+          const field = meta.changedFields[0];
+          const label = meta.diff?.[field]?.label || field;
+          return { from: label, to: "Updated", type: "update", pillText: `${label} Updated` };
+        }
+        return { from: "Fields", to: `${meta.changedFields.length} Updated`, type: "update", pillText: `${meta.changedFields.length} Fields Updated` };
+      }
       return { from: "Content", to: "Saved", type: "update", pillText: "Content Updated" };
 
     case "PAGE.BULK_PUBLISH":
@@ -255,8 +263,20 @@ function getTransitionInfo(item: AuditLogItem): TransitionInfo {
 
     case "USER.CREATED":
       return { from: "Invited", to: meta.role || "Member", type: "publish" };
+    case "USER.PASSWORD_CHANGED":
+      return { from: "Password", to: "Changed", type: "update", pillText: "Password Changed" };
     case "USER.ROLE_UPDATED":
       return { from: "Role", to: meta.role || "Updated", type: "update" };
+    case "USER.UPDATED":
+      if (meta.changedFields && Array.isArray(meta.changedFields) && meta.changedFields.length > 0) {
+        if (meta.changedFields.length === 1) {
+          const field = meta.changedFields[0];
+          const label = meta.diff?.[field]?.label || field;
+          return { from: label, to: "Updated", type: "update", pillText: `${label} Updated` };
+        }
+        return { from: "Profile", to: `${meta.changedFields.length} Updated`, type: "update", pillText: `${meta.changedFields.length} Fields Updated` };
+      }
+      return { from: "Profile", to: "Updated", type: "update", pillText: "Profile Updated" };
     case "USER.DELETED":
       return { from: "Team", to: "Removed", type: "delete" };
 
@@ -272,6 +292,9 @@ function getTransitionInfo(item: AuditLogItem): TransitionInfo {
 
 // Crisp, concise explanations without redundant wall-of-text
 function getSimpleExplanation(item: AuditLogItem): string {
+  if (item.action && item.action.trim()) {
+    return item.action;
+  }
   const meta = item.metadata || {};
   const event = item.eventType;
 
@@ -667,6 +690,22 @@ const AuditLogRow = React.memo(function AuditLogRow({ item, onSelect }: AuditLog
   );
 });
 
+function formatDiffValue(val: any): string {
+  if (val === null || val === undefined || val === "") return "(empty)";
+  if (typeof val === "boolean") return val ? "Yes" : "No";
+  if (Array.isArray(val)) {
+    return val.length === 0 ? "(none)" : val.join(", ");
+  }
+  if (typeof val === "object") {
+    try {
+      return JSON.stringify(val);
+    } catch {
+      return String(val);
+    }
+  }
+  return String(val);
+}
+
 interface AuditLogInspectorProps {
   log: AuditLogItem | null;
   onClose: () => void;
@@ -816,7 +855,106 @@ function AuditLogInspector({ log }: AuditLogInspectorProps) {
           </div>
         </div>
 
-        {/* 4. Activity Specific Breakdown (Clean checklist, NOT raw JSON) */}
+        {/* 4. Field Modifications Card (Diff Breakdown) */}
+        {meta.diff && Object.keys(meta.diff).length > 0 && (
+          <div className="p-4 rounded-xl border border-border bg-card space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Field Modifications ({Object.keys(meta.diff).length})
+              </span>
+              {meta.contentChanged && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+                >
+                  Body Content Updated
+                </Badge>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              {Object.values(meta.diff).map((entry: any, idx: number) => {
+                const fromStr = formatDiffValue(entry.from);
+                const toStr = formatDiffValue(entry.to);
+                const isImage =
+                  (entry.field === "featuredImage" ||
+                    entry.field === "ogImage" ||
+                    entry.field === "profilePicture") &&
+                  (entry.to || entry.from);
+
+                return (
+                  <div
+                    key={idx}
+                    className="p-2.5 rounded-lg bg-muted/40 border border-border/70 space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-foreground">
+                        {entry.label || entry.field}
+                      </span>
+                      <span className="text-[10px] font-mono text-muted-foreground">
+                        {entry.field}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="p-2 rounded bg-background/60 border border-border/50">
+                        <span className="text-[9px] uppercase font-bold text-muted-foreground block mb-1">
+                          Previous
+                        </span>
+                        {isImage &&
+                        entry.from &&
+                        typeof entry.from === "string" &&
+                        entry.from.startsWith("http") ? (
+                          <div className="space-y-1">
+                            <img
+                              src={entry.from}
+                              alt="Previous"
+                              className="h-10 w-auto rounded object-cover border border-border opacity-60"
+                            />
+                            <span className="text-muted-foreground line-through break-all text-[10px] font-mono block truncate">
+                              {fromStr}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground line-through break-all text-[11px] block">
+                            {fromStr}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="p-2 rounded bg-emerald-500/5 border border-emerald-500/20">
+                        <span className="text-[9px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block mb-1">
+                          Updated
+                        </span>
+                        {isImage &&
+                        entry.to &&
+                        typeof entry.to === "string" &&
+                        entry.to.startsWith("http") ? (
+                          <div className="space-y-1">
+                            <img
+                              src={entry.to}
+                              alt="New"
+                              className="h-10 w-auto rounded object-cover border border-emerald-500/30"
+                            />
+                            <span className="text-foreground font-semibold break-all text-[10px] font-mono block truncate">
+                              {toStr}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-foreground font-semibold break-all text-[11px] block">
+                            {toStr}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 5. Activity Specific Breakdown (Clean checklist, NOT raw JSON) */}
         <div className="p-4 rounded-xl border border-border bg-card space-y-2">
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
             Change Details

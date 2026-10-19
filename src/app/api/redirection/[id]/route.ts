@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, requireLiveUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
-import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
+import { recordAuditLog, getClientAuditMeta, logEntityMutation } from "@/lib/server/audit";
 
 function normalizeUrl(url: string): string {
   let cleaned = url.trim();
@@ -104,33 +104,12 @@ export async function PATCH(
       data: updateData,
     });
 
-    const clientMeta = await getClientAuditMeta(request);
-    const fromStatus = existing.status;
-    const toStatus = updated.status;
-    const isStatusChange = fromStatus !== toStatus;
-
-    await recordAuditLog({
-      eventType: isStatusChange
-        ? toStatus === "trashed"
-          ? "REDIRECTION.TRASHED"
-          : "REDIRECTION.STATUS_CHANGED"
-        : "REDIRECTION.UPDATED",
+    await logEntityMutation({
       category: "REDIRECTIONS",
-      action: isStatusChange
-        ? `Changed redirect ${existing.sourceUrl} status: ${fromStatus} ➔ ${toStatus}`
-        : `Updated redirect ${existing.sourceUrl} ➔ ${updated.destinationUrl} (${updated.statusCode})`,
-      target: `Redirect: ${existing.sourceUrl}`,
+      before: existing,
+      after: updated,
       userId: session.user.id,
-      status: toStatus === "trashed" ? "WARNING" : "SUCCESS",
-      ipAddress: clientMeta.ipAddress,
-      userAgent: clientMeta.userAgent,
-      metadata: {
-        sourceUrl: existing.sourceUrl,
-        fromStatus,
-        toStatus,
-        destinationUrl: updated.destinationUrl,
-        statusCode: updated.statusCode,
-      },
+      request,
     });
 
     return NextResponse.json(updated);

@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, requireLiveAdmin } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
+import { recordAuditLog, getClientAuditMeta, logEntityMutation } from "@/lib/server/audit";
 
 export async function DELETE(
   request: Request,
@@ -147,6 +147,26 @@ export async function PATCH(
       );
     }
 
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        authorRole: true,
+        description: true,
+        profilePicture: true,
+      },
+    });
+
+    if (!existingUser) {
+      return NextResponse.json(
+        { message: "User not found" },
+        { status: 404 }
+      );
+    }
+
     const body = await request.json();
     const { name, role, authorRole, description, profilePicture, password } = body;
 
@@ -208,29 +228,16 @@ export async function PATCH(
       },
     });
 
-    const clientMeta = await getClientAuditMeta(request);
-    let eventType = "USER.UPDATED";
-    let actionDesc = `Updated profile information for user "${updatedUser.name || updatedUser.email}"`;
-
-    if (role !== undefined) {
-      eventType = "USER.ROLE_UPDATED";
-      actionDesc = `Changed role for "${updatedUser.name || updatedUser.email}" to ${updatedUser.role}`;
-    }
-
-    await recordAuditLog({
-      eventType,
+    // Authoritative Audit Logging with Unified Field-Level Diffs
+    await logEntityMutation({
       category: "USERS",
-      action: actionDesc,
-      target: `User: ${updatedUser.name || updatedUser.email}`,
-      userId: session.user.id,
-      status: "SUCCESS",
-      ipAddress: clientMeta.ipAddress,
-      userAgent: clientMeta.userAgent,
-      metadata: {
-        targetUserId: updatedUser.id,
-        role: updatedUser.role,
-        changedFields: Object.keys(body).filter((k) => k !== "password"),
+      before: existingUser,
+      after: {
+        ...updatedUser,
+        password: password ? "••••••••" : undefined,
       },
+      userId: session.user.id,
+      request,
     });
 
     return NextResponse.json({

@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { handleApiError } from "@/lib/server/prisma-errors";
 import { slugify } from "@/lib/slugify";
-import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
+import { recordAuditLog, getClientAuditMeta, logEntityMutation } from "@/lib/server/audit";
 
 const updateTagSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(50).optional(),
@@ -93,22 +93,12 @@ export async function PATCH(
       }
     }
 
-    const clientMeta = await getClientAuditMeta(request);
-    await recordAuditLog({
-      eventType: "TAXONOMY.TAG_UPDATED",
+    await logEntityMutation({
       category: "TAXONOMY",
-      action: `Updated tag #${updated.name}`,
-      target: `Tag: #${updated.name}`,
+      before: existing,
+      after: updated,
       userId: session.user.id,
-      status: "SUCCESS",
-      ipAddress: clientMeta.ipAddress,
-      userAgent: clientMeta.userAgent,
-      metadata: {
-        name: updated.name,
-        slug: updated.slug,
-        fromStatus: "active",
-        toStatus: "active",
-      },
+      request,
     });
 
     return NextResponse.json({ ...updated, postCount: updated._count.blogs });

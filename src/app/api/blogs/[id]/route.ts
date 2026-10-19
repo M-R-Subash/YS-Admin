@@ -14,7 +14,7 @@ import { createBlogRevisionSnapshot } from "@/lib/server/revision-utils";
 import { handleApiError } from "@/lib/server/prisma-errors";
 import { slugify } from "@/lib/slugify";
 import { invalidateAggregateCaches } from "@/lib/server/memory-cache";
-import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
+import { recordAuditLog, getClientAuditMeta, logEntityMutation } from "@/lib/server/audit";
 
 // GET /api/blogs/[id] — get a single blog
 export async function GET(
@@ -59,7 +59,13 @@ export async function PUT(
   }
 
   const { id } = await params;
-  const existingBlog = await prisma.blog.findUnique({ where: { id } });
+  const existingBlog = await prisma.blog.findUnique({
+    where: { id },
+    include: {
+      seo: true,
+      author: { select: { id: true, name: true, email: true } },
+    },
+  });
   if (!existingBlog) {
     return NextResponse.json({ error: "Blog not found" }, { status: 404 });
   }
@@ -435,7 +441,10 @@ export async function PUT(
     const updated = await tx.blog.update({
       where: { id },
       data: updateData,
-      include: { seo: true },
+      include: {
+        seo: true,
+        author: { select: { id: true, name: true, email: true } },
+      },
     });
 
     const isPublishAction =
@@ -516,49 +525,13 @@ export async function PUT(
 
   invalidateAggregateCaches();
 
-  // Audit Logging for Blog Mutations
-  const fromStatus = existingBlog.isTrashed ? "trash" : existingBlog.status;
-  const toStatus = isTrashed === true ? "trash" : blog.status;
-
-  let eventType = "BLOG.UPDATED";
-  let actionDesc = existingBlog.title !== blog.title
-    ? `Renamed blog article from "${existingBlog.title}" to "${blog.title}"`
-    : `Updated content for blog article "${blog.title}"`;
-
-  if (isTrashed === true && !existingBlog.isTrashed) {
-    eventType = "BLOG.TRASHED";
-    actionDesc = `Moved blog article "${blog.title}" from "${fromStatus}" to trash`;
-  } else if (isTrashed === false && existingBlog.isTrashed) {
-    eventType = "BLOG.RESTORED";
-    actionDesc = `Restored blog article "${blog.title}" from trash (set to "${blog.status}")`;
-  } else if (toStatus === "published" && fromStatus !== "published") {
-    eventType = "BLOG.PUBLISHED";
-    actionDesc = `Changed blog status from "${fromStatus}" to "published"`;
-  } else if (toStatus === "draft" && fromStatus !== "draft") {
-    eventType = "BLOG.SET_TO_DRAFT";
-    actionDesc = `Changed blog status from "${fromStatus}" to "draft"`;
-  }
-
-  const clientMeta = await getClientAuditMeta(request);
-  await recordAuditLog({
-    eventType,
+  // Authoritative Audit Logging with Unified Field-Level Diffs
+  await logEntityMutation({
     category: "BLOGS",
-    action: actionDesc,
-    target: `Blog: ${blog.title}`,
+    before: existingBlog,
+    after: blog,
     userId: session.user.id,
-    status: "SUCCESS",
-    ipAddress: clientMeta.ipAddress,
-    userAgent: clientMeta.userAgent,
-    metadata: {
-      blogId: blog.id,
-      slug: blog.slug,
-      fromStatus,
-      toStatus,
-      title: blog.title,
-      fromTitle: existingBlog.title,
-      toTitle: blog.title,
-      changes: fromStatus !== toStatus ? `${fromStatus} ➔ ${toStatus}` : (existingBlog.title !== blog.title ? `Renamed to ${blog.title}` : "Content updated"),
-    },
+    request,
   });
 
   return NextResponse.json(blog);

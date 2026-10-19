@@ -4,7 +4,7 @@ import { authOptions, requireLiveUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { handleApiError } from "@/lib/server/prisma-errors";
-import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
+import { recordAuditLog, getClientAuditMeta, logEntityMutation } from "@/lib/server/audit";
 
 function slugify(text: string): string {
   return text
@@ -136,22 +136,12 @@ export async function PATCH(
       }
     }
 
-    const clientMeta = await getClientAuditMeta(request);
-    await recordAuditLog({
-      eventType: "TAXONOMY.CATEGORY_UPDATED",
+    await logEntityMutation({
       category: "TAXONOMY",
-      action: `Updated blog category "${updated.name}"`,
-      target: `Category: ${updated.name}`,
+      before: existing,
+      after: updated,
       userId: session.user.id,
-      status: "SUCCESS",
-      ipAddress: clientMeta.ipAddress,
-      userAgent: clientMeta.userAgent,
-      metadata: {
-        name: updated.name,
-        slug: updated.slug,
-        fromStatus: "active",
-        toStatus: "active",
-      },
+      request,
     });
 
     return NextResponse.json(updated);

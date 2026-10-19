@@ -6,7 +6,7 @@ import { revalidateFrontendPath } from "@/lib/revalidate";
 import { serverConfig } from "@/lib/config/server";
 import { handleApiError } from "@/lib/server/prisma-errors";
 import { invalidateAggregateCaches } from "@/lib/server/memory-cache";
-import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
+import { recordAuditLog, getClientAuditMeta, logEntityMutation } from "@/lib/server/audit";
 
 // GET /api/pages/[id] — get a single page
 export async function GET(
@@ -24,7 +24,7 @@ export async function GET(
     include: {
       seo: true,
       author: {
-        select: { name: true },
+        select: { id: true, name: true, email: true },
       },
     },
   });
@@ -58,7 +58,10 @@ export async function PUT(
   const { id } = await params;
   const existingPage = await prisma.page.findUnique({
     where: { id },
-    select: { id: true, title: true, status: true, isTrashed: true },
+    include: {
+      seo: true,
+      author: { select: { id: true, name: true, email: true } },
+    },
   });
   if (!existingPage) {
     return NextResponse.json({ error: "Page not found" }, { status: 404 });
@@ -167,7 +170,7 @@ export async function PUT(
     include: {
       seo: true,
       author: {
-        select: { name: true },
+        select: { id: true, name: true, email: true },
       },
     },
   });
@@ -179,45 +182,13 @@ export async function PUT(
 
   invalidateAggregateCaches();
 
-  // Audit Logging for Page Mutations
-  const fromStatus = existingPage.isTrashed ? "trash" : existingPage.status;
-  const toStatus = page.isTrashed ? "trash" : page.status;
-
-  let eventType = "PAGE.UPDATED";
-  let actionDesc = `Updated content for page "${page.title}"`;
-
-  if (isTrashed === true && !existingPage.isTrashed) {
-    eventType = "PAGE.TRASHED";
-    actionDesc = `Moved page "${page.title}" from "${fromStatus}" to trash`;
-  } else if (isTrashed === false && existingPage.isTrashed) {
-    eventType = "PAGE.RESTORED";
-    actionDesc = `Restored page "${page.title}" from trash (set to "${page.status}")`;
-  } else if (status === "published" && existingPage.status !== "published") {
-    eventType = "PAGE.PUBLISHED";
-    actionDesc = `Changed page status from "${fromStatus}" to "published"`;
-  } else if (status === "draft" && existingPage.status !== "draft") {
-    eventType = "PAGE.SET_TO_DRAFT";
-    actionDesc = `Changed page status from "${fromStatus}" to "draft"`;
-  }
-
-  const clientMeta = await getClientAuditMeta(request);
-  await recordAuditLog({
-    eventType,
+  // Authoritative Audit Logging with Unified Field-Level Diffs
+  await logEntityMutation({
     category: "PAGES",
-    action: actionDesc,
-    target: `Page: ${page.title}`,
+    before: existingPage,
+    after: page,
     userId: session.user.id,
-    status: "SUCCESS",
-    ipAddress: clientMeta.ipAddress,
-    userAgent: clientMeta.userAgent,
-    metadata: {
-      pageId: page.id,
-      slug: page.slug,
-      fromStatus,
-      toStatus,
-      title: page.title,
-      changes: fromStatus !== toStatus ? `${fromStatus} ➔ ${toStatus}` : "Content updated",
-    },
+    request,
   });
 
     return NextResponse.json({

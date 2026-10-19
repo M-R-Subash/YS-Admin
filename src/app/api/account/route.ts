@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
+import { recordAuditLog, getClientAuditMeta, logEntityMutation } from "@/lib/server/audit";
 
 export async function GET() {
   try {
@@ -57,6 +57,19 @@ export async function PUT(request: Request) {
       );
     }
 
+    const existingUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        description: true,
+        authorRole: true,
+        profilePicture: true,
+        role: true,
+      },
+    });
+
     const body = await request.json().catch(() => ({}));
     const { name, profilePicture, description, authorRole } = body;
 
@@ -70,21 +83,12 @@ export async function PUT(request: Request) {
       },
     });
 
-    const meta = await getClientAuditMeta(request);
-    await recordAuditLog({
-      eventType: "USER.PROFILE_UPDATE",
+    await logEntityMutation({
       category: "USERS",
-      action: "Updated profile credentials and author attribution",
-      target: `User: ${updatedUser.name || session.user.email}`,
+      before: existingUser,
+      after: updatedUser,
       userId: session.user.id,
-      status: "SUCCESS",
-      ipAddress: meta.ipAddress,
-      userAgent: meta.userAgent,
-      metadata: {
-        hasName: Boolean(name),
-        hasRole: Boolean(authorRole),
-        hasBio: Boolean(description),
-      },
+      request,
     });
 
     return NextResponse.json({
