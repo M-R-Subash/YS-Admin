@@ -94,7 +94,7 @@ export default function DashboardPage() {
           }
         />
 
-        <main className="flex-1 flex flex-col gap-6 py-6 px-3.5 md:px-6 lg:px-8 w-full max-w-[1600px] mx-auto">
+        <main className="flex-1 flex flex-col gap-6 py-6 px-4 md:px-6 lg:px-8 w-full">
           {/* EXECUTIVE HEADER & CONTROL BAR */}
           <DashboardHeader
             userName={session?.user?.name?.split(" ")[0] || "Admin"}

@@ -26,6 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SummaryData, SparklinesData, TimeSeriesPoint } from "./types";
 import { formatNumber } from "./utils";
+import { AnimatedCounter } from "./AnimatedCounter";
 
 // Lightweight micro-sparkline SVG generator for KPI cards
 function MiniSparkline({
@@ -337,7 +338,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
                   <Info className="size-3 text-muted-foreground/60 hover:text-foreground" />
                 </TooltipTrigger>
                 <TooltipContent side="top">
-                  <p className="text-xs">Sum of daily unique visitor sessions. Exact distinct visitors for 24h.</p>
+                  <p className="text-xs">Number of individual people who visited your site during this period.</p>
                 </TooltipContent>
               </Tooltip>
             </div>
@@ -355,7 +356,14 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
             <div>
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl lg:text-3xl font-bold tracking-tight text-foreground font-mono">
-                  {isLoading ? <Skeleton className="h-8 w-20" /> : formatNumber(summary?.uniqueVisitors ?? 0)}
+                  {isLoading ? (
+                    <Skeleton className="h-8 w-20" />
+                  ) : (
+                    <AnimatedCounter
+                      value={summary?.uniqueVisitors ?? 0}
+                      formatter={formatNumber}
+                    />
+                  )}
                 </span>
                 {!isLoading && (
                   <Badge
@@ -382,7 +390,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
                 )}
               </div>
               <span className="text-[11px] text-muted-foreground/80 mt-1 block">
-                Daily uniques in {range.toUpperCase()} period
+                Individual visitors in {range.toUpperCase()}
               </span>
             </div>
 
@@ -414,15 +422,28 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
             <span className="absolute -bottom-px inset-x-0 h-0.75 bg-blue-500 z-20" />
           )}
           <div className="flex items-center justify-between text-xs mb-1.5">
-            <span
-              className={`transition-colors ${
-                activeKpiTab === "views"
-                  ? "font-semibold text-foreground"
-                  : "font-medium text-muted-foreground group-hover:text-foreground"
-              }`}
-            >
-              Total Pageviews
-            </span>
+            <div className="inline-flex items-center gap-1">
+              <span
+                className={`transition-colors ${
+                  activeKpiTab === "views"
+                    ? "font-semibold text-foreground"
+                    : "font-medium text-muted-foreground group-hover:text-foreground"
+                }`}
+              >
+                Total Pageviews
+              </span>
+              <Tooltip>
+                <TooltipTrigger
+                  className="cursor-help inline-flex items-center justify-center"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Info className="size-3 text-muted-foreground/60 hover:text-foreground" />
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p className="text-xs">Every time an article or page was viewed by a reader.</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <div
               className={`p-1 rounded-md transition-colors ${
                 activeKpiTab === "views"
@@ -437,7 +458,14 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
             <div>
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl lg:text-3xl font-bold tracking-tight text-foreground font-mono">
-                  {isLoading ? <Skeleton className="h-8 w-20" /> : formatNumber(summary?.totalViews ?? 0)}
+                  {isLoading ? (
+                    <Skeleton className="h-8 w-20" />
+                  ) : (
+                    <AnimatedCounter
+                      value={summary?.totalViews ?? 0}
+                      formatter={formatNumber}
+                    />
+                  )}
                 </span>
                 {!isLoading && (
                   <Badge
@@ -464,7 +492,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
                 )}
               </div>
               <span className="text-[11px] text-muted-foreground/80 mt-1 block">
-                Total reading impressions
+                Total articles &amp; pages read
               </span>
             </div>
 
@@ -514,7 +542,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
                   <Info className="size-3 text-muted-foreground/60 hover:text-foreground" />
                 </TooltipTrigger>
                 <TooltipContent side="top">
-                  <p className="text-xs">Percentage of unique visits where reader spent &gt;10s or scrolled deep</p>
+                  <p className="text-xs">Percentage of readers who spent &gt;10s or scrolled through an article.</p>
                 </TooltipContent>
               </Tooltip>
             </div>
@@ -532,7 +560,14 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
             <div>
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl lg:text-3xl font-bold tracking-tight text-foreground font-mono">
-                  {isLoading ? <Skeleton className="h-8 w-20" /> : `${summary?.engagementRate ?? 0}%`}
+                  {isLoading ? (
+                    <Skeleton className="h-8 w-20" />
+                  ) : (
+                    <AnimatedCounter
+                      value={summary?.engagementRate ?? 0}
+                      formatter={(v) => `${Math.round(v)}%`}
+                    />
+                  )}
                 </span>
                 {!isLoading && (
                   <Badge
@@ -559,7 +594,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
                 )}
               </div>
               <span className="text-[11px] text-muted-foreground/80 mt-1 block">
-                High-interest reader visits
+                Visitors who actively read content
               </span>
             </div>
 
@@ -591,15 +626,28 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
             <span className="absolute -bottom-px inset-x-0 h-0.75 bg-violet-500 z-20" />
           )}
           <div className="flex items-center justify-between text-xs mb-1.5">
-            <span
-              className={`transition-colors ${
-                activeKpiTab === "subscribers"
-                  ? "font-semibold text-foreground"
-                  : "font-medium text-muted-foreground group-hover:text-foreground"
-              }`}
-            >
-              Newsletter Audience
-            </span>
+            <div className="inline-flex items-center gap-1">
+              <span
+                className={`transition-colors ${
+                  activeKpiTab === "subscribers"
+                    ? "font-semibold text-foreground"
+                    : "font-medium text-muted-foreground group-hover:text-foreground"
+                }`}
+              >
+                Newsletter Subscribers
+              </span>
+              <Tooltip>
+                <TooltipTrigger
+                  className="cursor-help inline-flex items-center justify-center"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Info className="size-3 text-muted-foreground/60 hover:text-foreground" />
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p className="text-xs">Total active readers subscribed to your email updates.</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <div
               className={`p-1 rounded-md transition-colors ${
                 activeKpiTab === "subscribers"
@@ -614,7 +662,14 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
             <div>
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl lg:text-3xl font-bold tracking-tight text-foreground font-mono">
-                  {isLoading ? <Skeleton className="h-8 w-20" /> : formatNumber(summary?.subscribersCount ?? 0)}
+                  {isLoading ? (
+                    <Skeleton className="h-8 w-20" />
+                  ) : (
+                    <AnimatedCounter
+                      value={summary?.subscribersCount ?? 0}
+                      formatter={formatNumber}
+                    />
+                  )}
                 </span>
                 {!isLoading && summary?.subscribersTrend !== undefined && (
                   <Badge
@@ -641,7 +696,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
                 )}
               </div>
               <span className="text-[11px] text-muted-foreground/80 mt-1 block">
-                +{summary?.currentPeriodSubsCount ?? 0} signups in {range.toUpperCase()}
+                +{summary?.currentPeriodSubsCount ?? 0} new signups in {range.toUpperCase()}
               </span>
             </div>
 
@@ -653,7 +708,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
       </div>
 
       {/* DUAL-PERIOD COMPARISON AREA CHART */}
-      <CardContent className="px-3 sm:px-6 py-0">
+      <CardContent className="px-3 sm:px-6 py-0 focus:outline-none focus:ring-0">
         {!mounted || isLoading ? (
           <div className="h-80 sm:h-87.5 w-full flex items-center justify-center">
             <Skeleton className="h-full w-full rounded-md" />
@@ -667,9 +722,14 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
             </p>
           </div>
         ) : (
-          <div className="h-80 sm:h-87.5 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={timeSeries} margin={{ top: 12, right: 12, left: -20, bottom: 0 }}>
+          <div className="h-80 sm:h-87.5 w-full select-none outline-none focus:outline-none focus:ring-0 [&_*]:focus:outline-none [&_*]:outline-none">
+            <ResponsiveContainer width="100%" height="100%" className="outline-none focus:outline-none">
+              <AreaChart
+                data={timeSeries}
+                margin={{ top: 12, right: 12, left: -20, bottom: 0 }}
+                style={{ outline: "none" }}
+                className="outline-none focus:outline-none"
+              >
                 <defs>
                   <linearGradient id={currentChartProps.gradientId} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={currentChartProps.color} stopOpacity={0.4} />

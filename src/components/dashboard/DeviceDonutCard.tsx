@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { DeviceData } from "./types";
 import { formatNumber } from "./utils";
+import { AnimatedCounter } from "./AnimatedCounter";
 
 interface DeviceDonutCardProps {
   devices: DeviceData[];
@@ -36,10 +37,10 @@ export const DeviceDonutCard = memo(function DeviceDonutCard({
     <Card className="border border-border/70 shadow-xs flex flex-col">
       <CardHeader className="pb-3 border-b border-border/50">
         <CardTitle className="text-base font-semibold font-heading">
-          Device Distribution
+          Devices
         </CardTitle>
         <CardDescription className="text-xs">
-          Traffic split by reader device type
+          Devices used to browse your site
         </CardDescription>
       </CardHeader>
 
@@ -51,7 +52,7 @@ export const DeviceDonutCard = memo(function DeviceDonutCard({
         ) : hasNoData ? (
           <div className="py-12 text-center text-muted-foreground flex flex-col items-center justify-center">
             <Smartphone className="size-8 text-muted-foreground/30 mb-2" />
-            <p className="text-xs font-medium">No device telemetry yet</p>
+            <p className="text-xs font-medium">No device data recorded yet</p>
           </div>
         ) : (
           <div className="relative flex items-center justify-center h-42.5">
@@ -77,7 +78,10 @@ export const DeviceDonutCard = memo(function DeviceDonutCard({
 
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <span className="text-xl font-bold font-mono tracking-tight text-foreground">
-                {dominantDevice?.percentage}%
+                <AnimatedCounter
+                  value={dominantDevice?.percentage ?? 0}
+                  formatter={(v) => `${Math.round(v)}%`}
+                />
               </span>
               <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
                 {dominantDevice?.name}
@@ -93,10 +97,16 @@ export const DeviceDonutCard = memo(function DeviceDonutCard({
               <span>Desktop</span>
             </div>
             <span className="text-sm font-semibold font-mono text-foreground">
-              {desktopItem?.percentage ?? 0}%
+              <AnimatedCounter
+                value={desktopItem?.percentage ?? 0}
+                formatter={(v) => `${Math.round(v)}%`}
+              />
             </span>
             <span className="text-[10px] text-muted-foreground/70">
-              {formatNumber(desktopItem?.value ?? 0)}
+              <AnimatedCounter
+                value={desktopItem?.value ?? 0}
+                formatter={(v) => formatNumber(Math.round(v))}
+              />
             </span>
           </div>
 
@@ -106,10 +116,16 @@ export const DeviceDonutCard = memo(function DeviceDonutCard({
               <span>Mobile</span>
             </div>
             <span className="text-sm font-semibold font-mono text-foreground">
-              {mobileItem?.percentage ?? 0}%
+              <AnimatedCounter
+                value={mobileItem?.percentage ?? 0}
+                formatter={(v) => `${Math.round(v)}%`}
+              />
             </span>
             <span className="text-[10px] text-muted-foreground/70">
-              {formatNumber(mobileItem?.value ?? 0)}
+              <AnimatedCounter
+                value={mobileItem?.value ?? 0}
+                formatter={(v) => formatNumber(Math.round(v))}
+              />
             </span>
           </div>
 
@@ -119,10 +135,16 @@ export const DeviceDonutCard = memo(function DeviceDonutCard({
               <span>Tablet</span>
             </div>
             <span className="text-sm font-semibold font-mono text-foreground">
-              {tabletItem?.percentage ?? 0}%
+              <AnimatedCounter
+                value={tabletItem?.percentage ?? 0}
+                formatter={(v) => `${Math.round(v)}%`}
+              />
             </span>
             <span className="text-[10px] text-muted-foreground/70">
-              {formatNumber(tabletItem?.value ?? 0)}
+              <AnimatedCounter
+                value={tabletItem?.value ?? 0}
+                formatter={(v) => formatNumber(Math.round(v))}
+              />
             </span>
           </div>
         </div>

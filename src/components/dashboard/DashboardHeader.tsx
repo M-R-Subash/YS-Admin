@@ -47,12 +47,12 @@ export const DashboardHeader = memo(function DashboardHeader({
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
             </span>
             <span>
-              <strong className="font-semibold font-mono">{activeNow}</strong> Active Now
+              <strong className="font-semibold font-mono">{activeNow}</strong> Active Visitors
             </span>
           </div>
         </div>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Audience acquisition, conversion funnels, and real-time reader telemetry.
+          Overview of your website visitors, reading trends, and subscriber growth.
         </p>
       </div>
 

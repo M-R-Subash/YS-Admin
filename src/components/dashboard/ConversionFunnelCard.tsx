@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FunnelData } from "./types";
 import { formatNumber } from "./utils";
+import { AnimatedCounter } from "./AnimatedCounter";
 
 interface ConversionFunnelCardProps {
   funnel?: FunnelData;
@@ -23,21 +24,24 @@ export const ConversionFunnelCard = memo(function ConversionFunnelCard({
         <div>
           <div className="flex items-center gap-2">
             <CardTitle className="text-base font-semibold font-heading">
-              Audience Conversion Pipeline
+              Visitor Journey &amp; Conversions
             </CardTitle>
             <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono">
-              Session Population
+              3 Stages
             </Badge>
           </div>
           <CardDescription className="text-xs">
-            Full-funnel retention from first page landing to high-intent subscribers
+            How visitors progress from landing on your site to becoming subscribers
           </CardDescription>
         </div>
 
         <div className="text-right">
           <span className="text-xs text-muted-foreground">Overall Conversion</span>
           <p className="text-base font-bold font-mono text-emerald-500">
-            {funnel?.conversionRate ?? 0}%
+            <AnimatedCounter
+              value={funnel?.conversionRate ?? 0}
+              formatter={(v) => `${v.toFixed(2)}%`}
+            />
           </p>
         </div>
       </CardHeader>
@@ -58,11 +62,14 @@ export const ConversionFunnelCard = memo(function ConversionFunnelCard({
                   <span className="flex size-5 items-center justify-center rounded-full bg-blue-500/10 text-blue-500 text-[11px] font-bold">
                     1
                   </span>
-                  <span className="font-semibold text-foreground">Total Unique Visits (Landing)</span>
+                  <span className="font-semibold text-foreground">1. Landed on Site</span>
                 </div>
                 <div className="flex items-center gap-2 font-mono">
                   <span className="font-bold text-foreground text-sm">
-                    {formatNumber(funnel?.visitors ?? 0)}
+                    <AnimatedCounter
+                      value={funnel?.visitors ?? 0}
+                      formatter={formatNumber}
+                    />
                   </span>
                   <span className="text-muted-foreground text-[11px]">100%</span>
                 </div>
@@ -76,10 +83,10 @@ export const ConversionFunnelCard = memo(function ConversionFunnelCard({
             <div className="flex items-center justify-between px-6 py-0.5 text-[11px] text-muted-foreground">
               <span className="inline-flex items-center gap-1">
                 <ArrowRight className="size-3 text-muted-foreground/60" />
-                <span>Retention to Engaged Reader</span>
+                <span>Readers who stayed to read</span>
               </span>
               <Badge variant="secondary" className="font-mono text-[10px] px-1.5 py-0">
-                {funnel?.retentionRate ?? 0}% Retained ({funnel?.dropOffVisitorsToEngaged ?? 0}% Drop-off)
+                {funnel?.retentionRate ?? 0}% Retained ({funnel?.dropOffVisitorsToEngaged ?? 0}% Left early)
               </Badge>
             </div>
 
@@ -90,11 +97,14 @@ export const ConversionFunnelCard = memo(function ConversionFunnelCard({
                   <span className="flex size-5 items-center justify-center rounded-full bg-purple-500/10 text-purple-500 text-[11px] font-bold">
                     2
                   </span>
-                  <span className="font-semibold text-foreground">Engaged Reader Visits (&gt;10s / Scrolled)</span>
+                  <span className="font-semibold text-foreground">2. Actively Read Content</span>
                 </div>
                 <div className="flex items-center gap-2 font-mono">
                   <span className="font-bold text-foreground text-sm">
-                    {formatNumber(funnel?.engaged ?? 0)}
+                    <AnimatedCounter
+                      value={funnel?.engaged ?? 0}
+                      formatter={formatNumber}
+                    />
                   </span>
                   <span className="text-muted-foreground text-[11px]">
                     {funnel?.retentionRate ?? 0}%
@@ -113,7 +123,7 @@ export const ConversionFunnelCard = memo(function ConversionFunnelCard({
             <div className="flex items-center justify-between px-6 py-0.5 text-[11px] text-muted-foreground">
               <span className="inline-flex items-center gap-1">
                 <ArrowRight className="size-3 text-muted-foreground/60" />
-                <span>Reader to Subscriber / Lead</span>
+                <span>Readers who subscribed or contacted</span>
               </span>
               <Badge variant="secondary" className="font-mono text-[10px] px-1.5 py-0 text-emerald-600 dark:text-emerald-400">
                 {funnel?.conversionRate ?? 0}% Converted
@@ -127,11 +137,14 @@ export const ConversionFunnelCard = memo(function ConversionFunnelCard({
                   <span className="flex size-5 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500 text-[11px] font-bold">
                     3
                   </span>
-                  <span className="font-semibold text-foreground">Conversions (Subscribers &amp; Inquiries)</span>
+                  <span className="font-semibold text-foreground">3. Took Action (Subscribers &amp; Leads)</span>
                 </div>
                 <div className="flex items-center gap-2 font-mono">
                   <span className="font-bold text-emerald-500 text-sm">
-                    {formatNumber(funnel?.conversions ?? 0)}
+                    <AnimatedCounter
+                      value={funnel?.conversions ?? 0}
+                      formatter={formatNumber}
+                    />
                   </span>
                   <span className="text-muted-foreground text-[11px]">
                     {funnel?.conversionRate ?? 0}%

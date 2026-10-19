@@ -28,10 +28,10 @@ export const AcquisitionChannelsCard = memo(function AcquisitionChannelsCard({
       <CardHeader className="pb-3 border-b border-border/50 flex flex-row items-center justify-between gap-2">
         <div>
           <CardTitle className="text-base font-semibold font-heading">
-            Acquisition Channels
+            Traffic Sources
           </CardTitle>
           <CardDescription className="text-xs">
-            Where readers originate from
+            Where your visitors discover and click to your website
           </CardDescription>
         </div>
 
@@ -42,10 +42,10 @@ export const AcquisitionChannelsCard = memo(function AcquisitionChannelsCard({
         >
           <TabsList className="h-7 p-0.5 bg-muted">
             <TabsTrigger value="referrers" className="text-xs px-2.5 h-6">
-              Referrers
+              Websites
             </TabsTrigger>
             <TabsTrigger value="campaigns" className="text-xs px-2.5 h-6">
-              UTMs
+              Campaigns
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -61,7 +61,9 @@ export const AcquisitionChannelsCard = memo(function AcquisitionChannelsCard({
         ) : currentList.length === 0 ? (
           <div className="py-10 text-center text-muted-foreground flex flex-col items-center justify-center">
             <Compass className="size-8 text-muted-foreground/30 mb-2" />
-            <p className="text-xs font-medium">No {acquisitionTab} recorded yet</p>
+            <p className="text-xs font-medium">
+              No {acquisitionTab === "referrers" ? "referral websites" : "campaign links"} recorded yet
+            </p>
           </div>
         ) : (
           <div className="space-y-2">

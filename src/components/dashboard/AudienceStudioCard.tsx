@@ -21,10 +21,10 @@ export const AudienceStudioCard = memo(function AudienceStudioCard({
       <CardHeader className="pb-3 border-b border-border/50 flex flex-row items-center justify-between gap-2">
         <div>
           <CardTitle className="text-base font-semibold font-heading">
-            Geographic Reach
+            Top Countries
           </CardTitle>
           <CardDescription className="text-xs">
-            Traffic distribution by reader country
+            Where your visitors are located around the world
           </CardDescription>
         </div>
 
@@ -41,7 +41,7 @@ export const AudienceStudioCard = memo(function AudienceStudioCard({
         ) : topCountries.length === 0 ? (
           <div className="py-10 text-center text-muted-foreground flex flex-col items-center justify-center">
             <Globe className="size-8 text-muted-foreground/30 mb-2" />
-            <p className="text-xs font-medium">No geographic data yet</p>
+            <p className="text-xs font-medium">No visitor locations recorded yet</p>
           </div>
         ) : (
           <div className="space-y-2">

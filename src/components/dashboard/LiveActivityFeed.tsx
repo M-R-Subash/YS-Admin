@@ -47,9 +47,9 @@ export const LiveActivityFeed = memo(function LiveActivityFeed({
         ) : liveVisitors.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground flex flex-col items-center justify-center">
             <Radio className="size-8 text-muted-foreground/30 mb-2" />
-            <p className="text-xs font-medium">No sessions active in the last 15 minutes</p>
+            <p className="text-xs font-medium">No active visitors in the last 15 minutes</p>
             <p className="text-[11px] text-muted-foreground/70 mt-0.5">
-              Visitor telemetry will stream here as readers browse your site.
+              Live visitor activity will appear here as people browse your website.
             </p>
           </div>
         ) : (

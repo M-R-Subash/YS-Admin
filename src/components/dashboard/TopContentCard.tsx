@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState, useMemo, memo } from "react";
-import { Search, Globe, ExternalLink } from "lucide-react";
+import React, { useState, memo } from "react";
+import { Globe, ExternalLink } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { clientConfig } from "@/lib/config/client";
@@ -23,18 +22,8 @@ export const TopContentCard = memo(function TopContentCard({
   isLoading,
 }: TopContentCardProps) {
   const [contentTab, setContentTab] = useState<"blogs" | "pages">("blogs");
-  const [contentSearch, setContentSearch] = useState("");
 
-  const filteredContent = useMemo(() => {
-    const list = contentTab === "blogs" ? topBlogs : topPages;
-    if (!contentSearch.trim()) return list;
-    const q = contentSearch.toLowerCase();
-    return list.filter((item) => {
-      const title = (item?.title || item?.path || "").toLowerCase();
-      const path = (item?.path || "").toLowerCase();
-      return title.includes(q) || path.includes(q);
-    });
-  }, [contentTab, topBlogs, topPages, contentSearch]);
+  const currentContent = contentTab === "blogs" ? topBlogs : topPages;
 
   return (
     <Card className="lg:col-span-2 border border-border/70 shadow-xs flex flex-col">
@@ -44,38 +33,25 @@ export const TopContentCard = memo(function TopContentCard({
             Top Performing Content
           </CardTitle>
           <CardDescription className="text-xs">
-            Highest-trafficked articles and landing pages for this timeframe
+            Most read articles and visited pages in this timeframe
           </CardDescription>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* SEARCH FILTER ISOLATED TO THIS CARD */}
-          <div className="relative w-36 sm:w-44">
-            <Search className="size-3.5 absolute left-2 top-2.5 text-muted-foreground" />
-            <Input
-              placeholder="Search content..."
-              value={contentSearch}
-              onChange={(e) => setContentSearch(e.target.value)}
-              className="h-8 pl-7 text-xs bg-muted/40"
-            />
-          </div>
-
-          {/* TABS FOR BLOGS VS PAGES */}
-          <Tabs
-            value={contentTab}
-            onValueChange={(val) => setContentTab(val as "blogs" | "pages")}
-            className="w-auto"
-          >
-            <TabsList className="h-8 p-0.5 bg-muted">
-              <TabsTrigger value="blogs" className="text-xs px-2.5 h-7">
-                Blogs ({topBlogs.length})
-              </TabsTrigger>
-              <TabsTrigger value="pages" className="text-xs px-2.5 h-7">
-                Pages ({topPages.length})
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
+        {/* TABS FOR BLOGS VS PAGES */}
+        <Tabs
+          value={contentTab}
+          onValueChange={(val) => setContentTab(val as "blogs" | "pages")}
+          className="w-auto"
+        >
+          <TabsList className="h-8 p-0.5 bg-muted">
+            <TabsTrigger value="blogs" className="text-xs px-2.5 h-7">
+              Articles ({topBlogs.length})
+            </TabsTrigger>
+            <TabsTrigger value="pages" className="text-xs px-2.5 h-7">
+              Pages ({topPages.length})
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </CardHeader>
 
       <CardContent className="p-4 flex-1">
@@ -85,17 +61,17 @@ export const TopContentCard = memo(function TopContentCard({
               <Skeleton key={i} className="h-9 w-full rounded-md" />
             ))}
           </div>
-        ) : filteredContent.length === 0 ? (
+        ) : currentContent.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground flex flex-col items-center justify-center">
             <Globe className="size-8 text-muted-foreground/30 mb-2" />
-            <p className="text-xs font-medium">No results found for &ldquo;{contentSearch}&rdquo;</p>
+            <p className="text-xs font-medium">No page or article views recorded yet</p>
             <p className="text-[11px] text-muted-foreground/70 mt-0.5">
-              Try searching for another keyword or switch tabs.
+              Traffic data will appear here as visitors read your content.
             </p>
           </div>
         ) : (
           <div className="space-y-2">
-            {filteredContent.map((item, index) => (
+            {currentContent.map((item, index) => (
               <div
                 key={index}
                 className="group relative flex items-center justify-between overflow-hidden rounded-md px-3 py-2 text-xs transition-colors hover:bg-muted/30"

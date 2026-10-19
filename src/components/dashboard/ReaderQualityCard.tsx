@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { SummaryData } from "./types";
 import { formatNumber } from "./utils";
+import { AnimatedCounter } from "./AnimatedCounter";
 
 interface ReaderQualityCardProps {
   summary?: SummaryData;
@@ -18,10 +19,10 @@ export const ReaderQualityCard = memo(function ReaderQualityCard({
     <Card className="border border-border/70 shadow-xs flex flex-col justify-between">
       <CardHeader className="pb-3 border-b border-border/50">
         <CardTitle className="text-base font-semibold font-heading">
-          Reader Quality Metrics
+          Reading & Engagement
         </CardTitle>
         <CardDescription className="text-xs">
-          Deep session engagement and bounce telemetry
+          How deeply visitors read and interact with your content
         </CardDescription>
       </CardHeader>
 
@@ -34,7 +35,10 @@ export const ReaderQualityCard = memo(function ReaderQualityCard({
           </div>
           <div className="flex items-baseline justify-between">
             <span className="text-2xl font-bold font-mono text-foreground">
-              {summary?.pagesPerVisit ?? "1.0"}
+              <AnimatedCounter
+                value={Number(summary?.pagesPerVisit ?? 1.0)}
+                formatter={(v) => v.toFixed(1)}
+              />
             </span>
             <Badge
               variant="outline"
@@ -50,29 +54,36 @@ export const ReaderQualityCard = memo(function ReaderQualityCard({
             </Badge>
           </div>
           <span className="text-[10px] text-muted-foreground mt-1 block">
-            Average page impressions explored per visitor session
+            Average number of pages read per visitor
           </span>
         </div>
 
-        {/* METRIC 2: ENGAGED READER SESSIONS */}
+        {/* METRIC 2: ENGAGED READERS */}
         <div className="p-3.5 rounded-lg border border-border/60 bg-muted/20">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-muted-foreground font-medium">Engaged Reader Sessions</span>
+            <span className="text-xs text-muted-foreground font-medium">Engaged Readers</span>
             <Clock className="size-3.5 text-purple-500" />
           </div>
           <div className="flex items-baseline justify-between">
             <span className="text-2xl font-bold font-mono text-foreground">
-              {formatNumber(summary?.engagedVisitsCount ?? 0)}
+              <AnimatedCounter
+                value={summary?.engagedVisitsCount ?? 0}
+                formatter={(v) => formatNumber(Math.round(v))}
+              />
             </span>
             <Badge
               variant="outline"
               className="text-[10px] px-1.5 py-0 bg-purple-500/10 text-purple-600 border-purple-500/20 font-medium"
             >
-              {summary?.engagementRate ?? 0}% Rate
+              <AnimatedCounter
+                value={summary?.engagementRate ?? 0}
+                formatter={(v) => `${Math.round(v)}%`}
+              />{" "}
+              Rate
             </Badge>
           </div>
           <span className="text-[10px] text-muted-foreground mt-1 block">
-            Visitors who read &gt;10s or scrolled deep into an article
+            Visitors who spent time reading or scrolled deep into an article
           </span>
         </div>
 
@@ -84,7 +95,10 @@ export const ReaderQualityCard = memo(function ReaderQualityCard({
           </div>
           <div className="flex items-baseline justify-between">
             <span className="text-2xl font-bold font-mono text-foreground">
-              {summary?.bounceRate ?? 0}%
+              <AnimatedCounter
+                value={summary?.bounceRate ?? 0}
+                formatter={(v) => `${Math.round(v)}%`}
+              />
             </span>
             <Badge
               variant="outline"
@@ -103,7 +117,7 @@ export const ReaderQualityCard = memo(function ReaderQualityCard({
             </Badge>
           </div>
           <span className="text-[10px] text-muted-foreground mt-1 block">
-            Non-engaged sessions: visitors who didn&apos;t scroll deep or stay &gt;10s
+            Visitors who left quickly without reading further
           </span>
         </div>
       </CardContent>
