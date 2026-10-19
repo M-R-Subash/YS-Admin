@@ -517,21 +517,24 @@ export async function PUT(
   invalidateAggregateCaches();
 
   // Audit Logging for Blog Mutations
+  const fromStatus = existingBlog.isTrashed ? "trash" : existingBlog.status;
+  const toStatus = isTrashed === true ? "trash" : blog.status;
+
   let eventType = "BLOG.UPDATED";
-  let actionDesc = `Updated blog article "${blog.title}"`;
+  let actionDesc = `Updated content for blog article "${blog.title}"`;
 
   if (isTrashed === true && !existingBlog.isTrashed) {
     eventType = "BLOG.TRASHED";
-    actionDesc = `Moved blog article "${blog.title}" to trash`;
+    actionDesc = `Moved blog article "${blog.title}" from "${fromStatus}" to trash`;
   } else if (isTrashed === false && existingBlog.isTrashed) {
     eventType = "BLOG.RESTORED";
-    actionDesc = `Restored blog article "${blog.title}" from trash`;
+    actionDesc = `Restored blog article "${blog.title}" from trash (set to "${blog.status}")`;
   } else if (action === "publish" || (blog.status === "published" && existingBlog.status !== "published")) {
     eventType = "BLOG.PUBLISHED";
-    actionDesc = `Published blog article "${blog.title}"`;
+    actionDesc = `Changed blog status from "${fromStatus}" to "published"`;
   } else if (action === "draft" || (blog.status === "draft" && existingBlog.status !== "draft")) {
     eventType = "BLOG.SET_TO_DRAFT";
-    actionDesc = `Set blog article "${blog.title}" to draft`;
+    actionDesc = `Changed blog status from "${fromStatus}" to "draft"`;
   }
 
   const clientMeta = await getClientAuditMeta(request);
@@ -547,8 +550,10 @@ export async function PUT(
     metadata: {
       blogId: blog.id,
       slug: blog.slug,
-      status: blog.status,
-      isTrashed: blog.isTrashed,
+      fromStatus,
+      toStatus,
+      title: blog.title,
+      changes: fromStatus !== toStatus ? `${fromStatus} ➔ ${toStatus}` : "Content updated",
     },
   });
 

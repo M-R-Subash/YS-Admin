@@ -16,6 +16,7 @@ export function AdminLayoutWrapper({ children }: { children: React.ReactNode }) 
     pathname?.startsWith("/header") ||
     pathname?.startsWith("/footer") ||
     pathname?.includes("/bulk-edit") ||
+    pathname === "/audit-logs" ||
     pathname === "/login"
   ) {
     return <>{children}</>;

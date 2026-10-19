@@ -180,21 +180,24 @@ export async function PUT(
   invalidateAggregateCaches();
 
   // Audit Logging for Page Mutations
+  const fromStatus = existingPage.isTrashed ? "trash" : existingPage.status;
+  const toStatus = page.isTrashed ? "trash" : page.status;
+
   let eventType = "PAGE.UPDATED";
-  let actionDesc = `Updated page "${page.title}"`;
+  let actionDesc = `Updated content for page "${page.title}"`;
 
   if (isTrashed === true && !existingPage.isTrashed) {
     eventType = "PAGE.TRASHED";
-    actionDesc = `Moved page "${page.title}" to trash`;
+    actionDesc = `Moved page "${page.title}" from "${fromStatus}" to trash`;
   } else if (isTrashed === false && existingPage.isTrashed) {
     eventType = "PAGE.RESTORED";
-    actionDesc = `Restored page "${page.title}" from trash`;
+    actionDesc = `Restored page "${page.title}" from trash (set to "${page.status}")`;
   } else if (status === "published" && existingPage.status !== "published") {
     eventType = "PAGE.PUBLISHED";
-    actionDesc = `Published page "${page.title}"`;
+    actionDesc = `Changed page status from "${fromStatus}" to "published"`;
   } else if (status === "draft" && existingPage.status !== "draft") {
     eventType = "PAGE.SET_TO_DRAFT";
-    actionDesc = `Set page "${page.title}" to draft`;
+    actionDesc = `Changed page status from "${fromStatus}" to "draft"`;
   }
 
   const clientMeta = await getClientAuditMeta(request);
@@ -210,8 +213,10 @@ export async function PUT(
     metadata: {
       pageId: page.id,
       slug: page.slug,
-      status: page.status,
-      isTrashed: page.isTrashed,
+      fromStatus,
+      toStatus,
+      title: page.title,
+      changes: fromStatus !== toStatus ? `${fromStatus} ➔ ${toStatus}` : "Content updated",
     },
   });
 
