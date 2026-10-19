@@ -33,7 +33,6 @@ const emptySubscribe = () => () => {};
 
 export default function DashboardPage() {
   const { data: session } = useSession();
-  const isAdmin = session?.user?.role === "ADMIN";
 
   const [range, setRange] = useState<"24h" | "7d" | "30d" | "90d">("7d");
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -80,7 +79,6 @@ export default function DashboardPage() {
   const topReferrers = data?.acquisition?.referrers ?? (EMPTY_ARRAY as any[]);
   const topCampaigns = data?.acquisition?.campaigns ?? (EMPTY_ARRAY as any[]);
   const topCountries = data?.acquisition?.countries ?? (EMPTY_ARRAY as any[]);
-  const recentDraftBlogs = data?.editorial?.recentDraftBlogs ?? (EMPTY_ARRAY as any[]);
   const activeNow = summary?.activeNow ?? 0;
 
   return (
@@ -192,10 +190,6 @@ export default function DashboardPage() {
             />
             <AudienceStudioCard
               topCountries={topCountries}
-              recentDraftBlogs={recentDraftBlogs}
-              unreadSubmissionsCount={data?.unreadSubmissionsCount}
-              unapprovedCommentsCount={data?.unapprovedCommentsCount}
-              isAdmin={isAdmin}
               isLoading={isLoading}
             />
           </div>

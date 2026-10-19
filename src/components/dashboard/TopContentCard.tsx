@@ -97,7 +97,7 @@ export const TopContentCard = memo(function TopContentCard({
           <div className="space-y-2">
             {filteredContent.map((item, index) => (
               <div
-                key={item.path}
+                key={index}
                 className="group relative flex items-center justify-between overflow-hidden rounded-md px-3 py-2 text-xs transition-colors hover:bg-muted/30"
               >
                 {/* PROPORTIONAL BACKGROUND FILL BAR (RELATIVE TO TOP ITEM) */}
