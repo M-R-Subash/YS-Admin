@@ -8,6 +8,7 @@ import { RefreshCw, AlertCircle } from "lucide-react";
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { toast } from "@/components/ui/toast";
 
 import { DashboardStatsResponse } from "@/components/dashboard/types";
 import { EMPTY_ARRAY } from "@/components/dashboard/utils";
@@ -59,6 +60,23 @@ export default function DashboardPage() {
     setRange(newRange);
   }, []);
 
+  const handleRefresh = useCallback(async () => {
+    try {
+      await mutate();
+      toast.add({
+        title: "Dashboard refreshed",
+        description: "Latest analytics data has been fetched successfully.",
+        type: "success",
+      });
+    } catch {
+      toast.add({
+        title: "Refresh failed",
+        description: "Could not fetch updated statistics.",
+        type: "error",
+      });
+    }
+  }, [mutate]);
+
   // Stable references for derived collections
   const summary = data?.summary;
   const funnel = data?.funnel;
@@ -83,7 +101,7 @@ export default function DashboardPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => mutate()}
+                onClick={handleRefresh}
                 disabled={isValidating}
                 className="h-8 gap-1.5 text-xs font-medium cursor-pointer"
               >
