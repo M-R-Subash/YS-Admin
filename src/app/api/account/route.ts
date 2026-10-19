@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 export async function GET() {
   try {
@@ -66,6 +67,23 @@ export async function PUT(request: Request) {
         ...(profilePicture !== undefined && { profilePicture }),
         ...(description !== undefined && { description }),
         ...(authorRole !== undefined && { authorRole }),
+      },
+    });
+
+    const meta = await getClientAuditMeta(request);
+    await recordAuditLog({
+      eventType: "USER.PROFILE_UPDATE",
+      category: "USER",
+      action: "Updated profile credentials and author attribution",
+      target: `User: ${updatedUser.name || session.user.email}`,
+      userId: session.user.id,
+      status: "SUCCESS",
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+      metadata: {
+        hasName: Boolean(name),
+        hasRole: Boolean(authorRole),
+        hasBio: Boolean(description),
       },
     });
 

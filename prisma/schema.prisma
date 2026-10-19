@@ -32,6 +32,7 @@ model User {
   blogs          Blog[]    @relation("BlogAuthor")
   blogRevisions  BlogRevision[] @relation("RevisionAuthor")
   refreshTokens  RefreshToken[]
+  auditLogs      AuditLog[]     @relation("UserAuditLogs")
 }
 
 model Page {
@@ -375,4 +376,26 @@ model AnalyticsVisitorSession {
   lastSeenAt   DateTime @default(now())
 
   @@index([lastSeenAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  eventType String   // e.g. "AUTH.LOGIN", "CONTENT.BLOG_SAVED", "SECURITY.PASSWORD_CHANGED", "AUTH.TOKEN_REVOKE"
+  category  String   // "AUTH", "CONTENT", "SECURITY", "USER", "MEDIA"
+  action    String
+  target    String?
+  status    String   @default("SUCCESS") // "SUCCESS", "WARNING", "FAILED"
+  ipAddress String?
+  userAgent String?
+  metadata  Json?
+
+  userId    String?
+  user      User?    @relation("UserAuditLogs", fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([category])
+  @@index([userId])
+  @@index([eventType])
 }

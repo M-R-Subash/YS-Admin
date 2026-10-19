@@ -52,6 +52,9 @@ const ROUTE_LABELS: Record<string, string> = {
   "/submissions": "Submissions",
   "/notifications": "Submissions",
   "/account": "Account Settings",
+  "/account/security": "Security & Password",
+  "/account/sessions": "Active Sessions",
+  "/audit-logs": "Audit Logs",
 };
 
 export function AdminTopBar({

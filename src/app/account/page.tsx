@@ -1,21 +1,21 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import {
   Calendar,
   Camera,
-  Eye,
-  EyeOff,
-  KeyRound,
+  CheckCircle2,
+  HelpCircle,
+  Info,
   Loader2,
   Lock,
   Mail,
   PenTool,
   Save,
   Shield,
-  ShieldCheck,
+  Sparkles,
   User as UserIcon,
   UserCog,
 } from "lucide-react";
@@ -30,8 +30,6 @@ import Image from "next/image";
 import { format } from "date-fns";
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { clientConfig } from "@/lib/config/client";
-import { ConfirmModal } from "@/components/modals/ConfirmModal";
-import { ActiveSessionsCard } from "@/components/profile/ActiveSessionsCard";
 
 export default function AccountPage() {
   const { data: session, update } = useSession();
@@ -50,32 +48,6 @@ export default function AccountPage() {
     description: "",
     authorRole: "",
   });
-
-  // Password change states
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [countdown, setCountdown] = useState(3);
-
-  useEffect(() => {
-    if (!showSuccessModal) return;
-
-    if (countdown <= 0) {
-      signOut({ callbackUrl: "/login" });
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setCountdown((prev) => prev - 1);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [showSuccessModal, countdown]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -199,97 +171,18 @@ export default function AccountPage() {
       dirtyManager.markClean(currentProfileData);
 
       toast.add({
-        title: "Success",
-        description: "Your profile has been updated.",
+        title: "Profile Updated",
+        description: "Your changes have been saved successfully.",
         type: "success",
       });
     } catch {
       toast.add({
-        title: "Error",
-        description: "Failed to save profile changes.",
+        title: "Save Failed",
+        description: "Failed to save profile changes. Please try again.",
         type: "error",
       });
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      toast.add({
-        title: "Missing Information",
-        description: "Please fill in all three password fields.",
-        type: "error",
-      });
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      toast.add({
-        title: "Passwords Do Not Match",
-        description: "Your new password and confirmation password do not match.",
-        type: "error",
-      });
-      return;
-    }
-
-    if (currentPassword === newPassword) {
-      toast.add({
-        title: "Same Password",
-        description: "Your new password must be different from your current password.",
-        type: "error",
-      });
-      return;
-    }
-
-    if (
-      newPassword.length < 8 ||
-      !/[A-Za-z]/.test(newPassword) ||
-      !/[0-9]/.test(newPassword)
-    ) {
-      toast.add({
-        title: "Password Too Simple",
-        description:
-          "Please choose a password with at least 8 characters, including both letters and numbers.",
-        type: "error",
-      });
-      return;
-    }
-
-    setIsChangingPassword(true);
-    try {
-      const res = await fetch("/api/account/password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          currentPassword,
-          newPassword,
-          confirmPassword,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || "Failed to update password.");
-      }
-
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      setCountdown(3);
-      setShowSuccessModal(true);
-    } catch (error) {
-      toast.add({
-        title: "Could Not Update Password",
-        description:
-          error instanceof Error ? error.message : "Failed to change password.",
-        type: "error",
-      });
-    } finally {
-      setIsChangingPassword(false);
     }
   };
 
@@ -299,33 +192,44 @@ export default function AccountPage() {
     <>
       <AdminTopBar breadcrumbs="Account Settings" />
 
-      <div className="flex flex-1 flex-col gap-6 py-6 px-3.75 md:px-5 lg:px-7.5 w-full">
-        <div>
-          <h2 className="text-2xl font-extrabold text-foreground tracking-tight">
-            Account Settings
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Manage your personal credentials, profile attributes, and security.
+      <div className="flex flex-1 flex-col gap-6 py-6 px-3.75 md:px-5 lg:px-7.5 w-full max-w-7xl mx-auto">
+        {/* Page Header */}
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-2xl font-extrabold text-foreground tracking-tight">
+              Account Settings
+            </h2>
+            <Badge
+              variant="outline"
+              className="text-[11px] font-semibold text-muted-foreground border-border/80"
+            >
+              Personal Preferences
+            </Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Manage your personal credentials, editorial persona, and public attribution.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-          <div className="lg:col-span-7 rounded-2xl border border-border/80 bg-card p-6 shadow-sm flex flex-col justify-center">
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              ref={fileInputRef}
-              onChange={(e) => {
-                if (e.target.files && e.target.files[0]) {
-                  handleUpload(e.target.files[0]);
-                }
-              }}
-            />
+        {/* Profile Identity Card Banner */}
+        <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-xs relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-full bg-linear-to-l from-primary/5 to-transparent pointer-events-none" />
 
-            {/* Vertically centered profile content */}
-            <div className="flex items-center gap-5 sm:gap-6">
-              {/* Avatar with Camera Trigger */}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            ref={fileInputRef}
+            onChange={(e) => {
+              if (e.target.files && e.target.files[0]) {
+                handleUpload(e.target.files[0]);
+              }
+            }}
+          />
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative z-10">
+            <div className="flex items-center gap-5">
+              {/* Avatar with Camera Overlay */}
               <div
                 className="group relative size-20 sm:size-22 rounded-full overflow-hidden border-2 border-primary/20 bg-muted shadow-md cursor-pointer transition-all hover:ring-2 hover:ring-primary/40 shrink-0"
                 onClick={() => !isUploading && fileInputRef.current?.click()}
@@ -352,18 +256,16 @@ export default function AccountPage() {
                   </div>
                 )}
 
-                {/* Camera Hover Overlay */}
                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white z-10">
-                  <Camera className="size-3.5 mb-0.5" />
-                  <span className="text-[8px] font-semibold uppercase tracking-wider">
+                  <Camera className="size-4 mb-0.5" />
+                  <span className="text-[9px] font-semibold uppercase tracking-wider">
                     Change
                   </span>
                 </div>
               </div>
 
-              {/* Name & Details: Vertically aligned with avatar */}
+              {/* User Identity Details */}
               <div className="min-w-0">
-                {/* Name & User Role (Admin / Editor) */}
                 <div className="flex flex-wrap items-center gap-2.5">
                   <h3 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
                     {name || "User Profile"}
@@ -392,12 +294,11 @@ export default function AccountPage() {
                 </div>
 
                 {authorRole && (
-                  <p className="text-xs font-medium text-muted-foreground capitalize mt-1">
+                  <p className="text-xs font-semibold text-primary mt-1">
                     {authorRole}
                   </p>
                 )}
 
-                {/* Email & Member since */}
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1.5">
                   <p className="flex items-center gap-1.5">
                     <Mail className="size-3.5 text-muted-foreground shrink-0" />
@@ -418,165 +319,149 @@ export default function AccountPage() {
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Right: Live Public Author Card Preview (40%) */}
-          <div className="lg:col-span-5 rounded-2xl border border-border/80 bg-card p-5 shadow-sm flex flex-col justify-between space-y-3.5">
-            <div className="flex items-center justify-between pb-2 border-b border-border/60">
-              <div className="flex items-center gap-2">
-                <PenTool className="size-4 text-primary" />
-                <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
-                  Author Card Preview
-                </h4>
-              </div>
-              <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full font-medium">
-                Live Preview
+            {/* Quick Status Pill */}
+            <div className="hidden md:flex flex-col items-end gap-1.5 text-right">
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Active Account
               </span>
-            </div>
-
-            {/* Rendered Mock Author Box */}
-            <div className="rounded-xl border border-border/60 bg-muted/30 p-4 space-y-2.5 flex-1 flex flex-col justify-center">
-              <div className="flex items-center gap-3">
-                <div className="relative size-12 rounded-full overflow-hidden bg-muted border border-border shrink-0">
-                  {profilePicture ? (
-                    <Image
-                      src={profilePicture}
-                      alt="Author Avatar"
-                      fill
-                      sizes="48px"
-                      className="object-cover"
-                    />
-                  ) : (
-                    <UserIcon className="size-6 text-muted-foreground m-auto" />
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h5 className="font-bold text-sm text-foreground truncate">
-                    {name || "Your Full Name"}
-                  </h5>
-                  <p className="text-xs text-primary font-medium truncate">
-                    {authorRole || "Author Role / Title"}
-                  </p>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground italic leading-relaxed line-clamp-3">
-                &ldquo;
-                {description ||
-                  "Your author bio will be displayed here on blog articles..."}
-                &rdquo;
+              <p className="text-[11px] text-muted-foreground">
+                Click your avatar to upload a new photo
               </p>
             </div>
           </div>
         </div>
 
-        {/* Bottom Section: Profile Information (50%) & Security & Password (50%) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-          {/* Panel 1: Profile Information (50%) */}
-          <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm flex flex-col justify-between space-y-5">
-            <div className="space-y-5">
-              <div className="flex items-center justify-between pb-3 border-b border-border/60">
-                <div className="flex items-center gap-2.5">
-                  <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                    <UserCog className="size-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-foreground tracking-tight">
-                      Profile Information
-                    </h3>
-                    <p className="text-xs text-muted-foreground">
-                      Update your public display name and author attribution.
-                    </p>
-                  </div>
+        {/* Profile Editor & Public Author Attribution Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Left Column: Form Editor (7 cols) */}
+          <div className="lg:col-span-7 rounded-2xl border border-border/80 bg-card p-6 shadow-xs space-y-6">
+            <div className="flex items-center justify-between pb-3 border-b border-border/60">
+              <div className="flex items-center gap-2.5">
+                <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                  <UserCog className="size-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-foreground tracking-tight">
+                    Editorial Profile
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Customize your public author details across published posts.
+                  </p>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Display Name */}
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="name"
-                      className="text-xs font-bold uppercase tracking-wider text-muted-foreground"
-                    >
-                      Display Name
-                    </Label>
-                    <Input
-                      id="name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="h-10 text-sm bg-background/50"
-                      placeholder="Enter your full name"
-                    />
-                  </div>
+              {dirtyManager.isDirty && (
+                <Badge
+                  variant="outline"
+                  className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-[11px]"
+                >
+                  Unsaved Changes
+                </Badge>
+              )}
+            </div>
 
-                  {/* Email Address */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label
-                        htmlFor="email"
-                        className="text-xs font-bold uppercase tracking-wider text-muted-foreground"
-                      >
-                        Email Address
-                      </Label>
-                      <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                        <Lock className="size-2.5" /> Read-only
-                      </span>
-                    </div>
-                    <Input
-                      id="email"
-                      value={email}
-                      disabled
-                      className="h-10 text-sm bg-muted/60 text-muted-foreground cursor-not-allowed border-dashed"
-                    />
-                  </div>
+            <div className="space-y-4.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Display Name */}
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="name"
+                    className="text-xs font-bold uppercase tracking-wider text-muted-foreground"
+                  >
+                    Display Name
+                  </Label>
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="h-10 text-sm bg-background/50"
+                    placeholder="Enter your full name"
+                  />
                 </div>
 
-                {/* Author Role */}
+                {/* Email Address */}
                 <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label
+                      htmlFor="email"
+                      className="text-xs font-bold uppercase tracking-wider text-muted-foreground"
+                    >
+                      Email Address
+                    </Label>
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                      <Lock className="size-2.5" /> Read-only
+                    </span>
+                  </div>
+                  <Input
+                    id="email"
+                    value={email}
+                    disabled
+                    className="h-10 text-sm bg-muted/60 text-muted-foreground cursor-not-allowed border-dashed"
+                  />
+                </div>
+              </div>
+
+              {/* Author Title / Role */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
                   <Label
                     htmlFor="authorRole"
                     className="text-xs font-bold uppercase tracking-wider text-muted-foreground"
                   >
                     Author Title / Role
                   </Label>
-                  <Input
-                    id="authorRole"
-                    value={authorRole}
-                    onChange={(e) => setAuthorRole(e.target.value)}
-                    className="h-10 text-sm bg-background/50"
-                    placeholder="e.g. Senior Tech Writer, Head of Design"
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Shown directly under your name on blog posts authored by
-                    you.
-                  </p>
+                  <span className="text-[11px] text-muted-foreground">
+                    e.g. Lead Developer, Content Strategist
+                  </span>
                 </div>
+                <Input
+                  id="authorRole"
+                  value={authorRole}
+                  onChange={(e) => setAuthorRole(e.target.value)}
+                  className="h-10 text-sm bg-background/50"
+                  placeholder="e.g. Senior Tech Writer, Head of Design"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Shown directly under your name on blog articles you author.
+                </p>
+              </div>
 
-                {/* Author Bio */}
-                <div className="space-y-1.5">
+              {/* Author Bio */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
                   <Label
                     htmlFor="description"
                     className="text-xs font-bold uppercase tracking-wider text-muted-foreground"
                   >
                     Author Bio
                   </Label>
-                  <Textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="text-sm min-h-24 resize-y bg-background/50 leading-relaxed"
-                    placeholder="Write a short bio about yourself for blog readers..."
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Displayed in the author card at the bottom of published blog
-                    posts.
-                  </p>
+                  <span className="text-[11px] text-muted-foreground font-mono">
+                    {description.length}/350
+                  </span>
                 </div>
+                <Textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  maxLength={350}
+                  className="text-sm min-h-28 resize-y bg-background/50 leading-relaxed"
+                  placeholder="Write a concise bio summarizing your expertise for readers..."
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Rendered in the author byline box at the bottom of published articles.
+                </p>
               </div>
             </div>
 
-            {/* Save Changes Button */}
-            <div className="pt-4 border-t border-border/60 flex justify-end">
+            {/* Save Action Bar */}
+            <div className="pt-4 border-t border-border/60 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Info className="size-3.5" />
+                <span>Changes reflect immediately on published blogs.</span>
+              </div>
+
               <Button
                 onClick={handleSave}
                 disabled={isSaving || isUploading || !dirtyManager.isDirty}
@@ -595,199 +480,94 @@ export default function AccountPage() {
             </div>
           </div>
 
-          {/* Panel 2: Security & Password (50%) */}
-          <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm flex flex-col justify-between space-y-5">
-            <div className="space-y-5">
-              <div className="flex items-center justify-between pb-3 border-b border-border/60">
-                <div className="flex items-center gap-2.5">
-                  <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                    <ShieldCheck className="size-4" />
+          {/* Right Column: Live Author Byline Preview (5 cols) */}
+          <div className="lg:col-span-5 space-y-4">
+            <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-xs space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                <div className="flex items-center gap-2">
+                  <PenTool className="size-4 text-primary" />
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                    Live Author Byline Preview
+                  </h4>
+                </div>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] bg-primary/10 text-primary border-primary/20 font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1"
+                >
+                  <Sparkles className="size-2.5" />
+                  Live Preview
+                </Badge>
+              </div>
+
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                This shows exactly how your profile renders in the author box at the footer of blogs you publish.
+              </p>
+
+              {/* Realistic Mock Author Box */}
+              <div className="rounded-xl border border-border/80 bg-muted/40 p-4 sm:p-5 space-y-3 relative overflow-hidden transition-all">
+                <div className="flex items-center gap-3.5">
+                  <div className="relative size-12 rounded-full overflow-hidden bg-muted border border-border/80 shadow-xs shrink-0">
+                    {profilePicture ? (
+                      <Image
+                        src={profilePicture}
+                        alt="Author Avatar"
+                        fill
+                        sizes="48px"
+                        className="object-cover"
+                      />
+                    ) : (
+                      <UserIcon className="size-6 text-muted-foreground m-auto" />
+                    )}
                   </div>
-                  <div>
-                    <h3 className="text-base font-bold text-foreground tracking-tight">
-                      Security & Password
-                    </h3>
-                    <p className="text-xs text-muted-foreground">
-                      Ensure your account is protected with a strong, private
-                      password.
+                  <div className="min-w-0 flex-1">
+                    <h5 className="font-bold text-sm text-foreground truncate">
+                      {name || "Your Full Name"}
+                    </h5>
+                    <p className="text-xs text-primary font-medium truncate">
+                      {authorRole || "Author Role / Title"}
                     </p>
                   </div>
                 </div>
+
+                <div className="border-t border-border/40 pt-2.5">
+                  <p className="text-xs text-muted-foreground italic leading-relaxed">
+                    &ldquo;
+                    {description ||
+                      "Your author bio will be displayed here on blog articles. Keep it engaging and informative for readers."}
+                    &rdquo;
+                  </p>
+                </div>
               </div>
 
-              <form
-                id="password-form"
-                onSubmit={handleChangePassword}
-                className="space-y-4"
-              >
-                {/* Current Password */}
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="current-password"
-                    className="text-xs font-bold uppercase tracking-wider text-muted-foreground"
-                  >
-                    Current Password
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="current-password"
-                      type={showCurrentPassword ? "text" : "password"}
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      placeholder="Enter your current password"
-                      required
-                      disabled={isChangingPassword}
-                      className="pr-10 text-sm h-10 bg-background/50 font-mono tracking-wider"
-                    />
-                    <button
-                      type="button"
-                      tabIndex={-1}
-                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-                      onClick={() =>
-                        setShowCurrentPassword(!showCurrentPassword)
-                      }
-                      disabled={isChangingPassword}
-                    >
-                      {showCurrentPassword ? (
-                        <EyeOff className="size-4" />
-                      ) : (
-                        <Eye className="size-4" />
-                      )}
-                    </button>
-                  </div>
+              {/* Attribution Notes */}
+              <div className="rounded-lg bg-muted/30 border border-border/50 p-3 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                  <CheckCircle2 className="size-3.5 text-emerald-600" />
+                  <span>SEO Schema Compatibility</span>
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* New Password */}
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="new-password"
-                      className="text-xs font-bold uppercase tracking-wider text-muted-foreground"
-                    >
-                      New Password
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="new-password"
-                        type={showNewPassword ? "text" : "password"}
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="••••••••"
-                        required
-                        disabled={isChangingPassword}
-                        className="pr-10 text-sm h-10 bg-background/50 font-mono tracking-wider"
-                      />
-                      <button
-                        type="button"
-                        tabIndex={-1}
-                        className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-                        onClick={() => setShowNewPassword(!showNewPassword)}
-                        disabled={isChangingPassword}
-                      >
-                        {showNewPassword ? (
-                          <EyeOff className="size-4" />
-                        ) : (
-                          <Eye className="size-4" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Confirm New Password */}
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="confirm-password"
-                      className="text-xs font-bold uppercase tracking-wider text-muted-foreground"
-                    >
-                      Confirm New Password
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="confirm-password"
-                        type={showConfirmPassword ? "text" : "password"}
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="••••••••"
-                        required
-                        disabled={isChangingPassword}
-                        className="pr-10 text-sm h-10 bg-background/50 font-mono tracking-wider"
-                      />
-                      <button
-                        type="button"
-                        tabIndex={-1}
-                        className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-                        onClick={() =>
-                          setShowConfirmPassword(!showConfirmPassword)
-                        }
-                        disabled={isChangingPassword}
-                      >
-                        {showConfirmPassword ? (
-                          <EyeOff className="size-4" />
-                        ) : (
-                          <Eye className="size-4" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <p className="text-[11px] text-muted-foreground">
-                  Minimum 8 characters with at least one letter and one number.
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Your author name and role are automatically injected into JSON-LD structured data for Google Search article rich snippets.
                 </p>
-              </form>
+              </div>
             </div>
 
-            {/* Update Password Button */}
-            <div className="pt-4 border-t border-border/60 flex justify-end">
-              <Button
-                form="password-form"
-                type="submit"
-                disabled={
-                  isChangingPassword ||
-                  !currentPassword ||
-                  !newPassword ||
-                  !confirmPassword
-                }
-                className="h-10 px-6 text-sm font-semibold shadow-xs hover:shadow-md transition-all cursor-pointer rounded-sm"
-              >
-                {isChangingPassword ? (
-                  <>
-                    <Loader2 className="size-4 mr-2 animate-spin" /> Updating...
-                  </>
-                ) : (
-                  <>
-                    <KeyRound className="size-4 mr-2" /> Update Password
-                  </>
-                )}
-              </Button>
+            {/* Help / Guide Box */}
+            <div className="rounded-xl border border-dashed border-border/80 p-4 text-xs text-muted-foreground flex items-start gap-2.5">
+              <HelpCircle className="size-4 shrink-0 text-primary mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-medium text-foreground">Need to change your login password?</p>
+                <p>
+                  Password credentials and security settings have been moved to the dedicated{" "}
+                  <a href="/account/security" className="text-primary hover:underline font-semibold">
+                    Security & Password
+                  </a>{" "}
+                  page.
+                </p>
+              </div>
             </div>
           </div>
         </div>
-
-        {/* Panel 3: Active Devices & Sessions */}
-        <ActiveSessionsCard />
       </div>
-
-      {/* Password Changed Success Modal */}
-      <ConfirmModal
-        open={showSuccessModal}
-        onOpenChange={() => {}}
-        variant="success"
-        title="Password Changed Successfully!"
-        description="Your new password is now active"
-        confirmText="Sign in now"
-        hideCancel
-        onConfirm={() => signOut({ callbackUrl: "/login" })}
-      >
-        <div className="py-2 text-xs text-muted-foreground leading-relaxed space-y-2">
-          <p>
-            Changing your password will sign you out. You will need to log in again with your new password to continue.
-          </p>
-          <p className="text-xs text-muted-foreground/80 font-medium">
-            Redirecting to login in <span className="font-semibold text-foreground font-mono">{countdown}</span> seconds...
-          </p>
-        </div>
-      </ConfirmModal>
     </>
   );
 }

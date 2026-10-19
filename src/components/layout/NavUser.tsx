@@ -22,8 +22,15 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { ConfirmModal } from "@/components/modals/ConfirmModal"
-import { ChevronsUpDownIcon, SettingsIcon, LogOutIcon } from "lucide-react"
-import { signOut } from "next-auth/react"
+import {
+  ChevronsUpDownIcon,
+  LogOutIcon,
+  User as UserIcon,
+  ShieldCheck as ShieldCheckIcon,
+  Laptop as LaptopIcon,
+  ClipboardList as ClipboardListIcon,
+} from "lucide-react"
+import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 
 export function NavUser({
@@ -37,6 +44,7 @@ export function NavUser({
 }) {
   const { isMobile, setOpenMobile } = useSidebar()
   const router = useRouter()
+  const { data: session } = useSession()
   const [showLogoutModal, setShowLogoutModal] = useState(false)
 
   return (
@@ -86,15 +94,51 @@ export function NavUser({
                     if (isMobile) setOpenMobile(false)
                     router.push('/account')
                   }}
+                  className="cursor-pointer"
                 >
-                  <SettingsIcon className="mr-2 h-4 w-4" />
-                  Profile Settings
+                  <UserIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <span>Profile & Author</span>
                 </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (isMobile) setOpenMobile(false)
+                    router.push('/account/security')
+                  }}
+                  className="cursor-pointer"
+                >
+                  <ShieldCheckIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <span>Security & Password</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (isMobile) setOpenMobile(false)
+                    router.push('/account/sessions')
+                  }}
+                  className="cursor-pointer"
+                >
+                  <LaptopIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <span>Active Sessions</span>
+                </DropdownMenuItem>
+
+                {session?.user?.role === "ADMIN" && (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (isMobile) setOpenMobile(false)
+                      router.push('/audit-logs')
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <ClipboardListIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <span>Audit Logs</span>
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setShowLogoutModal(true)}>
+              <DropdownMenuItem onClick={() => setShowLogoutModal(true)} className="cursor-pointer text-red-600 focus:text-red-600">
                 <LogOutIcon className="mr-2 h-4 w-4 text-red-500" />
-                Log out
+                <span>Log out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

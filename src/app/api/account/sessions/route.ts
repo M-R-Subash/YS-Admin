@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { parseUserAgent } from "@/lib/ua-parser";
 import { serverConfig } from "@/lib/config/server";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 // GET /api/account/sessions — Get all active logged-in devices/sessions for the current user
 export async function GET(request: NextRequest) {
@@ -106,6 +107,21 @@ export async function POST(request: NextRequest) {
         where: {
           userId: session.user.id,
           id: { not: currentId },
+        },
+      });
+
+      const meta = await getClientAuditMeta(request);
+      await recordAuditLog({
+        eventType: "AUTH.REVOKE_ALL_SESSIONS",
+        category: "AUTH",
+        action: `Revoked ${result.count} other active device session(s)`,
+        target: `User: ${session.user.email || session.user.id}`,
+        userId: session.user.id,
+        status: "WARNING",
+        ipAddress: meta.ipAddress,
+        userAgent: meta.userAgent,
+        metadata: {
+          revokedCount: result.count,
         },
       });
 

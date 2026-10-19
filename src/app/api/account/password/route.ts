@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 export async function POST(request: Request) {
   try {
@@ -87,6 +88,18 @@ export async function POST(request: Request) {
     await prisma.user.update({
       where: { id: user.id },
       data: { password: hashedNewPassword },
+    });
+
+    const meta = await getClientAuditMeta(request);
+    await recordAuditLog({
+      eventType: "SECURITY.PASSWORD_CHANGED",
+      category: "SECURITY",
+      action: "Administrator changed their login password",
+      target: `Account: ${session.user.email || user.id}`,
+      userId: user.id,
+      status: "SUCCESS",
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
     });
 
     return NextResponse.json({

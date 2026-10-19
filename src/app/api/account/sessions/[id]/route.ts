@@ -4,6 +4,7 @@ import { getToken } from "next-auth/jwt";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { serverConfig } from "@/lib/config/server";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 // DELETE /api/account/sessions/[id] — Revoke a specific session
 export async function DELETE(
@@ -46,6 +47,18 @@ export async function DELETE(
         { status: 404 }
       );
     }
+
+    const meta = await getClientAuditMeta(request);
+    await recordAuditLog({
+      eventType: "AUTH.SESSION_REVOKE",
+      category: "AUTH",
+      action: "Revoked active device session token",
+      target: `Session: ${id}`,
+      userId: session.user.id,
+      status: "WARNING",
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+    });
 
     return NextResponse.json({
       success: true,
