@@ -133,7 +133,7 @@ function CustomChartTooltip({
   const labelTitle = kpiLabels[activeKpiTab] || "Views";
 
   return (
-    <div className="rounded-xl border border-border/80 bg-background/95 p-3.5 shadow-xl backdrop-blur-md text-xs min-w-[210px] animate-in fade-in-50 zoom-in-95">
+    <div className="rounded-xl border border-border/80 bg-background/95 p-3.5 shadow-xl backdrop-blur-md text-xs min-w-52.5 animate-in fade-in-50 zoom-in-95">
       <div className="flex items-center justify-between pb-2 border-b border-border/50 mb-2">
         <span className="font-semibold text-foreground">{label}</span>
         <Badge variant="outline" className="text-[10px] uppercase font-mono px-1.5 py-0 h-4">
@@ -513,11 +513,11 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
       {/* DUAL-PERIOD COMPARISON AREA CHART */}
       <CardContent className="p-4 sm:p-6">
         {!mounted || isLoading ? (
-          <div className="h-[320px] sm:h-[350px] w-full flex items-center justify-center">
+          <div className="h-80 sm:h-87.5 w-full flex items-center justify-center">
             <Skeleton className="h-full w-full rounded-md" />
           </div>
         ) : timeSeries.length === 0 ? (
-          <div className="h-[320px] sm:h-[350px] w-full flex flex-col items-center justify-center text-center p-6 text-muted-foreground">
+          <div className="h-80 sm:h-87.5 w-full flex flex-col items-center justify-center text-center p-6 text-muted-foreground">
             <Sparkles className="size-8 mb-2 text-muted-foreground/40" />
             <p className="text-sm font-medium">No traffic recorded yet for this period</p>
             <p className="text-xs text-muted-foreground/70 mt-1">
@@ -525,7 +525,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
             </p>
           </div>
         ) : (
-          <div className="h-[320px] sm:h-[350px] w-full">
+          <div className="h-80 sm:h-87.5 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={timeSeries} margin={{ top: 12, right: 12, left: -20, bottom: 0 }}>
                 <defs>

@@ -45,7 +45,7 @@ export const DeviceDonutCard = memo(function DeviceDonutCard({
 
       <CardContent className="p-4 flex-1 flex flex-col justify-between">
         {isLoading || !mounted ? (
-          <div className="h-[170px] flex items-center justify-center">
+          <div className="h-42.5 flex items-center justify-center">
             <Skeleton className="size-32 rounded-full" />
           </div>
         ) : hasNoData ? (
@@ -54,7 +54,7 @@ export const DeviceDonutCard = memo(function DeviceDonutCard({
             <p className="text-xs font-medium">No device telemetry yet</p>
           </div>
         ) : (
-          <div className="relative flex items-center justify-center h-[170px]">
+          <div className="relative flex items-center justify-center h-42.5">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
