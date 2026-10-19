@@ -521,7 +521,9 @@ export async function PUT(
   const toStatus = isTrashed === true ? "trash" : blog.status;
 
   let eventType = "BLOG.UPDATED";
-  let actionDesc = `Updated content for blog article "${blog.title}"`;
+  let actionDesc = existingBlog.title !== blog.title
+    ? `Renamed blog article from "${existingBlog.title}" to "${blog.title}"`
+    : `Updated content for blog article "${blog.title}"`;
 
   if (isTrashed === true && !existingBlog.isTrashed) {
     eventType = "BLOG.TRASHED";
@@ -553,7 +555,9 @@ export async function PUT(
       fromStatus,
       toStatus,
       title: blog.title,
-      changes: fromStatus !== toStatus ? `${fromStatus} ➔ ${toStatus}` : "Content updated",
+      fromTitle: existingBlog.title,
+      toTitle: blog.title,
+      changes: fromStatus !== toStatus ? `${fromStatus} ➔ ${toStatus}` : (existingBlog.title !== blog.title ? `Renamed to ${blog.title}` : "Content updated"),
     },
   });
 

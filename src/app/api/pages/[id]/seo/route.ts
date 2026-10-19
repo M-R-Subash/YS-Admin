@@ -21,6 +21,15 @@ export async function PUT(
     
     // Validate request body with universal SEO schema
     const validatedData = universalSeoFormSchema.parse(body);
+
+    const existingPage = await prisma.page.findUnique({
+      where: { id },
+      select: { id: true, title: true, slug: true },
+    });
+
+    if (!existingPage) {
+      return new NextResponse("Page not found", { status: 404 });
+    }
     
     const {
       title,
@@ -102,11 +111,25 @@ export async function PUT(
     }
 
     const clientMeta = await getClientAuditMeta(req);
+    const titleChanged = existingPage.title !== updatedPage.title;
+    const slugChanged = existingPage.slug !== updatedPage.slug;
+
+    let eventType = "PAGE.SEO_UPDATED";
+    let actionDesc = `Updated SEO configuration for page "${updatedPage.title}"`;
+
+    if (titleChanged) {
+      eventType = "PAGE.UPDATED";
+      actionDesc = `Renamed page from "${existingPage.title}" to "${updatedPage.title}"`;
+    } else if (slugChanged) {
+      eventType = "PAGE.UPDATED";
+      actionDesc = `Changed page URL slug from "/${existingPage.slug}" to "/${updatedPage.slug}"`;
+    }
+
     await recordAuditLog({
-      eventType: "PAGE.SEO_UPDATED",
+      eventType,
       category: "PAGES",
-      action: `Updated SEO configuration for page "${updatedPage.title}"`,
-      target: `Page SEO: ${updatedPage.title}`,
+      action: actionDesc,
+      target: `Page: ${updatedPage.title}`,
       userId: session.user.id,
       status: "SUCCESS",
       ipAddress: clientMeta.ipAddress,
@@ -114,6 +137,12 @@ export async function PUT(
       metadata: {
         pageId: updatedPage.id,
         slug: updatedPage.slug,
+        fromTitle: existingPage.title,
+        toTitle: updatedPage.title,
+        fromSlug: existingPage.slug,
+        toSlug: updatedPage.slug,
+        titleChanged,
+        slugChanged,
         metaTitle: validatedData.metaTitle,
       },
     });

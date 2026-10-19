@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { universalSeoFormSchema } from "@/lib/schemas/seo-validation";
 import { revalidateFrontendPath } from "@/lib/revalidate";
 import { slugify } from "@/lib/slugify";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 export async function PUT(
   req: Request,
@@ -21,6 +22,15 @@ export async function PUT(
     
     // Validate request body
     const validatedData = universalSeoFormSchema.parse(body);
+
+    const existingBlog = await prisma.blog.findUnique({
+      where: { id },
+      select: { id: true, title: true, slug: true, status: true },
+    });
+
+    if (!existingBlog) {
+      return NextResponse.json({ error: "Blog not found" }, { status: 404 });
+    }
     
     const {
       title,
@@ -153,6 +163,43 @@ export async function PUT(
       revalidateFrontendPath(`/blogs/${updatedBlog.slug}`);
       revalidateFrontendPath("/blogs");
     }
+
+    const clientMeta = await getClientAuditMeta(req);
+    const titleChanged = existingBlog.title !== updatedBlog.title;
+    const slugChanged = existingBlog.slug !== updatedBlog.slug;
+
+    let eventType = "BLOG.SEO_UPDATED";
+    let actionDesc = `Updated SEO metadata for article "${updatedBlog.title}"`;
+
+    if (titleChanged) {
+      eventType = "BLOG.UPDATED";
+      actionDesc = `Renamed article from "${existingBlog.title}" to "${updatedBlog.title}"`;
+    } else if (slugChanged) {
+      eventType = "BLOG.UPDATED";
+      actionDesc = `Changed article URL slug from "/${existingBlog.slug}" to "/${updatedBlog.slug}"`;
+    }
+
+    await recordAuditLog({
+      eventType,
+      category: "BLOGS",
+      action: actionDesc,
+      target: `Blog: ${updatedBlog.title}`,
+      userId: session.user.id,
+      status: "SUCCESS",
+      ipAddress: clientMeta.ipAddress,
+      userAgent: clientMeta.userAgent,
+      metadata: {
+        blogId: updatedBlog.id,
+        slug: updatedBlog.slug,
+        fromTitle: existingBlog.title,
+        toTitle: updatedBlog.title,
+        fromSlug: existingBlog.slug,
+        toSlug: updatedBlog.slug,
+        titleChanged,
+        slugChanged,
+        metaTitle: validatedData.metaTitle,
+      },
+    });
 
     return NextResponse.json({ success: true, blog: updatedBlog });
     

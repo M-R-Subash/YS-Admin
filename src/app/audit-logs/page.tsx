@@ -180,9 +180,13 @@ function getTransitionInfo(item: AuditLogItem): TransitionInfo {
     case "BLOG.PERMANENTLY_DELETED":
       return { from: "Trash", to: "Deleted", type: "delete" };
     case "PAGE.SEO_UPDATED":
+    case "BLOG.SEO_UPDATED":
       return { from: "SEO", to: "Updated", type: "seo", pillText: "SEO Configured" };
     case "PAGE.UPDATED":
     case "BLOG.UPDATED":
+      if (meta.fromTitle && meta.toTitle && meta.fromTitle !== meta.toTitle) {
+        return { from: "Title", to: "Renamed", type: "update", pillText: "Title Renamed" };
+      }
       return { from: "Content", to: "Saved", type: "update", pillText: "Content Updated" };
 
     case "PAGE.BULK_PUBLISH":
@@ -283,6 +287,9 @@ function getSimpleExplanation(item: AuditLogItem): string {
     case "PAGE.PERMANENTLY_DELETED":
       return "Permanently deleted page";
     case "PAGE.UPDATED":
+      if (meta.fromTitle && meta.toTitle && meta.fromTitle !== meta.toTitle) {
+        return `Renamed page from "${meta.fromTitle}" to "${meta.toTitle}"`;
+      }
       return "Updated page content & layout";
     case "PAGE.SEO_UPDATED":
       return "Updated SEO metadata";
@@ -310,7 +317,12 @@ function getSimpleExplanation(item: AuditLogItem): string {
     case "BLOG.PERMANENTLY_DELETED":
       return "Permanently deleted article";
     case "BLOG.UPDATED":
+      if (meta.fromTitle && meta.toTitle && meta.fromTitle !== meta.toTitle) {
+        return `Renamed article from "${meta.fromTitle}" to "${meta.toTitle}"`;
+      }
       return "Updated article content";
+    case "BLOG.SEO_UPDATED":
+      return "Updated SEO metadata";
     case "BLOG.BULK_PUBLISH":
       return `Bulk published ${meta.targetIds?.length || ""} articles`;
     case "BLOG.BULK_DRAFT":
@@ -810,6 +822,30 @@ function AuditLogInspector({ log }: AuditLogInspectorProps) {
             Change Details
           </span>
           <div className="space-y-1.5 text-xs text-foreground">
+            {meta.fromTitle && meta.toTitle && meta.fromTitle !== meta.toTitle && (
+              <>
+                <div className="flex justify-between py-1 border-b border-border/50">
+                  <span className="text-muted-foreground">Previous Title:</span>
+                  <span className="font-medium text-muted-foreground line-through">{meta.fromTitle}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-border/50">
+                  <span className="text-muted-foreground">New Title:</span>
+                  <span className="font-bold text-foreground">{meta.toTitle}</span>
+                </div>
+              </>
+            )}
+            {meta.fromSlug && meta.toSlug && meta.fromSlug !== meta.toSlug && (
+              <>
+                <div className="flex justify-between py-1 border-b border-border/50">
+                  <span className="text-muted-foreground">Previous Slug:</span>
+                  <span className="font-mono text-[11px] text-muted-foreground line-through">/{meta.fromSlug}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-border/50">
+                  <span className="text-muted-foreground">New Slug:</span>
+                  <span className="font-mono text-[11px] font-bold text-foreground">/{meta.toSlug}</span>
+                </div>
+              </>
+            )}
             {meta.sourceUrl && (
               <div className="flex justify-between py-1 border-b border-border/50">
                 <span className="text-muted-foreground">Source URL:</span>
