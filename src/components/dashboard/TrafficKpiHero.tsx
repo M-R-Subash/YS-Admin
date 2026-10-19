@@ -251,8 +251,8 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
               setActiveKpiTab("visitors");
             }
           }}
-          className={`p-4 sm:p-5 text-left transition-all cursor-pointer group hover:bg-muted/40 select-none relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
-            activeKpiTab === "visitors" ? "bg-background shadow-xs ring-1 ring-emerald-500/30" : ""
+          className={`p-4 sm:p-5 text-left transition-all cursor-pointer group hover:bg-muted/40 select-none relative focus-visible:outline-none ${
+            activeKpiTab === "visitors" ? "bg-background shadow-xs" : ""
           }`}
         >
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
@@ -325,8 +325,8 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
               setActiveKpiTab("views");
             }
           }}
-          className={`p-4 sm:p-5 text-left transition-all cursor-pointer group hover:bg-muted/40 select-none relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-            activeKpiTab === "views" ? "bg-background shadow-xs ring-1 ring-blue-500/30" : ""
+          className={`p-4 sm:p-5 text-left transition-all cursor-pointer group hover:bg-muted/40 select-none relative focus-visible:outline-none ${
+            activeKpiTab === "views" ? "bg-background shadow-xs" : ""
           }`}
         >
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
@@ -386,8 +386,8 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
               setActiveKpiTab("engagement");
             }
           }}
-          className={`p-4 sm:p-5 text-left transition-all cursor-pointer group hover:bg-muted/40 select-none relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 ${
-            activeKpiTab === "engagement" ? "bg-background shadow-xs ring-1 ring-purple-500/30" : ""
+          className={`p-4 sm:p-5 text-left transition-all cursor-pointer group hover:bg-muted/40 select-none relative focus-visible:outline-none ${
+            activeKpiTab === "engagement" ? "bg-background shadow-xs" : ""
           }`}
         >
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
@@ -460,8 +460,8 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
               setActiveKpiTab("subscribers");
             }
           }}
-          className={`p-4 sm:p-5 text-left transition-all cursor-pointer group hover:bg-muted/40 select-none relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
-            activeKpiTab === "subscribers" ? "bg-background shadow-xs ring-1 ring-violet-500/30" : ""
+          className={`p-4 sm:p-5 text-left transition-all cursor-pointer group hover:bg-muted/40 select-none relative focus-visible:outline-none ${
+            activeKpiTab === "subscribers" ? "bg-background shadow-xs" : ""
           }`}
         >
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
