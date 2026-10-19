@@ -6,6 +6,7 @@ import { revalidateFrontendPath } from "@/lib/revalidate";
 import { serverConfig } from "@/lib/config/server";
 import { handleApiError } from "@/lib/server/prisma-errors";
 import { invalidateAggregateCaches } from "@/lib/server/memory-cache";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 // GET /api/pages/[id] — get a single page
 export async function GET(
@@ -55,6 +56,14 @@ export async function PUT(
   }
 
   const { id } = await params;
+  const existingPage = await prisma.page.findUnique({
+    where: { id },
+    select: { id: true, title: true, status: true, isTrashed: true },
+  });
+  if (!existingPage) {
+    return NextResponse.json({ error: "Page not found" }, { status: 404 });
+  }
+
   const body = await request.json();
   const { title, slug, content, isTrashed, action, seo } = body;
   let { status } = body;
@@ -170,6 +179,42 @@ export async function PUT(
 
   invalidateAggregateCaches();
 
+  // Audit Logging for Page Mutations
+  let eventType = "PAGE.UPDATED";
+  let actionDesc = `Updated page "${page.title}"`;
+
+  if (isTrashed === true && !existingPage.isTrashed) {
+    eventType = "PAGE.TRASHED";
+    actionDesc = `Moved page "${page.title}" to trash`;
+  } else if (isTrashed === false && existingPage.isTrashed) {
+    eventType = "PAGE.RESTORED";
+    actionDesc = `Restored page "${page.title}" from trash`;
+  } else if (status === "published" && existingPage.status !== "published") {
+    eventType = "PAGE.PUBLISHED";
+    actionDesc = `Published page "${page.title}"`;
+  } else if (status === "draft" && existingPage.status !== "draft") {
+    eventType = "PAGE.SET_TO_DRAFT";
+    actionDesc = `Set page "${page.title}" to draft`;
+  }
+
+  const clientMeta = await getClientAuditMeta(request);
+  await recordAuditLog({
+    eventType,
+    category: "PAGES",
+    action: actionDesc,
+    target: `Page: ${page.title}`,
+    userId: session.user.id,
+    status: "SUCCESS",
+    ipAddress: clientMeta.ipAddress,
+    userAgent: clientMeta.userAgent,
+    metadata: {
+      pageId: page.id,
+      slug: page.slug,
+      status: page.status,
+      isTrashed: page.isTrashed,
+    },
+  });
+
     return NextResponse.json({
       ...mapDbToPageData(page),
       previewSecret: serverConfig.security.previewSecret,
@@ -213,6 +258,22 @@ export async function DELETE(
   if (page.slug) {
     revalidateFrontendPath(page.slug);
   }
+
+  const delClientMeta = await getClientAuditMeta(_request);
+  await recordAuditLog({
+    eventType: "PAGE.PERMANENTLY_DELETED",
+    category: "PAGES",
+    action: `Permanently deleted page "${page.title}"`,
+    target: `Page: ${page.title}`,
+    userId: session.user.id,
+    status: "WARNING",
+    ipAddress: delClientMeta.ipAddress,
+    userAgent: delClientMeta.userAgent,
+    metadata: {
+      pageId: page.id,
+      slug: page.slug,
+    },
+  });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, requireLiveAdmin } from "@/lib/auth";
 import { v2 as cloudinary } from "cloudinary";
 import { serverConfig } from "@/lib/config/server";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 cloudinary.config({
   cloud_name: serverConfig.cloudinary.cloudName,
@@ -27,6 +28,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing public_id" }, { status: 400 });
     }
     const result = await cloudinary.uploader.destroy(public_id);
+
+    const clientMeta = await getClientAuditMeta(request);
+    await recordAuditLog({
+      eventType: "MEDIA.DELETED",
+      category: "MEDIA",
+      action: `Deleted image asset "${public_id}"`,
+      target: `Media: ${public_id}`,
+      userId: session.user.id,
+      status: "WARNING",
+      ipAddress: clientMeta.ipAddress,
+      userAgent: clientMeta.userAgent,
+      metadata: { public_id, result },
+    });
+
     return NextResponse.json({ result });
   } catch (error: any) {
     console.error("Cloudinary delete error:", error);

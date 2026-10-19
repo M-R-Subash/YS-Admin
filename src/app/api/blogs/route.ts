@@ -13,6 +13,7 @@ import {
 import { handleApiError } from "@/lib/server/prisma-errors";
 import { createBlogRevisionSnapshot } from "@/lib/server/revision-utils";
 import { invalidateAggregateCaches } from "@/lib/server/memory-cache";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 export async function GET(req: Request) {
   try {
@@ -280,6 +281,26 @@ export async function POST(req: Request) {
     }
 
     invalidateAggregateCaches();
+
+    const clientMeta = await getClientAuditMeta(req);
+    await recordAuditLog({
+      eventType: newBlog.status === "published" ? "BLOG.PUBLISHED" : "BLOG.CREATED",
+      category: "BLOGS",
+      action:
+        newBlog.status === "published"
+          ? `Created and published blog article "${newBlog.title}"`
+          : `Created new draft for blog article "${newBlog.title}"`,
+      target: `Blog: ${newBlog.title}`,
+      userId: session.user.id,
+      status: "SUCCESS",
+      ipAddress: clientMeta.ipAddress,
+      userAgent: clientMeta.userAgent,
+      metadata: {
+        blogId: newBlog.id,
+        slug: newBlog.slug,
+        status: newBlog.status,
+      },
+    });
 
     return NextResponse.json(newBlog, { status: 201 });
   } catch (error: any) {

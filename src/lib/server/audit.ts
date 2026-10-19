@@ -1,7 +1,15 @@
 import prisma from "@/lib/prisma";
 import { headers } from "next/headers";
 
-export type AuditCategory = "AUTH" | "CONTENT" | "SECURITY" | "USER" | "MEDIA";
+export type AuditCategory =
+  | "BLOGS"
+  | "PAGES"
+  | "MEDIA"
+  | "COMMENTS"
+  | "USERS"
+  | "SETTINGS"
+  | "AUTH"
+  | "SECURITY";
 export type AuditStatus = "SUCCESS" | "WARNING" | "FAILED";
 
 export interface LogAuditOptions {

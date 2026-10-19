@@ -27,36 +27,12 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get("limit") || "100", 10), 200);
     const offset = parseInt(searchParams.get("offset") || "0", 10);
 
-    // Auto-seed initial system baseline if table is freshly created
-    const count = await prisma.auditLog.count();
-    if (count === 0) {
-      await prisma.auditLog.createMany({
-        data: [
-          {
-            eventType: "AUTH.SESSION_INITIALIZED",
-            category: "AUTH",
-            action: "Admin session authenticated and verified",
-            target: "Web Console (Chrome / Linux)",
-            status: "SUCCESS",
-            userId: session.user.id,
-            ipAddress: "127.0.0.1",
-            userAgent: "Mozilla/5.0 (X11; Linux x86_64)",
-            createdAt: new Date(Date.now() - 1000 * 60 * 15),
-          },
-          {
-            eventType: "SECURITY.AUDIT_PIPELINE_READY",
-            category: "SECURITY",
-            action: "Database audit trail tables synced and activated",
-            target: "Audit Log Engine",
-            status: "SUCCESS",
-            userId: session.user.id,
-            ipAddress: "127.0.0.1",
-            userAgent: "System Worker",
-            createdAt: new Date(Date.now() - 1000 * 60 * 5),
-          },
-        ],
-      }).catch(() => {});
-    }
+    // Clean up any initial dummy seed events if they exist
+    await prisma.auditLog.deleteMany({
+      where: {
+        eventType: { in: ["AUTH.SESSION_INITIALIZED", "SECURITY.AUDIT_PIPELINE_READY"] },
+      },
+    }).catch(() => {});
 
     // Build Prisma query filters
     const where: any = {};
@@ -83,7 +59,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Parallel fetch logs and summary counts
-    const [rawLogs, total, securityCount, contentCount] = await Promise.all([
+    const [rawLogs, total, blogCount, pageCount, mediaCount, otherCount] = await Promise.all([
       prisma.auditLog.findMany({
         where,
         include: {
@@ -103,10 +79,16 @@ export async function GET(request: NextRequest) {
       }),
       prisma.auditLog.count({ where }),
       prisma.auditLog.count({
-        where: { category: { in: ["SECURITY", "AUTH"] } },
+        where: { category: "BLOGS" },
       }),
       prisma.auditLog.count({
-        where: { category: "CONTENT" },
+        where: { category: "PAGES" },
+      }),
+      prisma.auditLog.count({
+        where: { category: "MEDIA" },
+      }),
+      prisma.auditLog.count({
+        where: { category: { in: ["SETTINGS", "COMMENTS", "USERS", "SECURITY"] } },
       }),
     ]);
 
@@ -134,8 +116,10 @@ export async function GET(request: NextRequest) {
       total,
       stats: {
         totalEvents: total,
-        securityEvents: securityCount,
-        contentEvents: contentCount,
+        blogEvents: blogCount,
+        pageEvents: pageCount,
+        mediaEvents: mediaCount,
+        otherEvents: otherCount,
         retentionDays: 90,
       },
     });

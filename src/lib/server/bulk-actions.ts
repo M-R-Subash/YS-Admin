@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { invalidateAggregateCaches } from "@/lib/server/memory-cache";
 import { revalidateFrontendPath } from "@/lib/revalidate";
 import { handleApiError } from "@/lib/server/prisma-errors";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 export type BulkActionEntity =
   | "blogs"
@@ -148,6 +149,22 @@ export async function executeBulkAction(
         console.warn("Bulk blog revalidation warning:", e);
       }
 
+      const clientMeta = await getClientAuditMeta(request);
+      await recordAuditLog({
+        eventType: `BLOG.BULK_${action.toUpperCase()}`,
+        category: "BLOGS",
+        action: `Bulk ${action} applied to ${targetIds.length} blog(s)`,
+        target: `${targetIds.length} blogs`,
+        userId: session.user.id,
+        status: action === "deletePermanent" ? "WARNING" : "SUCCESS",
+        ipAddress: clientMeta.ipAddress,
+        userAgent: clientMeta.userAgent,
+        metadata: {
+          action,
+          targetIds,
+        },
+      });
+
       return NextResponse.json({
         success: true,
         entity,
@@ -216,6 +233,22 @@ export async function executeBulkAction(
       } catch (e) {
         console.warn("Bulk page revalidation warning:", e);
       }
+
+      const clientMeta = await getClientAuditMeta(request);
+      await recordAuditLog({
+        eventType: `PAGE.BULK_${action.toUpperCase()}`,
+        category: "PAGES",
+        action: `Bulk ${action} applied to ${targetIds.length} page(s)`,
+        target: `${targetIds.length} pages`,
+        userId: session.user.id,
+        status: action === "deletePermanent" ? "WARNING" : "SUCCESS",
+        ipAddress: clientMeta.ipAddress,
+        userAgent: clientMeta.userAgent,
+        metadata: {
+          action,
+          targetIds,
+        },
+      });
 
       return NextResponse.json({
         success: true,

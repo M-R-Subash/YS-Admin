@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { universalSeoFormSchema } from "@/lib/schemas/seo-validation";
 import { revalidateFrontendPath } from "@/lib/revalidate";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 export async function PUT(
   req: Request,
@@ -99,6 +100,23 @@ export async function PUT(
     if (updatedPage.slug) {
       revalidateFrontendPath(updatedPage.slug);
     }
+
+    const clientMeta = await getClientAuditMeta(req);
+    await recordAuditLog({
+      eventType: "PAGE.SEO_UPDATED",
+      category: "PAGES",
+      action: `Updated SEO configuration for page "${updatedPage.title}"`,
+      target: `Page SEO: ${updatedPage.title}`,
+      userId: session.user.id,
+      status: "SUCCESS",
+      ipAddress: clientMeta.ipAddress,
+      userAgent: clientMeta.userAgent,
+      metadata: {
+        pageId: updatedPage.id,
+        slug: updatedPage.slug,
+        metaTitle: validatedData.metaTitle,
+      },
+    });
 
     return NextResponse.json({ success: true, page: updatedPage });
     

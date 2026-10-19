@@ -73,7 +73,7 @@ export async function PUT(request: Request) {
     const meta = await getClientAuditMeta(request);
     await recordAuditLog({
       eventType: "USER.PROFILE_UPDATE",
-      category: "USER",
+      category: "USERS",
       action: "Updated profile credentials and author attribution",
       target: `User: ${updatedUser.name || session.user.email}`,
       userId: session.user.id,

@@ -14,6 +14,7 @@ import { createBlogRevisionSnapshot } from "@/lib/server/revision-utils";
 import { handleApiError } from "@/lib/server/prisma-errors";
 import { slugify } from "@/lib/slugify";
 import { invalidateAggregateCaches } from "@/lib/server/memory-cache";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 // GET /api/blogs/[id] — get a single blog
 export async function GET(
@@ -515,6 +516,42 @@ export async function PUT(
 
   invalidateAggregateCaches();
 
+  // Audit Logging for Blog Mutations
+  let eventType = "BLOG.UPDATED";
+  let actionDesc = `Updated blog article "${blog.title}"`;
+
+  if (isTrashed === true && !existingBlog.isTrashed) {
+    eventType = "BLOG.TRASHED";
+    actionDesc = `Moved blog article "${blog.title}" to trash`;
+  } else if (isTrashed === false && existingBlog.isTrashed) {
+    eventType = "BLOG.RESTORED";
+    actionDesc = `Restored blog article "${blog.title}" from trash`;
+  } else if (action === "publish" || (blog.status === "published" && existingBlog.status !== "published")) {
+    eventType = "BLOG.PUBLISHED";
+    actionDesc = `Published blog article "${blog.title}"`;
+  } else if (action === "draft" || (blog.status === "draft" && existingBlog.status !== "draft")) {
+    eventType = "BLOG.SET_TO_DRAFT";
+    actionDesc = `Set blog article "${blog.title}" to draft`;
+  }
+
+  const clientMeta = await getClientAuditMeta(request);
+  await recordAuditLog({
+    eventType,
+    category: "BLOGS",
+    action: actionDesc,
+    target: `Blog: ${blog.title}`,
+    userId: session.user.id,
+    status: "SUCCESS",
+    ipAddress: clientMeta.ipAddress,
+    userAgent: clientMeta.userAgent,
+    metadata: {
+      blogId: blog.id,
+      slug: blog.slug,
+      status: blog.status,
+      isTrashed: blog.isTrashed,
+    },
+  });
+
   return NextResponse.json(blog);
   } catch (error: any) {
     return handleApiError(error, "Failed to update blog");
@@ -560,6 +597,22 @@ export async function DELETE(
   if (blog.slug) {
     revalidateFrontendPath(`/blogs/${blog.slug}`);
   }
+
+  const delClientMeta = await getClientAuditMeta(_request);
+  await recordAuditLog({
+    eventType: "BLOG.PERMANENTLY_DELETED",
+    category: "BLOGS",
+    action: `Permanently deleted blog article "${blog.title}"`,
+    target: `Blog: ${blog.title}`,
+    userId: session.user.id,
+    status: "WARNING",
+    ipAddress: delClientMeta.ipAddress,
+    userAgent: delClientMeta.userAgent,
+    metadata: {
+      blogId: blog.id,
+      slug: blog.slug,
+    },
+  });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

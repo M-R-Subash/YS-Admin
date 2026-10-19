@@ -6,6 +6,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, requireLiveUser } from "@/lib/auth";
 import { revalidateFrontendPath } from "@/lib/revalidate";
 import { headerZodSchema } from "@/lib/schemas/header/header-validation";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 export async function saveHeaderData(data: any) {
   try {
@@ -35,6 +36,22 @@ export async function saveHeaderData(data: any) {
 
     revalidatePath("/header");
     revalidateFrontendPath("/", "layout");
+
+    const clientMeta = await getClientAuditMeta();
+    await recordAuditLog({
+      eventType: "SETTINGS.HEADER_UPDATED",
+      category: "SETTINGS",
+      action: "Updated global site header navigation & styling",
+      target: "Header Configuration",
+      userId: session.user.id,
+      status: "SUCCESS",
+      ipAddress: clientMeta.ipAddress,
+      userAgent: clientMeta.userAgent,
+      metadata: {
+        keys: Object.keys(parsed.data || {}),
+      },
+    });
+
     return { success: true };
   } catch (error) {
     console.error("Failed to save header:", error);

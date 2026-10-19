@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { invalidateAggregateCaches } from "@/lib/server/memory-cache";
 import { revalidateFrontendPath } from "@/lib/revalidate";
 import { handleApiError } from "@/lib/server/prisma-errors";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 /**
  * GET /api/pages/bulk?ids=id1,id2,...
@@ -186,6 +187,22 @@ export async function PATCH(request: Request) {
     } catch (e) {
       console.warn("[BulkPageUpdate] Revalidation warning:", e);
     }
+
+    const clientMeta = await getClientAuditMeta(request);
+    await recordAuditLog({
+      eventType: "PAGE.BULK_UPDATED",
+      category: "PAGES",
+      action: `Bulk updated metadata and attributes for ${affectedPageIds.length} pages`,
+      target: `${affectedPageIds.length} Pages`,
+      userId: session.user.id,
+      status: "SUCCESS",
+      ipAddress: clientMeta.ipAddress,
+      userAgent: clientMeta.userAgent,
+      metadata: {
+        affectedPageIds,
+        count: affectedPageIds.length,
+      },
+    });
 
     return NextResponse.json({
       success: true,

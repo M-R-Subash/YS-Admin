@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, requireLiveAdmin } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 export async function DELETE(
   request: Request,
@@ -70,6 +71,11 @@ export async function DELETE(
       }
     }
 
+    const userToDelete = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true, role: true },
+    });
+
     // Execute reassignment and deletion atomically
     await prisma.$transaction(async (tx) => {
       if (reassignToUserId) {
@@ -87,6 +93,22 @@ export async function DELETE(
       await tx.user.delete({
         where: { id: userId },
       });
+    });
+
+    const clientMeta = await getClientAuditMeta(request);
+    await recordAuditLog({
+      eventType: "USER.DELETED",
+      category: "USERS",
+      action: `Deleted user "${userToDelete?.name || userToDelete?.email || userId}"`,
+      target: `User: ${userToDelete?.name || userToDelete?.email || userId}`,
+      userId: session.user.id,
+      status: "WARNING",
+      ipAddress: clientMeta.ipAddress,
+      userAgent: clientMeta.userAgent,
+      metadata: {
+        deletedUserId: userId,
+        reassignedToUserId: reassignToUserId || null,
+      },
     });
 
     return NextResponse.json({ message: "User deleted successfully" });
@@ -183,6 +205,31 @@ export async function PATCH(
         profilePicture: true,
         createdAt: true,
         lastLogin: true,
+      },
+    });
+
+    const clientMeta = await getClientAuditMeta(request);
+    let eventType = "USER.UPDATED";
+    let actionDesc = `Updated profile information for user "${updatedUser.name || updatedUser.email}"`;
+
+    if (role !== undefined) {
+      eventType = "USER.ROLE_UPDATED";
+      actionDesc = `Changed role for "${updatedUser.name || updatedUser.email}" to ${updatedUser.role}`;
+    }
+
+    await recordAuditLog({
+      eventType,
+      category: "USERS",
+      action: actionDesc,
+      target: `User: ${updatedUser.name || updatedUser.email}`,
+      userId: session.user.id,
+      status: "SUCCESS",
+      ipAddress: clientMeta.ipAddress,
+      userAgent: clientMeta.userAgent,
+      metadata: {
+        targetUserId: updatedUser.id,
+        role: updatedUser.role,
+        changedFields: Object.keys(body).filter((k) => k !== "password"),
       },
     });
 

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, requireLiveAdmin } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 export async function GET() {
   try {
@@ -133,6 +134,23 @@ export async function POST(request: Request) {
         role: true,
         createdAt: true,
         lastLogin: true,
+      },
+    });
+
+    const clientMeta = await getClientAuditMeta(request);
+    await recordAuditLog({
+      eventType: "USER.CREATED",
+      category: "USERS",
+      action: `Created new team member account for "${newUser.name || newUser.email}" (${newUser.role})`,
+      target: `User: ${newUser.name || newUser.email}`,
+      userId: session.user.id,
+      status: "SUCCESS",
+      ipAddress: clientMeta.ipAddress,
+      userAgent: clientMeta.userAgent,
+      metadata: {
+        newUserId: newUser.id,
+        email: newUser.email,
+        role: newUser.role,
       },
     });
 

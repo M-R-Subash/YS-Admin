@@ -6,6 +6,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, requireLiveUser } from "@/lib/auth";
 import { revalidateFrontendPath } from "@/lib/revalidate";
 import { footerZodSchema } from "@/lib/schemas/footer/footer-validation";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 export async function saveFooterData(data: any) {
   try {
@@ -35,6 +36,22 @@ export async function saveFooterData(data: any) {
 
     revalidatePath("/footer");
     revalidateFrontendPath("/", "layout");
+
+    const clientMeta = await getClientAuditMeta();
+    await recordAuditLog({
+      eventType: "SETTINGS.FOOTER_UPDATED",
+      category: "SETTINGS",
+      action: "Updated global site footer links & branding",
+      target: "Footer Configuration",
+      userId: session.user.id,
+      status: "SUCCESS",
+      ipAddress: clientMeta.ipAddress,
+      userAgent: clientMeta.userAgent,
+      metadata: {
+        keys: Object.keys(parsed.data || {}),
+      },
+    });
+
     return { success: true };
   } catch (error) {
     console.error("Failed to save footer:", error);
