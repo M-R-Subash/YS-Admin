@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, memo } from "react";
+import React, { useState, useMemo, useRef, useCallback, memo } from "react";
 import {
   AreaChart,
   Area,
@@ -203,6 +203,20 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
   compareMode,
 }: TrafficKpiHeroProps) {
   const [activeKpiTab, setActiveKpiTab] = useState<"visitors" | "views" | "engagement" | "subscribers">("visitors");
+  const [swipedIndex, setSwipedIndex] = useState(0);
+  const carouselRef = useRef<HTMLDivElement>(null);
+
+  const handleCarouselScroll = useCallback(() => {
+    if (!carouselRef.current) return;
+    const el = carouselRef.current;
+    const scrollLeft = el.scrollLeft;
+    const firstChild = el.firstElementChild as HTMLElement;
+    const cardWidth = firstChild ? firstChild.offsetWidth : (el.scrollWidth / 4);
+    if (cardWidth > 0) {
+      const newIndex = Math.min(3, Math.max(0, Math.round(scrollLeft / cardWidth)));
+      setSwipedIndex(newIndex);
+    }
+  }, []);
 
   const currentChartProps = useMemo<ChartConfig>(() => {
     switch (activeKpiTab) {
@@ -293,26 +307,32 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
 
   return (
     <Card className="border border-border/70 shadow-xs overflow-hidden pt-0">
-      {/* TOP 4 INTERACTIVE KPI TABS WITH ACCESSIBLE ROLES */}
+      {/* TOP 4 INTERACTIVE KPI TABS - SWIPEABLE SNAP CAROUSEL ON MOBILE, 4-COL GRID ON LG */}
       <div
+        ref={carouselRef}
+        onScroll={handleCarouselScroll}
         role="tablist"
-        className="grid grid-cols-2 lg:grid-cols-4 border-b border-border/60 divide-x divide-y lg:divide-y-0 divide-border/60 bg-muted/30"
+        className="flex lg:grid lg:grid-cols-4 overflow-x-auto lg:overflow-visible snap-x snap-mandatory no-scrollbar border-b border-border/60 divide-x divide-border/60 bg-muted/30"
       >
         {/* KPI 1: Unique Visits */}
         <div
           role="tab"
           aria-selected={activeKpiTab === "visitors"}
           tabIndex={0}
-          onClick={() => setActiveKpiTab("visitors")}
+          onClick={() => {
+            setActiveKpiTab("visitors");
+            setSwipedIndex(0);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
               setActiveKpiTab("visitors");
+              setSwipedIndex(0);
             }
           }}
-          className={`p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
+          className={`min-w-[72vw] sm:min-w-[280px] lg:min-w-0 snap-start flex-1 shrink-0 lg:shrink p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
             activeKpiTab === "visitors"
-              ? "bg-background shadow-xs"
+              ? "bg-background shadow-xs ring-1 ring-emerald-500/20 lg:ring-0"
               : "bg-muted/20 opacity-75 hover:opacity-100 hover:bg-muted/40"
           }`}
         >
@@ -405,16 +425,20 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
           role="tab"
           aria-selected={activeKpiTab === "views"}
           tabIndex={0}
-          onClick={() => setActiveKpiTab("views")}
+          onClick={() => {
+            setActiveKpiTab("views");
+            setSwipedIndex(1);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
               setActiveKpiTab("views");
+              setSwipedIndex(1);
             }
           }}
-          className={`p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
+          className={`min-w-[72vw] sm:min-w-[280px] lg:min-w-0 snap-start flex-1 shrink-0 lg:shrink p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
             activeKpiTab === "views"
-              ? "bg-background shadow-xs"
+              ? "bg-background shadow-xs ring-1 ring-blue-500/20 lg:ring-0"
               : "bg-muted/20 opacity-75 hover:opacity-100 hover:bg-muted/40"
           }`}
         >
@@ -507,16 +531,20 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
           role="tab"
           aria-selected={activeKpiTab === "engagement"}
           tabIndex={0}
-          onClick={() => setActiveKpiTab("engagement")}
+          onClick={() => {
+            setActiveKpiTab("engagement");
+            setSwipedIndex(2);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
               setActiveKpiTab("engagement");
+              setSwipedIndex(2);
             }
           }}
-          className={`p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
+          className={`min-w-[72vw] sm:min-w-[280px] lg:min-w-0 snap-start flex-1 shrink-0 lg:shrink p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
             activeKpiTab === "engagement"
-              ? "bg-background shadow-xs"
+              ? "bg-background shadow-xs ring-1 ring-purple-500/20 lg:ring-0"
               : "bg-muted/20 opacity-75 hover:opacity-100 hover:bg-muted/40"
           }`}
         >
@@ -609,16 +637,20 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
           role="tab"
           aria-selected={activeKpiTab === "subscribers"}
           tabIndex={0}
-          onClick={() => setActiveKpiTab("subscribers")}
+          onClick={() => {
+            setActiveKpiTab("subscribers");
+            setSwipedIndex(3);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
               setActiveKpiTab("subscribers");
+              setSwipedIndex(3);
             }
           }}
-          className={`p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
+          className={`min-w-[72vw] sm:min-w-[280px] lg:min-w-0 snap-start flex-1 shrink-0 lg:shrink p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
             activeKpiTab === "subscribers"
-              ? "bg-background shadow-xs"
+              ? "bg-background shadow-xs ring-1 ring-violet-500/20 lg:ring-0"
               : "bg-muted/20 opacity-75 hover:opacity-100 hover:bg-muted/40"
           }`}
         >
@@ -689,7 +721,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
                         ) : (
                           <TrendingDown className="size-2.5" />
                         )}
-                        {summary.subscribersTrend >= 0 ? `+${summary.subscribersTrend}%` : `${summary.subscribersTrend}%`}
+                        {summary.subscribersTrend >= 0 ? `+${summary.subscribersTrend}%` : `${Math.abs(summary.subscribersTrend)}%`}
                       </>
                     )}
                   </Badge>
@@ -707,14 +739,40 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
         </div>
       </div>
 
+      {/* MOBILE TOUCH CAROUSEL INDICATOR (TRACKS SWIPED POSITION) */}
+      <div className="flex lg:hidden items-center justify-center gap-1.5 py-1.5 bg-muted/20 border-b border-border/40">
+        {(["visitors", "views", "engagement", "subscribers"] as const).map((tab, idx) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => {
+              setSwipedIndex(idx);
+              setActiveKpiTab(tab);
+              if (carouselRef.current) {
+                const targetCard = carouselRef.current.children[idx] as HTMLElement;
+                if (targetCard) {
+                  targetCard.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
+                }
+              }
+            }}
+            className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+              swipedIndex === idx
+                ? "w-5 bg-foreground"
+                : "w-1.5 bg-muted-foreground/30 hover:bg-muted-foreground/50"
+            }`}
+            aria-label={`Go to ${tab}`}
+          />
+        ))}
+      </div>
+
       {/* DUAL-PERIOD COMPARISON AREA CHART */}
-      <CardContent className="px-3 sm:px-6 py-0 focus:outline-none focus:ring-0">
+      <CardContent className="px-2 sm:px-6 py-0 focus:outline-none focus:ring-0">
         {!mounted || isLoading ? (
-          <div className="h-80 sm:h-87.5 w-full flex items-center justify-center">
+          <div className="h-60 sm:h-80 lg:h-87.5 w-full flex items-center justify-center">
             <Skeleton className="h-full w-full rounded-md" />
           </div>
         ) : timeSeries.length === 0 ? (
-          <div className="h-80 sm:h-87.5 w-full flex flex-col items-center justify-center text-center p-6 text-muted-foreground">
+          <div className="h-60 sm:h-80 lg:h-87.5 w-full flex flex-col items-center justify-center text-center p-6 text-muted-foreground">
             <Sparkles className="size-8 mb-2 text-muted-foreground/40" />
             <p className="text-sm font-medium">No traffic recorded yet for this period</p>
             <p className="text-xs text-muted-foreground/70 mt-1">
@@ -722,11 +780,11 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
             </p>
           </div>
         ) : (
-          <div className="h-80 sm:h-87.5 w-full select-none outline-none focus:outline-none focus:ring-0 [&_*]:focus:outline-none [&_*]:outline-none">
+          <div className="h-60 sm:h-80 lg:h-87.5 w-full select-none outline-none focus:outline-none focus:ring-0 [&_*]:focus:outline-none [&_*]:outline-none">
             <ResponsiveContainer width="100%" height="100%" className="outline-none focus:outline-none">
               <AreaChart
                 data={timeSeries}
-                margin={{ top: 12, right: 12, left: -20, bottom: 0 }}
+                margin={{ top: 12, right: 10, left: -22, bottom: 0 }}
                 style={{ outline: "none" }}
                 className="outline-none focus:outline-none"
               >
@@ -742,16 +800,18 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
-                  minTickGap={24}
-                  className="text-[11px] fill-muted-foreground font-mono"
+                  interval={range === "7d" ? 0 : "preserveStartEnd"}
+                  minTickGap={range === "7d" ? 4 : 12}
+                  className="text-[10px] sm:text-[11px] fill-muted-foreground font-mono"
                 />
                 <YAxis
+                  width={30}
                   allowDecimals={false}
                   domain={yDomain}
                   ticks={yTicks}
                   tickLine={false}
                   axisLine={false}
-                  tickMargin={8}
+                  tickMargin={4}
                   className="text-[11px] fill-muted-foreground font-mono"
                   tickFormatter={(val) => {
                     if (val >= 1000) {

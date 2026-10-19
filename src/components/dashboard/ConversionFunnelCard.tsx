@@ -20,7 +20,7 @@ export const ConversionFunnelCard = memo(function ConversionFunnelCard({
 }: ConversionFunnelCardProps) {
   return (
     <Card className="lg:col-span-2 border border-border/70 shadow-xs flex flex-col">
-      <CardHeader className="pb-3 border-b border-border/50 flex flex-row items-center justify-between">
+      <CardHeader className="pb-3 border-b border-border/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
           <div className="flex items-center gap-2">
             <CardTitle className="text-base font-semibold font-heading">
@@ -30,12 +30,12 @@ export const ConversionFunnelCard = memo(function ConversionFunnelCard({
               3 Stages
             </Badge>
           </div>
-          <CardDescription className="text-xs">
+          <CardDescription className="text-xs mt-0.5">
             How visitors progress from landing on your site to becoming subscribers
           </CardDescription>
         </div>
 
-        <div className="text-right">
+        <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start pt-2 sm:pt-0 border-t sm:border-t-0 border-border/40 sm:text-right">
           <span className="text-xs text-muted-foreground">Overall Conversion</span>
           <p className="text-base font-bold font-mono text-emerald-500">
             <AnimatedCounter
@@ -80,13 +80,14 @@ export const ConversionFunnelCard = memo(function ConversionFunnelCard({
             </div>
 
             {/* DROP-OFF CONNECTOR 1 -> 2 */}
-            <div className="flex items-center justify-between px-6 py-0.5 text-[11px] text-muted-foreground">
-              <span className="inline-flex items-center gap-1">
-                <ArrowRight className="size-3 text-muted-foreground/60" />
-                <span>Readers who stayed to read</span>
+            <div className="flex items-center justify-between px-2 sm:px-6 py-0.5 text-[11px] text-muted-foreground gap-2">
+              <span className="inline-flex items-center gap-1 min-w-0 truncate">
+                <ArrowRight className="size-3 text-muted-foreground/60 shrink-0" />
+                <span className="truncate">Readers who stayed to read</span>
               </span>
-              <Badge variant="secondary" className="font-mono text-[10px] px-1.5 py-0">
-                {funnel?.retentionRate ?? 0}% Retained ({funnel?.dropOffVisitorsToEngaged ?? 0}% Left early)
+              <Badge variant="secondary" className="font-mono text-[10px] px-1.5 py-0 shrink-0">
+                <span>{funnel?.retentionRate ?? 0}% Retained</span>
+                <span className="hidden sm:inline ml-1">({funnel?.dropOffVisitorsToEngaged ?? 0}% Left early)</span>
               </Badge>
             </div>
 
@@ -120,12 +121,12 @@ export const ConversionFunnelCard = memo(function ConversionFunnelCard({
             </div>
 
             {/* DROP-OFF CONNECTOR 2 -> 3 */}
-            <div className="flex items-center justify-between px-6 py-0.5 text-[11px] text-muted-foreground">
-              <span className="inline-flex items-center gap-1">
-                <ArrowRight className="size-3 text-muted-foreground/60" />
-                <span>Readers who subscribed or contacted</span>
+            <div className="flex items-center justify-between px-2 sm:px-6 py-0.5 text-[11px] text-muted-foreground gap-2">
+              <span className="inline-flex items-center gap-1 min-w-0 truncate">
+                <ArrowRight className="size-3 text-muted-foreground/60 shrink-0" />
+                <span className="truncate">Readers who took action</span>
               </span>
-              <Badge variant="secondary" className="font-mono text-[10px] px-1.5 py-0 text-emerald-600 dark:text-emerald-400">
+              <Badge variant="secondary" className="font-mono text-[10px] px-1.5 py-0 text-emerald-600 dark:text-emerald-400 shrink-0">
                 {funnel?.conversionRate ?? 0}% Converted
               </Badge>
             </div>

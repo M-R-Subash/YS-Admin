@@ -94,7 +94,7 @@ export default function DashboardPage() {
           }
         />
 
-        <main className="flex-1 flex flex-col gap-6 py-6 px-4 md:px-6 lg:px-8 w-full">
+        <main className="flex-1 flex flex-col gap-4 sm:gap-6 py-4 sm:py-6 px-3 sm:px-6 lg:px-8 w-full max-w-full">
           {/* EXECUTIVE HEADER & CONTROL BAR */}
           <DashboardHeader
             userName={session?.user?.name?.split(" ")[0] || "Admin"}
@@ -144,13 +144,13 @@ export default function DashboardPage() {
           />
 
           {/* ROW 2: CONVERSION PIPELINE & READING QUALITY MATRIX */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             <ConversionFunnelCard funnel={funnel} isLoading={isLoading} />
             <ReaderQualityCard summary={summary} />
           </div>
 
           {/* ROW 3: REAL-TIME ACTIVITY & TOP CONTENT */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             <LiveActivityFeed
               liveVisitors={liveVisitors}
               isLoading={isLoading}
@@ -163,7 +163,7 @@ export default function DashboardPage() {
           </div>
 
           {/* ROW 4: ACQUISITION CHANNELS, DEVICE DISTRIBUTION & AUDIENCE STUDIO */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             <AcquisitionChannelsCard
               topReferrers={topReferrers}
               topCampaigns={topCampaigns}

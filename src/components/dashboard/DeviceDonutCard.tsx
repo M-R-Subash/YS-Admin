@@ -90,8 +90,8 @@ export const DeviceDonutCard = memo(function DeviceDonutCard({
           </div>
         )}
 
-        <div className="grid grid-cols-3 gap-2 pt-3 border-t border-border/50 mt-2 text-center">
-          <div className="flex flex-col items-center p-2 rounded-lg bg-muted/20">
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2 pt-3 border-t border-border/50 mt-2 text-center">
+          <div className="flex flex-col items-center p-1.5 sm:p-2 rounded-lg bg-muted/20">
             <div className="inline-flex items-center gap-1 text-[11px] text-muted-foreground mb-0.5">
               <Monitor className="size-3 text-blue-500" />
               <span>Desktop</span>
@@ -110,7 +110,7 @@ export const DeviceDonutCard = memo(function DeviceDonutCard({
             </span>
           </div>
 
-          <div className="flex flex-col items-center p-2 rounded-lg bg-muted/20">
+          <div className="flex flex-col items-center p-1.5 sm:p-2 rounded-lg bg-muted/20">
             <div className="inline-flex items-center gap-1 text-[11px] text-muted-foreground mb-0.5">
               <Smartphone className="size-3 text-emerald-500" />
               <span>Mobile</span>
@@ -129,7 +129,7 @@ export const DeviceDonutCard = memo(function DeviceDonutCard({
             </span>
           </div>
 
-          <div className="flex flex-col items-center p-2 rounded-lg bg-muted/20">
+          <div className="flex flex-col items-center p-1.5 sm:p-2 rounded-lg bg-muted/20">
             <div className="inline-flex items-center gap-1 text-[11px] text-muted-foreground mb-0.5">
               <Tablet className="size-3 text-purple-500" />
               <span>Tablet</span>
