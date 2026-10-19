@@ -15,30 +15,11 @@ function createPrismaClient(): PrismaClient {
   return new PrismaClient({ adapter });
 }
 
-let client = globalForPrisma.prisma;
+export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
-// Re-instantiate if cached instance does not have the scheduledAt, blogRevision, Category SEO, Tag description, or Subscriber fields
-if (
-  !client ||
-  !(client as any).formSubmission ||
-  !(client as any).blogRevision ||
-  !(client as any).subscriber ||
-  !(client as any).newsletterCampaign ||
-  !(client as any)._runtimeDataModel?.models?.Blog?.fields?.some((f: any) => f.name === "scheduledAt") ||
-  !(client as any)._runtimeDataModel?.models?.Blog?.fields?.some((f: any) => f.name === "notifyNewsletter") ||
-  !(client as any)._runtimeDataModel?.models?.NewsletterCampaign?.fields?.some((f: any) => f.name === "scheduledAt") ||
-  !(client as any)._runtimeDataModel?.models?.Category?.fields?.some((f: any) => f.name === "metaTitle") ||
-  !(client as any)._runtimeDataModel?.models?.Tag?.fields?.some((f: any) => f.name === "description") ||
-  !(client as any)._runtimeDataModel?.models?.Subscriber?.fields?.some((f: any) => f.name === "resubscribeCount")
-) {
-  client = createPrismaClient();
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = prisma;
 }
-
-if (!serverConfig.isProduction) {
-  globalForPrisma.prisma = client;
-}
-
-const prisma: PrismaClient = client;
 
 export function mapDbToPageData(page: any): PageData {
   return {

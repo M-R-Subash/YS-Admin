@@ -13,7 +13,6 @@ import {
 import {
   Eye,
   Users,
-  Activity,
   TrendingUp,
   TrendingDown,
   Mail,
@@ -183,6 +182,183 @@ interface ChartConfig {
   gradientId: string;
 }
 
+
+const COLOR_THEMES = {
+  emerald: {
+    ring: "ring-emerald-500/20",
+    indicator: "bg-emerald-500",
+    iconActive: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+    iconInactive: "bg-transparent text-emerald-500/70 group-hover:text-emerald-500",
+    badgePositive: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+    stroke: "#10b981",
+    fill: "#10b981",
+  },
+  blue: {
+    ring: "ring-blue-500/20",
+    indicator: "bg-blue-500",
+    iconActive: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+    iconInactive: "bg-transparent text-blue-500/70 group-hover:text-blue-500",
+    badgePositive: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
+    stroke: "#3b82f6",
+    fill: "#3b82f6",
+  },
+  purple: {
+    ring: "ring-purple-500/20",
+    indicator: "bg-purple-500",
+    iconActive: "bg-purple-500/15 text-purple-600 dark:text-purple-400",
+    iconInactive: "bg-transparent text-purple-500/70 group-hover:text-purple-500",
+    badgePositive: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
+    stroke: "#8b5cf6",
+    fill: "#8b5cf6",
+  },
+  violet: {
+    ring: "ring-violet-500/20",
+    indicator: "bg-violet-500",
+    iconActive: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
+    iconInactive: "bg-transparent text-violet-500/70 group-hover:text-violet-500",
+    badgePositive: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+    stroke: "#a855f7",
+    fill: "#a855f7",
+  },
+} as const;
+
+export interface KpiCardItem {
+  id: "visitors" | "views" | "engagement" | "subscribers";
+  title: string;
+  tooltip: string;
+  icon: React.ComponentType<{ className?: string }>;
+  value: number;
+  formatter?: (val: number) => string;
+  trend: number | null | undefined;
+  subtitle: string;
+  sparklineData?: number[];
+  color: keyof typeof COLOR_THEMES;
+}
+
+interface KpiCardProps {
+  card: KpiCardItem;
+  isSelected: boolean;
+  isLoading: boolean;
+  onSelect: () => void;
+}
+
+const KpiCard = memo(function KpiCard({
+  card,
+  isSelected,
+  isLoading,
+  onSelect,
+}: KpiCardProps) {
+  const theme = COLOR_THEMES[card.color];
+  const IconComponent = card.icon;
+  const isPositiveTrend = card.trend === null || (card.trend ?? 0) >= 0;
+
+  return (
+    <div
+      role="tab"
+      aria-selected={isSelected}
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      className={`min-w-[72vw] sm:min-w-70 lg:min-w-0 snap-start flex-1 shrink-0 lg:shrink p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
+        isSelected
+          ? `bg-background shadow-xs ring-1 ${theme.ring} lg:ring-0`
+          : "bg-muted/20 opacity-75 hover:opacity-100 hover:bg-muted/40"
+      }`}
+    >
+      {isSelected && (
+        <span className={`absolute -bottom-px inset-x-0 h-0.75 ${theme.indicator} z-20`} />
+      )}
+      <div className="flex items-center justify-between text-xs mb-1.5">
+        <div className="inline-flex items-center gap-1">
+          <span
+            className={`transition-colors ${
+              isSelected
+                ? "font-semibold text-foreground"
+                : "font-medium text-muted-foreground group-hover:text-foreground"
+            }`}
+          >
+            {card.title}
+          </span>
+          <Tooltip>
+            <TooltipTrigger
+              className="cursor-help inline-flex items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Info className="size-3 text-muted-foreground/60 hover:text-foreground" />
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p className="text-xs">{card.tooltip}</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+        <div
+          className={`p-1 rounded-md transition-colors ${
+            isSelected ? theme.iconActive : theme.iconInactive
+          }`}
+        >
+          <IconComponent className="size-3.5" />
+        </div>
+      </div>
+
+      <div className="flex items-baseline justify-between gap-2">
+        <div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl lg:text-3xl font-bold tracking-tight text-foreground font-mono">
+              {isLoading ? (
+                <Skeleton className="h-8 w-20" />
+              ) : (
+                <AnimatedCounter
+                  value={card.value}
+                  formatter={card.formatter ?? formatNumber}
+                />
+              )}
+            </span>
+            {!isLoading && card.trend !== undefined && (
+              <Badge
+                variant="outline"
+                className={`text-[10px] px-1.5 py-0 font-medium inline-flex items-center gap-0.5 rounded-sm ${
+                  isPositiveTrend
+                    ? theme.badgePositive
+                    : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
+                }`}
+              >
+                {card.trend === null ? (
+                  "New"
+                ) : (
+                  <>
+                    {(card.trend ?? 0) >= 0 ? (
+                      <TrendingUp className="size-2.5" />
+                    ) : (
+                      <TrendingDown className="size-2.5" />
+                    )}
+                    {Math.abs(card.trend ?? 0)}%
+                  </>
+                )}
+              </Badge>
+            )}
+          </div>
+          <span className="text-[11px] text-muted-foreground/80 mt-1 block">
+            {card.subtitle}
+          </span>
+        </div>
+
+        {card.sparklineData && (
+          <MiniSparkline
+            data={card.sparklineData}
+            strokeColor={theme.stroke}
+            fillColor={theme.fill}
+          />
+        )}
+      </div>
+    </div>
+  );
+});
+
 interface TrafficKpiHeroProps {
   summary?: SummaryData;
   sparklines?: SparklinesData;
@@ -217,6 +393,55 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
       setSwipedIndex(newIndex);
     }
   }, []);
+
+
+  const kpiItems = useMemo<KpiCardItem[]>(() => [
+    {
+      id: "visitors",
+      title: "Unique Visits",
+      tooltip: "Number of individual people who visited your site during this period.",
+      icon: Users,
+      value: summary?.uniqueVisitors ?? 0,
+      trend: summary?.visitorsTrend,
+      subtitle: `Individual visitors in ${range.toUpperCase()}`,
+      sparklineData: sparklines?.visitors,
+      color: "emerald",
+    },
+    {
+      id: "views",
+      title: "Page Views",
+      tooltip: "Total number of times your web pages and articles were loaded.",
+      icon: Eye,
+      value: summary?.totalViews ?? 0,
+      trend: summary?.viewsTrend,
+      subtitle: `Total reading volume in ${range.toUpperCase()}`,
+      sparklineData: sparklines?.views,
+      color: "blue",
+    },
+    {
+      id: "engagement",
+      title: "Engagement Rate",
+      tooltip: "Percentage of visitors who stayed more than 10 seconds or read multiple articles.",
+      icon: Sparkles,
+      value: summary?.engagementRate ?? 0,
+      formatter: (v: number) => `${v}%`,
+      trend: summary?.engagementRateTrend,
+      subtitle: `${summary?.engagedVisitsCount?.toLocaleString() ?? 0} high-intent sessions`,
+      sparklineData: sparklines?.engagement,
+      color: "purple",
+    },
+    {
+      id: "subscribers",
+      title: "Newsletter Subscribers",
+      tooltip: "Total active readers subscribed to your email updates.",
+      icon: Mail,
+      value: summary?.subscribersCount ?? 0,
+      trend: summary?.subscribersTrend,
+      subtitle: `+${summary?.currentPeriodSubsCount ?? 0} new signups in ${range.toUpperCase()}`,
+      sparklineData: sparklines?.subscribers,
+      color: "violet",
+    },
+  ], [summary, sparklines, range]);
 
   const currentChartProps = useMemo<ChartConfig>(() => {
     switch (activeKpiTab) {
@@ -314,429 +539,18 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
         role="tablist"
         className="flex lg:grid lg:grid-cols-4 overflow-x-auto lg:overflow-visible snap-x snap-mandatory no-scrollbar border-b border-border/60 divide-x divide-border/60 bg-muted/30"
       >
-        {/* KPI 1: Unique Visits */}
-        <div
-          role="tab"
-          aria-selected={activeKpiTab === "visitors"}
-          tabIndex={0}
-          onClick={() => {
-            setActiveKpiTab("visitors");
-            setSwipedIndex(0);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              setActiveKpiTab("visitors");
-              setSwipedIndex(0);
-            }
-          }}
-          className={`min-w-[72vw] sm:min-w-70 lg:min-w-0 snap-start flex-1 shrink-0 lg:shrink p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
-            activeKpiTab === "visitors"
-              ? "bg-background shadow-xs ring-1 ring-emerald-500/20 lg:ring-0"
-              : "bg-muted/20 opacity-75 hover:opacity-100 hover:bg-muted/40"
-          }`}
-        >
-          {activeKpiTab === "visitors" && (
-            <span className="absolute -bottom-px inset-x-0 h-0.75 bg-emerald-500 z-20" />
-          )}
-          <div className="flex items-center justify-between text-xs mb-1.5">
-            <div className="inline-flex items-center gap-1">
-              <span
-                className={`transition-colors ${
-                  activeKpiTab === "visitors"
-                    ? "font-semibold text-foreground"
-                    : "font-medium text-muted-foreground group-hover:text-foreground"
-                }`}
-              >
-                Unique Visits
-              </span>
-              <Tooltip>
-                <TooltipTrigger
-                  className="cursor-help inline-flex items-center justify-center"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Info className="size-3 text-muted-foreground/60 hover:text-foreground" />
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                  <p className="text-xs">Number of individual people who visited your site during this period.</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-            <div
-              className={`p-1 rounded-md transition-colors ${
-                activeKpiTab === "visitors"
-                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                  : "bg-transparent text-emerald-500/70 group-hover:text-emerald-500"
-              }`}
-            >
-              <Users className="size-3.5" />
-            </div>
-          </div>
-          <div className="flex items-baseline justify-between gap-2">
-            <div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl lg:text-3xl font-bold tracking-tight text-foreground font-mono">
-                  {isLoading ? (
-                    <Skeleton className="h-8 w-20" />
-                  ) : (
-                    <AnimatedCounter
-                      value={summary?.uniqueVisitors ?? 0}
-                      formatter={formatNumber}
-                    />
-                  )}
-                </span>
-                {!isLoading && (
-                  <Badge
-                    variant="outline"
-                    className={`text-[10px] px-1.5 py-0 font-medium inline-flex items-center gap-0.5 rounded-sm ${
-                      summary?.visitorsTrend === null || (summary?.visitorsTrend ?? 0) >= 0
-                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-                        : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
-                    }`}
-                  >
-                    {summary?.visitorsTrend === null ? (
-                      "New"
-                    ) : (
-                      <>
-                        {(summary?.visitorsTrend ?? 0) >= 0 ? (
-                          <TrendingUp className="size-2.5" />
-                        ) : (
-                          <TrendingDown className="size-2.5" />
-                        )}
-                        {Math.abs(summary?.visitorsTrend ?? 0)}%
-                      </>
-                    )}
-                  </Badge>
-                )}
-              </div>
-              <span className="text-[11px] text-muted-foreground/80 mt-1 block">
-                Individual visitors in {range.toUpperCase()}
-              </span>
-            </div>
-
-            {sparklines?.visitors && (
-              <MiniSparkline data={sparklines.visitors} strokeColor="#10b981" fillColor="#10b981" />
-            )}
-          </div>
-        </div>
-
-        {/* KPI 2: Total Pageviews */}
-        <div
-          role="tab"
-          aria-selected={activeKpiTab === "views"}
-          tabIndex={0}
-          onClick={() => {
-            setActiveKpiTab("views");
-            setSwipedIndex(1);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              setActiveKpiTab("views");
-              setSwipedIndex(1);
-            }
-          }}
-          className={`min-w-[72vw] sm:min-w-70 lg:min-w-0 snap-start flex-1 shrink-0 lg:shrink p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
-            activeKpiTab === "views"
-              ? "bg-background shadow-xs ring-1 ring-blue-500/20 lg:ring-0"
-              : "bg-muted/20 opacity-75 hover:opacity-100 hover:bg-muted/40"
-          }`}
-        >
-          {activeKpiTab === "views" && (
-            <span className="absolute -bottom-px inset-x-0 h-0.75 bg-blue-500 z-20" />
-          )}
-          <div className="flex items-center justify-between text-xs mb-1.5">
-            <div className="inline-flex items-center gap-1">
-              <span
-                className={`transition-colors ${
-                  activeKpiTab === "views"
-                    ? "font-semibold text-foreground"
-                    : "font-medium text-muted-foreground group-hover:text-foreground"
-                }`}
-              >
-                Total Pageviews
-              </span>
-              <Tooltip>
-                <TooltipTrigger
-                  className="cursor-help inline-flex items-center justify-center"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Info className="size-3 text-muted-foreground/60 hover:text-foreground" />
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                  <p className="text-xs">Every time an article or page was viewed by a reader.</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-            <div
-              className={`p-1 rounded-md transition-colors ${
-                activeKpiTab === "views"
-                  ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
-                  : "bg-transparent text-blue-500/70 group-hover:text-blue-500"
-              }`}
-            >
-              <Eye className="size-3.5" />
-            </div>
-          </div>
-          <div className="flex items-baseline justify-between gap-2">
-            <div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl lg:text-3xl font-bold tracking-tight text-foreground font-mono">
-                  {isLoading ? (
-                    <Skeleton className="h-8 w-20" />
-                  ) : (
-                    <AnimatedCounter
-                      value={summary?.totalViews ?? 0}
-                      formatter={formatNumber}
-                    />
-                  )}
-                </span>
-                {!isLoading && (
-                  <Badge
-                    variant="outline"
-                    className={`text-[10px] px-1.5 py-0 font-medium inline-flex items-center gap-0.5 rounded-sm ${
-                      summary?.viewsTrend === null || (summary?.viewsTrend ?? 0) >= 0
-                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-                        : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
-                    }`}
-                  >
-                    {summary?.viewsTrend === null ? (
-                      "New"
-                    ) : (
-                      <>
-                        {(summary?.viewsTrend ?? 0) >= 0 ? (
-                          <TrendingUp className="size-2.5" />
-                        ) : (
-                          <TrendingDown className="size-2.5" />
-                        )}
-                        {Math.abs(summary?.viewsTrend ?? 0)}%
-                      </>
-                    )}
-                  </Badge>
-                )}
-              </div>
-              <span className="text-[11px] text-muted-foreground/80 mt-1 block">
-                Total articles &amp; pages read
-              </span>
-            </div>
-
-            {sparklines?.views && (
-              <MiniSparkline data={sparklines.views} strokeColor="#3b82f6" fillColor="#3b82f6" />
-            )}
-          </div>
-        </div>
-
-        {/* KPI 3: Engagement Rate */}
-        <div
-          role="tab"
-          aria-selected={activeKpiTab === "engagement"}
-          tabIndex={0}
-          onClick={() => {
-            setActiveKpiTab("engagement");
-            setSwipedIndex(2);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              setActiveKpiTab("engagement");
-              setSwipedIndex(2);
-            }
-          }}
-          className={`min-w-[72vw] sm:min-w-70 lg:min-w-0 snap-start flex-1 shrink-0 lg:shrink p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
-            activeKpiTab === "engagement"
-              ? "bg-background shadow-xs ring-1 ring-purple-500/20 lg:ring-0"
-              : "bg-muted/20 opacity-75 hover:opacity-100 hover:bg-muted/40"
-          }`}
-        >
-          {activeKpiTab === "engagement" && (
-            <span className="absolute -bottom-px inset-x-0 h-0.75 bg-purple-500 z-20" />
-          )}
-          <div className="flex items-center justify-between text-xs mb-1.5">
-            <div className="inline-flex items-center gap-1">
-              <span
-                className={`transition-colors ${
-                  activeKpiTab === "engagement"
-                    ? "font-semibold text-foreground"
-                    : "font-medium text-muted-foreground group-hover:text-foreground"
-                }`}
-              >
-                Engagement Rate
-              </span>
-              <Tooltip>
-                <TooltipTrigger
-                  className="cursor-help inline-flex items-center justify-center"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Info className="size-3 text-muted-foreground/60 hover:text-foreground" />
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                  <p className="text-xs">Percentage of readers who spent &gt;10s or scrolled through an article.</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-            <div
-              className={`p-1 rounded-md transition-colors ${
-                activeKpiTab === "engagement"
-                  ? "bg-purple-500/15 text-purple-600 dark:text-purple-400"
-                  : "bg-transparent text-purple-500/70 group-hover:text-purple-500"
-              }`}
-            >
-              <Activity className="size-3.5" />
-            </div>
-          </div>
-          <div className="flex items-baseline justify-between gap-2">
-            <div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl lg:text-3xl font-bold tracking-tight text-foreground font-mono">
-                  {isLoading ? (
-                    <Skeleton className="h-8 w-20" />
-                  ) : (
-                    <AnimatedCounter
-                      value={summary?.engagementRate ?? 0}
-                      formatter={(v) => `${Math.round(v)}%`}
-                    />
-                  )}
-                </span>
-                {!isLoading && (
-                  <Badge
-                    variant="outline"
-                    className={`text-[10px] px-1.5 py-0 font-medium inline-flex items-center gap-0.5 rounded-sm ${
-                      summary?.engagementRateTrend === null || (summary?.engagementRateTrend ?? 0) >= 0
-                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-                        : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
-                    }`}
-                  >
-                    {summary?.engagementRateTrend === null ? (
-                      "New"
-                    ) : (
-                      <>
-                        {(summary?.engagementRateTrend ?? 0) >= 0 ? (
-                          <TrendingUp className="size-2.5" />
-                        ) : (
-                          <TrendingDown className="size-2.5" />
-                        )}
-                        {Math.abs(summary?.engagementRateTrend ?? 0)}%
-                      </>
-                    )}
-                  </Badge>
-                )}
-              </div>
-              <span className="text-[11px] text-muted-foreground/80 mt-1 block">
-                Visitors who actively read content
-              </span>
-            </div>
-
-            {sparklines?.engagement && (
-              <MiniSparkline data={sparklines.engagement} strokeColor="#8b5cf6" fillColor="#8b5cf6" />
-            )}
-          </div>
-        </div>
-
-        {/* KPI 4: Active Subscribers */}
-        <div
-          role="tab"
-          aria-selected={activeKpiTab === "subscribers"}
-          tabIndex={0}
-          onClick={() => {
-            setActiveKpiTab("subscribers");
-            setSwipedIndex(3);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              setActiveKpiTab("subscribers");
-              setSwipedIndex(3);
-            }
-          }}
-          className={`min-w-[72vw] sm:min-w-70 lg:min-w-0 snap-start flex-1 shrink-0 lg:shrink p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
-            activeKpiTab === "subscribers"
-              ? "bg-background shadow-xs ring-1 ring-violet-500/20 lg:ring-0"
-              : "bg-muted/20 opacity-75 hover:opacity-100 hover:bg-muted/40"
-          }`}
-        >
-          {activeKpiTab === "subscribers" && (
-            <span className="absolute -bottom-px inset-x-0 h-0.75 bg-violet-500 z-20" />
-          )}
-          <div className="flex items-center justify-between text-xs mb-1.5">
-            <div className="inline-flex items-center gap-1">
-              <span
-                className={`transition-colors ${
-                  activeKpiTab === "subscribers"
-                    ? "font-semibold text-foreground"
-                    : "font-medium text-muted-foreground group-hover:text-foreground"
-                }`}
-              >
-                Newsletter Subscribers
-              </span>
-              <Tooltip>
-                <TooltipTrigger
-                  className="cursor-help inline-flex items-center justify-center"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Info className="size-3 text-muted-foreground/60 hover:text-foreground" />
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                  <p className="text-xs">Total active readers subscribed to your email updates.</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-            <div
-              className={`p-1 rounded-md transition-colors ${
-                activeKpiTab === "subscribers"
-                  ? "bg-violet-500/15 text-violet-600 dark:text-violet-400"
-                  : "bg-transparent text-violet-500/70 group-hover:text-violet-500"
-              }`}
-            >
-              <Mail className="size-3.5" />
-            </div>
-          </div>
-          <div className="flex items-baseline justify-between gap-2">
-            <div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl lg:text-3xl font-bold tracking-tight text-foreground font-mono">
-                  {isLoading ? (
-                    <Skeleton className="h-8 w-20" />
-                  ) : (
-                    <AnimatedCounter
-                      value={summary?.subscribersCount ?? 0}
-                      formatter={formatNumber}
-                    />
-                  )}
-                </span>
-                {!isLoading && summary?.subscribersTrend !== undefined && (
-                  <Badge
-                    variant="outline"
-                    className={`text-[10px] px-1.5 py-0 font-medium inline-flex items-center gap-0.5 rounded-sm ${
-                      summary.subscribersTrend === null || summary.subscribersTrend >= 0
-                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-                        : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
-                    }`}
-                  >
-                    {summary.subscribersTrend === null ? (
-                      "New"
-                    ) : (
-                      <>
-                        {summary.subscribersTrend >= 0 ? (
-                          <TrendingUp className="size-2.5" />
-                        ) : (
-                          <TrendingDown className="size-2.5" />
-                        )}
-                        {summary.subscribersTrend >= 0 ? `+${summary.subscribersTrend}%` : `${Math.abs(summary.subscribersTrend)}%`}
-                      </>
-                    )}
-                  </Badge>
-                )}
-              </div>
-              <span className="text-[11px] text-muted-foreground/80 mt-1 block">
-                +{summary?.currentPeriodSubsCount ?? 0} new signups in {range.toUpperCase()}
-              </span>
-            </div>
-
-            {sparklines?.subscribers && (
-              <MiniSparkline data={sparklines.subscribers} strokeColor="#a855f7" fillColor="#a855f7" />
-            )}
-          </div>
-        </div>
+        {kpiItems.map((card, idx) => (
+          <KpiCard
+            key={card.id}
+            card={card}
+            isSelected={activeKpiTab === card.id}
+            isLoading={isLoading}
+            onSelect={() => {
+              setActiveKpiTab(card.id);
+              setSwipedIndex(idx);
+            }}
+          />
+        ))}
       </div>
 
       {/* MOBILE TOUCH CAROUSEL INDICATOR (TRACKS SWIPED POSITION) */}
