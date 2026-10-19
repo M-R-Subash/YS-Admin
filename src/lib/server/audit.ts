@@ -213,7 +213,9 @@ export function analyzeEntityDiff(
       categoryPrefix = "TAXONOMY";
       break;
     default:
-      fieldConfigs = BLOG_FIELDS;
+      fieldConfigs = [];
+      entityLabel = "Item";
+      categoryPrefix = category;
   }
 
   // 1. Check status and trash transitions
@@ -234,7 +236,16 @@ export function analyzeEntityDiff(
     }
 
     if (field.isPassword) {
-      if (valAfter) {
+      // Prevent false-positive password reporting:
+      // Only flag if explicitly marked or if a new password string differs from the existing record
+      const hasPasswordChanged =
+        after.passwordChanged === true ||
+        (Boolean(valAfter) &&
+          valAfter !== valBefore &&
+          valAfter !== before.password &&
+          (valAfter === "••••••••" || typeof valAfter === "string"));
+
+      if (hasPasswordChanged) {
         diff[field.key] = {
           field: field.key,
           label: field.label,
@@ -408,11 +419,34 @@ export async function logEntityMutation(options: {
   }
 
   const clientMeta = await getClientAuditMeta(request);
+  const slug = after?.slug || before?.slug;
+  const slugSuffix = slug ? ` (/${String(slug).replace(/^\//, "")})` : "";
   const targetLabel =
     target ||
     `${analysis.entityLabel}: ${
       after?.title || after?.name || before?.title || before?.name || "Item"
-    }`;
+    }${slugSuffix}`;
+
+  // Preserve actor identity snapshot so deleting a user later never erases historical attribution
+  let actorSnapshot: { name?: string; email?: string; role?: string; avatar?: string } | undefined = undefined;
+  if (userId) {
+    try {
+      const u = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true, email: true, role: true, profilePicture: true },
+      });
+      if (u) {
+        actorSnapshot = {
+          name: u.name || undefined,
+          email: u.email,
+          role: u.role,
+          avatar: u.profilePicture || undefined,
+        };
+      }
+    } catch {
+      // Non-blocking user lookup
+    }
+  }
 
   await recordAuditLog({
     eventType: analysis.eventType,
@@ -429,6 +463,7 @@ export async function logEntityMutation(options: {
       toStatus: analysis.toStatus,
       changedFields: analysis.changedFieldKeys,
       contentChanged: analysis.contentChanged,
+      ...(actorSnapshot ? { _actorSnapshot: actorSnapshot } : {}),
       ...analysis.extraMeta,
     },
   });
@@ -451,16 +486,13 @@ export async function getClientAuditMeta(request?: Request): Promise<{
     }
 
     const forwarded = reqHeaders.get("x-forwarded-for");
-    const ipAddress =
-      forwarded?.split(",")[0]?.trim() ||
-      reqHeaders.get("x-real-ip") ||
-      "127.0.0.1";
-
+    const rawIp = forwarded?.split(",")[0]?.trim() || reqHeaders.get("x-real-ip");
+    const ipAddress = rawIp || "Unknown";
     const userAgent = reqHeaders.get("user-agent") || "Unknown Client";
 
     return { ipAddress, userAgent };
   } catch {
-    return { ipAddress: "127.0.0.1", userAgent: "Unknown Client" };
+    return { ipAddress: "Unknown", userAgent: "Unknown Client" };
   }
 }
 

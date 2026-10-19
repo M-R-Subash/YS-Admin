@@ -31,6 +31,10 @@ import {
   Check,
   CheckCircle2,
   X,
+  AlertCircle,
+  XCircle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,7 +85,7 @@ export interface AuditLogItem {
     name: string;
     email: string;
     avatar?: string;
-    role: "ADMIN" | "EDITOR";
+    role: string;
   };
   target: string;
   ipAddress: string;
@@ -93,8 +97,15 @@ export interface AuditLogItem {
 export interface AuditLogsResponse {
   logs: AuditLogItem[];
   total: number;
+  pagination?: {
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  };
   stats: {
     totalEvents: number;
+    matchingEvents?: number;
     blogEvents: number;
     pageEvents: number;
     mediaEvents: number;
@@ -1028,10 +1039,22 @@ function AuditLogInspector({ log }: AuditLogInspectorProps) {
             )}
             <div className="flex justify-between py-1">
               <span className="text-muted-foreground">Execution Status:</span>
-              <span className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                <CheckCircle2 className="size-3" />
-                Verified Success
-              </span>
+              {log.status === "SUCCESS" ? (
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <CheckCircle2 className="size-3" />
+                  Success
+                </span>
+              ) : log.status === "WARNING" ? (
+                <span className="font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                  <AlertCircle className="size-3" />
+                  Warning
+                </span>
+              ) : (
+                <span className="font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                  <XCircle className="size-3" />
+                  Failed
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -1074,15 +1097,24 @@ export default function AuditLogsPage() {
   const deferredSearch = useDeferredValue(searchQuery);
   const debouncedSearch = useDebounce(searchQuery, 300);
 
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
+  const offset = (page - 1) * pageSize;
+
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const [selectedActor, setSelectedActor] = useState<string>("ALL");
   const [selectedActionFilter, setSelectedActionFilter] = useState<string>("ALL");
   const [selectedLog, setSelectedLog] = useState<AuditLogItem | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
-  // Live PostgreSQL Audit Log query via SWR with debounced search
+  const selectedCategoryParam =
+    selectedCategories.size === 1 ? Array.from(selectedCategories)[0] : null;
+
+  // Live PostgreSQL Audit Log query via SWR with debounced search, category filter, and pagination
   const apiUrl = isAdmin
-    ? `/api/audit-logs?limit=200${debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : ""}`
+    ? `/api/audit-logs?limit=${pageSize}&offset=${offset}${
+        debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : ""
+      }${selectedCategoryParam ? `&category=${encodeURIComponent(selectedCategoryParam)}` : ""}`
     : null;
 
   const { data, mutate, isLoading, isValidating } = useSWR<AuditLogsResponse>(apiUrl, {
@@ -1092,6 +1124,8 @@ export default function AuditLogsPage() {
   });
 
   const rawLogs = useMemo(() => data?.logs || [], [data?.logs]);
+  const totalItems = data?.pagination?.total ?? data?.total ?? rawLogs.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const stats = data?.stats || {
     totalEvents: rawLogs.length,
     blogEvents: 0,
@@ -1324,14 +1358,20 @@ export default function AuditLogsPage() {
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               <Input
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
                 placeholder="Search by page, article title, slug, or team member..."
                 className="h-8 pl-8 pr-7 text-xs bg-muted/40 border-border rounded-lg"
               />
               {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => setSearchQuery("")}
+                  onClick={() => {
+                    setSearchQuery("");
+                    setPage(1);
+                  }}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -1551,15 +1591,43 @@ export default function AuditLogsPage() {
               )}
             </div>
 
-            {/* Table Footer */}
-            <div className="py-2.5 px-4 border-t border-border bg-muted/20 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground shrink-0">
-              <span>
-                Showing <strong className="text-foreground">{filteredLogs.length}</strong> of {stats.totalEvents} recorded database modifications
-              </span>
-              <span className="text-[11px] flex items-center gap-1 font-mono">
-                <Sparkles className="size-3 text-primary" />
-                Immutable PostgreSQL audit log ledger
-              </span>
+            {/* Table Footer with Pagination Controls */}
+            <div className="py-2.5 px-4 border-t border-border bg-muted/20 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground shrink-0">
+              <div className="flex items-center gap-2">
+                <span>
+                  Showing <strong className="text-foreground">{filteredLogs.length}</strong> of{" "}
+                  <strong className="text-foreground">{totalItems}</strong> matching events
+                  {stats.totalEvents > totalItems && (
+                    <span className="text-muted-foreground/80"> ({stats.totalEvents} total in history)</span>
+                  )}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-medium mr-1 text-muted-foreground">
+                  Page <strong className="text-foreground">{page}</strong> of <strong className="text-foreground">{totalPages}</strong>
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1 || isLoading}
+                  className="h-7 px-2.5 text-xs gap-1 cursor-pointer border-border"
+                >
+                  <ChevronLeft className="size-3" />
+                  <span>Previous</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages || isLoading}
+                  className="h-7 px-2.5 text-xs gap-1 cursor-pointer border-border"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="size-3" />
+                </Button>
+              </div>
             </div>
           </div>
         </>
