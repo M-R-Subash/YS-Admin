@@ -12,7 +12,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { DashboardStatsResponse } from "@/components/dashboard/types";
 import { EMPTY_ARRAY } from "@/components/dashboard/utils";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
-import { ExecutiveIntelligenceBar } from "@/components/dashboard/ExecutiveIntelligenceBar";
 import { TrafficKpiHero } from "@/components/dashboard/TrafficKpiHero";
 import { ConversionFunnelCard } from "@/components/dashboard/ConversionFunnelCard";
 import { ReaderQualityCard } from "@/components/dashboard/ReaderQualityCard";
@@ -35,7 +34,6 @@ export default function DashboardPage() {
   const { data: session } = useSession();
 
   const [range, setRange] = useState<"24h" | "7d" | "30d" | "90d">("7d");
-  const [autoRefresh, setAutoRefresh] = useState(false);
   const [compareMode, setCompareMode] = useState(true);
 
   const mounted = useSyncExternalStore(
@@ -49,17 +47,12 @@ export default function DashboardPage() {
   const { data, error, isLoading, mutate, isValidating } = useSWR<DashboardStatsResponse>(
     `/api/dashboard/stats?range=${range}`,
     {
-      refreshInterval: autoRefresh ? 30000 : 0,
       keepPreviousData: true,
     }
   );
 
   const handleToggleCompareMode = useCallback(() => {
     setCompareMode((prev) => !prev);
-  }, []);
-
-  const handleToggleAutoRefresh = useCallback(() => {
-    setAutoRefresh((prev) => !prev);
   }, []);
 
   const handleRangeChange = useCallback((newRange: "24h" | "7d" | "30d" | "90d") => {
@@ -70,7 +63,6 @@ export default function DashboardPage() {
   const summary = data?.summary;
   const funnel = data?.funnel;
   const sparklines = data?.sparklines;
-  const insights = data?.insights ?? (EMPTY_ARRAY as any[]);
   const liveVisitors = data?.liveVisitors ?? (EMPTY_ARRAY as any[]);
   const timeSeries = data?.timeSeries ?? (EMPTY_ARRAY as any[]);
   const devices = data?.devices ?? (EMPTY_ARRAY as any[]);
@@ -85,7 +77,7 @@ export default function DashboardPage() {
     <TooltipProvider delay={150}>
       <div className="flex flex-col min-h-screen bg-background">
         <AdminTopBar
-          breadcrumbs="Analytics Command Center"
+          breadcrumbs="Dashboard"
           actions={
             <div className="flex items-center gap-2">
               <Button
@@ -113,8 +105,6 @@ export default function DashboardPage() {
             onToggleCompareMode={handleToggleCompareMode}
             range={range}
             onRangeChange={handleRangeChange}
-            autoRefresh={autoRefresh}
-            onToggleAutoRefresh={handleToggleAutoRefresh}
           />
 
           {/* VISIBLE API ERROR ALERT STATE */}
@@ -142,9 +132,6 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* AUTOMATED EXECUTIVE INTELLIGENCE BAR */}
-          <ExecutiveIntelligenceBar insights={insights} />
-
           {/* ROW 1: STRIPE & VERCEL-STYLE HERO CARD WITH EMBEDDED MICRO-SPARKLINES */}
           <TrafficKpiHero
             summary={summary}
@@ -167,7 +154,6 @@ export default function DashboardPage() {
             <LiveActivityFeed
               liveVisitors={liveVisitors}
               isLoading={isLoading}
-              autoRefresh={autoRefresh}
             />
             <TopContentCard
               topBlogs={topBlogs}

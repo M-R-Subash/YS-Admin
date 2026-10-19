@@ -13,8 +13,6 @@ interface DashboardHeaderProps {
   onToggleCompareMode: () => void;
   range: "24h" | "7d" | "30d" | "90d";
   onRangeChange: (range: "24h" | "7d" | "30d" | "90d") => void;
-  autoRefresh: boolean;
-  onToggleAutoRefresh: () => void;
 }
 
 export const DashboardHeader = memo(function DashboardHeader({
@@ -26,8 +24,6 @@ export const DashboardHeader = memo(function DashboardHeader({
   onToggleCompareMode,
   range,
   onRangeChange,
-  autoRefresh,
-  onToggleAutoRefresh,
 }: DashboardHeaderProps) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/50">
@@ -97,25 +93,6 @@ export const DashboardHeader = memo(function DashboardHeader({
             </TabsTrigger>
           </TabsList>
         </Tabs>
-
-        {/* AUTO REFRESH TOGGLE */}
-        <Button
-          variant={autoRefresh ? "secondary" : "outline"}
-          size="sm"
-          onClick={onToggleAutoRefresh}
-          className={`h-8 text-xs gap-1.5 cursor-pointer ${
-            autoRefresh
-              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium"
-              : "text-muted-foreground"
-          }`}
-        >
-          <span
-            className={`size-1.5 rounded-full ${
-              autoRefresh ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/50"
-            }`}
-          />
-          <span>{autoRefresh ? "Auto (30s)" : "Auto-refresh off"}</span>
-        </Button>
       </div>
     </div>
   );

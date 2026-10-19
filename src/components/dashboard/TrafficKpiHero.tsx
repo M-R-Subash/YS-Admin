@@ -233,11 +233,11 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
   }, [activeKpiTab]);
 
   return (
-    <Card className="border border-border/70 shadow-xs overflow-hidden">
+    <Card className="border border-border/70 shadow-xs overflow-hidden pt-0">
       {/* TOP 4 INTERACTIVE KPI TABS WITH ACCESSIBLE ROLES */}
       <div
         role="tablist"
-        className="grid grid-cols-2 lg:grid-cols-4 border-b border-border/60 divide-x divide-y lg:divide-y-0 divide-border/60 bg-muted/20"
+        className="grid grid-cols-2 lg:grid-cols-4 border-b border-border/60 divide-x divide-y lg:divide-y-0 divide-border/60 bg-muted/30"
       >
         {/* KPI 1: Unique Visits */}
         <div
@@ -251,13 +251,29 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
               setActiveKpiTab("visitors");
             }
           }}
-          className={`p-4 sm:p-5 text-left transition-all cursor-pointer group hover:bg-muted/40 select-none relative focus-visible:outline-none ${
-            activeKpiTab === "visitors" ? "bg-background shadow-xs" : ""
+          className={`p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
+            activeKpiTab === "visitors"
+              ? "bg-background shadow-xs"
+              : "bg-muted/20 opacity-75 hover:opacity-100 hover:bg-muted/40"
           }`}
         >
-          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+          {activeKpiTab === "visitors" && (
+            <>
+              <span className="absolute top-0 inset-x-0 h-0.75 bg-emerald-500 z-20" />
+              <span className="hidden lg:block absolute -bottom-px inset-x-0 h-0.75 bg-emerald-500 z-20" />
+            </>
+          )}
+          <div className="flex items-center justify-between text-xs mb-1.5">
             <div className="inline-flex items-center gap-1">
-              <span className="font-medium group-hover:text-foreground">Unique Visits</span>
+              <span
+                className={`transition-colors ${
+                  activeKpiTab === "visitors"
+                    ? "font-semibold text-foreground"
+                    : "font-medium text-muted-foreground group-hover:text-foreground"
+                }`}
+              >
+                Unique Visits
+              </span>
               <Tooltip>
                 <TooltipTrigger
                   className="cursor-help inline-flex items-center justify-center"
@@ -270,7 +286,15 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
                 </TooltipContent>
               </Tooltip>
             </div>
-            <Users className="size-3.5 text-emerald-500" />
+            <div
+              className={`p-1 rounded-md transition-colors ${
+                activeKpiTab === "visitors"
+                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                  : "bg-transparent text-emerald-500/70 group-hover:text-emerald-500"
+              }`}
+            >
+              <Users className="size-3.5" />
+            </div>
           </div>
           <div className="flex items-baseline justify-between gap-2">
             <div>
@@ -325,13 +349,37 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
               setActiveKpiTab("views");
             }
           }}
-          className={`p-4 sm:p-5 text-left transition-all cursor-pointer group hover:bg-muted/40 select-none relative focus-visible:outline-none ${
-            activeKpiTab === "views" ? "bg-background shadow-xs" : ""
+          className={`p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
+            activeKpiTab === "views"
+              ? "bg-background shadow-xs"
+              : "bg-muted/20 opacity-75 hover:opacity-100 hover:bg-muted/40"
           }`}
         >
-          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
-            <span className="font-medium group-hover:text-foreground">Total Pageviews</span>
-            <Eye className="size-3.5 text-blue-500" />
+          {activeKpiTab === "views" && (
+            <>
+              <span className="absolute top-0 inset-x-0 h-0.75 bg-blue-500 z-20" />
+              <span className="hidden lg:block absolute -bottom-px inset-x-0 h-0.75 bg-blue-500 z-20" />
+            </>
+          )}
+          <div className="flex items-center justify-between text-xs mb-1.5">
+            <span
+              className={`transition-colors ${
+                activeKpiTab === "views"
+                  ? "font-semibold text-foreground"
+                  : "font-medium text-muted-foreground group-hover:text-foreground"
+              }`}
+            >
+              Total Pageviews
+            </span>
+            <div
+              className={`p-1 rounded-md transition-colors ${
+                activeKpiTab === "views"
+                  ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
+                  : "bg-transparent text-blue-500/70 group-hover:text-blue-500"
+              }`}
+            >
+              <Eye className="size-3.5" />
+            </div>
           </div>
           <div className="flex items-baseline justify-between gap-2">
             <div>
@@ -386,13 +434,29 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
               setActiveKpiTab("engagement");
             }
           }}
-          className={`p-4 sm:p-5 text-left transition-all cursor-pointer group hover:bg-muted/40 select-none relative focus-visible:outline-none ${
-            activeKpiTab === "engagement" ? "bg-background shadow-xs" : ""
+          className={`p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
+            activeKpiTab === "engagement"
+              ? "bg-background shadow-xs"
+              : "bg-muted/20 opacity-75 hover:opacity-100 hover:bg-muted/40"
           }`}
         >
-          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+          {activeKpiTab === "engagement" && (
+            <>
+              <span className="absolute top-0 inset-x-0 h-0.75 bg-purple-500 z-20" />
+              <span className="hidden lg:block absolute -bottom-px inset-x-0 h-0.75 bg-purple-500 z-20" />
+            </>
+          )}
+          <div className="flex items-center justify-between text-xs mb-1.5">
             <div className="inline-flex items-center gap-1">
-              <span className="font-medium group-hover:text-foreground">Engagement Rate</span>
+              <span
+                className={`transition-colors ${
+                  activeKpiTab === "engagement"
+                    ? "font-semibold text-foreground"
+                    : "font-medium text-muted-foreground group-hover:text-foreground"
+                }`}
+              >
+                Engagement Rate
+              </span>
               <Tooltip>
                 <TooltipTrigger
                   className="cursor-help inline-flex items-center justify-center"
@@ -405,7 +469,15 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
                 </TooltipContent>
               </Tooltip>
             </div>
-            <Activity className="size-3.5 text-purple-500" />
+            <div
+              className={`p-1 rounded-md transition-colors ${
+                activeKpiTab === "engagement"
+                  ? "bg-purple-500/15 text-purple-600 dark:text-purple-400"
+                  : "bg-transparent text-purple-500/70 group-hover:text-purple-500"
+              }`}
+            >
+              <Activity className="size-3.5" />
+            </div>
           </div>
           <div className="flex items-baseline justify-between gap-2">
             <div>
@@ -460,13 +532,37 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
               setActiveKpiTab("subscribers");
             }
           }}
-          className={`p-4 sm:p-5 text-left transition-all cursor-pointer group hover:bg-muted/40 select-none relative focus-visible:outline-none ${
-            activeKpiTab === "subscribers" ? "bg-background shadow-xs" : ""
+          className={`p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
+            activeKpiTab === "subscribers"
+              ? "bg-background shadow-xs"
+              : "bg-muted/20 opacity-75 hover:opacity-100 hover:bg-muted/40"
           }`}
         >
-          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
-            <span className="font-medium group-hover:text-foreground">Newsletter Audience</span>
-            <Mail className="size-3.5 text-violet-500" />
+          {activeKpiTab === "subscribers" && (
+            <>
+              <span className="absolute top-0 inset-x-0 h-0.75 bg-violet-500 z-20" />
+              <span className="hidden lg:block absolute -bottom-px inset-x-0 h-0.75 bg-violet-500 z-20" />
+            </>
+          )}
+          <div className="flex items-center justify-between text-xs mb-1.5">
+            <span
+              className={`transition-colors ${
+                activeKpiTab === "subscribers"
+                  ? "font-semibold text-foreground"
+                  : "font-medium text-muted-foreground group-hover:text-foreground"
+              }`}
+            >
+              Newsletter Audience
+            </span>
+            <div
+              className={`p-1 rounded-md transition-colors ${
+                activeKpiTab === "subscribers"
+                  ? "bg-violet-500/15 text-violet-600 dark:text-violet-400"
+                  : "bg-transparent text-violet-500/70 group-hover:text-violet-500"
+              }`}
+            >
+              <Mail className="size-3.5" />
+            </div>
           </div>
           <div className="flex items-baseline justify-between gap-2">
             <div>
@@ -511,7 +607,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
       </div>
 
       {/* DUAL-PERIOD COMPARISON AREA CHART */}
-      <CardContent className="p-4 sm:p-6">
+      <CardContent className="px-3 sm:px-6 py-0">
         {!mounted || isLoading ? (
           <div className="h-80 sm:h-87.5 w-full flex items-center justify-center">
             <Skeleton className="h-full w-full rounded-md" />
@@ -527,7 +623,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
         ) : (
           <div className="h-80 sm:h-87.5 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={timeSeries} margin={{ top: 12, right: 12, left: -20, bottom: 0 }}>
+              <AreaChart data={timeSeries} margin={{ top: 8, right: 12, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id={currentChartProps.gradientId} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={currentChartProps.color} stopOpacity={0.4} />

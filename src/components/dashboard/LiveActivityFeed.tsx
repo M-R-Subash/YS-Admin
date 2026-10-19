@@ -10,13 +10,11 @@ import { LiveVisitorItem } from "./types";
 interface LiveActivityFeedProps {
   liveVisitors: LiveVisitorItem[];
   isLoading: boolean;
-  autoRefresh: boolean;
 }
 
 export const LiveActivityFeed = memo(function LiveActivityFeed({
   liveVisitors,
   isLoading,
-  autoRefresh,
 }: LiveActivityFeedProps) {
   return (
     <Card className="border border-border/70 shadow-xs flex flex-col">
@@ -27,8 +25,8 @@ export const LiveActivityFeed = memo(function LiveActivityFeed({
               Recent Activity
             </CardTitle>
             <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-              <span className={`size-1.5 rounded-full ${autoRefresh ? "bg-emerald-500 animate-pulse" : "bg-emerald-500"}`} />
-              <span>{autoRefresh ? "POLLING 30S" : "LIVE FEED (SNAPSHOT)"}</span>
+              <span className="size-1.5 rounded-full bg-emerald-500" />
+              <span>LIVE FEED</span>
             </div>
           </div>
           <CardDescription className="text-xs">
