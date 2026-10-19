@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { executeCampaignDispatch } from "@/lib/newsletter/batch-engine";
 import { invalidateAggregateCaches } from "@/lib/server/memory-cache";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 export const maxDuration = 60;
 
@@ -102,6 +103,25 @@ export async function POST(req: Request) {
 
       invalidateAggregateCaches();
 
+      const clientMeta = await getClientAuditMeta(req);
+      await recordAuditLog({
+        eventType: "NEWSLETTERS.CAMPAIGN_SCHEDULED",
+        category: "NEWSLETTERS",
+        action: `Scheduled newsletter campaign "${subject}" for ${activeSubscribersCount} subscribers`,
+        target: `Campaign: ${subject}`,
+        userId: session.user.id,
+        status: "SUCCESS",
+        ipAddress: clientMeta.ipAddress,
+        userAgent: clientMeta.userAgent,
+        metadata: {
+          subject,
+          scheduledAt: parsedScheduledAt.toISOString(),
+          totalRecipients: activeSubscribersCount,
+          fromStatus: "draft",
+          toStatus: "scheduled",
+        },
+      });
+
       return NextResponse.json({
         success: true,
         message: `Campaign scheduled for delivery on ${parsedScheduledAt.toLocaleString()}`,
@@ -126,6 +146,24 @@ export async function POST(req: Request) {
     });
 
     invalidateAggregateCaches();
+
+    const clientMeta = await getClientAuditMeta(req);
+    await recordAuditLog({
+      eventType: "NEWSLETTERS.CAMPAIGN_DISPATCHED",
+      category: "NEWSLETTERS",
+      action: `Dispatched newsletter campaign "${subject}" to ${activeSubscribersCount} subscribers`,
+      target: `Campaign: ${subject}`,
+      userId: session.user.id,
+      status: "SUCCESS",
+      ipAddress: clientMeta.ipAddress,
+      userAgent: clientMeta.userAgent,
+      metadata: {
+        subject,
+        totalRecipients: activeSubscribersCount,
+        fromStatus: "draft",
+        toStatus: "dispatched",
+      },
+    });
 
     return NextResponse.json({
       success: true,

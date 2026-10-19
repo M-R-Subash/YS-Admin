@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { invalidateAggregateCaches } from "@/lib/server/memory-cache";
 import { revalidateFrontendPath } from "@/lib/revalidate";
 import { handleApiError } from "@/lib/server/prisma-errors";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 /**
  * GET /api/blogs/bulk?ids=id1,id2,id3
@@ -230,6 +231,23 @@ export async function PATCH(request: Request) {
     } catch (revalErr) {
       console.warn("[BulkEdit] Frontend revalidation warning:", revalErr);
     }
+
+    // Record audit log for bulk blog batch updates
+    const clientMeta = await getClientAuditMeta(request);
+    await recordAuditLog({
+      eventType: "BLOG.BULK_UPDATED",
+      category: "BLOGS",
+      action: `Bulk updated ${batchUpdates.length} blog article(s)`,
+      target: `${batchUpdates.length} blogs`,
+      userId: session.user.id,
+      status: "SUCCESS",
+      ipAddress: clientMeta.ipAddress,
+      userAgent: clientMeta.userAgent,
+      metadata: {
+        batchCount: batchUpdates.length,
+        targetIds: batchUpdates.map((u) => u.id),
+      },
+    });
 
     return NextResponse.json({
       success: true,

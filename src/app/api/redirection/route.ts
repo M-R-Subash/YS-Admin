@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, requireLiveUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 function normalizeUrl(url: string): string {
   let cleaned = url.trim();
@@ -154,6 +155,25 @@ export async function POST(request: Request) {
         destinationUrl,
         statusCode,
         status: "active",
+      },
+    });
+
+    const clientMeta = await getClientAuditMeta(request);
+    await recordAuditLog({
+      eventType: "REDIRECTION.CREATED",
+      category: "REDIRECTIONS",
+      action: `Created ${statusCode} redirect: ${sourceUrl} ➔ ${destinationUrl}`,
+      target: `Redirect: ${sourceUrl}`,
+      userId: session.user.id,
+      status: "SUCCESS",
+      ipAddress: clientMeta.ipAddress,
+      userAgent: clientMeta.userAgent,
+      metadata: {
+        sourceUrl,
+        destinationUrl,
+        statusCode,
+        fromStatus: "new",
+        toStatus: "active",
       },
     });
 

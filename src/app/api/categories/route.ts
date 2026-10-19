@@ -4,6 +4,7 @@ import { authOptions, requireLiveUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { handleApiError } from "@/lib/server/prisma-errors";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 function slugify(text: string): string {
   return text
@@ -138,6 +139,24 @@ export async function POST(request: Request) {
         ogImage,
         canonicalUrl,
         noIndex,
+      },
+    });
+
+    const clientMeta = await getClientAuditMeta(request);
+    await recordAuditLog({
+      eventType: "TAXONOMY.CATEGORY_CREATED",
+      category: "TAXONOMY",
+      action: `Created blog category "${name}" (/${slug})`,
+      target: `Category: ${name}`,
+      userId: session.user.id,
+      status: "SUCCESS",
+      ipAddress: clientMeta.ipAddress,
+      userAgent: clientMeta.userAgent,
+      metadata: {
+        name,
+        slug,
+        fromStatus: "none",
+        toStatus: "created",
       },
     });
 

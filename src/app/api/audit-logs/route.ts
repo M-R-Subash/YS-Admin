@@ -59,7 +59,17 @@ export async function GET(request: NextRequest) {
     }
 
     // Parallel fetch logs and summary counts
-    const [rawLogs, total, blogCount, pageCount, mediaCount, otherCount] = await Promise.all([
+    const [
+      rawLogs,
+      total,
+      blogCount,
+      pageCount,
+      mediaCount,
+      redirectCount,
+      taxonomyCount,
+      newsletterCount,
+      otherCount,
+    ] = await Promise.all([
       prisma.auditLog.findMany({
         where,
         include: {
@@ -88,7 +98,16 @@ export async function GET(request: NextRequest) {
         where: { category: "MEDIA" },
       }),
       prisma.auditLog.count({
-        where: { category: { in: ["SETTINGS", "COMMENTS", "USERS", "SECURITY"] } },
+        where: { category: "REDIRECTIONS" },
+      }),
+      prisma.auditLog.count({
+        where: { category: "TAXONOMY" },
+      }),
+      prisma.auditLog.count({
+        where: { category: "NEWSLETTERS" },
+      }),
+      prisma.auditLog.count({
+        where: { category: { in: ["SETTINGS", "COMMENTS", "USERS", "SECURITY", "AUTH"] } },
       }),
     ]);
 
@@ -119,6 +138,9 @@ export async function GET(request: NextRequest) {
         blogEvents: blogCount,
         pageEvents: pageCount,
         mediaEvents: mediaCount,
+        redirectEvents: redirectCount,
+        taxonomyEvents: taxonomyCount,
+        newsletterEvents: newsletterCount,
         otherEvents: otherCount,
         retentionDays: 90,
       },

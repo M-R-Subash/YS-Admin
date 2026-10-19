@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 const createSubscriberSchema = z.object({
   email: z.string().trim().email("Invalid email address").toLowerCase(),
@@ -98,6 +99,26 @@ export async function POST(req: Request) {
     } else {
       subscriber = existing;
     }
+
+    const clientMeta = await getClientAuditMeta(req);
+    await recordAuditLog({
+      eventType: "NEWSLETTERS.SUBSCRIBER_ADDED",
+      category: "NEWSLETTERS",
+      action: !existing
+        ? `Added new subscriber: ${subscriber.email}`
+        : `Re-activated subscriber: ${subscriber.email}`,
+      target: `Subscriber: ${subscriber.email}`,
+      userId: session.user.id,
+      status: "SUCCESS",
+      ipAddress: clientMeta.ipAddress,
+      userAgent: clientMeta.userAgent,
+      metadata: {
+        email: subscriber.email,
+        source: subscriber.source,
+        fromStatus: existing ? existing.status : "none",
+        toStatus: "active",
+      },
+    });
 
     return NextResponse.json({
       success: true,

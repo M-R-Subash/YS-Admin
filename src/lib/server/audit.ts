@@ -8,6 +8,9 @@ export type AuditCategory =
   | "COMMENTS"
   | "USERS"
   | "SETTINGS"
+  | "REDIRECTIONS"
+  | "NEWSLETTERS"
+  | "TAXONOMY"
   | "AUTH"
   | "SECURITY";
 export type AuditStatus = "SUCCESS" | "WARNING" | "FAILED";

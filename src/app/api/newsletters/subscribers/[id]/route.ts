@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 export async function PATCH(
   req: Request,
@@ -21,9 +22,31 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
+    const existing = await prisma.subscriber.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: "Subscriber not found" }, { status: 404 });
+    }
+
     const updated = await prisma.subscriber.update({
       where: { id },
       data: { status },
+    });
+
+    const clientMeta = await getClientAuditMeta(req);
+    await recordAuditLog({
+      eventType: "NEWSLETTERS.SUBSCRIBER_STATUS_CHANGED",
+      category: "NEWSLETTERS",
+      action: `Changed subscriber ${existing.email} status: ${existing.status} ➔ ${status}`,
+      target: `Subscriber: ${existing.email}`,
+      userId: session.user.id,
+      status: "SUCCESS",
+      ipAddress: clientMeta.ipAddress,
+      userAgent: clientMeta.userAgent,
+      metadata: {
+        email: existing.email,
+        fromStatus: existing.status,
+        toStatus: status,
+      },
     });
 
     return NextResponse.json({ success: true, subscriber: updated });
@@ -44,9 +67,30 @@ export async function DELETE(
     }
 
     const { id } = await params;
+    const existing = await prisma.subscriber.findUnique({ where: { id } });
+
     await prisma.subscriber.delete({
       where: { id },
     });
+
+    if (existing) {
+      const clientMeta = await getClientAuditMeta(req);
+      await recordAuditLog({
+        eventType: "NEWSLETTERS.SUBSCRIBER_DELETED",
+        category: "NEWSLETTERS",
+        action: `Permanently deleted subscriber ${existing.email}`,
+        target: `Subscriber: ${existing.email}`,
+        userId: session.user.id,
+        status: "WARNING",
+        ipAddress: clientMeta.ipAddress,
+        userAgent: clientMeta.userAgent,
+        metadata: {
+          email: existing.email,
+          fromStatus: existing.status,
+          toStatus: "deleted",
+        },
+      });
+    }
 
     return NextResponse.json({ success: true, message: "Subscriber deleted successfully" });
   } catch (error) {

@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { handleApiError } from "@/lib/server/prisma-errors";
 import { slugify } from "@/lib/slugify";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 const updateTagSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(50).optional(),
@@ -92,6 +93,24 @@ export async function PATCH(
       }
     }
 
+    const clientMeta = await getClientAuditMeta(request);
+    await recordAuditLog({
+      eventType: "TAXONOMY.TAG_UPDATED",
+      category: "TAXONOMY",
+      action: `Updated tag #${updated.name}`,
+      target: `Tag: #${updated.name}`,
+      userId: session.user.id,
+      status: "SUCCESS",
+      ipAddress: clientMeta.ipAddress,
+      userAgent: clientMeta.userAgent,
+      metadata: {
+        name: updated.name,
+        slug: updated.slug,
+        fromStatus: "active",
+        toStatus: "active",
+      },
+    });
+
     return NextResponse.json({ ...updated, postCount: updated._count.blogs });
   } catch (error: any) {
     return handleApiError(error, "Failed to update tag");
@@ -100,7 +119,7 @@ export async function PATCH(
 
 // DELETE /api/tags/[id] — Delete tag
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -141,6 +160,24 @@ export async function DELETE(
 
     // Delete tag record
     await prisma.tag.delete({ where: { id } });
+
+    const clientMeta = await getClientAuditMeta(request);
+    await recordAuditLog({
+      eventType: "TAXONOMY.TAG_DELETED",
+      category: "TAXONOMY",
+      action: `Deleted tag #${tag.name} (removed from ${tag._count.blogs} blogs)`,
+      target: `Tag: #${tag.name}`,
+      userId: session.user.id,
+      status: "WARNING",
+      ipAddress: clientMeta.ipAddress,
+      userAgent: clientMeta.userAgent,
+      metadata: {
+        name: tag.name,
+        slug: tag.slug,
+        fromStatus: "active",
+        toStatus: "deleted",
+      },
+    });
 
     return NextResponse.json({
       success: true,

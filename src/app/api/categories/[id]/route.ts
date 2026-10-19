@@ -4,6 +4,7 @@ import { authOptions, requireLiveUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { handleApiError } from "@/lib/server/prisma-errors";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 function slugify(text: string): string {
   return text
@@ -135,6 +136,24 @@ export async function PATCH(
       }
     }
 
+    const clientMeta = await getClientAuditMeta(request);
+    await recordAuditLog({
+      eventType: "TAXONOMY.CATEGORY_UPDATED",
+      category: "TAXONOMY",
+      action: `Updated blog category "${updated.name}"`,
+      target: `Category: ${updated.name}`,
+      userId: session.user.id,
+      status: "SUCCESS",
+      ipAddress: clientMeta.ipAddress,
+      userAgent: clientMeta.userAgent,
+      metadata: {
+        name: updated.name,
+        slug: updated.slug,
+        fromStatus: "active",
+        toStatus: "active",
+      },
+    });
+
     return NextResponse.json(updated);
   } catch (error: any) {
     return handleApiError(error, "Failed to update category");
@@ -143,7 +162,7 @@ export async function PATCH(
 
 // DELETE /api/categories/[id] — Delete category
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -184,6 +203,24 @@ export async function DELETE(
 
     // Delete category record (relations in join table are deleted automatically)
     await prisma.category.delete({ where: { id } });
+
+    const clientMeta = await getClientAuditMeta(request);
+    await recordAuditLog({
+      eventType: "TAXONOMY.CATEGORY_DELETED",
+      category: "TAXONOMY",
+      action: `Deleted blog category "${category.name}" (removed from ${category._count.blogs} blogs)`,
+      target: `Category: ${category.name}`,
+      userId: session.user.id,
+      status: "WARNING",
+      ipAddress: clientMeta.ipAddress,
+      userAgent: clientMeta.userAgent,
+      metadata: {
+        name: category.name,
+        slug: category.slug,
+        fromStatus: "active",
+        toStatus: "deleted",
+      },
+    });
 
     return NextResponse.json({
       success: true,

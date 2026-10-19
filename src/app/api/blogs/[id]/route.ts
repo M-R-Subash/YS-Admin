@@ -529,10 +529,10 @@ export async function PUT(
   } else if (isTrashed === false && existingBlog.isTrashed) {
     eventType = "BLOG.RESTORED";
     actionDesc = `Restored blog article "${blog.title}" from trash (set to "${blog.status}")`;
-  } else if (action === "publish" || (blog.status === "published" && existingBlog.status !== "published")) {
+  } else if (toStatus === "published" && fromStatus !== "published") {
     eventType = "BLOG.PUBLISHED";
     actionDesc = `Changed blog status from "${fromStatus}" to "published"`;
-  } else if (action === "draft" || (blog.status === "draft" && existingBlog.status !== "draft")) {
+  } else if (toStatus === "draft" && fromStatus !== "draft") {
     eventType = "BLOG.SET_TO_DRAFT";
     actionDesc = `Changed blog status from "${fromStatus}" to "draft"`;
   }

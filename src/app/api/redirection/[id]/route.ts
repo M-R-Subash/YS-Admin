@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, requireLiveUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 function normalizeUrl(url: string): string {
   let cleaned = url.trim();
@@ -103,6 +104,35 @@ export async function PATCH(
       data: updateData,
     });
 
+    const clientMeta = await getClientAuditMeta(request);
+    const fromStatus = existing.status;
+    const toStatus = updated.status;
+    const isStatusChange = fromStatus !== toStatus;
+
+    await recordAuditLog({
+      eventType: isStatusChange
+        ? toStatus === "trashed"
+          ? "REDIRECTION.TRASHED"
+          : "REDIRECTION.STATUS_CHANGED"
+        : "REDIRECTION.UPDATED",
+      category: "REDIRECTIONS",
+      action: isStatusChange
+        ? `Changed redirect ${existing.sourceUrl} status: ${fromStatus} ➔ ${toStatus}`
+        : `Updated redirect ${existing.sourceUrl} ➔ ${updated.destinationUrl} (${updated.statusCode})`,
+      target: `Redirect: ${existing.sourceUrl}`,
+      userId: session.user.id,
+      status: toStatus === "trashed" ? "WARNING" : "SUCCESS",
+      ipAddress: clientMeta.ipAddress,
+      userAgent: clientMeta.userAgent,
+      metadata: {
+        sourceUrl: existing.sourceUrl,
+        fromStatus,
+        toStatus,
+        destinationUrl: updated.destinationUrl,
+        statusCode: updated.statusCode,
+      },
+    });
+
     return NextResponse.json(updated);
   } catch (error: any) {
     console.error("Failed to update redirection:", error);
@@ -131,9 +161,33 @@ export async function DELETE(
 
     const { id } = await params;
 
+    const existing = await prisma.redirection.findUnique({
+      where: { id },
+    });
+
     await prisma.redirection.delete({
       where: { id },
     });
+
+    if (existing) {
+      const clientMeta = await getClientAuditMeta(request);
+      await recordAuditLog({
+        eventType: "REDIRECTION.DELETED",
+        category: "REDIRECTIONS",
+        action: `Permanently deleted redirect: ${existing.sourceUrl}`,
+        target: `Redirect: ${existing.sourceUrl}`,
+        userId: session.user.id,
+        status: "WARNING",
+        ipAddress: clientMeta.ipAddress,
+        userAgent: clientMeta.userAgent,
+        metadata: {
+          sourceUrl: existing.sourceUrl,
+          destinationUrl: existing.destinationUrl,
+          fromStatus: existing.status,
+          toStatus: "deleted",
+        },
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

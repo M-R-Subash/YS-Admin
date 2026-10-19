@@ -310,6 +310,22 @@ export async function executeBulkAction(
         );
       }
 
+      const clientMeta = await getClientAuditMeta(request);
+      await recordAuditLog({
+        eventType: `REDIRECTION.BULK_${action.toUpperCase()}`,
+        category: "REDIRECTIONS",
+        action: `Bulk ${action} applied to ${targetIds.length} redirect(s)`,
+        target: `${targetIds.length} redirects`,
+        userId: session.user.id,
+        status: action === "deletePermanent" ? "WARNING" : "SUCCESS",
+        ipAddress: clientMeta.ipAddress,
+        userAgent: clientMeta.userAgent,
+        metadata: {
+          action,
+          targetIds,
+        },
+      });
+
       return NextResponse.json({
         success: true,
         entity,
@@ -355,6 +371,22 @@ export async function executeBulkAction(
         );
       }
 
+      const clientMeta = await getClientAuditMeta(request);
+      await recordAuditLog({
+        eventType: `NEWSLETTERS.BULK_${action.toUpperCase()}`,
+        category: "NEWSLETTERS",
+        action: `Bulk ${action} applied to ${targetIds.length} subscriber(s)`,
+        target: `${targetIds.length} subscribers`,
+        userId: session.user.id,
+        status: action === "delete" || action === "deletePermanent" ? "WARNING" : "SUCCESS",
+        ipAddress: clientMeta.ipAddress,
+        userAgent: clientMeta.userAgent,
+        metadata: {
+          action,
+          targetIds,
+        },
+      });
+
       return NextResponse.json({
         success: true,
         entity,
@@ -381,6 +413,22 @@ export async function executeBulkAction(
         });
 
         invalidateAggregateCaches();
+
+        const clientMeta = await getClientAuditMeta(request);
+        await recordAuditLog({
+          eventType: "TAXONOMY.BULK_CATEGORY_DELETED",
+          category: "TAXONOMY",
+          action: `Bulk deleted ${targetIds.length} category(s)`,
+          target: `${targetIds.length} categories`,
+          userId: session.user.id,
+          status: "WARNING",
+          ipAddress: clientMeta.ipAddress,
+          userAgent: clientMeta.userAgent,
+          metadata: {
+            action,
+            targetIds,
+          },
+        });
 
         return NextResponse.json({
           success: true,
@@ -414,6 +462,22 @@ export async function executeBulkAction(
         });
 
         invalidateAggregateCaches();
+
+        const clientMeta = await getClientAuditMeta(request);
+        await recordAuditLog({
+          eventType: "TAXONOMY.BULK_TAG_DELETED",
+          category: "TAXONOMY",
+          action: `Bulk deleted ${targetIds.length} tag(s)`,
+          target: `${targetIds.length} tags`,
+          userId: session.user.id,
+          status: "WARNING",
+          ipAddress: clientMeta.ipAddress,
+          userAgent: clientMeta.userAgent,
+          metadata: {
+            action,
+            targetIds,
+          },
+        });
 
         return NextResponse.json({
           success: true,
