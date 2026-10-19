@@ -174,6 +174,14 @@ function CustomChartTooltip({
   );
 }
 
+interface ChartConfig {
+  currentKey: keyof TimeSeriesPoint;
+  prevKey: keyof TimeSeriesPoint;
+  name: string;
+  color: string;
+  gradientId: string;
+}
+
 interface TrafficKpiHeroProps {
   summary?: SummaryData;
   sparklines?: SparklinesData;
@@ -195,16 +203,8 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
 }: TrafficKpiHeroProps) {
   const [activeKpiTab, setActiveKpiTab] = useState<"visitors" | "views" | "engagement" | "subscribers">("visitors");
 
-  const currentChartProps = useMemo(() => {
+  const currentChartProps = useMemo<ChartConfig>(() => {
     switch (activeKpiTab) {
-      case "visitors":
-        return {
-          currentKey: "uniqueVisitors",
-          prevKey: "prevUniqueVisitors",
-          name: "Unique Visitors",
-          color: "#10b981",
-          gradientId: "fillVisitors",
-        };
       case "views":
         return {
           currentKey: "totalViews",
@@ -229,8 +229,66 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
           color: "#a855f7",
           gradientId: "fillSubscribers",
         };
+      case "visitors":
+      default:
+        return {
+          currentKey: "uniqueVisitors",
+          prevKey: "prevUniqueVisitors",
+          name: "Unique Visitors",
+          color: "#10b981",
+          gradientId: "fillVisitors",
+        };
     }
   }, [activeKpiTab]);
+
+  const maxVal = useMemo(() => {
+    let max = 0;
+    for (const pt of timeSeries) {
+      const cur = Number(pt[currentChartProps.currentKey]) || 0;
+      if (cur > max) max = cur;
+      if (compareMode && currentChartProps.prevKey) {
+        const prev = Number(pt[currentChartProps.prevKey]) || 0;
+        if (prev > max) max = prev;
+      }
+    }
+    return max;
+  }, [timeSeries, currentChartProps, compareMode]);
+
+  const { yDomain, yTicks } = useMemo(() => {
+    if (!maxVal || maxVal <= 0) {
+      return { yDomain: [0, 4] as [number, number], yTicks: [0, 1, 2, 3, 4] };
+    }
+
+    // Calculate an ideal step size targeting ~4 intervals
+    const rawStep = (maxVal * 1.15) / 4;
+    const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const normalized = rawStep / magnitude;
+
+    let stepMultiplier = 1;
+    if (normalized <= 1.25) stepMultiplier = 1;
+    else if (normalized <= 1.85) stepMultiplier = 1.5;
+    else if (normalized <= 2.85) stepMultiplier = 2.5;
+    else if (normalized <= 6) stepMultiplier = 5;
+    else stepMultiplier = 10;
+
+    const step = Math.max(1, Math.round(stepMultiplier * magnitude));
+
+    // Ceiling must be a multiple of step and leave comfortable upper spacing above maxVal
+    let ceiling = Math.ceil(maxVal / step) * step;
+    if (ceiling - maxVal < step * 0.15) {
+      ceiling += step;
+    }
+
+    const ticks: number[] = [];
+    for (let val = 0; val <= ceiling; val += step) {
+      ticks.push(val);
+    }
+
+    return {
+      yDomain: [0, ceiling] as [number, number],
+      yTicks: ticks,
+    };
+  }, [maxVal]);
 
   return (
     <Card className="border border-border/70 shadow-xs overflow-hidden pt-0">
@@ -258,10 +316,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
           }`}
         >
           {activeKpiTab === "visitors" && (
-            <>
-              <span className="absolute top-0 inset-x-0 h-0.75 bg-emerald-500 z-20" />
-              <span className="hidden lg:block absolute -bottom-px inset-x-0 h-0.75 bg-emerald-500 z-20" />
-            </>
+            <span className="absolute -bottom-px inset-x-0 h-0.75 bg-emerald-500 z-20" />
           )}
           <div className="flex items-center justify-between text-xs mb-1.5">
             <div className="inline-flex items-center gap-1">
@@ -356,10 +411,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
           }`}
         >
           {activeKpiTab === "views" && (
-            <>
-              <span className="absolute top-0 inset-x-0 h-0.75 bg-blue-500 z-20" />
-              <span className="hidden lg:block absolute -bottom-px inset-x-0 h-0.75 bg-blue-500 z-20" />
-            </>
+            <span className="absolute -bottom-px inset-x-0 h-0.75 bg-blue-500 z-20" />
           )}
           <div className="flex items-center justify-between text-xs mb-1.5">
             <span
@@ -441,10 +493,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
           }`}
         >
           {activeKpiTab === "engagement" && (
-            <>
-              <span className="absolute top-0 inset-x-0 h-0.75 bg-purple-500 z-20" />
-              <span className="hidden lg:block absolute -bottom-px inset-x-0 h-0.75 bg-purple-500 z-20" />
-            </>
+            <span className="absolute -bottom-px inset-x-0 h-0.75 bg-purple-500 z-20" />
           )}
           <div className="flex items-center justify-between text-xs mb-1.5">
             <div className="inline-flex items-center gap-1">
@@ -539,10 +588,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
           }`}
         >
           {activeKpiTab === "subscribers" && (
-            <>
-              <span className="absolute top-0 inset-x-0 h-0.75 bg-violet-500 z-20" />
-              <span className="hidden lg:block absolute -bottom-px inset-x-0 h-0.75 bg-violet-500 z-20" />
-            </>
+            <span className="absolute -bottom-px inset-x-0 h-0.75 bg-violet-500 z-20" />
           )}
           <div className="flex items-center justify-between text-xs mb-1.5">
             <span
@@ -623,7 +669,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
         ) : (
           <div className="h-80 sm:h-87.5 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={timeSeries} margin={{ top: 8, right: 12, left: -20, bottom: 0 }}>
+              <AreaChart data={timeSeries} margin={{ top: 12, right: 12, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id={currentChartProps.gradientId} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={currentChartProps.color} stopOpacity={0.4} />
@@ -641,14 +687,24 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
                 />
                 <YAxis
                   allowDecimals={false}
-                  domain={[0, (dataMax: number) => (Number.isFinite(dataMax) && dataMax > 0 ? Math.max(dataMax, 4) : 4)]}
+                  domain={yDomain}
+                  ticks={yTicks}
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
                   className="text-[11px] fill-muted-foreground font-mono"
-                  tickFormatter={(val) => (val >= 1000 ? `${(val / 1000).toFixed(0)}K` : Math.round(val).toString())}
+                  tickFormatter={(val) => {
+                    if (val >= 1000) {
+                      const k = val / 1000;
+                      return k % 1 === 0 ? `${k}K` : `${k.toFixed(1)}K`;
+                    }
+                    return Math.round(val).toString();
+                  }}
                 />
                 <RechartsTooltip
+                  animationDuration={150}
+                  animationEasing="ease-out"
+                  cursor={{ stroke: "#94a3b8", strokeWidth: 1, strokeDasharray: "3 3", opacity: 0.5 }}
                   content={
                     <CustomChartTooltip
                       compareMode={compareMode}
@@ -669,7 +725,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
                     strokeWidth={1.75}
                     fillOpacity={0}
                     dot={false}
-                    activeDot={{ r: 4, strokeWidth: 1.5, fill: "#94a3b8" }}
+                    activeDot={false}
                   />
                 )}
 
@@ -682,8 +738,14 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
                   strokeWidth={2.5}
                   fillOpacity={1}
                   fill={`url(#${currentChartProps.gradientId})`}
-                  dot={{ r: 3, fill: currentChartProps.color, strokeWidth: 1 }}
-                  activeDot={{ r: 6, strokeWidth: 2 }}
+                  dot={false}
+                  activeDot={{
+                    r: 5,
+                    fill: currentChartProps.color,
+                    stroke: "#ffffff",
+                    strokeWidth: 2,
+                    className: "transition-all duration-200 ease-out",
+                  }}
                 />
               </AreaChart>
             </ResponsiveContainer>
