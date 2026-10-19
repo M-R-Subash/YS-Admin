@@ -330,7 +330,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
               setSwipedIndex(0);
             }
           }}
-          className={`min-w-[72vw] sm:min-w-[280px] lg:min-w-0 snap-start flex-1 shrink-0 lg:shrink p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
+          className={`min-w-[72vw] sm:min-w-70 lg:min-w-0 snap-start flex-1 shrink-0 lg:shrink p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
             activeKpiTab === "visitors"
               ? "bg-background shadow-xs ring-1 ring-emerald-500/20 lg:ring-0"
               : "bg-muted/20 opacity-75 hover:opacity-100 hover:bg-muted/40"
@@ -436,7 +436,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
               setSwipedIndex(1);
             }
           }}
-          className={`min-w-[72vw] sm:min-w-[280px] lg:min-w-0 snap-start flex-1 shrink-0 lg:shrink p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
+          className={`min-w-[72vw] sm:min-w-70 lg:min-w-0 snap-start flex-1 shrink-0 lg:shrink p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
             activeKpiTab === "views"
               ? "bg-background shadow-xs ring-1 ring-blue-500/20 lg:ring-0"
               : "bg-muted/20 opacity-75 hover:opacity-100 hover:bg-muted/40"
@@ -542,7 +542,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
               setSwipedIndex(2);
             }
           }}
-          className={`min-w-[72vw] sm:min-w-[280px] lg:min-w-0 snap-start flex-1 shrink-0 lg:shrink p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
+          className={`min-w-[72vw] sm:min-w-70 lg:min-w-0 snap-start flex-1 shrink-0 lg:shrink p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
             activeKpiTab === "engagement"
               ? "bg-background shadow-xs ring-1 ring-purple-500/20 lg:ring-0"
               : "bg-muted/20 opacity-75 hover:opacity-100 hover:bg-muted/40"
@@ -648,7 +648,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
               setSwipedIndex(3);
             }
           }}
-          className={`min-w-[72vw] sm:min-w-[280px] lg:min-w-0 snap-start flex-1 shrink-0 lg:shrink p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
+          className={`min-w-[72vw] sm:min-w-70 lg:min-w-0 snap-start flex-1 shrink-0 lg:shrink p-4 sm:p-5 text-left transition-all cursor-pointer group select-none relative focus-visible:outline-none ${
             activeKpiTab === "subscribers"
               ? "bg-background shadow-xs ring-1 ring-violet-500/20 lg:ring-0"
               : "bg-muted/20 opacity-75 hover:opacity-100 hover:bg-muted/40"
@@ -780,7 +780,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
             </p>
           </div>
         ) : (
-          <div className="h-60 sm:h-80 lg:h-87.5 w-full select-none outline-none focus:outline-none focus:ring-0 [&_*]:focus:outline-none [&_*]:outline-none">
+          <div className="h-60 sm:h-80 lg:h-87.5 w-full select-none outline-none focus:outline-none focus:ring-0 **:focus:outline-none **:outline-none">
             <ResponsiveContainer width="100%" height="100%" className="outline-none focus:outline-none">
               <AreaChart
                 data={timeSeries}
