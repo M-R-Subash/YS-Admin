@@ -37,7 +37,7 @@ export const LiveActivityFeed = memo(function LiveActivityFeed({
         <Radio className="size-4 text-emerald-500" />
       </CardHeader>
 
-      <CardContent className="p-4 flex-1">
+      <CardContent className="p-4 flex-1 h-[280px] max-h-[280px] overflow-y-auto pr-2">
         {isLoading ? (
           <div className="space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
@@ -45,7 +45,7 @@ export const LiveActivityFeed = memo(function LiveActivityFeed({
             ))}
           </div>
         ) : liveVisitors.length === 0 ? (
-          <div className="py-12 text-center text-muted-foreground flex flex-col items-center justify-center">
+          <div className="h-full min-h-[220px] text-center text-muted-foreground flex flex-col items-center justify-center">
             <Radio className="size-8 text-muted-foreground/30 mb-2" />
             <p className="text-xs font-medium">No active visitors in the last 15 minutes</p>
             <p className="text-[11px] text-muted-foreground/70 mt-0.5">
