@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useRef, useDeferredValue } from "react";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import Link from "next/link";
+import { useDebounce } from "@/hooks/useDebounce";
 import {
   ArrowLeft,
   Search,
@@ -30,7 +31,6 @@ import {
   Check,
   CheckCircle2,
   X,
-  SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -524,45 +524,398 @@ function getCategoryIcon(category: AuditCategory) {
   }
 }
 
+interface AuditLogRowProps {
+  item: AuditLogItem;
+  onSelect: (item: AuditLogItem) => void;
+}
+
+const AuditLogRow = React.memo(function AuditLogRow({ item, onSelect }: AuditLogRowProps) {
+  const date = useMemo(() => new Date(item.timestamp), [item.timestamp]);
+  const trans = useMemo(() => getTransitionInfo(item), [item]);
+  const explanation = useMemo(() => getSimpleExplanation(item), [item]);
+  const itemInfo = useMemo(() => getItemCleanName(item), [item]);
+  const Icon = useMemo(() => getCategoryIcon(item.category), [item.category]);
+  const relativeTime = useMemo(() => formatDistanceToNow(date, { addSuffix: true }), [date]);
+  const exactTime = useMemo(() => format(date, "HH:mm:ss"), [date]);
+
+  return (
+    <tr
+      onClick={() => onSelect(item)}
+      className="hover:bg-muted/40 transition-colors cursor-pointer border-b border-border/30 last:border-b-0"
+    >
+      {/* 1. Affected Item */}
+      <td className="py-3 px-4 align-middle">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="size-7 rounded-lg bg-muted flex items-center justify-center shrink-0 text-muted-foreground border border-border">
+            <Icon className="size-3.5" />
+          </div>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="font-bold text-foreground text-xs leading-tight truncate" title={itemInfo.name}>
+              {itemInfo.name}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <Badge
+                variant="outline"
+                className="text-[9px] uppercase tracking-wider py-0 px-1 font-bold rounded-xs bg-muted/80 text-muted-foreground border-border shrink-0"
+              >
+                {itemInfo.type}
+              </Badge>
+              {itemInfo.slug && (
+                <span className="font-mono text-[10px] text-muted-foreground truncate">
+                  /{itemInfo.slug.replace(/^\//, "")}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </td>
+
+      {/* 2. What Changed (Before ➔ After State Transition Chip) */}
+      <td className="py-3 px-4 align-middle whitespace-nowrap">
+        {trans.pillText ? (
+          <Badge
+            variant="outline"
+            className="text-[11px] font-bold py-1 px-2.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+          >
+            {trans.pillText}
+          </Badge>
+        ) : (
+          <div className="inline-flex items-center gap-1.5 p-1 px-2.5 rounded-lg bg-muted/60 border border-border">
+            <span
+              className={`text-[11px] font-semibold ${
+                trans.from.toLowerCase() === "published" || trans.from.toLowerCase() === "active"
+                  ? "text-emerald-600 dark:text-emerald-400 font-bold"
+                  : trans.from.toLowerCase() === "trash" || trans.from.toLowerCase() === "trashed"
+                  ? "text-amber-600 dark:text-amber-400"
+                  : "text-muted-foreground"
+              }`}
+            >
+              {trans.from}
+            </span>
+            <ArrowRight className="size-3 text-muted-foreground shrink-0" />
+            <span
+              className={`text-[11px] font-bold ${
+                trans.to.toLowerCase() === "published" || trans.to.toLowerCase() === "active"
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : trans.to.toLowerCase() === "trash" || trans.to.toLowerCase() === "trashed"
+                  ? "text-amber-600 dark:text-amber-400"
+                  : trans.to.toLowerCase() === "deleted"
+                  ? "text-rose-600 dark:text-rose-400"
+                  : "text-foreground"
+              }`}
+            >
+              {trans.to}
+            </span>
+          </div>
+        )}
+      </td>
+
+      {/* 3. Simple Activity Explanation (Clean & Short) */}
+      <td className="py-3 px-4 align-middle">
+        <p className="font-medium text-foreground text-xs leading-relaxed truncate" title={explanation}>
+          {explanation}
+        </p>
+      </td>
+
+      {/* 4. Changed By (Actor) */}
+      <td className="py-3 px-4 align-middle whitespace-nowrap">
+        <div className="flex items-center gap-2 min-w-0">
+          <Avatar className="size-7 border border-border shrink-0">
+            {item.actor.avatar && (
+              <AvatarImage src={item.actor.avatar} alt={item.actor.name} />
+            )}
+            <AvatarFallback className="text-[10px] font-bold">
+              {item.actor.name.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex flex-col min-w-0">
+            <span className="font-semibold text-foreground text-xs truncate">
+              {item.actor.name}
+            </span>
+            <span className="text-[10px] text-muted-foreground truncate">
+              {item.actor.email}
+            </span>
+          </div>
+        </div>
+      </td>
+
+      {/* 5. When */}
+      <td className="py-3 px-4 align-middle whitespace-nowrap text-right text-muted-foreground text-[11px]">
+        <div className="flex flex-col items-end">
+          <span className="font-medium text-foreground">
+            {relativeTime}
+          </span>
+          <span className="text-[10px] text-muted-foreground/80 flex items-center gap-1 mt-0.5">
+            <Clock className="size-2.5" />
+            {exactTime}
+          </span>
+        </div>
+      </td>
+    </tr>
+  );
+});
+
+interface AuditLogInspectorProps {
+  log: AuditLogItem | null;
+  onClose: () => void;
+}
+
+function AuditLogInspector({ log }: AuditLogInspectorProps) {
+  const [copiedId, setCopiedId] = useState(false);
+  const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  if (!log) return null;
+
+  const copyLogId = (id: string) => {
+    navigator.clipboard.writeText(id);
+    setCopiedId(true);
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    copyTimeoutRef.current = setTimeout(() => setCopiedId(false), 2000);
+  };
+
+  const date = new Date(log.timestamp);
+  const trans = getTransitionInfo(log);
+  const explanation = getSimpleExplanation(log);
+  const itemInfo = getItemCleanName(log);
+  const meta = log.metadata || {};
+
+  return (
+    <>
+      <SheetHeader className="p-5 border-b border-border/60 bg-muted/20">
+        <div className="flex items-start justify-between gap-3 pr-6">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Badge
+                variant="outline"
+                className="text-[10px] uppercase font-bold tracking-wider py-0.5 px-2 bg-primary/10 text-primary border-primary/20"
+              >
+                {log.category}
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                {format(date, "MMM d, yyyy · HH:mm:ss")}
+              </span>
+            </div>
+            <SheetTitle className="text-base font-bold text-foreground leading-snug">
+              {explanation}
+            </SheetTitle>
+            <SheetDescription className="text-xs text-muted-foreground">
+              {formatDistanceToNow(date, { addSuffix: true })} by {log.actor.name}
+            </SheetDescription>
+          </div>
+        </div>
+      </SheetHeader>
+
+      <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        {/* 1. Target Resource Card */}
+        <div className="p-4 rounded-xl border border-border bg-card space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Target Resource
+            </span>
+            {itemInfo.cmsUrl && (
+              <Link href={itemInfo.cmsUrl} target="_blank">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-[10px] font-semibold gap-1 text-primary hover:text-primary cursor-pointer p-1"
+                >
+                  <span>Open in Admin</span>
+                  <ExternalLink className="size-3" />
+                </Button>
+              </Link>
+            )}
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-foreground">
+              {itemInfo.name}
+            </h4>
+            {itemInfo.slug && (
+              <p className="font-mono text-xs text-muted-foreground mt-0.5">
+                /{itemInfo.slug.replace(/^\//, "")}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* 2. Before ➔ After Status Box */}
+        <div className="p-4 rounded-xl border border-border bg-card space-y-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            Status Transition
+          </span>
+          <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/40 border border-border/80">
+            <div className="flex flex-col">
+              <span className="text-[10px] uppercase font-semibold text-muted-foreground">
+                Previous State
+              </span>
+              <span className="text-xs font-bold text-foreground mt-0.5">
+                {trans.from}
+              </span>
+            </div>
+            <ArrowRight className="size-4 text-primary shrink-0" />
+            <div className="flex flex-col text-right">
+              <span className="text-[10px] uppercase font-semibold text-muted-foreground">
+                New State
+              </span>
+              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                {trans.to}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Team Member (Actor) Card */}
+        <div className="p-4 rounded-xl border border-border bg-card space-y-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            Modified By
+          </span>
+          <div className="flex items-center gap-3">
+            <Avatar className="size-9 border border-border">
+              {log.actor.avatar && (
+                <AvatarImage src={log.actor.avatar} alt={log.actor.name} />
+              )}
+              <AvatarFallback className="text-xs font-bold">
+                {log.actor.name.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-xs text-foreground">
+                  {log.actor.name}
+                </span>
+                <Badge
+                  variant="outline"
+                  className="text-[9px] uppercase font-semibold px-1 py-0 rounded-xs bg-muted text-muted-foreground border-border"
+                >
+                  {log.actor.role}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground truncate">
+                {log.actor.email}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* 4. Activity Specific Breakdown (Clean checklist, NOT raw JSON) */}
+        <div className="p-4 rounded-xl border border-border bg-card space-y-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            Change Details
+          </span>
+          <div className="space-y-1.5 text-xs text-foreground">
+            {meta.sourceUrl && (
+              <div className="flex justify-between py-1 border-b border-border/50">
+                <span className="text-muted-foreground">Source URL:</span>
+                <span className="font-mono text-[11px] font-medium">{meta.sourceUrl}</span>
+              </div>
+            )}
+            {meta.destinationUrl && (
+              <div className="flex justify-between py-1 border-b border-border/50">
+                <span className="text-muted-foreground">Destination:</span>
+                <span className="font-mono text-[11px] font-medium">{meta.destinationUrl}</span>
+              </div>
+            )}
+            {meta.statusCode && (
+              <div className="flex justify-between py-1 border-b border-border/50">
+                <span className="text-muted-foreground">HTTP Status:</span>
+                <span className="font-semibold">{meta.statusCode} Redirect</span>
+              </div>
+            )}
+            {meta.subject && (
+              <div className="flex justify-between py-1 border-b border-border/50">
+                <span className="text-muted-foreground">Subject Line:</span>
+                <span className="font-medium text-right">{meta.subject}</span>
+              </div>
+            )}
+            {meta.totalRecipients !== undefined && (
+              <div className="flex justify-between py-1 border-b border-border/50">
+                <span className="text-muted-foreground">Recipients:</span>
+                <span className="font-semibold">{meta.totalRecipients} subscribers</span>
+              </div>
+            )}
+            {meta.scheduledAt && (
+              <div className="flex justify-between py-1 border-b border-border/50">
+                <span className="text-muted-foreground">Scheduled Send:</span>
+                <span>{format(new Date(meta.scheduledAt), "MMM d, yyyy HH:mm")}</span>
+              </div>
+            )}
+            {meta.targetIds && Array.isArray(meta.targetIds) && (
+              <div className="flex justify-between py-1 border-b border-border/50">
+                <span className="text-muted-foreground">Batch Count:</span>
+                <span className="font-semibold">{meta.targetIds.length} items modified</span>
+              </div>
+            )}
+            <div className="flex justify-between py-1">
+              <span className="text-muted-foreground">Execution Status:</span>
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                <CheckCircle2 className="size-3" />
+                Verified Success
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 5. System Integrity Stamp */}
+        <div className="p-3 rounded-lg bg-muted/40 border border-border/60 flex items-center justify-between text-[11px] text-muted-foreground">
+          <span className="font-mono truncate max-w-[240px]">
+            ID: {log.id}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => copyLogId(log.id)}
+            className="h-6 px-2 text-[10px] gap-1 cursor-pointer"
+          >
+            {copiedId ? (
+              <>
+                <Check className="size-3 text-emerald-500" />
+                <span>Copied</span>
+              </>
+            ) : (
+              <>
+                <Copy className="size-3" />
+                <span>Copy ID</span>
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function AuditLogsPage() {
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "ADMIN";
 
+  // Search input state: instant local state for 60fps typing, deferred for non-blocking local filtering, debounced for server API
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearch = useDeferredValue(searchQuery);
+  const debouncedSearch = useDebounce(searchQuery, 300);
+
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const [selectedActor, setSelectedActor] = useState<string>("ALL");
   const [selectedActionFilter, setSelectedActionFilter] = useState<string>("ALL");
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedLog, setSelectedLog] = useState<AuditLogItem | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [copiedId, setCopiedId] = useState(false);
 
-  // Live PostgreSQL Audit Log query via API
+  // Live PostgreSQL Audit Log query via SWR with debounced search
   const apiUrl = isAdmin
-    ? `/api/audit-logs?search=${encodeURIComponent(searchQuery)}`
+    ? `/api/audit-logs?limit=200${debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : ""}`
     : null;
 
-  const { data, mutate, isLoading } = useSWR<AuditLogsResponse>(apiUrl, {
+  const { data, mutate, isLoading, isValidating } = useSWR<AuditLogsResponse>(apiUrl, {
     revalidateOnFocus: true,
     revalidateOnReconnect: true,
-    refreshInterval: 3000, // Real-time background sync every 3 seconds
     dedupingInterval: 1000,
   });
-
-  // Revalidate immediately whenever window or tab receives focus
-  useEffect(() => {
-    const handleSync = () => {
-      if (document.visibilityState === "visible") {
-        mutate();
-      }
-    };
-    window.addEventListener("focus", handleSync);
-    document.addEventListener("visibilitychange", handleSync);
-    return () => {
-      window.removeEventListener("focus", handleSync);
-      document.removeEventListener("visibilitychange", handleSync);
-    };
-  }, [mutate]);
 
   const rawLogs = useMemo(() => data?.logs || [], [data?.logs]);
   const stats = data?.stats || {
@@ -588,20 +941,39 @@ export default function AuditLogsPage() {
     return Array.from(map.entries()).map(([email, name]) => ({ email, name }));
   }, [rawLogs]);
 
-  // Client-side multi-filtering
+  // Client-side multi-filtering with deferredSearch for instant, non-blocking response
   const filteredLogs = useMemo(() => {
+    const query = deferredSearch.toLowerCase().trim();
+
     return rawLogs.filter((item) => {
-      // Category filter (if set is not empty, item must match one of selected categories)
+      // 1. Instant local search matching across all pertinent item properties
+      if (query) {
+        const itemInfo = getItemCleanName(item);
+        const explanation = getSimpleExplanation(item);
+        const matches =
+          itemInfo.name.toLowerCase().includes(query) ||
+          Boolean(itemInfo.slug && itemInfo.slug.toLowerCase().includes(query)) ||
+          explanation.toLowerCase().includes(query) ||
+          item.actor.name.toLowerCase().includes(query) ||
+          item.actor.email.toLowerCase().includes(query) ||
+          item.target.toLowerCase().includes(query) ||
+          item.eventType.toLowerCase().includes(query);
+        if (!matches) {
+          return false;
+        }
+      }
+
+      // 2. Category filter
       if (selectedCategories.size > 0 && !selectedCategories.has(item.category)) {
         return false;
       }
 
-      // Actor filter
+      // 3. Actor filter
       if (selectedActor !== "ALL" && item.actor.email !== selectedActor) {
         return false;
       }
 
-      // State transition filter
+      // 4. State transition filter
       if (selectedActionFilter !== "ALL") {
         const trans = getTransitionInfo(item);
         if (selectedActionFilter === "published") {
@@ -622,10 +994,11 @@ export default function AuditLogsPage() {
       }
       return true;
     });
-  }, [rawLogs, selectedCategories, selectedActor, selectedActionFilter]);
+  }, [rawLogs, selectedCategories, selectedActor, selectedActionFilter, deferredSearch]);
 
-  // Prepare data for ExportColumnsModal
+  // Prepare data for ExportColumnsModal — lazy evaluated only when export modal is actually open
   const exportPreparedData = useMemo(() => {
+    if (!isExportModalOpen) return [];
     return filteredLogs.map((item) => {
       const trans = getTransitionInfo(item);
       const explanation = getSimpleExplanation(item);
@@ -646,7 +1019,7 @@ export default function AuditLogsPage() {
         status: item.status,
       };
     });
-  }, [filteredLogs]);
+  }, [filteredLogs, isExportModalOpen]);
 
   // Group logs chronologically by Day
   const groupedLogs = useMemo(() => {
@@ -678,20 +1051,13 @@ export default function AuditLogsPage() {
     );
   }, [filteredLogs]);
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await mutate();
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
+  const handleRefresh = useCallback(async () => {
+    await mutate();
+  }, [mutate]);
 
-  const copyLogId = (id: string) => {
-    navigator.clipboard.writeText(id);
-    setCopiedId(true);
-    setTimeout(() => setCopiedId(false), 2000);
-  };
+  const handleSelectLog = useCallback((item: AuditLogItem) => {
+    setSelectedLog(item);
+  }, []);
 
   return (
     <div className="w-full min-h-screen bg-background p-3 sm:p-5 flex flex-col gap-3.5 animate-in fade-in duration-200">
@@ -737,12 +1103,12 @@ export default function AuditLogsPage() {
             variant="outline"
             size="sm"
             onClick={handleRefresh}
-            disabled={isRefreshing || isLoading}
+            disabled={isValidating}
             className="h-8 px-3 text-xs font-semibold gap-1.5 cursor-pointer border-border"
           >
             <RefreshCw
               className={`size-3.5 ${
-                isRefreshing || isLoading ? "animate-spin" : ""
+                isValidating ? "animate-spin" : ""
               }`}
             />
             <span>Refresh</span>
@@ -776,96 +1142,6 @@ export default function AuditLogsPage() {
         </div>
       ) : (
         <>
-          {/* Quick Metrics Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
-            <button
-              type="button"
-              onClick={() => setSelectedCategories(new Set())}
-              className={`rounded-xl border p-3 shadow-2xs flex items-center justify-between text-left transition-all cursor-pointer ${
-                selectedCategories.size === 0
-                  ? "border-primary bg-primary/5 ring-1 ring-primary/30"
-                  : "border-border/80 bg-card hover:border-border"
-              }`}
-            >
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Total Activities
-                </span>
-                <div className="text-xl font-black text-foreground tracking-tight mt-0.5">
-                  {stats.totalEvents}
-                </div>
-              </div>
-              <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                <Layers className="size-4" />
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setSelectedCategories(new Set(["PAGES", "BLOGS"]))}
-              className={`rounded-xl border p-3 shadow-2xs flex items-center justify-between text-left transition-all cursor-pointer ${
-                selectedCategories.has("PAGES") || selectedCategories.has("BLOGS")
-                  ? "border-blue-500 bg-blue-500/5 ring-1 ring-blue-500/30"
-                  : "border-border/80 bg-card hover:border-border"
-              }`}
-            >
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Pages & Blogs
-                </span>
-                <div className="text-xl font-black text-foreground tracking-tight mt-0.5">
-                  {stats.pageEvents + stats.blogEvents}
-                </div>
-              </div>
-              <div className="size-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center">
-                <FileText className="size-4" />
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setSelectedCategories(new Set(["REDIRECTIONS"]))}
-              className={`rounded-xl border p-3 shadow-2xs flex items-center justify-between text-left transition-all cursor-pointer ${
-                selectedCategories.has("REDIRECTIONS")
-                  ? "border-amber-500 bg-amber-500/5 ring-1 ring-amber-500/30"
-                  : "border-border/80 bg-card hover:border-border"
-              }`}
-            >
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Redirections
-                </span>
-                <div className="text-xl font-black text-foreground tracking-tight mt-0.5">
-                  {stats.redirectEvents || 0}
-                </div>
-              </div>
-              <div className="size-8 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center">
-                <ArrowRightLeft className="size-4" />
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setSelectedCategories(new Set(["TAXONOMY", "NEWSLETTERS"]))}
-              className={`rounded-xl border p-3 shadow-2xs flex items-center justify-between text-left transition-all cursor-pointer ${
-                selectedCategories.has("TAXONOMY") || selectedCategories.has("NEWSLETTERS")
-                  ? "border-emerald-500 bg-emerald-500/5 ring-1 ring-emerald-500/30"
-                  : "border-border/80 bg-card hover:border-border"
-              }`}
-            >
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Taxonomy & Blasts
-                </span>
-                <div className="text-xl font-black text-foreground tracking-tight mt-0.5">
-                  {(stats.taxonomyEvents || 0) + (stats.newsletterEvents || 0)}
-                </div>
-              </div>
-              <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                <Sparkles className="size-4" />
-              </div>
-            </button>
-          </div>
 
           {/* Unified Filter Toolbar (Search on Left, Category Checkbox Dropdown + State Select + Member Select on Right) */}
           <div className="p-3 bg-card border border-border rounded-xl shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shrink-0">
@@ -1087,130 +1363,13 @@ export default function AuditLogsPage() {
                         </tr>
 
                         {/* Event Rows */}
-                        {group.items.map((item) => {
-                          const date = new Date(item.timestamp);
-                          const trans = getTransitionInfo(item);
-                          const explanation = getSimpleExplanation(item);
-                          const itemInfo = getItemCleanName(item);
-                          const Icon = getCategoryIcon(item.category);
-
-                          return (
-                            <tr
-                              key={item.id}
-                              onClick={() => setSelectedLog(item)}
-                              className="hover:bg-muted/40 transition-colors cursor-pointer border-b border-border/30 last:border-b-0"
-                            >
-                              {/* 1. Affected Item */}
-                              <td className="py-3 px-4 align-middle">
-                                <div className="flex items-center gap-2.5 min-w-0">
-                                  <div className="size-7 rounded-lg bg-muted flex items-center justify-center shrink-0 text-muted-foreground border border-border">
-                                    <Icon className="size-3.5" />
-                                  </div>
-                                  <div className="flex flex-col gap-0.5 min-w-0">
-                                    <span className="font-bold text-foreground text-xs leading-tight truncate" title={itemInfo.name}>
-                                      {itemInfo.name}
-                                    </span>
-                                    <div className="flex items-center gap-1.5">
-                                      <Badge
-                                        variant="outline"
-                                        className="text-[9px] uppercase tracking-wider py-0 px-1 font-bold rounded-xs bg-muted/80 text-muted-foreground border-border shrink-0"
-                                      >
-                                        {itemInfo.type}
-                                      </Badge>
-                                      {itemInfo.slug && (
-                                        <span className="font-mono text-[10px] text-muted-foreground truncate">
-                                          /{itemInfo.slug.replace(/^\//, "")}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              </td>
-
-                              {/* 2. What Changed (Before ➔ After State Transition Chip) */}
-                              <td className="py-3 px-4 align-middle whitespace-nowrap">
-                                {trans.pillText ? (
-                                  <Badge
-                                    variant="outline"
-                                    className="text-[11px] font-bold py-1 px-2.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
-                                  >
-                                    {trans.pillText}
-                                  </Badge>
-                                ) : (
-                                  <div className="inline-flex items-center gap-1.5 p-1 px-2.5 rounded-lg bg-muted/60 border border-border">
-                                    <span
-                                      className={`text-[11px] font-semibold ${
-                                        trans.from.toLowerCase() === "published" || trans.from.toLowerCase() === "active"
-                                          ? "text-emerald-600 dark:text-emerald-400 font-bold"
-                                          : trans.from.toLowerCase() === "trash" || trans.from.toLowerCase() === "trashed"
-                                          ? "text-amber-600 dark:text-amber-400"
-                                          : "text-muted-foreground"
-                                      }`}
-                                    >
-                                      {trans.from}
-                                    </span>
-                                    <ArrowRight className="size-3 text-muted-foreground shrink-0" />
-                                    <span
-                                      className={`text-[11px] font-bold ${
-                                        trans.to.toLowerCase() === "published" || trans.to.toLowerCase() === "active"
-                                          ? "text-emerald-600 dark:text-emerald-400"
-                                          : trans.to.toLowerCase() === "trash" || trans.to.toLowerCase() === "trashed"
-                                          ? "text-amber-600 dark:text-amber-400"
-                                          : trans.to.toLowerCase() === "deleted"
-                                          ? "text-rose-600 dark:text-rose-400"
-                                          : "text-foreground"
-                                      }`}
-                                    >
-                                      {trans.to}
-                                    </span>
-                                  </div>
-                                )}
-                              </td>
-
-                              {/* 3. Simple Activity Explanation (Clean & Short) */}
-                              <td className="py-3 px-4 align-middle">
-                                <p className="font-medium text-foreground text-xs leading-relaxed truncate" title={explanation}>
-                                  {explanation}
-                                </p>
-                              </td>
-
-                              {/* 4. Changed By (Actor) */}
-                              <td className="py-3 px-4 align-middle whitespace-nowrap">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <Avatar className="size-7 border border-border shrink-0">
-                                    {item.actor.avatar && (
-                                      <AvatarImage src={item.actor.avatar} alt={item.actor.name} />
-                                    )}
-                                    <AvatarFallback className="text-[10px] font-bold">
-                                      {item.actor.name.charAt(0).toUpperCase()}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div className="flex flex-col min-w-0">
-                                    <span className="font-semibold text-foreground text-xs truncate">
-                                      {item.actor.name}
-                                    </span>
-                                    <span className="text-[10px] text-muted-foreground truncate">
-                                      {item.actor.email}
-                                    </span>
-                                  </div>
-                                </div>
-                              </td>
-
-                              {/* 5. When */}
-                              <td className="py-3 px-4 align-middle whitespace-nowrap text-right text-muted-foreground text-[11px]">
-                                <div className="flex flex-col items-end">
-                                  <span className="font-medium text-foreground">
-                                    {formatDistanceToNow(date, { addSuffix: true })}
-                                  </span>
-                                  <span className="text-[10px] text-muted-foreground/80 flex items-center gap-1 mt-0.5">
-                                    <Clock className="size-2.5" />
-                                    {format(date, "HH:mm:ss")}
-                                  </span>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
+                        {group.items.map((item) => (
+                          <AuditLogRow
+                            key={item.id}
+                            item={item}
+                            onSelect={handleSelectLog}
+                          />
+                        ))}
                       </React.Fragment>
                     ))}
                   </tbody>
@@ -1235,216 +1394,7 @@ export default function AuditLogsPage() {
       {/* Slide-Out Inspector Drawer (Sheet) — Non-Coder Friendly Detail View */}
       <Sheet open={Boolean(selectedLog)} onOpenChange={(open) => !open && setSelectedLog(null)}>
         <SheetContent side="right" className="w-full sm:max-w-md md:max-w-lg p-0 flex flex-col bg-background border-l border-border">
-          {selectedLog && (() => {
-            const date = new Date(selectedLog.timestamp);
-            const trans = getTransitionInfo(selectedLog);
-            const explanation = getSimpleExplanation(selectedLog);
-            const itemInfo = getItemCleanName(selectedLog);
-            const meta = selectedLog.metadata || {};
-
-            return (
-              <>
-                <SheetHeader className="p-5 border-b border-border/60 bg-muted/20">
-                  <div className="flex items-start justify-between gap-3 pr-6">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] uppercase font-bold tracking-wider py-0.5 px-2 bg-primary/10 text-primary border-primary/20"
-                        >
-                          {selectedLog.category}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {format(date, "MMM d, yyyy · HH:mm:ss")}
-                        </span>
-                      </div>
-                      <SheetTitle className="text-base font-bold text-foreground leading-snug">
-                        {explanation}
-                      </SheetTitle>
-                      <SheetDescription className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(date, { addSuffix: true })} by {selectedLog.actor.name}
-                      </SheetDescription>
-                    </div>
-                  </div>
-                </SheetHeader>
-
-                <div className="flex-1 overflow-y-auto p-5 space-y-4">
-                  {/* 1. Target Resource Card */}
-                  <div className="p-4 rounded-xl border border-border bg-card space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                        Target Resource
-                      </span>
-                      {itemInfo.cmsUrl && (
-                        <Link href={itemInfo.cmsUrl} target="_blank">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 text-[10px] font-semibold gap-1 text-primary hover:text-primary cursor-pointer p-1"
-                          >
-                            <span>Open in Admin</span>
-                            <ExternalLink className="size-3" />
-                          </Button>
-                        </Link>
-                      )}
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-foreground">
-                        {itemInfo.name}
-                      </h4>
-                      {itemInfo.slug && (
-                        <p className="font-mono text-xs text-muted-foreground mt-0.5">
-                          /{itemInfo.slug.replace(/^\//, "")}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* 2. Before ➔ After Status Box */}
-                  <div className="p-4 rounded-xl border border-border bg-card space-y-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      Status Transition
-                    </span>
-                    <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/40 border border-border/80">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] uppercase font-semibold text-muted-foreground">
-                          Previous State
-                        </span>
-                        <span className="text-xs font-bold text-foreground mt-0.5">
-                          {trans.from}
-                        </span>
-                      </div>
-                      <ArrowRight className="size-4 text-primary shrink-0" />
-                      <div className="flex flex-col text-right">
-                        <span className="text-[10px] uppercase font-semibold text-muted-foreground">
-                          New State
-                        </span>
-                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                          {trans.to}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 3. Team Member (Actor) Card */}
-                  <div className="p-4 rounded-xl border border-border bg-card space-y-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      Modified By
-                    </span>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="size-9 border border-border">
-                        {selectedLog.actor.avatar && (
-                          <AvatarImage src={selectedLog.actor.avatar} alt={selectedLog.actor.name} />
-                        )}
-                        <AvatarFallback className="text-xs font-bold">
-                          {selectedLog.actor.name.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-xs text-foreground">
-                            {selectedLog.actor.name}
-                          </span>
-                          <Badge
-                            variant="outline"
-                            className="text-[9px] uppercase font-semibold px-1 py-0 rounded-xs bg-muted text-muted-foreground border-border"
-                          >
-                            {selectedLog.actor.role}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {selectedLog.actor.email}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 4. Activity Specific Breakdown (Clean checklist, NOT raw JSON) */}
-                  <div className="p-4 rounded-xl border border-border bg-card space-y-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      Change Details
-                    </span>
-                    <div className="space-y-1.5 text-xs text-foreground">
-                      {meta.sourceUrl && (
-                        <div className="flex justify-between py-1 border-b border-border/50">
-                          <span className="text-muted-foreground">Source URL:</span>
-                          <span className="font-mono text-[11px] font-medium">{meta.sourceUrl}</span>
-                        </div>
-                      )}
-                      {meta.destinationUrl && (
-                        <div className="flex justify-between py-1 border-b border-border/50">
-                          <span className="text-muted-foreground">Destination:</span>
-                          <span className="font-mono text-[11px] font-medium">{meta.destinationUrl}</span>
-                        </div>
-                      )}
-                      {meta.statusCode && (
-                        <div className="flex justify-between py-1 border-b border-border/50">
-                          <span className="text-muted-foreground">HTTP Status:</span>
-                          <span className="font-semibold">{meta.statusCode} Redirect</span>
-                        </div>
-                      )}
-                      {meta.subject && (
-                        <div className="flex justify-between py-1 border-b border-border/50">
-                          <span className="text-muted-foreground">Subject Line:</span>
-                          <span className="font-medium text-right">{meta.subject}</span>
-                        </div>
-                      )}
-                      {meta.totalRecipients !== undefined && (
-                        <div className="flex justify-between py-1 border-b border-border/50">
-                          <span className="text-muted-foreground">Recipients:</span>
-                          <span className="font-semibold">{meta.totalRecipients} subscribers</span>
-                        </div>
-                      )}
-                      {meta.scheduledAt && (
-                        <div className="flex justify-between py-1 border-b border-border/50">
-                          <span className="text-muted-foreground">Scheduled Send:</span>
-                          <span>{format(new Date(meta.scheduledAt), "MMM d, yyyy HH:mm")}</span>
-                        </div>
-                      )}
-                      {meta.targetIds && Array.isArray(meta.targetIds) && (
-                        <div className="flex justify-between py-1 border-b border-border/50">
-                          <span className="text-muted-foreground">Batch Count:</span>
-                          <span className="font-semibold">{meta.targetIds.length} items modified</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between py-1">
-                        <span className="text-muted-foreground">Execution Status:</span>
-                        <span className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                          <CheckCircle2 className="size-3" />
-                          Verified Success
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 5. System Integrity Stamp */}
-                  <div className="p-3 rounded-lg bg-muted/40 border border-border/60 flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span className="font-mono truncate max-w-[240px]">
-                      ID: {selectedLog.id}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyLogId(selectedLog.id)}
-                      className="h-6 px-2 text-[10px] gap-1 cursor-pointer"
-                    >
-                      {copiedId ? (
-                        <>
-                          <Check className="size-3 text-emerald-500" />
-                          <span>Copied</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="size-3" />
-                          <span>Copy ID</span>
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </>
-            );
-          })()}
+          <AuditLogInspector log={selectedLog} onClose={() => setSelectedLog(null)} />
         </SheetContent>
       </Sheet>
 

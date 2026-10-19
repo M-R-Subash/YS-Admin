@@ -27,13 +27,6 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get("limit") || "100", 10), 200);
     const offset = parseInt(searchParams.get("offset") || "0", 10);
 
-    // Clean up any initial dummy seed events if they exist
-    await prisma.auditLog.deleteMany({
-      where: {
-        eventType: { in: ["AUTH.SESSION_INITIALIZED", "SECURITY.AUDIT_PIPELINE_READY"] },
-      },
-    }).catch(() => {});
-
     // Build Prisma query filters
     const where: any = {};
 
@@ -58,18 +51,8 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Parallel fetch logs and summary counts
-    const [
-      rawLogs,
-      total,
-      blogCount,
-      pageCount,
-      mediaCount,
-      redirectCount,
-      taxonomyCount,
-      newsletterCount,
-      otherCount,
-    ] = await Promise.all([
+    // Parallel fetch logs, total count, and category grouping in just 3 efficient queries
+    const [rawLogs, total, categoryCounts] = await Promise.all([
       prisma.auditLog.findMany({
         where,
         include: {
@@ -88,28 +71,16 @@ export async function GET(request: NextRequest) {
         skip: offset,
       }),
       prisma.auditLog.count({ where }),
-      prisma.auditLog.count({
-        where: { category: "BLOGS" },
-      }),
-      prisma.auditLog.count({
-        where: { category: "PAGES" },
-      }),
-      prisma.auditLog.count({
-        where: { category: "MEDIA" },
-      }),
-      prisma.auditLog.count({
-        where: { category: "REDIRECTIONS" },
-      }),
-      prisma.auditLog.count({
-        where: { category: "TAXONOMY" },
-      }),
-      prisma.auditLog.count({
-        where: { category: "NEWSLETTERS" },
-      }),
-      prisma.auditLog.count({
-        where: { category: { in: ["SETTINGS", "COMMENTS", "USERS", "SECURITY", "AUTH"] } },
+      prisma.auditLog.groupBy({
+        by: ["category"],
+        _count: { _all: true },
       }),
     ]);
+
+    const countsMap: Record<string, number> = {};
+    for (const item of categoryCounts) {
+      countsMap[item.category] = item._count._all;
+    }
 
     // Format logs for client consumption
     const logs = rawLogs.map((log) => ({
@@ -130,18 +101,25 @@ export async function GET(request: NextRequest) {
       },
     }));
 
+    const otherEvents =
+      (countsMap["SETTINGS"] || 0) +
+      (countsMap["COMMENTS"] || 0) +
+      (countsMap["USERS"] || 0) +
+      (countsMap["SECURITY"] || 0) +
+      (countsMap["AUTH"] || 0);
+
     return NextResponse.json({
       logs,
       total,
       stats: {
         totalEvents: total,
-        blogEvents: blogCount,
-        pageEvents: pageCount,
-        mediaEvents: mediaCount,
-        redirectEvents: redirectCount,
-        taxonomyEvents: taxonomyCount,
-        newsletterEvents: newsletterCount,
-        otherEvents: otherCount,
+        blogEvents: countsMap["BLOGS"] || 0,
+        pageEvents: countsMap["PAGES"] || 0,
+        mediaEvents: countsMap["MEDIA"] || 0,
+        redirectEvents: countsMap["REDIRECTIONS"] || 0,
+        taxonomyEvents: countsMap["TAXONOMY"] || 0,
+        newsletterEvents: countsMap["NEWSLETTERS"] || 0,
+        otherEvents,
         retentionDays: 90,
       },
     });
