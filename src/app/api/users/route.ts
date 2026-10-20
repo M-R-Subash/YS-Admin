@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, requireLiveAdmin } from "@/lib/auth";
+import { authOptions, requireLiveAdmin, requireLiveUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
@@ -9,14 +9,16 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session) {
+    if (!session?.user?.id) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const guard = await requireLiveAdmin(session.user.id);
-    if (!guard.authorized) {
-      return NextResponse.json({ message: guard.error }, { status: guard.status });
+    const guard = await requireLiveUser(session.user.id);
+    if (!guard.authorized || !guard.user) {
+      return NextResponse.json({ message: guard.error || "Forbidden" }, { status: guard.status });
     }
+
+    const isAdmin = guard.user.role === "ADMIN";
 
     const users = await prisma.user.findMany({
       select: {
@@ -27,14 +29,16 @@ export async function GET() {
         profilePicture: true,
         description: true,
         authorRole: true,
-        createdAt: true,
-        lastLogin: true,
-        _count: {
-          select: {
-            blogs: true,
-            pages: true,
+        ...(isAdmin && {
+          createdAt: true,
+          lastLogin: true,
+          _count: {
+            select: {
+              blogs: true,
+              pages: true,
+            },
           },
-        },
+        }),
       },
       orderBy: { createdAt: "desc" },
     });

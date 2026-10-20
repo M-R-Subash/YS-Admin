@@ -94,6 +94,7 @@ export async function PUT(
     authorName,
     authorRole,
     authorDescription,
+    authorId,
     action,
   } = body;
   let { status } = body;
@@ -230,6 +231,7 @@ export async function PUT(
   let updateData: any = {
     ...(isTrashed !== undefined && { isTrashed }),
     ...(seoData && { seo: seoData }),
+    ...(authorId !== undefined && { authorId: authorId || null }),
     ...(body.publishedAt !== undefined && { publishedAt: body.publishedAt }),
     ...(body.scheduledAt !== undefined && {
       scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null,

@@ -71,6 +71,7 @@ export const blogDraftSchema = z.object({
   noIndex: z.boolean().default(false),
   sendNewsletter: z.boolean().optional().default(false),
   structuredData: z.any().optional().nullable(),
+  authorId: z.string().optional().nullable(),
   authorName: z.string().optional().nullable(),
   authorRole: z.string().optional().nullable(),
   authorDescription: z.string().optional().nullable(),
@@ -131,6 +132,7 @@ export const blogPublishSchema = z.object({
   noIndex: z.boolean().default(false),
   sendNewsletter: z.boolean().optional().default(false),
   structuredData: z.any().optional().nullable(),
+  authorId: z.string().optional().nullable(),
   authorName: z.string().optional().nullable(),
   authorRole: z.string().optional().nullable(),
   authorDescription: z.string().optional().nullable(),
@@ -202,6 +204,7 @@ export interface BlogFormData {
   canonicalUrl: string;
   noIndex: boolean;
   structuredData?: any;
+  authorId?: string | null;
   authorName?: string | null;
   authorRole?: string | null;
   authorDescription?: string | null;

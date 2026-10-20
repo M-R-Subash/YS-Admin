@@ -212,22 +212,40 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
     header: "Author",
     cell: ({ row }) => {
       const blog = row.original as any;
-      const authorName = blog.author?.name || "Admin";
+      const customAuthorName = blog.seo?.authorName?.trim();
+      const isCustomAuthor = Boolean(customAuthorName);
+      const authorName = customAuthorName || blog.author?.name || "Admin";
+      const authorRole = isCustomAuthor
+        ? (blog.seo?.authorRole || "Guest Author")
+        : (blog.author?.authorRole || null);
+
       return (
         <div className="flex items-center gap-2">
-          {blog.author?.profilePicture ? (
+          {isCustomAuthor ? (
+            <div
+              className="w-6 h-6 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] font-bold flex items-center justify-center border border-amber-500/30 shrink-0"
+              title={`Custom Author: ${authorName}${authorRole ? ` (${authorRole})` : ""}`}
+            >
+              {(authorName[0] || "A").toUpperCase()}
+            </div>
+          ) : blog.author?.profilePicture ? (
             <img
               src={blog.author.profilePicture}
               alt={authorName}
-              className="w-6 h-6 rounded-full object-cover border border-border"
+              className="w-6 h-6 rounded-full object-cover border border-border shrink-0"
             />
           ) : (
-            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center border border-primary/20">
+            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center border border-primary/20 shrink-0">
               {(authorName[0] || "A").toUpperCase()}
             </div>
           )}
-          <div className="text-xs">
-            <p className="font-medium text-foreground">{authorName}</p>
+          <div className="text-xs min-w-0">
+            <p className="font-medium text-foreground truncate max-w-[130px]">{authorName}</p>
+            {authorRole && (
+              <p className="text-[10px] text-muted-foreground truncate max-w-[130px]">
+                {authorRole}
+              </p>
+            )}
           </div>
         </div>
       );
