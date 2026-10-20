@@ -240,9 +240,9 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
             </div>
           )}
           <div className="text-xs min-w-0">
-            <p className="font-medium text-foreground truncate max-w-[130px]">{authorName}</p>
+            <p className="font-medium text-foreground truncate max-w-32.5">{authorName}</p>
             {authorRole && (
-              <p className="text-[10px] text-muted-foreground truncate max-w-[130px]">
+              <p className="text-[10px] text-muted-foreground truncate max-w-32.5">
                 {authorRole}
               </p>
             )}

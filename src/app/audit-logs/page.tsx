@@ -15,7 +15,6 @@ import {
   Clock,
   Lock,
   Layers,
-  Sparkles,
   Loader2,
   BookOpen,
   Image as ImageIcon,
@@ -554,28 +553,28 @@ function getItemCleanName(item: AuditLogItem): {
   return { name: target || "System", type: item.category };
 }
 
-function getCategoryIcon(category: AuditCategory) {
+function CategoryIcon({ category, className }: { category: AuditCategory; className?: string }) {
   switch (category) {
     case "PAGES":
-      return FileText;
+      return <FileText className={className} />;
     case "BLOGS":
-      return BookOpen;
+      return <BookOpen className={className} />;
     case "REDIRECTIONS":
-      return ArrowRightLeft;
+      return <ArrowRightLeft className={className} />;
     case "TAXONOMY":
-      return Hash;
+      return <Hash className={className} />;
     case "NEWSLETTERS":
-      return Mail;
+      return <Mail className={className} />;
     case "MEDIA":
-      return ImageIcon;
+      return <ImageIcon className={className} />;
     case "COMMENTS":
-      return MessageSquare;
+      return <MessageSquare className={className} />;
     case "USERS":
-      return Users;
+      return <Users className={className} />;
     case "SETTINGS":
-      return SettingsIcon;
+      return <SettingsIcon className={className} />;
     default:
-      return Layers;
+      return <Layers className={className} />;
   }
 }
 
@@ -589,7 +588,6 @@ const AuditLogRow = React.memo(function AuditLogRow({ item, onSelect }: AuditLog
   const trans = useMemo(() => getTransitionInfo(item), [item]);
   const explanation = useMemo(() => getSimpleExplanation(item), [item]);
   const itemInfo = useMemo(() => getItemCleanName(item), [item]);
-  const Icon = useMemo(() => getCategoryIcon(item.category), [item.category]);
   const relativeTime = useMemo(() => formatDistanceToNow(date, { addSuffix: true }), [date]);
   const exactTime = useMemo(() => format(date, "HH:mm:ss"), [date]);
 
@@ -602,7 +600,7 @@ const AuditLogRow = React.memo(function AuditLogRow({ item, onSelect }: AuditLog
       <td className="py-3 px-4 align-middle">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="size-7 rounded-lg bg-muted flex items-center justify-center shrink-0 text-muted-foreground border border-border">
-            <Icon className="size-3.5" />
+            <CategoryIcon category={item.category} className="size-3.5" />
           </div>
           <div className="flex flex-col gap-0.5 min-w-0">
             <span className="font-bold text-foreground text-xs leading-tight truncate" title={itemInfo.name}>
@@ -1086,7 +1084,7 @@ function AuditLogInspector({ log }: AuditLogInspectorProps) {
 
         {/* 5. System Integrity Stamp */}
         <div className="p-3 rounded-lg bg-muted/40 border border-border/60 flex items-center justify-between text-[11px] text-muted-foreground">
-          <span className="font-mono truncate max-w-[240px]">
+          <span className="font-mono truncate max-w-60">
             ID: {log.id}
           </span>
           <Button
@@ -1521,10 +1519,10 @@ export default function AuditLogsPage() {
                   value={selectedActionFilter}
                   onValueChange={(val) => setSelectedActionFilter(val || "ALL")}
                 >
-                  <SelectTrigger className="h-8 px-2.5 text-xs bg-muted/40 border-border cursor-pointer min-w-[130px]">
+                  <SelectTrigger className="h-8 px-2.5 text-xs bg-muted/40 border-border cursor-pointer min-w-32.5">
                     <SelectValue placeholder="All States" />
                   </SelectTrigger>
-                  <SelectContent alignItemWithTrigger={false} sideOffset={4} className="min-w-[160px]">
+                  <SelectContent alignItemWithTrigger={false} sideOffset={4} className="min-w-40">
                     <SelectItem value="ALL" label="All States" className="text-xs font-semibold cursor-pointer">
                       All States
                     </SelectItem>
@@ -1554,10 +1552,10 @@ export default function AuditLogsPage() {
                     value={selectedActor}
                     onValueChange={(val) => setSelectedActor(val || "ALL")}
                   >
-                    <SelectTrigger className="h-8 px-2.5 text-xs bg-muted/40 border-border cursor-pointer min-w-[140px]">
+                    <SelectTrigger className="h-8 px-2.5 text-xs bg-muted/40 border-border cursor-pointer min-w-35">
                       <SelectValue placeholder="All Team Members" />
                     </SelectTrigger>
-                    <SelectContent alignItemWithTrigger={false} sideOffset={4} className="min-w-[170px]">
+                    <SelectContent alignItemWithTrigger={false} sideOffset={4} className="min-w-42.5">
                       <SelectItem value="ALL" label="All Team Members" className="text-xs font-semibold cursor-pointer">
                         All Team Members
                       </SelectItem>

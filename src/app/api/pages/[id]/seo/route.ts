@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { universalSeoFormSchema } from "@/lib/schemas/seo-validation";
 import { revalidateFrontendPath } from "@/lib/revalidate";
-import { recordAuditLog, getClientAuditMeta, logEntityMutation } from "@/lib/server/audit";
+import { logEntityMutation } from "@/lib/server/audit";
 
 export async function PUT(
   req: Request,
