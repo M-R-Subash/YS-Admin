@@ -1117,11 +1117,38 @@ export default function AuditLogsPage() {
       }${selectedCategoryParam ? `&category=${encodeURIComponent(selectedCategoryParam)}` : ""}`
     : null;
 
-  const { data, mutate, isLoading, isValidating } = useSWR<AuditLogsResponse>(apiUrl, {
-    revalidateOnFocus: true,
-    revalidateOnReconnect: true,
-    dedupingInterval: 1000,
-  });
+  // Dedicated uncached fetcher for real-time audit logs
+  const auditFetcher = useCallback(async (url: string) => {
+    const res = await fetch(url, {
+      cache: "no-store",
+      headers: {
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+      },
+    });
+    if (!res.ok) {
+      throw new Error("Failed to fetch audit logs");
+    }
+    return res.json();
+  }, []);
+
+  const { data, mutate, isLoading, isValidating } = useSWR<AuditLogsResponse>(
+    apiUrl,
+    auditFetcher,
+    {
+      revalidateOnMount: true,
+      revalidateIfStale: true,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+      dedupingInterval: 0,
+      refreshInterval: 6000, // 6-second auto-poll for live stream updates
+    }
+  );
+
+  // Force instant revalidation whenever user navigates to this page
+  React.useEffect(() => {
+    mutate();
+  }, [mutate]);
 
   const rawLogs = useMemo(() => data?.logs || [], [data?.logs]);
   const totalItems = data?.pagination?.total ?? data?.total ?? rawLogs.length;

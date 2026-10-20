@@ -18,6 +18,9 @@ const VALID_CATEGORIES = new Set([
   "SECURITY",
 ]);
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -179,28 +182,37 @@ export async function GET(request: NextRequest) {
       (countsMap["SECURITY"] || 0) +
       (countsMap["AUTH"] || 0);
 
-    return NextResponse.json({
-      logs,
-      total: matchingCount,
-      pagination: {
+    return NextResponse.json(
+      {
+        logs,
         total: matchingCount,
-        limit,
-        offset,
-        hasMore: offset + logs.length < matchingCount,
+        pagination: {
+          total: matchingCount,
+          limit,
+          offset,
+          hasMore: offset + logs.length < matchingCount,
+        },
+        stats: {
+          totalEvents: totalLifetimeEvents,
+          matchingEvents: matchingCount,
+          blogEvents: countsMap["BLOGS"] || 0,
+          pageEvents: countsMap["PAGES"] || 0,
+          mediaEvents: countsMap["MEDIA"] || 0,
+          redirectEvents: countsMap["REDIRECTIONS"] || 0,
+          taxonomyEvents: countsMap["TAXONOMY"] || 0,
+          newsletterEvents: countsMap["NEWSLETTERS"] || 0,
+          otherEvents,
+          retentionDays: 90,
+        },
       },
-      stats: {
-        totalEvents: totalLifetimeEvents,
-        matchingEvents: matchingCount,
-        blogEvents: countsMap["BLOGS"] || 0,
-        pageEvents: countsMap["PAGES"] || 0,
-        mediaEvents: countsMap["MEDIA"] || 0,
-        redirectEvents: countsMap["REDIRECTIONS"] || 0,
-        taxonomyEvents: countsMap["TAXONOMY"] || 0,
-        newsletterEvents: countsMap["NEWSLETTERS"] || 0,
-        otherEvents,
-        retentionDays: 90,
-      },
-    });
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
+      }
+    );
   } catch (error) {
     console.error("Audit log fetch error:", error);
     return NextResponse.json(
