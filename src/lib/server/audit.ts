@@ -511,6 +511,28 @@ export async function recordAuditLog(options: LogAuditOptions): Promise<void> {
       userAgent = userAgent || meta.userAgent;
     }
 
+    const metadata: Record<string, any> = options.metadata ? { ...options.metadata } : {};
+
+    // Auto-capture immutable actor snapshot whenever userId is provided
+    if (options.userId && !metadata._actorSnapshot) {
+      try {
+        const u = await prisma.user.findUnique({
+          where: { id: options.userId },
+          select: { name: true, email: true, role: true, profilePicture: true },
+        });
+        if (u) {
+          metadata._actorSnapshot = {
+            name: u.name || undefined,
+            email: u.email,
+            role: u.role,
+            avatar: u.profilePicture || undefined,
+          };
+        }
+      } catch {
+        // Non-blocking lookup
+      }
+    }
+
     await prisma.auditLog.create({
       data: {
         eventType: options.eventType,
@@ -521,7 +543,7 @@ export async function recordAuditLog(options: LogAuditOptions): Promise<void> {
         userId: options.userId || null,
         ipAddress: ipAddress || null,
         userAgent: userAgent || null,
-        metadata: options.metadata || undefined,
+        metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
       },
     });
   } catch (error) {

@@ -156,7 +156,13 @@ function getTransitionInfo(item: AuditLogItem): TransitionInfo {
   const meta = item.metadata || {};
   const event = item.eventType;
 
-  if (meta.fromStatus && meta.toStatus) {
+  // 1. Only report a state transition if fromStatus and toStatus actually DIFFER!
+  // If fromStatus === toStatus (e.g. published === published), it is a content/attribute update, NOT a status transition.
+  if (
+    meta.fromStatus &&
+    meta.toStatus &&
+    meta.fromStatus.toLowerCase() !== meta.toStatus.toLowerCase()
+  ) {
     const fromCap = meta.fromStatus.charAt(0).toUpperCase() + meta.fromStatus.slice(1);
     const toCap = meta.toStatus.charAt(0).toUpperCase() + meta.toStatus.slice(1);
     if (meta.toStatus === "published" || meta.toStatus === "active") {
@@ -197,6 +203,9 @@ function getTransitionInfo(item: AuditLogItem): TransitionInfo {
     case "BLOG.UPDATED":
       if (meta.fromTitle && meta.toTitle && meta.fromTitle !== meta.toTitle) {
         return { from: "Title", to: "Renamed", type: "update", pillText: "Title Renamed" };
+      }
+      if (meta.contentChanged) {
+        return { from: "Body", to: "Updated", type: "update", pillText: "Content Updated" };
       }
       if (meta.changedFields && Array.isArray(meta.changedFields) && meta.changedFields.length > 0) {
         if (meta.changedFields.length === 1) {
@@ -807,31 +816,47 @@ function AuditLogInspector({ log }: AuditLogInspectorProps) {
           </div>
         </div>
 
-        {/* 2. Before ➔ After Status Box */}
-        <div className="p-4 rounded-xl border border-border bg-card space-y-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            Status Transition
-          </span>
-          <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/40 border border-border/80">
-            <div className="flex flex-col">
-              <span className="text-[10px] uppercase font-semibold text-muted-foreground">
-                Previous State
-              </span>
-              <span className="text-xs font-bold text-foreground mt-0.5">
-                {trans.from}
-              </span>
-            </div>
-            <ArrowRight className="size-4 text-primary shrink-0" />
-            <div className="flex flex-col text-right">
-              <span className="text-[10px] uppercase font-semibold text-muted-foreground">
-                New State
-              </span>
-              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                {trans.to}
-              </span>
+        {/* 2. Before ➔ After Status Box (Only if status actually changed) */}
+        {trans.from.toLowerCase() !== trans.to.toLowerCase() ? (
+          <div className="p-4 rounded-xl border border-border bg-card space-y-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Status Transition
+            </span>
+            <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/40 border border-border/80">
+              <div className="flex flex-col">
+                <span className="text-[10px] uppercase font-semibold text-muted-foreground">
+                  Previous State
+                </span>
+                <span className="text-xs font-bold text-foreground mt-0.5">
+                  {trans.from}
+                </span>
+              </div>
+              <ArrowRight className="size-4 text-primary shrink-0" />
+              <div className="flex flex-col text-right">
+                <span className="text-[10px] uppercase font-semibold text-muted-foreground">
+                  New State
+                </span>
+                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  {trans.to}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="p-4 rounded-xl border border-border bg-card space-y-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Modification Type
+            </span>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/40 border border-border/80">
+              <span className="text-xs font-bold text-foreground">
+                {trans.pillText || "Content & Field Update"}
+              </span>
+              <Badge variant="outline" className="text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
+                {meta.toStatus ? meta.toStatus.charAt(0).toUpperCase() + meta.toStatus.slice(1) : "Published"}
+              </Badge>
+            </div>
+          </div>
+        )}
 
         {/* 3. Team Member (Actor) Card */}
         <div className="p-4 rounded-xl border border-border bg-card space-y-2">
@@ -1246,7 +1271,7 @@ export default function AuditLogsPage() {
         itemName: itemInfo.name,
         itemType: itemInfo.type,
         itemSlug: itemInfo.slug ? `/${itemInfo.slug.replace(/^\//, "")}` : "",
-        transition: `${trans.from} ➔ ${trans.to}`,
+        transition: trans.pillText || (trans.from.toLowerCase() !== trans.to.toLowerCase() ? `${trans.from} ➔ ${trans.to}` : "Content Updated"),
         explanation,
         actorName: item.actor.name,
         actorEmail: item.actor.email,
