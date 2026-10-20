@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 
 const VALID_CATEGORIES = new Set([
   "ALL",
@@ -60,11 +61,52 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const MAX_OFFSET = 10000;
     const rawOffset = searchParams.get("offset");
     const offset = rawOffset === null ? 0 : Number(rawOffset);
-    if (!Number.isInteger(offset) || offset < 0) {
+    if (!Number.isInteger(offset) || offset < 0 || offset > MAX_OFFSET) {
       return NextResponse.json(
-        { error: "Invalid offset parameter. Must be a non-negative integer." },
+        { error: `Invalid offset parameter. Must be an integer between 0 and ${MAX_OFFSET}.` },
+        { status: 400 }
+      );
+    }
+
+    // Date Range Boundaries: Protects PostgreSQL from unconstrained sequential table scans
+    const startDateRaw = searchParams.get("startDate")?.trim();
+    const endDateRaw = searchParams.get("endDate")?.trim();
+    let startDate: Date | undefined;
+    let endDate: Date | undefined;
+
+    if (startDateRaw) {
+      const parsedStart = new Date(startDateRaw);
+      if (isNaN(parsedStart.getTime())) {
+        return NextResponse.json(
+          { error: "Invalid startDate parameter. Must be a valid ISO date string." },
+          { status: 400 }
+        );
+      }
+      startDate = parsedStart;
+    }
+
+    if (endDateRaw) {
+      const parsedEnd = new Date(endDateRaw);
+      if (isNaN(parsedEnd.getTime())) {
+        return NextResponse.json(
+          { error: "Invalid endDate parameter. Must be a valid ISO date string." },
+          { status: 400 }
+        );
+      }
+      // If client supplied a date-only string (YYYY-MM-DD), extend to the end of that day (23:59:59.999Z)
+      // so events occurring throughout that day are not excluded by an implicit midnight comparison
+      if (/^\d{4}-\d{2}-\d{2}$/.test(endDateRaw)) {
+        parsedEnd.setUTCHours(23, 59, 59, 999);
+      }
+      endDate = parsedEnd;
+    }
+
+    if (startDate && endDate && startDate > endDate) {
+      return NextResponse.json(
+        { error: "startDate cannot be later than endDate." },
         { status: 400 }
       );
     }
@@ -72,11 +114,18 @@ export async function GET(request: NextRequest) {
     // Sanitize and cap search length
     const search = (searchParams.get("search")?.trim() || "").slice(0, 100);
 
-    // 2. Build Prisma query filters
-    const where: any = {};
+    // 2. Build Prisma query filters with full type-safety
+    const where: Prisma.AuditLogWhereInput = {};
 
     if (category !== "ALL") {
       where.category = category;
+    }
+
+    if (startDate || endDate) {
+      where.createdAt = {
+        ...(startDate ? { gte: startDate } : {}),
+        ...(endDate ? { lte: endDate } : {}),
+      };
     }
 
     if (search) {
@@ -116,44 +165,76 @@ export async function GET(request: NextRequest) {
         skip: offset,
       }),
       prisma.auditLog.count({ where }),
+      // Group by category, bounded by date range when specified to optimize DB execution
       prisma.auditLog.groupBy({
         by: ["category"],
+        where: (startDate || endDate) ? { createdAt: where.createdAt } : undefined,
         _count: { _all: true },
       }),
     ]);
 
     const countsMap: Record<string, number> = {};
-    let totalLifetimeEvents = 0;
+    let totalEventsInScope = 0;
     for (const item of categoryCounts) {
       countsMap[item.category] = item._count._all;
-      totalLifetimeEvents += item._count._all;
+      totalEventsInScope += item._count._all;
     }
 
-    // 4. Format logs: truthful actor & IP attribution without fabrication
+    // 4. Format logs: truthful historical attribution & metadata exposure control
+    const ALLOWED_METADATA_KEYS = [
+      "diff",
+      "fromStatus",
+      "toStatus",
+      "changedFields",
+      "contentChanged",
+      "fromTitle",
+      "toTitle",
+      "fromSlug",
+      "toSlug",
+      "slug",
+      "sourceUrl",
+      "destinationUrl",
+      "statusCode",
+      "subject",
+      "totalRecipients",
+      "scheduledAt",
+      "targetIds",
+    ];
+
     const logs = rawLogs.map((log) => {
       const meta = (log.metadata as Record<string, any>) || {};
       const actorSnapshot = meta._actorSnapshot;
 
-      let actorName = "System / Automated";
-      let actorEmail = "";
-      let actorRole = "SYSTEM";
-      let actorAvatar = "";
+      // Consistently prioritize immutable historical snapshot captured at event creation.
+      // Fall back to live user record only if snapshot was not present (e.g. legacy logs).
+      const actorName =
+        actorSnapshot?.name ||
+        log.user?.name ||
+        actorSnapshot?.email ||
+        log.user?.email ||
+        (log.userId ? "Deleted User" : "System / Automated");
 
-      if (log.user) {
-        actorName = log.user.name || log.user.email;
-        actorEmail = log.user.email;
-        actorRole = log.user.role;
-        actorAvatar = log.user.profilePicture || "";
-      } else if (actorSnapshot) {
-        // Historical actor snapshot preserved at write time
-        actorName = actorSnapshot.name || actorSnapshot.email || "Deleted User";
-        actorEmail = actorSnapshot.email || "";
-        actorRole = actorSnapshot.role || "DELETED";
-        actorAvatar = actorSnapshot.avatar || "";
-      } else if (log.userId) {
-        actorName = "Deleted User";
-        actorEmail = "";
-        actorRole = "DELETED";
+      const actorEmail =
+        actorSnapshot?.email ||
+        log.user?.email ||
+        "";
+
+      const actorRole =
+        actorSnapshot?.role ||
+        log.user?.role ||
+        (log.userId ? "DELETED" : "SYSTEM");
+
+      const actorAvatar =
+        actorSnapshot?.avatar ||
+        log.user?.profilePicture ||
+        "";
+
+      // Sanitize metadata: Expose only known UI fields, stripping internal snapshots and secrets
+      const safeMetadata: Record<string, any> = {};
+      for (const key of ALLOWED_METADATA_KEYS) {
+        if (meta[key] !== undefined) {
+          safeMetadata[key] = meta[key];
+        }
       }
 
       return {
@@ -165,7 +246,7 @@ export async function GET(request: NextRequest) {
         status: log.status,
         ipAddress: log.ipAddress || "Unknown",
         timestamp: log.createdAt.toISOString(),
-        metadata: log.metadata,
+        metadata: safeMetadata,
         actor: {
           name: actorName,
           email: actorEmail,
@@ -193,7 +274,7 @@ export async function GET(request: NextRequest) {
           hasMore: offset + logs.length < matchingCount,
         },
         stats: {
-          totalEvents: totalLifetimeEvents,
+          totalEvents: totalEventsInScope,
           matchingEvents: matchingCount,
           blogEvents: countsMap["BLOGS"] || 0,
           pageEvents: countsMap["PAGES"] || 0,
@@ -203,6 +284,7 @@ export async function GET(request: NextRequest) {
           newsletterEvents: countsMap["NEWSLETTERS"] || 0,
           otherEvents,
           retentionDays: 90,
+          retentionPolicyEnforced: false, // Informational: no automated DB pruning worker configured yet
         },
       },
       {

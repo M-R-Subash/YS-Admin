@@ -1141,7 +1141,7 @@ export default function AuditLogsPage() {
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
       dedupingInterval: 0,
-      refreshInterval: 6000, // 6-second auto-poll for live stream updates
+      refreshInterval: 0, // No background polling; revalidates instantly on mount, window focus, or manual refresh
     }
   );
 
