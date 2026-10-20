@@ -30,6 +30,15 @@ export async function GET(request: NextRequest) {
         userId: session.user.id,
         expiresAt: { gt: new Date() },
       },
+      select: {
+        id: true,
+        userAgent: true,
+        ipAddress: true,
+        createdAt: true,
+        updatedAt: true,
+        expiresAt: true,
+        tokenHash: true,
+      },
       orderBy: { updatedAt: "desc" },
     });
 

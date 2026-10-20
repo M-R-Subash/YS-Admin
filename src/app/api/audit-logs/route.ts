@@ -149,7 +149,17 @@ export async function GET(request: NextRequest) {
     const [rawLogs, matchingCount, categoryCounts] = await Promise.all([
       prisma.auditLog.findMany({
         where,
-        include: {
+        select: {
+          id: true,
+          eventType: true,
+          category: true,
+          action: true,
+          target: true,
+          status: true,
+          ipAddress: true,
+          createdAt: true,
+          metadata: true,
+          userId: true,
           user: {
             select: {
               id: true,

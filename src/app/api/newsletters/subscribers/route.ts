@@ -37,6 +37,15 @@ export async function GET(req: Request) {
     const [subscribers, total] = await Promise.all([
       prisma.subscriber.findMany({
         where,
+        select: {
+          id: true,
+          email: true,
+          status: true,
+          source: true,
+          resubscribeCount: true,
+          resubscribedAt: true,
+          createdAt: true,
+        },
         orderBy: { createdAt: "desc" },
         skip,
         take: limit,
