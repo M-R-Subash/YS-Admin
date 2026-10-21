@@ -177,6 +177,15 @@ export async function POST(request: Request) {
       },
     });
 
+    // Sync to Redis Hash for main.ys Edge proxy middleware
+    const { getRedisClient } = await import("@/lib/redis");
+    const redis = getRedisClient();
+    if (redis) {
+      redis.hset("main:redirects", {
+        [sourceUrl]: JSON.stringify({ destinationUrl, statusCode }),
+      }).catch((e) => console.warn("[Redirects:Redis] Failed to sync redirect to Redis:", e));
+    }
+
     return NextResponse.json(redirection, { status: 201 });
   } catch (error: any) {
     console.error("Failed to create redirection:", error);

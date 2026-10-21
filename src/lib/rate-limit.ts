@@ -97,9 +97,11 @@ export async function rateLimit(
     pipeline.ttl(key);
     const [count, ttl] = (await pipeline.exec()) as [number, number];
 
-    // If new key or no expiry, set the TTL
-    if (ttl < 0) {
-      await redis.expire(key, windowSec);
+    // If this is the very first hit in the window, set the expiration timer
+    if (count === 1) {
+      redis.expire(key, windowSec).catch((err) => {
+        console.warn("[RateLimit:Redis] Failed to set expire:", err);
+      });
     }
 
     const remainingTtlSec = ttl > 0 ? ttl : windowSec;

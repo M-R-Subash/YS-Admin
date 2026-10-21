@@ -56,7 +56,7 @@ export async function acquireResourceLock(
 }
 
 /**
- * Release an editing lock when a user saves or closes the editor.
+ * Release an editing lock securely using an atomic Lua script to prevent race conditions.
  */
 export async function releaseResourceLock(
   resourceType: "blog" | "page",
@@ -69,12 +69,21 @@ export async function releaseResourceLock(
   const key = `lock:${resourceType}:${resourceId}`;
 
   try {
-    const currentHolder = await redis.get<{ userId: string; userName: string }>(key);
-    if (!currentHolder || currentHolder.userId === userId) {
-      await redis.del(key);
-      return true;
-    }
-    return false;
+    // Atomic Compare-and-Delete using Lua:
+    // Decodes the lock JSON, checks if userId matches, and deletes all in a single atomic transaction.
+    const script = `
+      local current = redis.call("GET", KEYS[1])
+      if current then
+        local decoded = cjson.decode(current)
+        if decoded and decoded.userId == ARGV[1] then
+          return redis.call("DEL", KEYS[1])
+        end
+      end
+      return 0
+    `;
+
+    const result = await redis.eval(script, [key], [userId]);
+    return result === 1;
   } catch (err) {
     console.error("[Locks:Redis] Error releasing lock:", err);
     return false;

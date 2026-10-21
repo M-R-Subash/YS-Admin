@@ -112,6 +112,24 @@ export async function PATCH(
       request,
     });
 
+    // Sync to Redis Hash for main.ys Edge proxy middleware
+    const { getRedisClient } = await import("@/lib/redis");
+    const redis = getRedisClient();
+    if (redis) {
+      if (updated.status === "active") {
+        redis.hset("main:redirects", {
+          [updated.sourceUrl]: JSON.stringify({
+            destinationUrl: updated.destinationUrl,
+            statusCode: updated.statusCode,
+          }),
+        }).catch((e) => console.warn("[Redirects:Redis] Failed to sync update to Redis:", e));
+      } else {
+        redis.hdel("main:redirects", updated.sourceUrl).catch((e) =>
+          console.warn("[Redirects:Redis] Failed to remove inactive redirect from Redis:", e)
+        );
+      }
+    }
+
     return NextResponse.json(updated);
   } catch (error: any) {
     console.error("Failed to update redirection:", error);
@@ -149,6 +167,15 @@ export async function DELETE(
     });
 
     if (existing) {
+      // Remove from Redis Hash
+      const { getRedisClient } = await import("@/lib/redis");
+      const redis = getRedisClient();
+      if (redis) {
+        redis.hdel("main:redirects", existing.sourceUrl).catch((e) =>
+          console.warn("[Redirects:Redis] Failed to delete redirect from Redis:", e)
+        );
+      }
+
       const clientMeta = await getClientAuditMeta(request);
       await recordAuditLog({
         eventType: "REDIRECTION.DELETED",
