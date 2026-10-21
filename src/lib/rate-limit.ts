@@ -1,15 +1,25 @@
+import { getRedisClient } from "./redis";
+
 interface RateLimitRecord {
   count: number;
   resetTime: number;
 }
 
-const trackers = new Map<string, Map<string, RateLimitRecord>>();
+export interface RateLimitResult {
+  success: boolean;
+  limit: number;
+  remaining: number;
+  resetTime: number;
+}
 
-// Periodic cleanup every 5 minutes to prevent memory leak
+// In-memory fallback tracker
+const memoryStore = new Map<string, Map<string, RateLimitRecord>>();
+
+// Periodic cleanup every 5 minutes for in-memory fallback
 if (typeof setInterval !== "undefined") {
   setInterval(() => {
     const now = Date.now();
-    trackers.forEach((store) => {
+    memoryStore.forEach((store) => {
       store.forEach((record, key) => {
         if (record.resetTime < now) {
           store.delete(key);
@@ -19,16 +29,16 @@ if (typeof setInterval !== "undefined") {
   }, 5 * 60 * 1000);
 }
 
-export function rateLimit(
+function memoryRateLimit(
   namespace: string,
   identifier: string,
   options: { windowMs: number; max: number }
-): { success: boolean; limit: number; remaining: number; resetTime: number } {
-  if (!trackers.has(namespace)) {
-    trackers.set(namespace, new Map<string, RateLimitRecord>());
+): RateLimitResult {
+  if (!memoryStore.has(namespace)) {
+    memoryStore.set(namespace, new Map<string, RateLimitRecord>());
   }
 
-  const store = trackers.get(namespace)!;
+  const store = memoryStore.get(namespace)!;
   const now = Date.now();
   const record = store.get(identifier);
 
@@ -62,6 +72,58 @@ export function rateLimit(
     remaining: options.max - record.count,
     resetTime: record.resetTime,
   };
+}
+
+/**
+ * Distributed rate limiter powered by Upstash Redis with automatic in-memory fallback.
+ */
+export async function rateLimit(
+  namespace: string,
+  identifier: string,
+  options: { windowMs: number; max: number }
+): Promise<RateLimitResult> {
+  const redis = getRedisClient();
+
+  if (!redis) {
+    return memoryRateLimit(namespace, identifier, options);
+  }
+
+  try {
+    const key = `ratelimit:${namespace}:${identifier}`;
+    const windowSec = Math.max(1, Math.ceil(options.windowMs / 1000));
+
+    const pipeline = redis.pipeline();
+    pipeline.incr(key);
+    pipeline.ttl(key);
+    const [count, ttl] = (await pipeline.exec()) as [number, number];
+
+    // If new key or no expiry, set the TTL
+    if (ttl < 0) {
+      await redis.expire(key, windowSec);
+    }
+
+    const remainingTtlSec = ttl > 0 ? ttl : windowSec;
+    const resetTime = Date.now() + remainingTtlSec * 1000;
+
+    if (count > options.max) {
+      return {
+        success: false,
+        limit: options.max,
+        remaining: 0,
+        resetTime,
+      };
+    }
+
+    return {
+      success: true,
+      limit: options.max,
+      remaining: Math.max(0, options.max - count),
+      resetTime,
+    };
+  } catch (error) {
+    console.error("[RateLimit:Redis] Redis error, falling back to in-memory:", error);
+    return memoryRateLimit(namespace, identifier, options);
+  }
 }
 
 export function getClientIp(headers: Headers): string {

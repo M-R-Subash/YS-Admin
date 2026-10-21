@@ -1,26 +1,29 @@
 /**
- * In-memory Server-Side Cache for High-Frequency Read APIs
+ * High-Performance Server-Side Cache for High-Frequency Read APIs
  * 
- * Provides short-lived (TTL) in-memory caching to absorb repeated serverless/route-handler
- * hits for slow-changing counters, taxonomies, and aggregations.
+ * Powered by Upstash Redis (Distributed Cloud Cache) with automatic
+ * local in-memory fallback.
+ * Absorbs repeated hits for dashboard stats, badges, and aggregations.
  */
 
-interface CacheEntry<T> {
+import { getRedisClient } from "../redis";
+
+interface LocalCacheEntry<T> {
   data: T;
   expiresAt: number;
 }
 
-const store = new Map<string, CacheEntry<any>>();
+const localStore = new Map<string, LocalCacheEntry<any>>();
 
 /**
- * Retrieve cached item if present and not expired
+ * Retrieve cached item from local memory store
  */
-export function getMemoryCache<T>(key: string): T | null {
-  const entry = store.get(key);
+export function getLocalMemoryCache<T>(key: string): T | null {
+  const entry = localStore.get(key);
   if (!entry) return null;
 
   if (Date.now() > entry.expiresAt) {
-    store.delete(key);
+    localStore.delete(key);
     return null;
   }
 
@@ -28,48 +31,101 @@ export function getMemoryCache<T>(key: string): T | null {
 }
 
 /**
- * Store item in cache with a TTL in milliseconds (default: 15 seconds)
+ * Store item in local memory store
  */
-export function setMemoryCache<T>(key: string, data: T, ttlMs = 15000): void {
-  store.set(key, {
+export function setLocalMemoryCache<T>(key: string, data: T, ttlMs = 15000): void {
+  localStore.set(key, {
     data,
     expiresAt: Date.now() + ttlMs,
   });
 }
 
 /**
- * Invalidate all cache entries matching a key or prefix
+ * Legacy alias for backwards compatibility
  */
-export function invalidateMemoryCache(prefixOrKey: string): void {
-  for (const key of store.keys()) {
+export const getMemoryCache = getLocalMemoryCache;
+export const setMemoryCache = setLocalMemoryCache;
+
+/**
+ * Invalidate cache entries matching a key or prefix across both Redis and local memory.
+ */
+export async function invalidateMemoryCache(prefixOrKey: string): Promise<void> {
+  // 1. Immediately wipe matching local memory keys
+  for (const key of localStore.keys()) {
     if (key === prefixOrKey || key.startsWith(prefixOrKey)) {
-      store.delete(key);
+      localStore.delete(key);
     }
+  }
+
+  // 2. Wipe from Redis
+  const redis = getRedisClient();
+  if (!redis) return;
+
+  try {
+    const pattern = prefixOrKey.endsWith("*") ? prefixOrKey : `${prefixOrKey}*`;
+    const keys = await redis.keys(pattern);
+    if (keys.length > 0) {
+      await redis.del(...keys);
+    }
+    // Also delete exact key if not covered
+    await redis.del(prefixOrKey);
+  } catch (error) {
+    console.error(`[Cache:Redis] Failed to invalidate prefix "${prefixOrKey}":`, error);
   }
 }
 
 /**
  * Invalidate all high-frequency aggregate/counter caches
  */
-export function invalidateAggregateCaches(): void {
-  invalidateMemoryCache("badges:");
-  invalidateMemoryCache("dashboard-stats:");
+export async function invalidateAggregateCaches(): Promise<void> {
+  await Promise.allSettled([
+    invalidateMemoryCache("badges:"),
+    invalidateMemoryCache("dashboard-stats:"),
+  ]);
 }
 
 /**
- * Helper to fetch with cache: returns cached value or executes fallback and caches result
+ * Helper to fetch with distributed Redis cache (with fallback to local memory)
  */
 export async function fetchWithMemoryCache<T>(
   key: string,
   fetcher: () => Promise<T>,
   ttlMs = 15000
 ): Promise<T> {
-  const cached = getMemoryCache<T>(key);
-  if (cached !== null) {
-    return cached;
+  const redis = getRedisClient();
+
+  // 1. Try Redis Distributed Cache
+  if (redis) {
+    try {
+      const cached = await redis.get<T>(key);
+      if (cached !== null && cached !== undefined) {
+        // Keep local memory warm for lightning-fast sub-millisecond local reads
+        setLocalMemoryCache(key, cached, ttlMs);
+        return cached;
+      }
+    } catch (err) {
+      console.warn(`[Cache:Redis] Read failed for key "${key}", falling back:`, err);
+    }
   }
 
+  // 2. Try local memory cache
+  const localCached = getLocalMemoryCache<T>(key);
+  if (localCached !== null) {
+    return localCached;
+  }
+
+  // 3. Cache Miss: Execute fresh query
   const fresh = await fetcher();
-  setMemoryCache(key, fresh, ttlMs);
+
+  // 4. Update local memory
+  setLocalMemoryCache(key, fresh, ttlMs);
+
+  // 5. Update Redis (non-blocking)
+  if (redis) {
+    redis.set(key, fresh, { px: ttlMs }).catch((err) => {
+      console.warn(`[Cache:Redis] Write failed for key "${key}":`, err);
+    });
+  }
+
   return fresh;
 }

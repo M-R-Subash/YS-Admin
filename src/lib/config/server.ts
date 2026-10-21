@@ -160,6 +160,10 @@ const serverEnvSchema = z.object({
   SMTP_PORT: z.coerce.number().optional().default(465),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
+
+  // Upstash Redis Distributed Cache & Rate Limiting
+  UPSTASH_REDIS_REST_URL: z.string().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
@@ -193,6 +197,8 @@ const parsedServer = serverEnvSchema.safeParse({
   SMTP_PORT: process.env.SMTP_PORT,
   SMTP_USER: process.env.SMTP_USER,
   SMTP_PASS: process.env.SMTP_PASS,
+  UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+  UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
 if (!parsedServer.success && process.env.SKIP_ENV_VALIDATION !== "true") {
@@ -244,6 +250,10 @@ export const serverConfig = {
     loginWindowSec: Number(rawServer.RATE_LIMIT_LOGIN_WINDOW_SEC),
     loginWindowMs: Number(rawServer.RATE_LIMIT_LOGIN_WINDOW_SEC) * 1000,
     loginMax: Number(rawServer.RATE_LIMIT_LOGIN_MAX),
+  },
+  redis: {
+    url: rawServer.UPSTASH_REDIS_REST_URL,
+    token: rawServer.UPSTASH_REDIS_REST_TOKEN,
   },
   cloudinary: {
     ...clientConfig.cloudinary,

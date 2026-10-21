@@ -38,7 +38,7 @@ export async function proxy(req: NextRequest, event: NextFetchEvent) {
   // Rate limit credential login attempts against brute-force attacks
   if (pathname.startsWith("/api/auth/callback/credentials") && req.method === "POST") {
     const ip = getClientIp(req.headers);
-    const limit = rateLimit("login-auth", ip, {
+    const limit = await rateLimit("login-auth", ip, {
       windowMs: serverConfig.rateLimit.loginWindowMs,
       max: serverConfig.rateLimit.loginMax,
     });
