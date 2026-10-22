@@ -42,10 +42,14 @@ function BlogsContent() {
   const { data: categoriesData } = useSWR<any[]>("/api/categories");
   const categoriesList = Array.isArray(categoriesData) ? categoriesData : [];
 
-  // Poll active Redis resource locks in real-time every 3 seconds
+  // Poll active Redis resource locks: 15s interval + revalidateOnFocus (saves 80%+ commands while keeping instant accuracy)
   const { data: locksData } = useSWR<{ locks: Record<string, { userId: string; userName: string }> }>(
     "/api/locks?type=blog",
-    { refreshInterval: 3000 }
+    {
+      refreshInterval: 15000,
+      revalidateOnFocus: true,
+      dedupingInterval: 5000,
+    }
   );
   const activeLocks = useMemo(() => locksData?.locks || {}, [locksData]);
 

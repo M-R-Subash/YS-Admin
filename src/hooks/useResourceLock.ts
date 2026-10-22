@@ -77,10 +77,20 @@ export function useResourceLock(
     // Execute async lock acquisition
     performLock();
 
-    // Heartbeat every 30 seconds to keep lock warm
+    // Heartbeat every 60 seconds to keep lock warm (relaxed to save Redis commands)
     heartbeatTimerRef.current = setInterval(() => {
-      performLock();
-    }, 30000);
+      if (hasAcquiredRef.current) {
+        performLock();
+      }
+    }, 60000);
+
+    // Immediately refresh lock when returning to the tab
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && hasAcquiredRef.current) {
+        performLock();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     const handleUnload = () => {
       if (hasAcquiredRef.current && resourceId) {
@@ -99,6 +109,7 @@ export function useResourceLock(
       if (heartbeatTimerRef.current) {
         clearInterval(heartbeatTimerRef.current);
       }
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("beforeunload", handleUnload);
       window.removeEventListener("pagehide", handleUnload);
       handleUnload();

@@ -74,7 +74,7 @@ export async function POST(request: Request) {
       resourceId,
       session.user.id,
       userName,
-      90 // 90 seconds TTL with 30s client heartbeats
+      180 // 180 seconds (3 min) TTL with 60s client heartbeats
     );
 
     return NextResponse.json({
