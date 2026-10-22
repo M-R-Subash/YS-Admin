@@ -44,6 +44,7 @@ export interface DataTableProps<TData, TValue> {
   rowSelection?: RowSelectionState;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
   renderBulkActionDock?: (selectedRows: TData[], clearSelection: () => void) => React.ReactNode;
+  getRowClassName?: (row: TData) => string | undefined;
 }
 
 function getColumnLabel(columnId: string): string {
@@ -79,6 +80,7 @@ export function DataTable<TData, TValue>({
   rowSelection: controlledRowSelection,
   onRowSelectionChange: setControlledRowSelection,
   renderBulkActionDock,
+  getRowClassName,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>(defaultSorting);
   const [internalRowSelection, setInternalRowSelection] = useState<RowSelectionState>({});
@@ -144,7 +146,10 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="hover:bg-muted/30 transition-colors data-[state=selected]:bg-muted/60 data-[state=selected]:hover:bg-muted/80"
+                  className={cn(
+                    "hover:bg-muted/30 transition-colors data-[state=selected]:bg-muted/60 data-[state=selected]:hover:bg-muted/80",
+                    getRowClassName?.(row.original)
+                  )}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
@@ -235,7 +240,10 @@ export function DataTable<TData, TValue>({
               <div
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
-                className="rounded-sm border border-border bg-card p-3.5 shadow-xs transition-colors hover:border-border/80"
+                className={cn(
+                  "rounded-sm border border-border bg-card p-3.5 shadow-xs transition-colors hover:border-border/80",
+                  getRowClassName?.(row.original)
+                )}
               >
                 {/* Header: Select + Primary Cell (Image + Title) + Action Cell (3 dots) */}
                 <div className="flex items-start justify-between gap-2.5">

@@ -6,7 +6,9 @@ import { useForm, useWatch } from "react-hook-form";
 import { mutate } from "swr";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Lock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useResourceLock } from "@/hooks/useResourceLock";
 import { useEmergencyDraft, getEmergencyBackup } from "@/hooks/useEmergencyDraft";
 import { useDirtyManager } from "@/hooks/useDirtyManager";
 import {
@@ -71,6 +73,9 @@ interface BlogFormProps {
 export default function BlogForm({ blogId }: BlogFormProps) {
   const router = useRouter();
   const isEditMode = Boolean(blogId);
+
+  // Active collaborative resource lock
+  const { isLockedByOther, lockedBy, releaseLock } = useResourceLock("blog", blogId);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(isEditMode);
@@ -668,6 +673,15 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     ): Promise<boolean> => {
     clearErrors();
 
+    if (isLockedByOther) {
+      toast.add({
+        title: "Action Blocked",
+        description: `This blog post is currently locked by ${lockedBy}. You cannot save changes.`,
+        type: "error",
+      });
+      return false;
+    }
+
     const currentValues = getValues();
     const targetScheduledAt =
       overrideScheduledAt !== undefined
@@ -1002,6 +1016,7 @@ export default function BlogForm({ blogId }: BlogFormProps) {
       }
 
       if (shouldExit) {
+        releaseLock();
         router.push("/blogs");
       } else if (!isEditMode && responseData && responseData.id) {
         router.replace(`/blogs/edit/${responseData.id}`);
@@ -1032,6 +1047,9 @@ export default function BlogForm({ blogId }: BlogFormProps) {
     loadedFromBackup,
     restoredFromVersion,
     status,
+    isLockedByOther,
+    lockedBy,
+    releaseLock,
   ]);
 
   const handleSchedule = useCallback(async (date: Date): Promise<boolean> => {
@@ -1305,6 +1323,32 @@ export default function BlogForm({ blogId }: BlogFormProps) {
           {/* Unsaved Changes & Discard Draft Confirmation Dialogs */}
           <ExitConfirmDialog />
           <DiscardDraftDialog />
+
+          {/* Active Collaborative Lock Modal Overlay */}
+          {isLockedByOther && (
+            <div className="fixed inset-0 z-50 bg-background/85 backdrop-blur-md flex items-center justify-center p-4">
+              <div className="max-w-md w-full bg-card border border-amber-500/30 rounded-xl p-6 shadow-2xl text-center space-y-4">
+                <div className="w-14 h-14 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 mx-auto flex items-center justify-center border border-amber-500/20">
+                  <Lock className="w-7 h-7" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold tracking-tight text-foreground">Post Is Currently Locked</h2>
+                  <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                    <span className="font-semibold text-foreground">{lockedBy || "Another editor"}</span> is currently editing this blog post.
+                    To prevent conflicting overwrites, editing access is restricted until they close or save their session.
+                  </p>
+                </div>
+                <div className="pt-2">
+                  <Button
+                    onClick={() => router.push("/blogs")}
+                    className="w-full bg-amber-600 hover:bg-amber-700 text-white font-medium cursor-pointer"
+                  >
+                    Return to Blogs Table
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
           <SchedulePostModal
             open={showScheduleModal}
             onOpenChange={setShowScheduleModal}

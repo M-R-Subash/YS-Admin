@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ColumnDef } from "@tanstack/react-table";
-import { MessageSquare, CalendarClock } from "lucide-react";
+import { MessageSquare, CalendarClock, Lock } from "lucide-react";
 import { UniversalSeoModal } from "@/components/seo/UniversalSeoModal";
 import { SchedulePostModal } from "@/components/blog/dialogs/SchedulePostModal";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
@@ -23,11 +23,42 @@ import { format } from "date-fns";
 import { clientConfig } from "@/lib/config/client";
 
 // Action Component
-export const ActionCell = ({ blog, onDataChange }: { blog: any; onDataChange: () => void }) => {
+export const ActionCell = ({
+  blog,
+  onDataChange,
+  lock,
+  isLockedByOther,
+}: {
+  blog: any;
+  onDataChange: () => void;
+  lock?: { userId: string; userName: string };
+  isLockedByOther?: boolean;
+}) => {
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [rescheduling, setRescheduling] = useState(false);
   const siteUrl = clientConfig.app.frontendUrl;
   const cleanSlug = blog.slug?.startsWith("/") ? blog.slug.slice(1) : (blog.slug || "");
+
+  // If another team member is actively editing this post, disable all actions and modals
+  if (isLockedByOther) {
+    return (
+      <div className="flex items-center justify-end">
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-xs font-semibold cursor-not-allowed select-none">
+                <Lock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span className="text-[11px]">Locked</span>
+              </div>
+            }
+          />
+          <TooltipContent side="left" className="text-xs max-w-xs font-medium">
+            Currently being edited by {lock?.userName || "another editor"}. All editing and quick actions are disabled to prevent overwrites.
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    );
+  }
 
   const handleReschedule = async (newDate: Date) => {
     try {
@@ -103,8 +134,23 @@ export const ActionCell = ({ blog, onDataChange }: { blog: any; onDataChange: ()
   );
 };
 
-export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
-  createSelectColumn<any>(),
+export const getBlogsColumns = (
+  onDataChange: () => void,
+  activeLocks: Record<string, { userId: string; userName: string }> = {},
+  currentUserId?: string
+): ColumnDef<any>[] => [
+  createSelectColumn<any>({
+    isRowDisabled: (blog) => {
+      const lock = activeLocks[blog.id];
+      if (lock && lock.userId !== currentUserId) {
+        return {
+          disabled: true,
+          reason: `Locked: ${lock.userName} is currently editing this post`,
+        };
+      }
+      return { disabled: false };
+    },
+  }),
   {
     accessorKey: "title",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Post & Title" />,
@@ -119,6 +165,9 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
     cell: ({ row }) => {
       const blog = row.original as any;
       const cleanSlug = blog.slug?.startsWith("/") ? blog.slug.slice(1) : (blog.slug || "");
+      const lock = activeLocks[blog.id];
+      const isLockedByOther = Boolean(lock && lock.userId !== currentUserId);
+
       return (
         <div className="flex items-center gap-3 w-full max-w-60 md:max-w-65 min-w-0">
           {blog.featuredImage ? (
@@ -133,18 +182,43 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
             </div>
           )}
           <div className="min-w-0 flex-1 overflow-hidden">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <span className="font-bold text-foreground truncate block text-xs select-text">
-                    {blog.title}
-                  </span>
-                }
-              />
-              <TooltipContent side="top" className="text-xs max-w-sm font-medium">
-                {blog.title}
-              </TooltipContent>
-            </Tooltip>
+            <div className="flex items-center gap-1.5">
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    isLockedByOther ? (
+                      <span className="font-bold text-muted-foreground line-through decoration-amber-500/60 truncate block text-xs cursor-not-allowed">
+                        {blog.title}
+                      </span>
+                    ) : (
+                      <Link
+                        href={`/blogs/edit/${blog.id}`}
+                        className="font-bold text-foreground hover:text-primary transition-colors truncate block text-xs"
+                      >
+                        {blog.title}
+                      </Link>
+                    )
+                  }
+                />
+                <TooltipContent side="top" className="text-xs max-w-sm font-medium">
+                  {isLockedByOther
+                    ? `Locked by ${lock?.userName}. Direct edit is disabled.`
+                    : blog.title}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+
+            {/* Active Lock Badge Indicator */}
+            {isLockedByOther && (
+              <div className="mt-1">
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  <Lock className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400" />
+                  <span>{lock?.userName} is editing</span>
+                </span>
+              </div>
+            )}
+
             <div className="flex items-center gap-2 mt-0.5 min-w-0 w-full overflow-hidden">
               <span className="text-[11px] text-muted-foreground truncate font-mono min-w-0 flex-1">
                 /blogs/{cleanSlug}
@@ -178,65 +252,58 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
 
       return (
         <div className="flex flex-wrap gap-1">
-          {categories.slice(0, 2).map((cat, i) => (
-            <span key={i} className="px-2 py-0.5 bg-secondary text-secondary-foreground text-[10px] uppercase font-bold tracking-wide rounded-sm">
-              {cat}
+          {categories.slice(0, 2).map((category, index) => (
+            <span
+              key={index}
+              className="px-1.5 py-0.5 rounded-xs bg-muted text-foreground text-[10px] font-medium border border-border"
+            >
+              {category}
             </span>
           ))}
           {categories.length > 2 && (
-            <span className="text-[10px] text-muted-foreground font-medium">+{categories.length - 2}</span>
+            <span className="text-[10px] text-muted-foreground font-medium self-center">
+              +{categories.length - 2}
+            </span>
           )}
         </div>
       );
     },
   },
   {
-    id: "comments",
-    header: "Comments",
+    accessorKey: "commentsCount",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Comments" />,
+    sortingFn: "basic",
     cell: ({ row }) => {
-      const blog = row.original as any;
-      const count = blog._count?.comments || 0;
+      const count = row.original.commentsCount || 0;
       return (
-        <Link
-          href={`/comments?blogId=${blog.id}`}
-          className="flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
-        >
-          <MessageSquare className="w-4 h-4" />
-          <span className="text-xs font-semibold">{count}</span>
-        </Link>
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <MessageSquare className="w-3.5 h-3.5 text-muted-foreground/60" />
+          <span>{count}</span>
+        </div>
       );
     },
   },
   {
-    id: "author",
+    accessorKey: "author",
     header: "Author",
     cell: ({ row }) => {
       const blog = row.original as any;
-      const customAuthorName = blog.seo?.authorName?.trim();
-      const isCustomAuthor = Boolean(customAuthorName);
-      const authorName = customAuthorName || blog.author?.name || "Admin";
-      const authorRole = isCustomAuthor
-        ? (blog.seo?.authorRole || "Guest Author")
-        : (blog.author?.authorRole || null);
+      const customAuthor = blog.seo?.authorName?.trim();
+      const authorName = customAuthor || blog.author?.name || "Admin";
+      const authorRole = customAuthor ? "Guest Author" : blog.author?.authorRole;
+      const avatarUrl = blog.author?.profilePicture;
 
       return (
         <div className="flex items-center gap-2">
-          {isCustomAuthor ? (
-            <div
-              className="w-6 h-6 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] font-bold flex items-center justify-center border border-amber-500/30 shrink-0"
-              title={`Custom Author: ${authorName}${authorRole ? ` (${authorRole})` : ""}`}
-            >
-              {(authorName[0] || "A").toUpperCase()}
-            </div>
-          ) : blog.author?.profilePicture ? (
+          {avatarUrl ? (
             <img
-              src={blog.author.profilePicture}
+              src={avatarUrl}
               alt={authorName}
               className="w-6 h-6 rounded-full object-cover border border-border shrink-0"
             />
           ) : (
-            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center border border-primary/20 shrink-0">
-              {(authorName[0] || "A").toUpperCase()}
+            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold border border-border shrink-0">
+              {authorName.charAt(0).toUpperCase()}
             </div>
           )}
           <div className="text-xs min-w-0">
@@ -277,5 +344,16 @@ export const getBlogsColumns = (onDataChange: () => void): ColumnDef<any>[] => [
     },
   },
   createDateColumn<any>("updatedAt", "Last Updated"),
-  createActionColumn<any>((blog) => <ActionCell blog={blog} onDataChange={onDataChange} />),
+  createActionColumn<any>((blog) => {
+    const lock = activeLocks[blog.id];
+    const isLockedByOther = Boolean(lock && lock.userId !== currentUserId);
+    return (
+      <ActionCell
+        blog={blog}
+        onDataChange={onDataChange}
+        lock={lock}
+        isLockedByOther={isLockedByOther}
+      />
+    );
+  }),
 ];

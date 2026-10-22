@@ -27,6 +27,7 @@ import { ContentMetricCards } from "@/components/table/ContentMetricCards";
 import { ContentFilterBar } from "@/components/table/ContentFilterBar";
 import { TableFloatingDock } from "@/components/table/TableFloatingDock";
 import { useContentTable } from "@/components/table/useContentTable";
+import { useSession } from "next-auth/react";
 import { getBlogsColumns } from "./blogs-columns";
 
 function BlogsContent() {
@@ -34,9 +35,19 @@ function BlogsContent() {
   const urlCategory = searchParams.get("category");
   const [categoryFilter, setCategoryFilter] = useState<string>(urlCategory || "all");
 
+  const { data: session } = useSession();
+  const currentUserId = session?.user?.id;
+
   const { data, isLoading, mutate } = useSWR<any[]>("/api/blogs");
   const { data: categoriesData } = useSWR<any[]>("/api/categories");
   const categoriesList = Array.isArray(categoriesData) ? categoriesData : [];
+
+  // Poll active Redis resource locks in real-time every 3 seconds
+  const { data: locksData } = useSWR<{ locks: Record<string, { userId: string; userName: string }> }>(
+    "/api/locks?type=blog",
+    { refreshInterval: 3000 }
+  );
+  const activeLocks = useMemo(() => locksData?.locks || {}, [locksData]);
 
   useEffect(() => {
     mutate();
@@ -74,7 +85,10 @@ function BlogsContent() {
     mutate();
   }, [mutate]);
 
-  const columns = useMemo(() => getBlogsColumns(handleDataChange), [handleDataChange]);
+  const columns = useMemo(
+    () => getBlogsColumns(handleDataChange, activeLocks, currentUserId),
+    [handleDataChange, activeLocks, currentUserId]
+  );
   const loading = isLoading && !data;
 
   return (
@@ -193,6 +207,13 @@ function BlogsContent() {
           <DataTable
             columns={columns}
             data={filteredBlogs}
+            getRowClassName={(blog: any) => {
+              const lock = activeLocks[blog.id];
+              if (lock && lock.userId !== currentUserId) {
+                return "bg-amber-500/[0.04] dark:bg-amber-500/[0.08] hover:bg-amber-500/[0.07] border-l-2 border-l-amber-500/80 transition-colors";
+              }
+              return undefined;
+            }}
             renderBulkActionDock={(selectedRows, clearSelection) => (
               <TableFloatingDock
                 selectedItems={selectedRows}

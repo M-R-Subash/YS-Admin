@@ -12,7 +12,9 @@ import { format, formatDistanceToNow } from "date-fns";
  * Reusable selection checkbox column for TanStack tables.
  * Eliminates 30+ lines of duplicated checkbox boilerplate.
  */
-export function createSelectColumn<T>(): ColumnDef<T> {
+export function createSelectColumn<T>(options?: {
+  isRowDisabled?: (row: T) => { disabled: boolean; reason?: string };
+}): ColumnDef<T> {
   return {
     id: "select",
     header: ({ table }) => (
@@ -28,19 +30,38 @@ export function createSelectColumn<T>(): ColumnDef<T> {
         />
       </div>
     ),
-    cell: ({ row }) => (
-      <div
-        className="flex items-center justify-center px-1"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(val) => row.toggleSelected(!!val)}
-          aria-label="Select row"
-          className="cursor-pointer"
-        />
-      </div>
-    ),
+    cell: ({ row }) => {
+      const disabledInfo = options?.isRowDisabled ? options.isRowDisabled(row.original) : { disabled: false };
+      if (disabledInfo.disabled) {
+        return (
+          <div
+            className="flex items-center justify-center px-1 cursor-not-allowed"
+            title={disabledInfo.reason || "Locked"}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Checkbox
+              checked={false}
+              disabled
+              aria-label={disabledInfo.reason || "Row is locked"}
+              className="opacity-30 cursor-not-allowed pointer-events-none"
+            />
+          </div>
+        );
+      }
+      return (
+        <div
+          className="flex items-center justify-center px-1"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(val) => row.toggleSelected(!!val)}
+            aria-label="Select row"
+            className="cursor-pointer"
+          />
+        </div>
+      );
+    },
     enableSorting: false,
     enableHiding: false,
     meta: {
