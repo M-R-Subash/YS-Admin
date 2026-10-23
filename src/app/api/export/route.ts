@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, requireLiveUser } from "@/lib/auth";
+import { authOptions, requireLiveUser, requireLiveAdmin } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
 export async function GET(request: Request) {
@@ -153,6 +153,12 @@ export async function GET(request: Request) {
     }
 
     if (type === "subscribers") {
+      // Sensitive subscriber email exports strictly require ADMIN role (SEC-011)
+      const adminGuard = await requireLiveAdmin(session.user?.id);
+      if (!adminGuard.authorized) {
+        return NextResponse.json({ error: adminGuard.error }, { status: adminGuard.status });
+      }
+
       const where: any = targetIds && targetIds.length > 0 ? { id: { in: targetIds } } : {};
       const subscribers = await prisma.subscriber.findMany({
         where,

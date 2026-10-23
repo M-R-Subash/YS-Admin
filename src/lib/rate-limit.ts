@@ -129,9 +129,25 @@ export async function rateLimit(
 }
 
 export function getClientIp(headers: Headers): string {
+  // 1. Prioritize edge/CDN headers that cannot be spoofed by client
+  const cfIp = headers.get("cf-connecting-ip");
+  if (cfIp) return cfIp.trim();
+
+  // 2. Nginx/Proxy direct real IP
+  const realIp = headers.get("x-real-ip");
+  if (realIp) return realIp.trim();
+
+  // 3. Fallback to x-forwarded-for with IPv4/IPv6 validation
   const forwarded = headers.get("x-forwarded-for");
   if (forwarded) {
-    return forwarded.split(",")[0].trim();
+    const parts = forwarded.split(",").map((s) => s.trim()).filter(Boolean);
+    if (parts.length > 0) {
+      const candidate = parts[0];
+      if (/^[0-9a-fA-F:.]+$/.test(candidate)) {
+        return candidate;
+      }
+    }
   }
-  return headers.get("x-real-ip") || "127.0.0.1";
+
+  return "127.0.0.1";
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, requireLiveUser } from "@/lib/auth";
+import { authOptions, requireLiveUser, requireLiveAdmin } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { recordAuditLog, getClientAuditMeta, logEntityMutation } from "@/lib/server/audit";
@@ -151,7 +151,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const guard = await requireLiveUser(session.user?.id);
+    const guard = await requireLiveAdmin(session.user?.id);
     if (!guard.authorized) {
       return NextResponse.json({ error: guard.error }, { status: guard.status });
     }

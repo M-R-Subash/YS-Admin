@@ -46,7 +46,9 @@ export function FullscreenPreviewWorkspace({
   getItemPath,
   itemTypeLabel = "Content",
 }: FullscreenPreviewWorkspaceProps) {
+  const frontendUrl = clientConfig.app.frontendUrl.replace(/\/+$/, "");
   const [data, setData] = useState<PreviewItemData | null>(null);
+  const [previewToken, setPreviewToken] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewport, setViewport] = useState<ViewportMode>("desktop");
@@ -78,6 +80,17 @@ export function FullscreenPreviewWorkspace({
         setData(item);
         setError(null);
         setLoading(false);
+
+        if (item.slug) {
+          fetch(`/api/preview-token?slug=${encodeURIComponent(item.slug)}`)
+            .then((r) => r.json())
+            .then((tData) => {
+              if (isMounted && tData.token) {
+                setPreviewToken(tData.token);
+              }
+            })
+            .catch(() => {});
+        }
       })
       .catch((err) => {
         if (!isMounted) return;
@@ -116,8 +129,8 @@ export function FullscreenPreviewWorkspace({
             })
           );
         } else if (event.data?.type && event.data?.content) {
-          // In-memory real-time postMessage forward
-          iframeRef.current?.contentWindow?.postMessage(event.data, "*");
+          // In-memory real-time postMessage forward to explicit frontend origin
+          iframeRef.current?.contentWindow?.postMessage(event.data, frontendUrl);
           setLastSyncTime(
             new Date().toLocaleTimeString([], {
               hour: "2-digit",
@@ -134,7 +147,7 @@ export function FullscreenPreviewWorkspace({
     return () => {
       channel?.close();
     };
-  }, [id, channelName, data]);
+  }, [id, channelName, data, frontendUrl]);
 
   const handleReload = () => {
     setIframeLoading(true);
@@ -190,12 +203,10 @@ export function FullscreenPreviewWorkspace({
     );
   }
 
-  const frontendUrl = clientConfig.app.frontendUrl.replace(/\/+$/, "");
-
   const itemPath = getItemPath(data.slug);
   const normalizedPath = itemPath.startsWith("/") ? itemPath : `/${itemPath}`;
   const iframeSrc = `${frontendUrl}${normalizedPath}?preview=true${
-    data.previewSecret ? `&secret=${encodeURIComponent(data.previewSecret)}` : ""
+    previewToken ? `&secret=${encodeURIComponent(previewToken)}` : ""
   }`;
   const livePublicUrl = `${frontendUrl}${normalizedPath}`;
 

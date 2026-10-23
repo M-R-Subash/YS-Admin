@@ -35,15 +35,40 @@ const authHandler = withAuth(
 export async function proxy(req: NextRequest, event: NextFetchEvent) {
   const pathname = req.nextUrl.pathname;
 
-  // Rate limit credential login attempts against brute-force attacks
+  // Rate limit credential login attempts against brute-force attacks (IP + Target Account)
   if (pathname.startsWith("/api/auth/callback/credentials") && req.method === "POST") {
     const ip = getClientIp(req.headers);
-    const limit = await rateLimit("login-auth", ip, {
+
+    // Extract attempted email/username to prevent distributed credential stuffing (SEC-001)
+    let targetAccount = "";
+    try {
+      const cloned = req.clone();
+      const contentType = req.headers.get("content-type") || "";
+      if (contentType.includes("application/x-www-form-urlencoded") || contentType.includes("multipart/form-data")) {
+        const formData = await cloned.formData();
+        targetAccount = (formData.get("email") as string) || (formData.get("username") as string) || "";
+      } else if (contentType.includes("application/json")) {
+        const json = await cloned.json();
+        targetAccount = json.email || json.username || "";
+      }
+    } catch {}
+
+    const normalizedAccount = targetAccount.trim().toLowerCase();
+
+    const ipLimit = await rateLimit("login-auth-ip", ip, {
       windowMs: serverConfig.rateLimit.loginWindowMs,
       max: serverConfig.rateLimit.loginMax,
     });
 
-    if (!limit.success) {
+    let accountLimit = { success: true };
+    if (normalizedAccount) {
+      accountLimit = await rateLimit("login-auth-account", normalizedAccount, {
+        windowMs: serverConfig.rateLimit.loginWindowMs,
+        max: serverConfig.rateLimit.loginMax,
+      });
+    }
+
+    if (!ipLimit.success || !accountLimit.success) {
       const errorUrl = new URL("/login?error=TooManyAttempts", req.url).toString();
       const retryMinutes = Math.max(1, Math.ceil(serverConfig.rateLimit.loginWindowSec / 60));
       return NextResponse.json(

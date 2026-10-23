@@ -9,7 +9,6 @@ import {
   extractImageUrl,
 } from "@/lib/schemas/blog/blog-validation";
 import { revalidateFrontendPath } from "@/lib/revalidate";
-import { serverConfig } from "@/lib/config/server";
 import { createBlogRevisionSnapshot } from "@/lib/server/revision-utils";
 import { handleApiError } from "@/lib/server/prisma-errors";
 import { slugify } from "@/lib/slugify";
@@ -38,7 +37,6 @@ export async function GET(
 
   return NextResponse.json({
     ...blog,
-    previewSecret: serverConfig.security.previewSecret,
   });
 }
 

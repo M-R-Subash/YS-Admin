@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, Suspense, useCallback } from "react";
+import { useState, useMemo, Suspense, useCallback } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -52,10 +52,6 @@ function BlogsContent() {
     }
   );
   const activeLocks = useMemo(() => locksData?.locks || {}, [locksData]);
-
-  useEffect(() => {
-    mutate();
-  }, [mutate]);
 
   const customFilter = useCallback(
     (blog: any) => {

@@ -74,6 +74,7 @@ export default function EditorPage({
 }) {
   const [pageId, setPageId] = useState<string>("");
   const [page, setPage] = useState<PageData | null>(null);
+  const [previewToken, setPreviewToken] = useState<string>("");
   const [schemaData, setSchemaData] = useState<any>(null);
   const [loadedPageId, setLoadedPageId] = useState<string | null>(null);
 
@@ -136,6 +137,14 @@ export default function EditorPage({
       })
       .then((data: PageData) => {
         setPage(data);
+        if (data.slug) {
+          fetch(`/api/preview-token?slug=${encodeURIComponent(data.slug)}`)
+            .then((r) => r.json())
+            .then((t) => {
+              if (t.token) setPreviewToken(t.token);
+            })
+            .catch(() => {});
+        }
         // Approach B: Load draftContent if available, otherwise live content
         let initialContent = data.draftContent ?? data.content ?? {};
 
@@ -248,10 +257,7 @@ export default function EditorPage({
       }
 
       const updatedPage: PageData = await res.json();
-      setPage((prev) => ({
-        ...updatedPage,
-        previewSecret: updatedPage.previewSecret || prev?.previewSecret || "",
-      }));
+      setPage(updatedPage);
       setSchemaData(contentPayload);
       setSavedSeoBaselineString(JSON.stringify(seoData));
       setIsSchemaDirty(false);
@@ -376,10 +382,7 @@ export default function EditorPage({
       }
 
       const updatedPage: PageData = await res.json();
-      setPage((prev) => ({
-        ...updatedPage,
-        previewSecret: updatedPage.previewSecret || prev?.previewSecret || "",
-      }));
+      setPage(updatedPage);
       setSchemaData(contentPayload);
       setSavedSeoBaselineString(JSON.stringify(seoData));
       setIsSchemaDirty(false);
@@ -459,10 +462,7 @@ export default function EditorPage({
       }
 
       const updatedPage: PageData = await res.json();
-      setPage((prev) => ({
-        ...updatedPage,
-        previewSecret: updatedPage.previewSecret || prev?.previewSecret || "",
-      }));
+      setPage(updatedPage);
       clearBackup();
 
       // Revert editor schema data back to live published content
@@ -706,7 +706,7 @@ export default function EditorPage({
                       : page.slug.startsWith("/")
                         ? page.slug
                         : `/${page.slug}`
-                  }?preview=true${page.previewSecret ? `&secret=${encodeURIComponent(page.previewSecret)}` : ""}`}
+                  }?preview=true${previewToken ? `&secret=${encodeURIComponent(previewToken)}` : ""}`}
                   className="w-full h-full border-0"
                   onLoad={handleIframeLoad}
                 />

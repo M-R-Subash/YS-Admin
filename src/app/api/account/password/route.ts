@@ -90,6 +90,11 @@ export async function POST(request: Request) {
       data: { password: hashedNewPassword },
     });
 
+    // Invalidate all active refresh tokens for this user upon password change (SEC-009)
+    await prisma.refreshToken.deleteMany({
+      where: { userId: user.id },
+    });
+
     const meta = await getClientAuditMeta(request);
     await recordAuditLog({
       eventType: "SECURITY.PASSWORD_CHANGED",

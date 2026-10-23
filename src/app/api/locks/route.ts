@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getRedisClient } from "@/lib/redis";
-import { acquireResourceLock, releaseResourceLock } from "@/lib/server/locks";
+import {
+  acquireResourceLock,
+  releaseResourceLock,
+  getActiveResourceLocks,
+} from "@/lib/server/locks";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/locks?type=blog
- * Returns all currently active resource locks for that type.
+ * Returns all currently active resource locks for that type using non-blocking Redis Hash.
  */
 export async function GET(request: Request) {
   try {
@@ -20,29 +23,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const type = (searchParams.get("type") || "blog") as "blog" | "page";
 
-    const redis = getRedisClient();
-    if (!redis) {
-      return NextResponse.json({ locks: {} });
-    }
-
-    const pattern = `lock:${type}:*`;
-    const keys = await redis.keys(pattern);
-
-    if (!keys || keys.length === 0) {
-      return NextResponse.json({ locks: {} });
-    }
-
-    const values = await redis.mget<Array<{ userId: string; userName: string }>>(...keys);
-    const locks: Record<string, { userId: string; userName: string }> = {};
-
-    keys.forEach((key, index) => {
-      const resourceId = key.replace(`lock:${type}:`, "");
-      const val = values[index];
-      if (val && typeof val === "object" && val.userId) {
-        locks[resourceId] = val;
-      }
-    });
-
+    const locks = await getActiveResourceLocks(type);
     return NextResponse.json({ locks });
   } catch (err: any) {
     console.error("[Locks:GET] Failed to list active locks:", err);

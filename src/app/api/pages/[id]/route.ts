@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 import { authOptions, requireLiveAdmin, requireLiveUser } from "@/lib/auth";
 import prisma, { mapDbToPageData } from "@/lib/prisma";
 import { revalidateFrontendPath } from "@/lib/revalidate";
-import { serverConfig } from "@/lib/config/server";
 import { handleApiError } from "@/lib/server/prisma-errors";
 import { invalidateAggregateCaches } from "@/lib/server/memory-cache";
 import { recordAuditLog, getClientAuditMeta, logEntityMutation } from "@/lib/server/audit";
@@ -35,7 +34,6 @@ export async function GET(
 
   return NextResponse.json({
     ...mapDbToPageData(page),
-    previewSecret: serverConfig.security.previewSecret,
   });
 }
 
@@ -193,7 +191,6 @@ export async function PUT(
 
     return NextResponse.json({
       ...mapDbToPageData(page),
-      previewSecret: serverConfig.security.previewSecret,
     });
   } catch (error: any) {
     return handleApiError(error, "Failed to update page");

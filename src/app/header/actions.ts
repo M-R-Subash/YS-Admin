@@ -3,7 +3,7 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
-import { authOptions, requireLiveUser } from "@/lib/auth";
+import { authOptions, requireLiveAdmin } from "@/lib/auth";
 import { revalidateFrontendPath } from "@/lib/revalidate";
 import { headerZodSchema } from "@/lib/schemas/header/header-validation";
 import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
@@ -15,7 +15,7 @@ export async function saveHeaderData(data: any) {
       return { success: false, error: "Unauthorized access" };
     }
 
-    const guard = await requireLiveUser(session.user?.id);
+    const guard = await requireLiveAdmin(session.user?.id);
     if (!guard.authorized) {
       return { success: false, error: guard.error || "Forbidden access" };
     }
