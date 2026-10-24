@@ -31,6 +31,7 @@ export default function MediaPage() {
   const [selectedMedia, setSelectedMedia] = useState<CloudinaryImage | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   // Upload Modal State
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -45,6 +46,27 @@ export default function MediaPage() {
   useEffect(() => {
     fetchImages();
   }, []);
+
+  // Infinite scroll observer: triggers fetchImages when scrolling to bottom
+  useEffect(() => {
+    if (!nextCursor || isLoadingMore || loading) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && nextCursor && !isLoadingMore) {
+          fetchImages(nextCursor);
+        }
+      },
+      { threshold: 0.1, rootMargin: "250px" }
+    );
+
+    const el = loadMoreRef.current;
+    if (el) observer.observe(el);
+
+    return () => {
+      if (el) observer.unobserve(el);
+    };
+  }, [nextCursor, isLoadingMore, loading]);
 
   async function fetchImages(cursor?: string) {
     if (cursor) {
@@ -243,20 +265,31 @@ export default function MediaPage() {
                     })}
                   </div>
 
-                  {nextCursor && (
-                    <div className="flex justify-center mt-8 mb-4">
+                  {/* Infinite Scroll Trigger & Bottom Spinner */}
+                  <div
+                    ref={loadMoreRef}
+                    className="flex flex-col items-center justify-center py-8 min-h-[64px]"
+                  >
+                    {isLoadingMore && (
+                      <div className="flex items-center gap-2.5 text-xs font-semibold text-muted-foreground animate-pulse py-2">
+                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                        <span>Loading more media...</span>
+                      </div>
+                    )}
+                    {nextCursor && !isLoadingMore && (
                       <button
                         onClick={() => fetchImages(nextCursor)}
-                        disabled={isLoadingMore}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-black text-white dark:bg-white dark:text-black font-bold text-xs sm:text-sm rounded-lg shadow-xs hover:bg-black/90 dark:hover:bg-white/90 transition-colors disabled:opacity-50 cursor-pointer"
+                        className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4 py-1 cursor-pointer"
                       >
-                        {isLoadingMore && (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        )}
-                        <span>{isLoadingMore ? "Loading..." : "Load More"}</span>
+                        Load more manually
                       </button>
-                    </div>
-                  )}
+                    )}
+                    {!nextCursor && images.length > 0 && !loading && (
+                      <p className="text-xs text-muted-foreground/60 select-none">
+                        All media loaded ({images.length} images)
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

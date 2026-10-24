@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, Suspense, useCallback } from "react";
+import { useState, useMemo, Suspense, useCallback, useDeferredValue } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -26,7 +26,7 @@ import { DataTable } from "@/components/table/DataTable";
 import { ContentMetricCards } from "@/components/table/ContentMetricCards";
 import { ContentFilterBar } from "@/components/table/ContentFilterBar";
 import { TableFloatingDock } from "@/components/table/TableFloatingDock";
-import { useContentTable } from "@/components/table/useContentTable";
+import { useContentTable, StandardContentStatus } from "@/components/table/useContentTable";
 import { useSession } from "next-auth/react";
 import { getBlogsColumns } from "./blogs-columns";
 
@@ -34,13 +34,47 @@ function BlogsContent() {
   const searchParams = useSearchParams();
   const urlCategory = searchParams.get("category");
   const [categoryFilter, setCategoryFilter] = useState<string>(urlCategory || "all");
+  const [page, setPage] = useState<number>(1);
 
   const { data: session } = useSession();
   const currentUserId = session?.user?.id;
 
-  const { data, isLoading, mutate } = useSWR<any[]>("/api/blogs");
-  const { data: categoriesData } = useSWR<any[]>("/api/categories");
-  const categoriesList = Array.isArray(categoriesData) ? categoriesData : [];
+  const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearch = useDeferredValue(searchQuery);
+  const [statusFilter, setStatusFilter] = useState<StandardContentStatus>("all");
+
+  // Reset page to 1 whenever filters change without cascading renders in an effect
+  const [prevFilters, setPrevFilters] = useState({ statusFilter, categoryFilter, deferredSearch });
+  if (
+    prevFilters.statusFilter !== statusFilter ||
+    prevFilters.categoryFilter !== categoryFilter ||
+    prevFilters.deferredSearch !== deferredSearch
+  ) {
+    setPrevFilters({ statusFilter, categoryFilter, deferredSearch });
+    setPage(1);
+  }
+
+  const blogsQueryUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set("page", String(page));
+    params.set("limit", "15");
+    if (statusFilter && statusFilter !== "all") params.set("status", statusFilter);
+    if (categoryFilter && categoryFilter !== "all") params.set("category", categoryFilter);
+    if (deferredSearch) params.set("search", deferredSearch);
+    return `/api/blogs?${params.toString()}`;
+  }, [page, statusFilter, categoryFilter, deferredSearch]);
+
+  const { data: responseData, isLoading, mutate } = useSWR<any>(blogsQueryUrl);
+  const { data: categoriesData } = useSWR<any[]>("/api/categories?all=true");
+  const categoriesList = useMemo(() => {
+    if (Array.isArray(categoriesData)) return categoriesData;
+    return (categoriesData as any)?.categories || [];
+  }, [categoriesData]);
+
+  const blogs = useMemo(() => {
+    if (Array.isArray(responseData)) return responseData;
+    return responseData?.blogs || [];
+  }, [responseData]);
 
   // Poll active Redis resource locks: 15s interval + revalidateOnFocus (saves 80%+ commands while keeping instant accuracy)
   const { data: locksData } = useSWR<{ locks: Record<string, { userId: string; userName: string }> }>(
@@ -53,31 +87,20 @@ function BlogsContent() {
   );
   const activeLocks = useMemo(() => locksData?.locks || {}, [locksData]);
 
-  const customFilter = useCallback(
-    (blog: any) => {
-      if (categoryFilter === "all") return true;
-      return Array.isArray(blog.categories) && blog.categories.includes(categoryFilter);
-    },
-    [categoryFilter]
-  );
-
   const {
-    searchQuery,
-    setSearchQuery,
-    statusFilter,
-    setStatusFilter,
     isTrashedView,
     filteredData: filteredBlogs,
     metricCards,
     filterTabs,
     handleBulkAction,
   } = useContentTable({
-    data,
+    data: blogs,
     entityName: "blogs",
     bulkActionEndpoint: "/api/bulk-action",
     totalIcon: BookOpen,
     includeScheduled: true,
-    customFilter,
+    serverCounts: responseData?.counts,
+    manualFiltering: true,
     mutate,
   });
 
@@ -89,7 +112,7 @@ function BlogsContent() {
     () => getBlogsColumns(handleDataChange, activeLocks, currentUserId),
     [handleDataChange, activeLocks, currentUserId]
   );
-  const loading = isLoading && !data;
+  const loading = isLoading && !responseData;
 
   return (
     <>
@@ -207,6 +230,14 @@ function BlogsContent() {
           <DataTable
             columns={columns}
             data={filteredBlogs}
+            pagination={{
+              page,
+              pageSize: 15,
+              totalPages: responseData?.pagination?.totalPages || 1,
+              totalCount: responseData?.pagination?.total ?? responseData?.totalCount,
+              onPageChange: (newPage) => setPage(newPage),
+              isLoading,
+            }}
             getRowClassName={(blog: any) => {
               const lock = activeLocks[blog.id];
               if (lock && lock.userId !== currentUserId) {

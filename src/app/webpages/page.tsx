@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useEffect } from "react";
+import { useMemo, useState, useDeferredValue } from "react";
 import useSWR, { mutate as globalMutate } from "swr";
 import Link from "next/link";
 import { Menu, FileText, Globe, Plus } from "lucide-react";
@@ -12,31 +12,53 @@ import { DataTable } from "@/components/table/DataTable";
 import { ContentMetricCards } from "@/components/table/ContentMetricCards";
 import { ContentFilterBar } from "@/components/table/ContentFilterBar";
 import { TableFloatingDock } from "@/components/table/TableFloatingDock";
-import { useContentTable } from "@/components/table/useContentTable";
+import { useContentTable, StandardContentStatus } from "@/components/table/useContentTable";
 import { getWebpagesColumns } from "./webpages-columns";
 
 export default function WebpagesPage() {
-  const { data, isLoading, mutate } = useSWR<Page[]>("/api/pages");
+  const [page, setPage] = useState<number>(1);
+  const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearch = useDeferredValue(searchQuery);
+  const [statusFilter, setStatusFilter] = useState<StandardContentStatus>("all");
 
-  useEffect(() => {
-    mutate();
-  }, [mutate]);
+  // Reset page to 1 whenever filters change without cascading renders in an effect
+  const [prevFilters, setPrevFilters] = useState({ statusFilter, deferredSearch });
+  if (
+    prevFilters.statusFilter !== statusFilter ||
+    prevFilters.deferredSearch !== deferredSearch
+  ) {
+    setPrevFilters({ statusFilter, deferredSearch });
+    setPage(1);
+  }
+
+  const pagesQueryUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set("page", String(page));
+    params.set("limit", "15");
+    if (statusFilter && statusFilter !== "all") params.set("status", statusFilter);
+    if (deferredSearch) params.set("search", deferredSearch);
+    return `/api/pages?${params.toString()}`;
+  }, [page, statusFilter, deferredSearch]);
+
+  const { data: responseData, isLoading, mutate } = useSWR<any>(pagesQueryUrl);
+
+  const pages = useMemo<Page[]>(() => {
+    if (Array.isArray(responseData)) return responseData;
+    return responseData?.pages || [];
+  }, [responseData]);
 
   const {
-    searchQuery,
-    setSearchQuery,
-    statusFilter,
-    setStatusFilter,
     isTrashedView,
-    filteredData: filteredPages,
     metricCards,
     filterTabs,
     handleBulkAction,
   } = useContentTable({
-    data,
+    data: pages,
     entityName: "webpages",
     bulkActionEndpoint: "/api/bulk-action",
     totalIcon: Globe,
+    serverCounts: responseData?.counts,
+    manualFiltering: true,
     mutate,
   });
 
@@ -48,7 +70,7 @@ export default function WebpagesPage() {
   }, [mutate]);
 
   const columns = useMemo(() => getWebpagesColumns(handleDataChange), [handleDataChange]);
-  const loading = isLoading && !data;
+  const loading = isLoading && !responseData;
 
   return (
     <>
@@ -120,7 +142,7 @@ export default function WebpagesPage() {
             <Skeleton className="h-16 w-full" />
             <Skeleton className="h-16 w-full" />
           </div>
-        ) : filteredPages.length === 0 ? (
+        ) : pages.length === 0 ? (
           <div className="text-center py-16 bg-card border border-border rounded-sm p-6">
             <div className="w-12 h-12 rounded-2xl bg-border/40 text-muted flex items-center justify-center mx-auto mb-3">
               <FileText className="w-6 h-6 text-muted-foreground" strokeWidth={2} />
@@ -137,7 +159,15 @@ export default function WebpagesPage() {
         ) : (
           <DataTable
             columns={columns}
-            data={filteredPages}
+            data={pages}
+            pagination={{
+              page,
+              pageSize: 15,
+              totalPages: responseData?.pagination?.totalPages || 1,
+              totalCount: responseData?.pagination?.total ?? responseData?.totalCount,
+              onPageChange: (newPage) => setPage(newPage),
+              isLoading,
+            }}
             renderBulkActionDock={(selectedRows, clearSelection) => (
               <TableFloatingDock
                 selectedItems={selectedRows}

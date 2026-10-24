@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     const result = await cloudinary.search
       .expression("resource_type:image")
       .sort_by("created_at", "desc")
-      .max_results(24)
+      .max_results(30)
       .next_cursor(nextCursor || undefined)
       .execute();
       

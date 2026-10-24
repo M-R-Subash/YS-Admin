@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useDeferredValue } from "react";
 import { 
   ArrowRightLeft, 
   Plus, 
@@ -14,7 +14,7 @@ import { DataTable } from "@/components/table/DataTable";
 import { ContentMetricCards } from "@/components/table/ContentMetricCards";
 import { ContentFilterBar } from "@/components/table/ContentFilterBar";
 import { TableFloatingDock } from "@/components/table/TableFloatingDock";
-import { useContentTable } from "@/components/table/useContentTable";
+import { useContentTable, StandardContentStatus } from "@/components/table/useContentTable";
 import {
   Dialog,
   DialogContent,
@@ -39,20 +39,44 @@ import {
 } from "./redirection-columns";
 
 export default function RedirectionsPage() {
-  const { data: redirectionsData, isLoading: loading, mutate } = useSWR<RedirectionItem[]>("/api/redirection?status=all");
+  const [page, setPage] = useState<number>(1);
+  const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearch = useDeferredValue(searchQuery);
+  const [statusFilter, setStatusFilter] = useState<StandardContentStatus>("all");
+
+  // Reset page to 1 whenever filters change without cascading renders in an effect
+  const [prevFilters, setPrevFilters] = useState({ statusFilter, deferredSearch });
+  if (
+    prevFilters.statusFilter !== statusFilter ||
+    prevFilters.deferredSearch !== deferredSearch
+  ) {
+    setPrevFilters({ statusFilter, deferredSearch });
+    setPage(1);
+  }
+
+  const queryUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set("page", String(page));
+    params.set("limit", "15");
+    if (statusFilter && statusFilter !== "all") params.set("status", statusFilter);
+    if (deferredSearch) params.set("search", deferredSearch);
+    return `/api/redirection?${params.toString()}`;
+  }, [page, statusFilter, deferredSearch]);
+
+  const { data: redirectionsData, isLoading: loading, mutate } = useSWR<any>(queryUrl);
+
+  const redirections = useMemo<RedirectionItem[]>(() => {
+    if (Array.isArray(redirectionsData)) return redirectionsData;
+    return redirectionsData?.redirections || [];
+  }, [redirectionsData]);
 
   const {
-    searchQuery,
-    setSearchQuery,
-    statusFilter,
-    setStatusFilter,
     isTrashedView,
-    filteredData: filteredList,
     metricCards,
     filterTabs,
     handleBulkAction,
   } = useContentTable<RedirectionItem>({
-    data: redirectionsData,
+    data: redirections,
     entityName: "Redirects",
     bulkActionEndpoint: "/api/bulk-action",
     searchFields: ["sourceUrl", "destinationUrl"],
@@ -61,6 +85,8 @@ export default function RedirectionsPage() {
       draft: "Inactive",
       trash: "Trashed",
     },
+    serverCounts: redirectionsData?.counts,
+    manualFiltering: true,
     totalIcon: Link2,
     mutate,
   });
@@ -293,7 +319,7 @@ export default function RedirectionsPage() {
             <Skeleton className="h-16 w-full" />
             <Skeleton className="h-16 w-full" />
           </div>
-        ) : filteredList.length === 0 ? (
+        ) : redirections.length === 0 ? (
           <div className="text-center py-16 bg-card border border-border rounded-sm p-6">
             <div className="w-12 h-12 rounded-2xl bg-border/40 text-muted flex items-center justify-center mx-auto mb-3">
               <ArrowRightLeft className="w-6 h-6 text-muted-foreground" strokeWidth={2} />
@@ -310,7 +336,15 @@ export default function RedirectionsPage() {
         ) : (
           <DataTable
             columns={columns}
-            data={filteredList}
+            data={redirections}
+            pagination={{
+              page,
+              pageSize: 15,
+              totalPages: redirectionsData?.pagination?.totalPages || 1,
+              totalCount: redirectionsData?.pagination?.total ?? redirectionsData?.totalCount,
+              onPageChange: (newPage) => setPage(newPage),
+              isLoading: loading,
+            }}
             renderBulkActionDock={(selectedRows, clearSelection) => (
               <TableFloatingDock
                 selectedItems={selectedRows}

@@ -32,6 +32,15 @@ export interface UseContentTableOptions<T> {
     scheduled?: string;
     trash?: string; // e.g. "Trash" or "Trashed"
   };
+  serverCounts?: {
+    total?: number;
+    published?: number;
+    scheduled?: number;
+    draft?: number;
+    trashed?: number;
+    [key: string]: number | undefined;
+  };
+  manualFiltering?: boolean;
   mutate?: () => Promise<any> | void;
 }
 
@@ -45,6 +54,8 @@ export function useContentTable<T extends { id?: string; status?: string; isTras
   totalIcon = Layers,
   includeScheduled,
   statusLabels,
+  serverCounts,
+  manualFiltering = false,
   mutate,
 }: UseContentTableOptions<T>) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -66,11 +77,22 @@ export function useContentTable<T extends { id?: string; status?: string; isTras
   // Determine if we should show scheduled count/card
   const hasScheduled = useMemo(() => {
     if (includeScheduled !== undefined) return includeScheduled;
+    if (serverCounts?.scheduled && serverCounts.scheduled > 0) return true;
     return items.some((item) => item.status === "scheduled");
-  }, [items, includeScheduled]);
+  }, [items, includeScheduled, serverCounts]);
 
-  // Compute counts in a single pass
+  // Compute counts (use server-provided counts if present, else single pass over items)
   const counts = useMemo(() => {
+    if (serverCounts) {
+      return {
+        total: serverCounts.total ?? 0,
+        published: serverCounts.published ?? 0,
+        scheduled: serverCounts.scheduled ?? 0,
+        draft: serverCounts.draft ?? 0,
+        trashed: serverCounts.trashed ?? 0,
+      };
+    }
+
     let total = 0;
     let published = 0;
     let scheduled = 0;
@@ -97,10 +119,14 @@ export function useContentTable<T extends { id?: string; status?: string; isTras
       draft,
       trashed,
     };
-  }, [items]);
+  }, [items, serverCounts]);
 
-  // Filter items based on search, status, and custom filter
+  // Filter items based on search, status, and custom filter (or bypass if manualFiltering is true)
   const filteredData = useMemo(() => {
+    if (manualFiltering) {
+      return items;
+    }
+
     const query = deferredSearch.toLowerCase().trim();
 
     return items.filter((item) => {
@@ -141,7 +167,7 @@ export function useContentTable<T extends { id?: string; status?: string; isTras
 
       return s === statusFilter.toLowerCase();
     });
-  }, [items, deferredSearch, searchFields, customFilter, statusFilter]);
+  }, [items, deferredSearch, searchFields, customFilter, statusFilter, manualFiltering]);
 
   // Automatically generated Metric Cards
   const metricCards = useMemo<MetricCardItem[]>(() => {

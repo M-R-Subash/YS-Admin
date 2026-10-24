@@ -35,6 +35,15 @@ declare module "@tanstack/react-table" {
   }
 }
 
+export interface ServerPagination {
+  page: number; // 1-indexed
+  pageSize?: number;
+  totalPages: number;
+  totalCount?: number;
+  onPageChange: (newPage: number) => void;
+  isLoading?: boolean;
+}
+
 export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
@@ -45,6 +54,7 @@ export interface DataTableProps<TData, TValue> {
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
   renderBulkActionDock?: (selectedRows: TData[], clearSelection: () => void) => React.ReactNode;
   getRowClassName?: (row: TData) => string | undefined;
+  pagination?: ServerPagination;
 }
 
 function getColumnLabel(columnId: string): string {
@@ -81,6 +91,7 @@ export function DataTable<TData, TValue>({
   onRowSelectionChange: setControlledRowSelection,
   renderBulkActionDock,
   getRowClassName,
+  pagination,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>(defaultSorting);
   const [internalRowSelection, setInternalRowSelection] = useState<RowSelectionState>({});
@@ -92,6 +103,13 @@ export function DataTable<TData, TValue>({
     data,
     columns,
     enableRowSelection,
+    initialState: {
+      pagination: {
+        pageSize: pagination?.pageSize || 15,
+      },
+    },
+    manualPagination: !!pagination,
+    pageCount: pagination ? Math.max(1, pagination.totalPages) : undefined,
     state: {
       sorting,
       rowSelection,
@@ -323,7 +341,46 @@ export function DataTable<TData, TValue>({
       </div>
 
       {/* Responsive Pagination */}
-      {data.length > 10 && (
+      {pagination ? (
+        <div className="flex items-center justify-between sm:justify-end gap-2 pt-1">
+          <div className="text-xs text-muted-foreground sm:hidden">
+            Page {pagination.page} of {Math.max(1, pagination.totalPages)}
+            {typeof pagination.totalCount === "number" && (
+              <span className="text-muted-foreground/60 ml-1">
+                ({pagination.totalCount} items)
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => pagination.onPageChange(pagination.page - 1)}
+              disabled={pagination.page <= 1 || pagination.isLoading}
+              className="h-8 text-xs cursor-pointer"
+            >
+              Previous
+            </Button>
+            <div className="text-xs text-muted-foreground hidden sm:block px-2">
+              Page {pagination.page} of {Math.max(1, pagination.totalPages)}
+              {typeof pagination.totalCount === "number" && (
+                <span className="text-muted-foreground/60 ml-1">
+                  ({pagination.totalCount} total)
+                </span>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => pagination.onPageChange(pagination.page + 1)}
+              disabled={pagination.page >= pagination.totalPages || pagination.isLoading}
+              className="h-8 text-xs cursor-pointer"
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      ) : data.length > 15 ? (
         <div className="flex items-center justify-between sm:justify-end gap-2 pt-1">
           <div className="text-xs text-muted-foreground sm:hidden">
             Page {table.getState().pagination.pageIndex + 1} of{" "}
@@ -354,7 +411,7 @@ export function DataTable<TData, TValue>({
             </Button>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Floating Bulk Action Dock */}
       {renderBulkActionDock && selectedRows.length > 0 && (

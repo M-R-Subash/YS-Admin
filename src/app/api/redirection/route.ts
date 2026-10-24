@@ -36,7 +36,7 @@ const createRedirectionSchema = z.object({
   }),
 });
 
-// GET /api/redirection - List all redirections
+// GET /api/redirection - List all redirections with pagination, search, and counts
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -46,18 +46,66 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const filter = searchParams.get("status"); // "active" | "inactive" | "trashed" | "all"
+    const search = searchParams.get("search")?.trim();
+    const pageParam = searchParams.get("page");
+    const limitParam = searchParams.get("limit");
+    const isAll = searchParams.get("all") === "true" || limitParam === "all";
+    const page = Math.max(1, parseInt(pageParam || "1", 10) || 1);
+    const limit = isAll ? 0 : Math.min(Math.max(1, parseInt(limitParam || "15", 10) || 15), 100);
+    const skip = isAll ? 0 : (page - 1) * limit;
 
     const whereClause: any = {};
-    if (filter && filter !== "all") {
+    if (filter === "trash" || filter === "trashed") {
+      whereClause.status = "trashed";
+    } else if (filter === "published" || filter === "active") {
+      whereClause.status = "active";
+    } else if (filter === "draft" || filter === "inactive") {
+      whereClause.status = "inactive";
+    } else if (filter && filter !== "all") {
       whereClause.status = filter;
+    } else {
+      whereClause.status = { not: "trashed" };
     }
 
-    const redirections = await prisma.redirection.findMany({
-      where: whereClause,
-      orderBy: { updatedAt: "desc" },
-    });
+    if (search) {
+      whereClause.OR = [
+        { sourceUrl: { contains: search, mode: "insensitive" } },
+        { destinationUrl: { contains: search, mode: "insensitive" } },
+      ];
+    }
 
-    return NextResponse.json(redirections);
+    const [redirections, matchingCount, totalCount, activeCount, inactiveCount, trashedCount] = await Promise.all([
+      prisma.redirection.findMany({
+        where: whereClause,
+        orderBy: { updatedAt: "desc" },
+        ...(isAll ? {} : { skip, take: limit }),
+      }),
+      prisma.redirection.count({ where: whereClause }),
+      prisma.redirection.count({ where: { status: { not: "trashed" } } }),
+      prisma.redirection.count({ where: { status: "active" } }),
+      prisma.redirection.count({ where: { status: "inactive" } }),
+      prisma.redirection.count({ where: { status: "trashed" } }),
+    ]);
+
+    const totalPages = isAll ? 1 : Math.max(1, Math.ceil(matchingCount / limit));
+
+    return NextResponse.json({
+      redirections,
+      totalCount: matchingCount,
+      counts: {
+        total: totalCount,
+        published: activeCount,
+        draft: inactiveCount,
+        trashed: trashedCount,
+      },
+      pagination: {
+        page: isAll ? 1 : page,
+        limit: isAll ? matchingCount : limit,
+        total: matchingCount,
+        totalPages,
+        hasMore: isAll ? false : skip + redirections.length < matchingCount,
+      },
+    });
   } catch (error: any) {
     console.error("Failed to fetch redirections:", error);
     return NextResponse.json(

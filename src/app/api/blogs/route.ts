@@ -25,6 +25,13 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
     const category = searchParams.get("category");
+    const search = searchParams.get("search")?.trim();
+    const pageParam = searchParams.get("page");
+    const limitParam = searchParams.get("limit");
+    const isAll = searchParams.get("all") === "true" || limitParam === "all";
+    const page = Math.max(1, parseInt(pageParam || "1", 10) || 1);
+    const limit = isAll ? 0 : Math.min(Math.max(1, parseInt(limitParam || "15", 10) || 15), 100);
+    const skip = isAll ? 0 : (page - 1) * limit;
 
     const whereClause: any = {};
     if (status === "trash") {
@@ -38,53 +45,91 @@ export async function GET(req: Request) {
     } else if (status === "scheduled") {
       whereClause.status = "scheduled";
       whereClause.isTrashed = false;
+    } else {
+      whereClause.isTrashed = false;
     }
 
     if (category && category !== "all") {
       whereClause.categories = { has: category };
     }
 
+    if (search) {
+      whereClause.OR = [
+        { title: { contains: search, mode: "insensitive" } },
+        { slug: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
     // Exclude heavy TipTap rich-text `content` from list view for maximum speed & minimal payload
-    const blogs = await prisma.blog.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        featuredImage: true,
-        allowComments: true,
-        status: true,
-        isTrashed: true,
-        excerpt: true,
-        readingTime: true,
-        tags: true,
-        categories: true,
-        publishedAt: true,
-        scheduledAt: true,
-        createdAt: true,
-        updatedAt: true,
-        authorId: true,
-        author: {
-          select: {
-            id: true,
-            name: true,
-            profilePicture: true,
-            authorRole: true,
-            description: true,
+    const [blogs, matchingCount, totalCount, publishedCount, draftCount, scheduledCount, trashedCount] = await Promise.all([
+      prisma.blog.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          featuredImage: true,
+          allowComments: true,
+          status: true,
+          isTrashed: true,
+          excerpt: true,
+          readingTime: true,
+          tags: true,
+          categories: true,
+          publishedAt: true,
+          scheduledAt: true,
+          createdAt: true,
+          updatedAt: true,
+          authorId: true,
+          author: {
+            select: {
+              id: true,
+              name: true,
+              profilePicture: true,
+              authorRole: true,
+              description: true,
+            },
           },
-        },
-        seo: true,
-        _count: {
-          select: { 
-            comments: {
-              where: { isTrashed: false, parentId: null }
+          seo: true,
+          _count: {
+            select: { 
+              comments: {
+                where: { isTrashed: false, parentId: null }
+              }
             }
           }
-        }
+        },
+        orderBy: { createdAt: "desc" },
+        ...(isAll ? {} : { skip, take: limit }),
+      }),
+      prisma.blog.count({ where: whereClause }),
+      prisma.blog.count({ where: { isTrashed: false } }),
+      prisma.blog.count({ where: { isTrashed: false, status: "published" } }),
+      prisma.blog.count({ where: { isTrashed: false, status: "draft" } }),
+      prisma.blog.count({ where: { isTrashed: false, status: "scheduled" } }),
+      prisma.blog.count({ where: { isTrashed: true } }),
+    ]);
+
+    const totalPages = isAll ? 1 : Math.max(1, Math.ceil(matchingCount / limit));
+
+    return NextResponse.json({
+      blogs,
+      totalCount: matchingCount,
+      counts: {
+        total: totalCount,
+        published: publishedCount,
+        draft: draftCount,
+        scheduled: scheduledCount,
+        trashed: trashedCount,
       },
-      orderBy: { createdAt: "desc" },
+      pagination: {
+        page: isAll ? 1 : page,
+        limit: isAll ? matchingCount : limit,
+        total: matchingCount,
+        totalPages,
+        hasMore: isAll ? false : skip + blogs.length < matchingCount,
+      },
     });
-    return NextResponse.json(blogs);
   } catch (error: any) {
     return NextResponse.json({ message: "Failed to fetch blogs", error: error.message }, { status: 500 });
   }
