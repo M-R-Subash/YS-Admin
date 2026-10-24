@@ -1,4 +1,3 @@
-import { Resend } from "resend";
 import nodemailer from "nodemailer";
 import { serverConfig } from "@/lib/config/server";
 
@@ -21,49 +20,7 @@ export interface EmailProvider {
 }
 
 /**
- * Resend Email Provider Adapter
- */
-export class ResendProvider implements EmailProvider {
-  private resend: Resend;
-  private from: string;
-  private defaultReplyTo: string;
-
-  constructor() {
-    this.resend = new Resend(serverConfig.email.resendApiKey);
-    this.from = serverConfig.email.from;
-    this.defaultReplyTo = serverConfig.email.replyTo;
-  }
-
-  async send({ to, subject, html, unsubscribeUrl, replyTo }: SendEmailPayload): Promise<SendEmailResult> {
-    try {
-      const headers: Record<string, string> = {};
-      if (unsubscribeUrl) {
-        headers["List-Unsubscribe"] = `<${unsubscribeUrl}>`;
-        headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
-      }
-
-      const res = await this.resend.emails.send({
-        from: this.from,
-        to: [to],
-        subject,
-        html,
-        replyTo: replyTo || this.defaultReplyTo,
-        headers,
-      });
-
-      if (res.error) {
-        return { success: false, error: res.error.message || "Resend dispatch failed" };
-      }
-
-      return { success: true, messageId: res.data?.id };
-    } catch (err: any) {
-      return { success: false, error: err?.message || "Unexpected Resend exception" };
-    }
-  }
-}
-
-/**
- * Nodemailer / Enterprise SMTP Provider Adapter (AWS SES, Brevo, SendGrid SMTP, Mailgun)
+ * Nodemailer / Enterprise SMTP Provider Adapter (AWS SES, Brevo, SendGrid SMTP, Gmail, Mailgun)
  */
 export class NodemailerProvider implements EmailProvider {
   private transporter: nodemailer.Transporter;
@@ -114,12 +71,8 @@ export class NodemailerProvider implements EmailProvider {
 }
 
 /**
- * Provider Factory
+ * Provider Factory: returns the Nodemailer / SMTP provider
  */
 export function getEmailProvider(): EmailProvider {
-  const provider = serverConfig.email.provider.toLowerCase();
-  if (provider === "nodemailer" || provider === "smtp") {
-    return new NodemailerProvider();
-  }
-  return new ResendProvider();
+  return new NodemailerProvider();
 }

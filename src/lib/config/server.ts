@@ -151,9 +151,8 @@ const serverEnvSchema = z.object({
     }, z.boolean())
     .default(true),
 
-  // Email & Newsletter Engine
-  EMAIL_PROVIDER: z.string().min(1, "EMAIL_PROVIDER is required"),
-  RESEND_API_KEY: z.string().optional().default(""),
+  // Email & Newsletter Engine (Nodemailer / SMTP / AWS SES)
+  EMAIL_PROVIDER: z.string().optional().default("nodemailer"),
   EMAIL_FROM: z.string().min(1, "EMAIL_FROM is required"),
   EMAIL_REPLY_TO: z.string().email("EMAIL_REPLY_TO must be a valid email address"),
   SMTP_HOST: z.string().optional(),
@@ -190,7 +189,6 @@ const parsedServer = serverEnvSchema.safeParse({
   CRON_SECRET: process.env.CRON_SECRET,
   CRON_ENABLED: process.env.CRON_ENABLED,
   EMAIL_PROVIDER: process.env.EMAIL_PROVIDER,
-  RESEND_API_KEY: process.env.RESEND_API_KEY,
   EMAIL_FROM: process.env.EMAIL_FROM,
   EMAIL_REPLY_TO: process.env.EMAIL_REPLY_TO,
   SMTP_HOST: process.env.SMTP_HOST,
@@ -268,8 +266,7 @@ export const serverConfig = {
     enabled: rawServer.CRON_ENABLED,
   },
   email: {
-    provider: rawServer.EMAIL_PROVIDER,
-    resendApiKey: rawServer.RESEND_API_KEY,
+    provider: rawServer.EMAIL_PROVIDER || "nodemailer",
     from: rawServer.EMAIL_FROM,
     replyTo: rawServer.EMAIL_REPLY_TO,
     smtp: {
