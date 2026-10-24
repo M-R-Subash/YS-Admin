@@ -14,39 +14,65 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const search = searchParams.get("search") || "";
+    const search = searchParams.get("search")?.trim() || "";
     const filter = searchParams.get("filter") || "all";
     const blogId = searchParams.get("blogId") || undefined;
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "15", 10), 1), 100);
+    const skip = (page - 1) * limit;
 
-    const whereClause: any = {};
+    const conditions: any[] = [];
 
     if (filter === "trashed") {
-      whereClause.isTrashed = true;
+      conditions.push({ isTrashed: true });
     } else {
-      whereClause.isTrashed = false;
+      conditions.push({ isTrashed: false });
       if (filter === "pending") {
-        whereClause.isApproved = false;
+        conditions.push({
+          OR: [
+            { isApproved: false },
+            { replies: { some: { isApproved: false, isTrashed: false } } },
+          ],
+        });
       } else if (filter === "approved") {
-        whereClause.isApproved = true;
+        conditions.push({ isApproved: true });
       }
     }
 
     if (blogId && blogId !== "all") {
-      whereClause.blogId = blogId;
+      conditions.push({ blogId });
     }
 
-    if (search.trim() !== "") {
-      whereClause.OR = [
-        { name: { contains: search, mode: "insensitive" } },
-        { email: { contains: search, mode: "insensitive" } },
-        { content: { contains: search, mode: "insensitive" } },
-        { blog: { title: { contains: search, mode: "insensitive" } } },
-      ];
+    if (search !== "") {
+      conditions.push({
+        OR: [
+          { name: { contains: search, mode: "insensitive" } },
+          { email: { contains: search, mode: "insensitive" } },
+          { content: { contains: search, mode: "insensitive" } },
+          { blog: { title: { contains: search, mode: "insensitive" } } },
+          {
+            replies: {
+              some: {
+                OR: [
+                  { name: { contains: search, mode: "insensitive" } },
+                  { email: { contains: search, mode: "insensitive" } },
+                  { content: { contains: search, mode: "insensitive" } },
+                ],
+              },
+            },
+          },
+        ],
+      });
     }
 
-    const [comments, totalCount, unapprovedCount, trashedCount, blogsWithComments] = await Promise.all([
+    const rootWhereClause = {
+      parentId: null,
+      ...(conditions.length > 0 ? { AND: conditions } : {}),
+    };
+
+    const [rootComments, matchingCount, totalCount, unapprovedCount, trashedCount, blogsWithComments] = await Promise.all([
       prisma.comment.findMany({
-        where: whereClause,
+        where: rootWhereClause,
         include: {
           blog: {
             select: {
@@ -61,10 +87,22 @@ export async function GET(request: Request) {
               name: true,
             },
           },
+          replies: {
+            where: { isTrashed: filter === "trashed" },
+            include: {
+              blog: { select: { id: true, title: true, slug: true } },
+              parent: { select: { id: true, name: true } },
+            },
+            orderBy: { createdAt: "asc" },
+          },
         },
         orderBy: { createdAt: "desc" },
+        take: limit,
+        skip: skip,
       }),
-      // Count only top-level (root) comments for total count to exclude admin replies
+      // Count total matching root discussions for this filter & search
+      prisma.comment.count({ where: rootWhereClause }),
+      // Global header metrics
       prisma.comment.count({ where: { isTrashed: false, parentId: null } }),
       prisma.comment.count({ where: { isTrashed: false, isApproved: false } }),
       prisma.comment.count({ where: { isTrashed: true } }),
@@ -90,6 +128,12 @@ export async function GET(request: Request) {
       }),
     ]);
 
+    // Flatten root comments and their replies so client receives thread data seamlessly
+    const comments = rootComments.flatMap((rc) => {
+      const { replies, ...root } = rc;
+      return [root, ...(replies || [])];
+    });
+
     // Count top-level root comments for totalComments in sidebar
     const blogsSummary = blogsWithComments.map((b) => ({
       id: b.id,
@@ -100,12 +144,21 @@ export async function GET(request: Request) {
       trashedComments: b.comments.filter((c) => c.isTrashed).length,
     }));
 
+    const hasMore = skip + rootComments.length < matchingCount;
+
     return NextResponse.json({
       comments,
       totalCount,
       unapprovedCount,
       trashedCount,
       blogsSummary,
+      pagination: {
+        page,
+        limit,
+        total: matchingCount,
+        hasMore,
+        totalPages: Math.ceil(matchingCount / limit),
+      },
     });
   } catch (error) {
     console.error("Fetch comments error:", error);

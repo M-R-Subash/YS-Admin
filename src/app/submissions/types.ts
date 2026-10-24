@@ -15,6 +15,13 @@ export interface SubmissionsResponse {
   totalCount?: number;
   unreadCount?: number;
   trashedCount?: number;
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    hasMore: boolean;
+    totalPages: number;
+  };
 }
 
 export type FilterType = "all" | "unread" | "read" | "trashed";

@@ -23,9 +23,9 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const search = searchParams.get("search") || "";
+    const search = searchParams.get("search")?.trim() || "";
     const filter = searchParams.get("filter") || "all";
-    const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "100", 10), 1), 250);
+    const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "15", 10), 1), 100);
     const page = Math.max(parseInt(searchParams.get("page") || "1", 10), 1);
     const skip = (page - 1) * limit;
 
@@ -42,30 +42,40 @@ export async function GET(request: Request) {
       }
     }
 
-    if (search.trim() !== "") {
+    if (search !== "") {
       whereClause.OR = [
         { formName: { contains: search, mode: "insensitive" } },
         { sourceUrl: { contains: search, mode: "insensitive" } },
       ];
     }
 
-    const [submissions, totalCount, unreadCount, trashedCount] = await Promise.all([
+    const [submissions, matchingCount, totalCount, unreadCount, trashedCount] = await Promise.all([
       prisma.formSubmission.findMany({
         where: whereClause,
         orderBy: { createdAt: "desc" },
         take: limit,
         skip: skip,
       }),
+      prisma.formSubmission.count({ where: whereClause }),
       prisma.formSubmission.count({ where: { isTrashed: false } }),
       prisma.formSubmission.count({ where: { isTrashed: false, isRead: false } }),
       prisma.formSubmission.count({ where: { isTrashed: true } }),
     ]);
+
+    const hasMore = skip + submissions.length < matchingCount;
 
     return NextResponse.json({
       submissions,
       totalCount,
       unreadCount,
       trashedCount,
+      pagination: {
+        page,
+        limit,
+        total: matchingCount,
+        hasMore,
+        totalPages: Math.ceil(matchingCount / limit),
+      },
     });
   } catch (error) {
     console.error("Fetch form submissions error:", error);

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback, useDeferredValue } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef, useDeferredValue } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import useSWR, { mutate as globalMutate } from "swr";
+import { mutate as globalMutate } from "swr";
+import useSWRInfinite from "swr/infinite";
 import { RefreshCw, PanelLeft } from "lucide-react";
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { Badge } from "@/components/ui/badge";
@@ -47,28 +48,75 @@ export default function SubmissionsPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const endpoint = `/api/forms/submissions?filter=${filter}`;
+  const isAuthorized =
+    status === "authenticated" && session?.user?.role === "ADMIN";
+
+  const getKey = useCallback(
+    (pageIndex: number, previousPageData: SubmissionsResponse | null) => {
+      if (!isAuthorized) return null;
+      if (previousPageData && (!previousPageData.submissions || !previousPageData.pagination?.hasMore)) {
+        return null;
+      }
+      const params = new URLSearchParams();
+      params.set("page", String(pageIndex + 1));
+      params.set("limit", "15");
+      params.set("filter", filter);
+      return `/api/forms/submissions?${params.toString()}`;
+    },
+    [isAuthorized, filter]
+  );
+
   const {
-    data: subData,
+    data: pagesData,
+    size,
+    setSize,
     isLoading: isSubLoading,
     mutate: mutateSubmissions,
-  } = useSWR<SubmissionsResponse>(
-    status === "authenticated" && session?.user?.role === "ADMIN" ? endpoint : null
-  );
+  } = useSWRInfinite<SubmissionsResponse>(getKey, {
+    revalidateFirstPage: false,
+    revalidateOnFocus: false,
+  });
 
   const submissions = useMemo(
-    () => subData?.submissions ?? [],
-    [subData?.submissions]
+    () => pagesData?.flatMap((page) => page?.submissions ?? []) ?? [],
+    [pagesData]
   );
-  const totalCount = subData?.totalCount ?? 0;
-  const unreadCount = subData?.unreadCount ?? 0;
-  const trashedCount = subData?.trashedCount ?? 0;
+  const totalCount = pagesData?.[0]?.totalCount ?? 0;
+  const unreadCount = pagesData?.[0]?.unreadCount ?? 0;
+  const trashedCount = pagesData?.[0]?.trashedCount ?? 0;
 
-  const loading = isSubLoading && !subData;
+  const lastPage = pagesData ? pagesData[pagesData.length - 1] : null;
+  const hasMore = lastPage?.pagination?.hasMore ?? false;
+  const isLoadingMore =
+    isSubLoading ||
+    (size > 0 && pagesData && typeof pagesData[size - 1] === "undefined");
+
+  const loading = isSubLoading && !pagesData;
+
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!hasMore || isLoadingMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          setSize((prev) => prev + 1);
+        }
+      },
+      { threshold: 0.1, rootMargin: "150px" }
+    );
+
+    const el = loadMoreRef.current;
+    if (el) observer.observe(el);
+
+    return () => {
+      if (el) observer.unobserve(el);
+    };
+  }, [hasMore, isLoadingMore, setSize]);
 
   const selectedSubmission =
     (selectedSubmissionState &&
-      subData?.submissions?.find((s) => s.id === selectedSubmissionState.id)) ||
+      submissions.find((s) => s.id === selectedSubmissionState.id)) ||
     selectedSubmissionState;
 
   const handleRefresh = useCallback(async () => {
@@ -85,15 +133,15 @@ export default function SubmissionsPage() {
     if (!submission.isRead && !submission.isTrashed) {
       // Optimistically update SWR cache
       mutateSubmissions(
-        (current) => {
-          if (!current) return current;
-          return {
-            ...current,
-            unreadCount: Math.max(0, (current.unreadCount || 0) - 1),
-            submissions: (current.submissions || []).map((item) =>
+        (pages) => {
+          if (!pages) return pages;
+          return pages.map((page) => ({
+            ...page,
+            unreadCount: Math.max(0, (page.unreadCount || 0) - 1),
+            submissions: (page.submissions || []).map((item) =>
               item.id === submission.id ? { ...item, isRead: true } : item
             ),
-          };
+          }));
         },
         false
       );
@@ -120,17 +168,17 @@ export default function SubmissionsPage() {
 
     // Optimistically update SWR cache
     mutateSubmissions(
-      (current) => {
-        if (!current) return current;
-        return {
-          ...current,
+      (pages) => {
+        if (!pages) return pages;
+        return pages.map((page) => ({
+          ...page,
           unreadCount: newStatus
-            ? Math.max(0, (current.unreadCount || 0) - 1)
-            : (current.unreadCount || 0) + 1,
-          submissions: (current.submissions || []).map((item) =>
+            ? Math.max(0, (page.unreadCount || 0) - 1)
+            : (page.unreadCount || 0) + 1,
+          submissions: (page.submissions || []).map((item) =>
             item.id === submission.id ? { ...item, isRead: newStatus } : item
           ),
-        };
+        }));
       },
       false
     );
@@ -300,6 +348,9 @@ export default function SubmissionsPage() {
               isSidebarOpen={isSidebarOpen}
               handleRefresh={handleRefresh}
               isRefreshing={isRefreshing}
+              loadMoreRef={loadMoreRef}
+              isLoadingMore={isLoadingMore}
+              hasMore={hasMore}
             />
 
             {/* Right Detail Pane */}

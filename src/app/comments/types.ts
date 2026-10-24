@@ -49,6 +49,13 @@ export interface CommentsResponse {
   unapprovedCount?: number;
   trashedCount?: number;
   blogsSummary?: BlogSummary[];
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    hasMore: boolean;
+    totalPages: number;
+  };
 }
 
 export function formatCompactTime(dateInput: Date | string): string {

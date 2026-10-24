@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef, useMemo, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import useSWR, { mutate as globalMutate } from "swr";
+import { mutate as globalMutate } from "swr";
+import useSWRInfinite from "swr/infinite";
 import {
   Search,
   ExternalLink,
@@ -11,6 +12,7 @@ import {
   Inbox,
   PanelLeft,
   ArrowLeft,
+  Loader2,
 } from "lucide-react";
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { Separator } from "@/components/ui/separator";
@@ -190,28 +192,77 @@ function CommentsPageContent() {
 
   const isAuthorized =
     status === "authenticated" && session?.user?.role === "ADMIN";
-  const endpoint = isAuthorized
-    ? `/api/comments?filter=${filter}&blogId=${selectedBlogId}`
-    : null;
+
+  const getKey = useCallback(
+    (pageIndex: number, previousPageData: CommentsResponse | null) => {
+      if (!isAuthorized) return null;
+      // If previous page has no more data, stop querying
+      if (previousPageData && !previousPageData.pagination?.hasMore) {
+        return null;
+      }
+      const params = new URLSearchParams();
+      params.set("page", String(pageIndex + 1));
+      params.set("limit", "15");
+      params.set("filter", filter);
+      if (selectedBlogId && selectedBlogId !== "all") {
+        params.set("blogId", selectedBlogId);
+      }
+      return `/api/comments?${params.toString()}`;
+    },
+    [isAuthorized, filter, selectedBlogId]
+  );
+
   const {
-    data: commentsData,
+    data: pagesData,
+    size,
+    setSize,
     isLoading: isCommentsLoading,
     mutate,
-  } = useSWR<CommentsResponse>(endpoint);
+  } = useSWRInfinite<CommentsResponse>(getKey, {
+    revalidateFirstPage: false,
+    revalidateOnFocus: false,
+  });
 
   const comments = useMemo(
-    () => commentsData?.comments ?? [],
-    [commentsData?.comments],
+    () => pagesData?.flatMap((page) => page?.comments ?? []) ?? [],
+    [pagesData],
   );
   const blogsSummary = useMemo(
-    () => commentsData?.blogsSummary ?? [],
-    [commentsData?.blogsSummary],
+    () => pagesData?.[0]?.blogsSummary ?? [],
+    [pagesData],
   );
-  const totalCount = commentsData?.totalCount ?? 0;
-  const unapprovedCount = commentsData?.unapprovedCount ?? 0;
-  const trashedCount = commentsData?.trashedCount ?? 0;
+  const totalCount = pagesData?.[0]?.totalCount ?? 0;
+  const unapprovedCount = pagesData?.[0]?.unapprovedCount ?? 0;
+  const trashedCount = pagesData?.[0]?.trashedCount ?? 0;
 
-  const loading = isCommentsLoading && !commentsData;
+  const lastPage = pagesData ? pagesData[pagesData.length - 1] : null;
+  const hasMore = lastPage?.pagination?.hasMore ?? false;
+  const isLoadingMore =
+    isCommentsLoading ||
+    (size > 0 && pagesData && typeof pagesData[size - 1] === "undefined");
+
+  const loading = isCommentsLoading && !pagesData;
+
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!hasMore || isLoadingMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          setSize((prev) => prev + 1);
+        }
+      },
+      { threshold: 0.1, rootMargin: "150px" }
+    );
+
+    const el = loadMoreRef.current;
+    if (el) observer.observe(el);
+
+    return () => {
+      if (el) observer.unobserve(el);
+    };
+  }, [hasMore, isLoadingMore, setSize]);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -247,17 +298,17 @@ function CommentsPageContent() {
       if (type === "approve" || type === "unapprove") {
         const newStatus = type === "approve";
         // Optimistic Update directly in SWR cache
-        mutate((current) => {
-          if (!current) return current;
-          return {
-            ...current,
+        mutate((pages) => {
+          if (!pages) return pages;
+          return pages.map((page) => ({
+            ...page,
             unapprovedCount: newStatus
-              ? Math.max(0, (current.unapprovedCount || 0) - 1)
-              : (current.unapprovedCount || 0) + 1,
-            comments: (current.comments || []).map((c) =>
+              ? Math.max(0, (page.unapprovedCount || 0) - 1)
+              : (page.unapprovedCount || 0) + 1,
+            comments: (page.comments || []).map((c) =>
               c.id === targetComment.id ? { ...c, isApproved: newStatus } : c,
             ),
-          };
+          }));
         }, false);
 
         const res = await fetch(`/api/comments/${targetComment.id}`, {
@@ -271,19 +322,19 @@ function CommentsPageContent() {
           type: "success",
         });
       } else if (type === "trash") {
-        mutate((current) => {
-          if (!current) return current;
-          return {
-            ...current,
-            totalCount: Math.max(0, (current.totalCount || 0) - 1),
-            trashedCount: (current.trashedCount || 0) + 1,
+        mutate((pages) => {
+          if (!pages) return pages;
+          return pages.map((page) => ({
+            ...page,
+            totalCount: Math.max(0, (page.totalCount || 0) - 1),
+            trashedCount: (page.trashedCount || 0) + 1,
             unapprovedCount: !targetComment.isApproved
-              ? Math.max(0, (current.unapprovedCount || 0) - 1)
-              : current.unapprovedCount,
-            comments: (current.comments || []).filter(
+              ? Math.max(0, (page.unapprovedCount || 0) - 1)
+              : page.unapprovedCount,
+            comments: (page.comments || []).filter(
               (c) => c.id !== targetComment.id,
             ),
-          };
+          }));
         }, false);
 
         const res = await fetch(`/api/comments/${targetComment.id}`, {
@@ -294,19 +345,19 @@ function CommentsPageContent() {
         if (!res.ok) throw new Error();
         toast.add({ title: "Comment moved to Trash", type: "success" });
       } else if (type === "restore") {
-        mutate((current) => {
-          if (!current) return current;
-          return {
-            ...current,
-            totalCount: (current.totalCount || 0) + 1,
-            trashedCount: Math.max(0, (current.trashedCount || 0) - 1),
+        mutate((pages) => {
+          if (!pages) return pages;
+          return pages.map((page) => ({
+            ...page,
+            totalCount: (page.totalCount || 0) + 1,
+            trashedCount: Math.max(0, (page.trashedCount || 0) - 1),
             unapprovedCount: !targetComment.isApproved
-              ? (current.unapprovedCount || 0) + 1
-              : current.unapprovedCount,
-            comments: (current.comments || []).filter(
+              ? (page.unapprovedCount || 0) + 1
+              : page.unapprovedCount,
+            comments: (page.comments || []).filter(
               (c) => c.id !== targetComment.id,
             ),
-          };
+          }));
         }, false);
 
         const res = await fetch(`/api/comments/${targetComment.id}`, {
@@ -317,15 +368,15 @@ function CommentsPageContent() {
         if (!res.ok) throw new Error();
         toast.add({ title: "Comment restored from Trash", type: "success" });
       } else if (type === "delete") {
-        mutate((current) => {
-          if (!current) return current;
-          return {
-            ...current,
-            trashedCount: Math.max(0, (current.trashedCount || 0) - 1),
-            comments: (current.comments || []).filter(
+        mutate((pages) => {
+          if (!pages) return pages;
+          return pages.map((page) => ({
+            ...page,
+            trashedCount: Math.max(0, (page.trashedCount || 0) - 1),
+            comments: (page.comments || []).filter(
               (c) => c.id !== targetComment.id,
             ),
-          };
+          }));
         }, false);
 
         const res = await fetch(`/api/comments/${targetComment.id}`, {
@@ -350,12 +401,17 @@ function CommentsPageContent() {
         if (!res.ok) throw new Error("Failed to post reply");
 
         const data = await res.json();
-        mutate((current) => {
-          if (!current) return current;
-          return {
-            ...current,
-            comments: [data.comment, ...(current.comments || [])],
-          };
+        mutate((pages) => {
+          if (!pages) return pages;
+          return pages.map((page, idx) => {
+            if (idx === 0) {
+              return {
+                ...page,
+                comments: [data.comment, ...(page.comments || [])],
+              };
+            }
+            return page;
+          });
         }, false);
         setReplyingToId(null);
         toast.add({ title: "Admin reply published", type: "success" });
@@ -796,6 +852,24 @@ function CommentsPageContent() {
                       openConfirmModal={openConfirmModal}
                     />
                   ))}
+
+                  {/* Infinite Scroll Trigger & Bottom Spinner */}
+                  <div
+                    ref={loadMoreRef}
+                    className="py-4 flex flex-col items-center justify-center min-h-[48px]"
+                  >
+                    {isLoadingMore && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground animate-pulse py-2">
+                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                        <span>Loading more discussions...</span>
+                      </div>
+                    )}
+                    {!hasMore && rootComments.length > 0 && (
+                      <div className="text-[11px] text-muted-foreground/60 py-2 select-none">
+                        All discussions loaded ({totalCount})
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

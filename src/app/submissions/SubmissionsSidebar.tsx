@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Inbox, RefreshCw } from "lucide-react";
+import { Search, Inbox, RefreshCw, Loader2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,6 +27,9 @@ interface SubmissionsSidebarProps {
   isSidebarOpen: boolean;
   handleRefresh: () => Promise<void>;
   isRefreshing: boolean;
+  loadMoreRef?: React.RefObject<HTMLDivElement | null>;
+  isLoadingMore?: boolean;
+  hasMore?: boolean;
 }
 
 export const SubmissionsSidebar = React.memo(function SubmissionsSidebar({
@@ -46,6 +49,9 @@ export const SubmissionsSidebar = React.memo(function SubmissionsSidebar({
   isSidebarOpen,
   handleRefresh,
   isRefreshing,
+  loadMoreRef,
+  isLoadingMore,
+  hasMore,
 }: SubmissionsSidebarProps) {
   return (
     <aside
@@ -232,6 +238,26 @@ export const SubmissionsSidebar = React.memo(function SubmissionsSidebar({
               </div>
             );
           })
+        )}
+
+        {/* Infinite Scroll Trigger & Bottom Spinner */}
+        {filteredSubmissions.length > 0 && (
+          <div
+            ref={loadMoreRef}
+            className="py-3 flex flex-col items-center justify-center min-h-[44px]"
+          >
+            {isLoadingMore && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground animate-pulse py-1">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                <span>Loading more...</span>
+              </div>
+            )}
+            {!hasMore && (
+              <div className="text-[11px] text-muted-foreground/60 py-1 select-none">
+                All submissions loaded ({totalCount})
+              </div>
+            )}
+          </div>
         )}
       </div>
     </aside>
