@@ -15,9 +15,10 @@ export async function GET(request: Request) {
   const search = searchParams.get("search")?.trim();
   const pageParam = searchParams.get("page");
   const limitParam = searchParams.get("limit");
+  const MAX_LIMIT = 200;
   const isAll = searchParams.get("all") === "true" || limitParam === "all";
   const page = Math.max(1, parseInt(pageParam || "1", 10) || 1);
-  const limit = isAll ? 0 : Math.min(Math.max(1, parseInt(limitParam || "15", 10) || 15), 100);
+  const limit = isAll ? MAX_LIMIT : Math.min(Math.max(1, parseInt(limitParam || "15", 10) || 15), 100);
   const skip = isAll ? 0 : (page - 1) * limit;
 
   const whereClause: any = {};
@@ -33,14 +34,16 @@ export async function GET(request: Request) {
     whereClause.isTrashed = false;
   }
 
-  if (search) {
+  const hasSearch = Boolean(search);
+  if (hasSearch) {
     whereClause.OR = [
       { title: { contains: search, mode: "insensitive" } },
       { slug: { contains: search, mode: "insensitive" } },
     ];
   }
 
-  const [pages, matchingCount, totalCount, publishedCount, draftCount, trashedCount] = await Promise.all([
+  // Single aggregate groupBy replaces 4 separate count queries
+  const [pages, groupCounts, searchMatchingCount] = await Promise.all([
     prisma.page.findMany({
       where: whereClause,
       select: {
@@ -62,15 +65,46 @@ export async function GET(request: Request) {
         },
       },
       orderBy: { updatedAt: "desc" },
-      ...(isAll ? {} : { skip, take: limit }),
+      take: limit,
+      skip,
     }),
-    prisma.page.count({ where: whereClause }),
-    prisma.page.count({ where: { isTrashed: false } }),
-    prisma.page.count({ where: { isTrashed: false, status: "published" } }),
-    prisma.page.count({ where: { isTrashed: false, status: "draft" } }),
-    prisma.page.count({ where: { isTrashed: true } }),
+    prisma.page.groupBy({
+      by: ["isTrashed", "status"],
+      _count: { _all: true },
+    }),
+    hasSearch ? prisma.page.count({ where: whereClause }) : null,
   ]);
   
+  let totalCount = 0;
+  let publishedCount = 0;
+  let draftCount = 0;
+  let trashedCount = 0;
+
+  for (const group of groupCounts) {
+    const count = group._count._all;
+    if (group.isTrashed) {
+      trashedCount += count;
+    } else {
+      totalCount += count;
+      if (group.status === "published") publishedCount += count;
+      else if (group.status === "draft") draftCount += count;
+    }
+  }
+
+  const isTrashFilter = statusParam === "trash" || statusParam === "trashed";
+  const isPublishedFilter = statusParam === "published" || statusParam === "PUBLISHED";
+  const isDraftFilter = statusParam === "draft" || statusParam === "DRAFT";
+
+  const matchingCount = hasSearch
+    ? (searchMatchingCount ?? 0)
+    : isTrashFilter
+    ? trashedCount
+    : isPublishedFilter
+    ? publishedCount
+    : isDraftFilter
+    ? draftCount
+    : totalCount;
+
   const mappedPages = pages.map(mapDbToPageData);
   const totalPages = isAll ? 1 : Math.max(1, Math.ceil(matchingCount / limit));
 

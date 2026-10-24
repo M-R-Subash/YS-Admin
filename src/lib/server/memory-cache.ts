@@ -57,18 +57,34 @@ export async function invalidateMemoryCache(prefixOrKey: string): Promise<void> 
     }
   }
 
-  // 2. Wipe from Redis
+  // 2. Wipe from Redis safely using non-blocking SCAN
   const redis = getRedisClient();
   if (!redis) return;
 
   try {
     const pattern = prefixOrKey.endsWith("*") ? prefixOrKey : `${prefixOrKey}*`;
-    const keys = await redis.keys(pattern);
-    if (keys.length > 0) {
-      await redis.del(...keys);
+    let cursor = 0;
+    const keysToDelete: string[] = [];
+
+    // Iteratively scan keys without blocking the Redis single-threaded runtime
+    do {
+      const [nextCursor, matchedKeys] = await redis.scan(cursor, {
+        match: pattern,
+        count: 100,
+      });
+      cursor = typeof nextCursor === "string" ? parseInt(nextCursor, 10) : nextCursor;
+      if (Array.isArray(matchedKeys) && matchedKeys.length > 0) {
+        keysToDelete.push(...matchedKeys);
+      }
+    } while (cursor !== 0 && keysToDelete.length < 1000);
+
+    if (keysToDelete.length > 0) {
+      await redis.del(...keysToDelete);
     }
-    // Also delete exact key if not covered
-    await redis.del(prefixOrKey);
+    // Also delete exact key if not wildcard
+    if (!prefixOrKey.includes("*")) {
+      await redis.del(prefixOrKey);
+    }
   } catch (error) {
     console.error(`[Cache:Redis] Failed to invalidate prefix "${prefixOrKey}":`, error);
   }

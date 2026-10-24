@@ -49,18 +49,50 @@ export async function GET(request: Request) {
       ];
     }
 
-    const [submissions, matchingCount, totalCount, unreadCount, trashedCount] = await Promise.all([
+    const hasSearch = search !== "";
+
+    // 1 single groupBy aggregate replaces 3 separate count queries
+    const [submissions, groupCounts, searchMatchingCount] = await Promise.all([
       prisma.formSubmission.findMany({
         where: whereClause,
         orderBy: { createdAt: "desc" },
         take: limit,
         skip: skip,
       }),
-      prisma.formSubmission.count({ where: whereClause }),
-      prisma.formSubmission.count({ where: { isTrashed: false } }),
-      prisma.formSubmission.count({ where: { isTrashed: false, isRead: false } }),
-      prisma.formSubmission.count({ where: { isTrashed: true } }),
+      prisma.formSubmission.groupBy({
+        by: ["isTrashed", "isRead"],
+        _count: { _all: true },
+      }),
+      hasSearch
+        ? prisma.formSubmission.count({ where: whereClause })
+        : null,
     ]);
+
+    let totalCount = 0;
+    let unreadCount = 0;
+    let trashedCount = 0;
+
+    for (const group of groupCounts) {
+      const count = group._count._all;
+      if (group.isTrashed) {
+        trashedCount += count;
+      } else {
+        totalCount += count;
+        if (!group.isRead) {
+          unreadCount += count;
+        }
+      }
+    }
+
+    const matchingCount = hasSearch
+      ? (searchMatchingCount ?? 0)
+      : filter === "trashed"
+      ? trashedCount
+      : filter === "unread"
+      ? unreadCount
+      : filter === "read"
+      ? totalCount - unreadCount
+      : totalCount;
 
     const hasMore = skip + submissions.length < matchingCount;
 

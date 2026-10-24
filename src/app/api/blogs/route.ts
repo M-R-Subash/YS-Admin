@@ -28,9 +28,10 @@ export async function GET(req: Request) {
     const search = searchParams.get("search")?.trim();
     const pageParam = searchParams.get("page");
     const limitParam = searchParams.get("limit");
+    const MAX_LIMIT = 200;
     const isAll = searchParams.get("all") === "true" || limitParam === "all";
     const page = Math.max(1, parseInt(pageParam || "1", 10) || 1);
-    const limit = isAll ? 0 : Math.min(Math.max(1, parseInt(limitParam || "15", 10) || 15), 100);
+    const limit = isAll ? MAX_LIMIT : Math.min(Math.max(1, parseInt(limitParam || "15", 10) || 15), 100);
     const skip = isAll ? 0 : (page - 1) * limit;
 
     const whereClause: any = {};
@@ -49,11 +50,13 @@ export async function GET(req: Request) {
       whereClause.isTrashed = false;
     }
 
-    if (category && category !== "all") {
+    const hasCategoryFilter = Boolean(category && category !== "all");
+    if (hasCategoryFilter) {
       whereClause.categories = { has: category };
     }
 
-    if (search) {
+    const hasSearch = Boolean(search);
+    if (hasSearch) {
       whereClause.OR = [
         { title: { contains: search, mode: "insensitive" } },
         { slug: { contains: search, mode: "insensitive" } },
@@ -61,7 +64,8 @@ export async function GET(req: Request) {
     }
 
     // Exclude heavy TipTap rich-text `content` from list view for maximum speed & minimal payload
-    const [blogs, matchingCount, totalCount, publishedCount, draftCount, scheduledCount, trashedCount] = await Promise.all([
+    // Single aggregate groupBy replaces 5 separate count queries, drastically reducing DB connection strain
+    const [blogs, groupCounts, searchMatchingCount] = await Promise.all([
       prisma.blog.findMany({
         where: whereClause,
         select: {
@@ -100,15 +104,47 @@ export async function GET(req: Request) {
           }
         },
         orderBy: { createdAt: "desc" },
-        ...(isAll ? {} : { skip, take: limit }),
+        take: limit,
+        skip,
       }),
-      prisma.blog.count({ where: whereClause }),
-      prisma.blog.count({ where: { isTrashed: false } }),
-      prisma.blog.count({ where: { isTrashed: false, status: "published" } }),
-      prisma.blog.count({ where: { isTrashed: false, status: "draft" } }),
-      prisma.blog.count({ where: { isTrashed: false, status: "scheduled" } }),
-      prisma.blog.count({ where: { isTrashed: true } }),
+      prisma.blog.groupBy({
+        by: ["isTrashed", "status"],
+        _count: { _all: true },
+      }),
+      hasSearch || hasCategoryFilter
+        ? prisma.blog.count({ where: whereClause })
+        : null,
     ]);
+
+    let totalCount = 0;
+    let publishedCount = 0;
+    let draftCount = 0;
+    let scheduledCount = 0;
+    let trashedCount = 0;
+
+    for (const group of groupCounts) {
+      const count = group._count._all;
+      if (group.isTrashed) {
+        trashedCount += count;
+      } else {
+        totalCount += count;
+        if (group.status === "published") publishedCount += count;
+        else if (group.status === "draft") draftCount += count;
+        else if (group.status === "scheduled") scheduledCount += count;
+      }
+    }
+
+    const matchingCount = (hasSearch || hasCategoryFilter)
+      ? (searchMatchingCount ?? 0)
+      : status === "trash"
+      ? trashedCount
+      : status === "published"
+      ? publishedCount
+      : status === "draft"
+      ? draftCount
+      : status === "scheduled"
+      ? scheduledCount
+      : totalCount;
 
     const totalPages = isAll ? 1 : Math.max(1, Math.ceil(matchingCount / limit));
 
@@ -229,24 +265,27 @@ export async function POST(req: Request) {
     const cleanCategories = Array.isArray(categories)
       ? categories.map((c: any) => String(c).trim()).filter(Boolean)
       : [];
-    for (const catName of cleanCategories) {
-      await prisma.category.upsert({
-        where: { name: catName },
-        update: {},
-        create: { name: catName, slug: slugify(catName) || "category" },
-      });
-    }
-
     const cleanTags = Array.isArray(tags)
       ? tags.map((t: any) => String(t).trim()).filter(Boolean)
       : [];
-    for (const tagName of cleanTags) {
-      await prisma.tag.upsert({
-        where: { name: tagName },
-        update: {},
-        create: { name: tagName, slug: slugify(tagName) || "tag" },
-      });
-    }
+
+    // Concurrently upsert categories and tags in parallel instead of serial round-trips
+    await Promise.all([
+      ...cleanCategories.map((catName: string) =>
+        prisma.category.upsert({
+          where: { name: catName },
+          update: {},
+          create: { name: catName, slug: slugify(catName) || "category" },
+        })
+      ),
+      ...cleanTags.map((tagName: string) =>
+        prisma.tag.upsert({
+          where: { name: tagName },
+          update: {},
+          create: { name: tagName, slug: slugify(tagName) || "tag" },
+        })
+      ),
+    ]);
 
     const newBlog = await prisma.blog.create({
       data: {

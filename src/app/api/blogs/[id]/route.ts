@@ -408,13 +408,15 @@ export async function PUT(
       const cleanCategories = Array.isArray(categories)
         ? categories.map((c: any) => String(c).trim()).filter(Boolean)
         : [];
-      for (const catName of cleanCategories) {
-        await tx.category.upsert({
-          where: { name: catName },
-          update: {},
-          create: { name: catName, slug: slugify(catName) || "category" },
-        });
-      }
+      await Promise.all(
+        cleanCategories.map((catName: string) =>
+          tx.category.upsert({
+            where: { name: catName },
+            update: {},
+            create: { name: catName, slug: slugify(catName) || "category" },
+          })
+        )
+      );
       updateData.categoryItems = {
         set: cleanCategories.map((name: string) => ({ name })),
       };
@@ -425,13 +427,15 @@ export async function PUT(
       const cleanTags = Array.isArray(tags)
         ? tags.map((t: any) => String(t).trim()).filter(Boolean)
         : [];
-      for (const tagName of cleanTags) {
-        await tx.tag.upsert({
-          where: { name: tagName },
-          update: {},
-          create: { name: tagName, slug: slugify(tagName) || "tag" },
-        });
-      }
+      await Promise.all(
+        cleanTags.map((tagName: string) =>
+          tx.tag.upsert({
+            where: { name: tagName },
+            update: {},
+            create: { name: tagName, slug: slugify(tagName) || "tag" },
+          })
+        )
+      );
       updateData.tagItems = {
         set: cleanTags.map((name: string) => ({ name })),
       };

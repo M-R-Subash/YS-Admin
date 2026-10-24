@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, Suspense, useCallback, useDeferredValue } from "react";
+import { useState, useMemo, Suspense, useCallback } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -28,6 +28,7 @@ import { ContentFilterBar } from "@/components/table/ContentFilterBar";
 import { TableFloatingDock } from "@/components/table/TableFloatingDock";
 import { useContentTable, StandardContentStatus } from "@/components/table/useContentTable";
 import { useSession } from "next-auth/react";
+import { useDebounce } from "@/hooks/useDebounce";
 import { getBlogsColumns } from "./blogs-columns";
 
 function BlogsContent() {
@@ -40,17 +41,17 @@ function BlogsContent() {
   const currentUserId = session?.user?.id;
 
   const [searchQuery, setSearchQuery] = useState("");
-  const deferredSearch = useDeferredValue(searchQuery);
+  const debouncedSearch = useDebounce(searchQuery, 300);
   const [statusFilter, setStatusFilter] = useState<StandardContentStatus>("all");
 
   // Reset page to 1 whenever filters change without cascading renders in an effect
-  const [prevFilters, setPrevFilters] = useState({ statusFilter, categoryFilter, deferredSearch });
+  const [prevFilters, setPrevFilters] = useState({ statusFilter, categoryFilter, debouncedSearch });
   if (
     prevFilters.statusFilter !== statusFilter ||
     prevFilters.categoryFilter !== categoryFilter ||
-    prevFilters.deferredSearch !== deferredSearch
+    prevFilters.debouncedSearch !== debouncedSearch
   ) {
-    setPrevFilters({ statusFilter, categoryFilter, deferredSearch });
+    setPrevFilters({ statusFilter, categoryFilter, debouncedSearch });
     setPage(1);
   }
 
@@ -60,9 +61,9 @@ function BlogsContent() {
     params.set("limit", "15");
     if (statusFilter && statusFilter !== "all") params.set("status", statusFilter);
     if (categoryFilter && categoryFilter !== "all") params.set("category", categoryFilter);
-    if (deferredSearch) params.set("search", deferredSearch);
+    if (debouncedSearch) params.set("search", debouncedSearch);
     return `/api/blogs?${params.toString()}`;
-  }, [page, statusFilter, categoryFilter, deferredSearch]);
+  }, [page, statusFilter, categoryFilter, debouncedSearch]);
 
   const { data: responseData, isLoading, mutate } = useSWR<any>(blogsQueryUrl);
   const { data: categoriesData } = useSWR<any[]>("/api/categories?all=true");
