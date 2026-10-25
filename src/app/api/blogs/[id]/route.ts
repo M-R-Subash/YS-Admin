@@ -529,6 +529,25 @@ export async function PUT(
 
   invalidateAggregateCaches();
 
+  const restoredFromVersion =
+    typeof body.restoredFromVersion === "number"
+      ? body.restoredFromVersion
+      : typeof body.restoredFromVersion === "string" && !isNaN(Number(body.restoredFromVersion))
+      ? Number(body.restoredFromVersion)
+      : null;
+
+  let customEventType: string | undefined;
+  let customAction: string | undefined;
+
+  if (restoredFromVersion) {
+    customEventType = "BLOG.REVISION_RESTORED";
+    customAction = `Restored article revision #${restoredFromVersion}`;
+  } else if (action === "schedule" || (existingBlog.status !== "scheduled" && blog.status === "scheduled")) {
+    customEventType = "BLOG.SCHEDULED";
+    const dateStr = blog.scheduledAt ? new Date(blog.scheduledAt).toLocaleString() : "";
+    customAction = dateStr ? `Scheduled article for release on ${dateStr}` : `Scheduled article for publication`;
+  }
+
   // Authoritative Audit Logging with Unified Field-Level Diffs
   await logEntityMutation({
     category: "BLOGS",
@@ -536,6 +555,9 @@ export async function PUT(
     after: blog,
     userId: session.user.id,
     request,
+    customEventType,
+    customAction,
+    extraMeta: restoredFromVersion ? { restoredFromVersion } : undefined,
   });
 
   return NextResponse.json(blog);

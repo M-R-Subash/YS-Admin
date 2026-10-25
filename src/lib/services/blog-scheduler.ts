@@ -4,6 +4,7 @@ import { revalidateFrontendPath } from "@/lib/revalidate";
 import { serverConfig } from "@/lib/config/server";
 import { createBlogRevisionSnapshot } from "@/lib/server/revision-utils";
 import { invalidateAggregateCaches } from "@/lib/server/memory-cache";
+import { recordAuditLog } from "@/lib/server/audit";
 
 function safeCompareSecret(provided: string | null | undefined, expected: string): boolean {
   if (!provided || !expected) return false;
@@ -206,6 +207,20 @@ export async function publishOverdueBlogs(): Promise<ScheduledExecutionResult> {
         console.warn("[SCHEDULER] Failed to create revision snapshot:", revError);
       }
 
+      await recordAuditLog({
+        eventType: "BLOG.AUTO_PUBLISHED",
+        category: "BLOGS",
+        action: `Auto-published scheduled article: "${stagedDraft.title || blog.title}"`,
+        target: `Blog: ${stagedDraft.title || blog.title}`,
+        userId: updated.authorId || undefined,
+        metadata: {
+          blogId: blog.id,
+          title: stagedDraft.title || blog.title,
+          slug: stagedDraft.slug || blog.slug,
+          wasStagedUpdate: true,
+        },
+      });
+
       const shouldNotify = Boolean((stagedDraft as any)?.sendNewsletter ?? blog.notifyNewsletter);
       publishedBlogsList.push({
         id: blog.id,
@@ -248,6 +263,20 @@ export async function publishOverdueBlogs(): Promise<ScheduledExecutionResult> {
       } catch (revError) {
         console.warn("[SCHEDULER] Failed to create revision snapshot:", revError);
       }
+
+      await recordAuditLog({
+        eventType: "BLOG.AUTO_PUBLISHED",
+        category: "BLOGS",
+        action: `Auto-published scheduled article: "${blog.title}"`,
+        target: `Blog: ${blog.title}`,
+        userId: updated.authorId || undefined,
+        metadata: {
+          blogId: blog.id,
+          title: blog.title,
+          slug: blog.slug,
+          wasStagedUpdate: false,
+        },
+      });
 
       publishedBlogsList.push({
         id: blog.id,

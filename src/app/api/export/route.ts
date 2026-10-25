@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, requireLiveUser, requireLiveAdmin } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
 export async function GET(request: Request) {
   try {
@@ -88,6 +89,24 @@ export async function GET(request: Request) {
       };
 
       const filename = `blogs-export-${timestamp}.json`;
+      const clientMeta = await getClientAuditMeta(request);
+      await recordAuditLog({
+        eventType: "DATA.EXPORTED",
+        category: "SETTINGS",
+        action: `Exported blog articles (${payload.totalItems} items)`,
+        target: `Export: Blogs (${payload.totalItems} records)`,
+        userId: session.user.id,
+        status: "SUCCESS",
+        ipAddress: clientMeta.ipAddress,
+        userAgent: clientMeta.userAgent,
+        metadata: {
+          exportType: "blogs",
+          itemCount: payload.totalItems,
+          filename,
+          targeted: Boolean(targetIds && targetIds.length > 0),
+        },
+      });
+
       return new NextResponse(JSON.stringify(payload, null, 2), {
         status: 200,
         headers: {
@@ -143,6 +162,24 @@ export async function GET(request: Request) {
       };
 
       const filename = `webpages-export-${timestamp}.json`;
+      const clientMeta = await getClientAuditMeta(request);
+      await recordAuditLog({
+        eventType: "DATA.EXPORTED",
+        category: "SETTINGS",
+        action: `Exported webpage documents (${payload.totalItems} items)`,
+        target: `Export: Pages (${payload.totalItems} records)`,
+        userId: session.user.id,
+        status: "SUCCESS",
+        ipAddress: clientMeta.ipAddress,
+        userAgent: clientMeta.userAgent,
+        metadata: {
+          exportType: "pages",
+          itemCount: payload.totalItems,
+          filename,
+          targeted: Boolean(targetIds && targetIds.length > 0),
+        },
+      });
+
       return new NextResponse(JSON.stringify(payload, null, 2), {
         status: 200,
         headers: {
@@ -182,6 +219,24 @@ export async function GET(request: Request) {
       };
 
       const filename = `subscribers-export-${timestamp}.json`;
+      const clientMeta = await getClientAuditMeta(request);
+      await recordAuditLog({
+        eventType: "DATA.EXPORTED",
+        category: "SETTINGS",
+        action: `Exported subscriber mailing list (${payload.totalItems} subscribers)`,
+        target: `Export: Subscribers (${payload.totalItems} records)`,
+        userId: session.user.id,
+        status: "SUCCESS",
+        ipAddress: clientMeta.ipAddress,
+        userAgent: clientMeta.userAgent,
+        metadata: {
+          exportType: "subscribers",
+          itemCount: payload.totalItems,
+          filename,
+          targeted: Boolean(targetIds && targetIds.length > 0),
+        },
+      });
+
       return new NextResponse(JSON.stringify(payload, null, 2), {
         status: 200,
         headers: {

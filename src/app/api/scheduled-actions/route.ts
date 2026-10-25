@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { publishOverdueBlogs } from "@/lib/services/blog-scheduler";
 import { invalidateAggregateCaches } from "@/lib/server/memory-cache";
+import { recordAuditLog } from "@/lib/server/audit";
 
 export async function GET() {
   try {
@@ -257,6 +258,22 @@ export async function POST() {
 
     const result = await publishOverdueBlogs();
     invalidateAggregateCaches();
+
+    await recordAuditLog({
+      eventType: "SCHEDULE.TRIGGERED_MANUALLY",
+      category: "SETTINGS",
+      action: `Triggered manual scheduled publish (${result.publishedCount} article${
+        result.publishedCount === 1 ? "" : "s"
+      } released)`,
+      userId: session.user.id,
+      status: result.success ? "SUCCESS" : "FAILED",
+      metadata: {
+        publishedCount: result.publishedCount,
+        publishedBlogs: result.publishedBlogs,
+        executionTimeMs: result.executionTimeMs,
+      },
+    });
+
     return NextResponse.json(result, { status: result.success ? 200 : 500 });
   } catch (error: any) {
     console.error("POST /api/scheduled-actions error:", error);

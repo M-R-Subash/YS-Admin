@@ -138,6 +138,24 @@ export default function MediaPage() {
         setIsUploadModalOpen(false);
         setSelectedMedia(data);
         toast.add({ title: "Success", description: "Image uploaded successfully.", type: "success" });
+
+        // Record media upload in audit trail
+        fetch("/api/audit-logs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eventType: "MEDIA.UPLOADED",
+            category: "MEDIA",
+            action: `Uploaded media image "${data.original_filename || file.name}"`,
+            target: `Media: ${data.public_id || file.name}`,
+            metadata: {
+              public_id: data.public_id,
+              format: data.format,
+              bytes: data.bytes,
+              url: data.secure_url,
+            },
+          }),
+        }).catch((auditErr) => console.warn("Failed to audit log media upload:", auditErr));
       } else {
         console.error("Cloudinary upload failed", data);
         toast.add({ title: "Error", description: "Failed to upload image.", type: "error" });

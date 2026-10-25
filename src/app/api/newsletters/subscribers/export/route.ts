@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -35,6 +36,23 @@ export async function GET() {
 
     const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
     const filename = `subscribers-${new Date().toISOString().slice(0, 10)}.csv`;
+
+    const clientMeta = await getClientAuditMeta(request);
+    await recordAuditLog({
+      eventType: "DATA.EXPORTED",
+      category: "NEWSLETTERS",
+      action: `Exported subscriber CSV (${subscribers.length} records)`,
+      target: `Export: Subscribers CSV (${subscribers.length} records)`,
+      userId: session.user.id,
+      status: "SUCCESS",
+      ipAddress: clientMeta.ipAddress,
+      userAgent: clientMeta.userAgent,
+      metadata: {
+        exportType: "subscribers_csv",
+        itemCount: subscribers.length,
+        filename,
+      },
+    });
 
     return new NextResponse(csvContent, {
       status: 200,

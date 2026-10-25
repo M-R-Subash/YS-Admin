@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import prisma from "@/lib/prisma";
 import { serverConfig } from "@/lib/config/server";
+import { recordAuditLog } from "@/lib/server/audit";
 
 const ACCESS_TOKEN_LIFETIME_MS = serverConfig.auth.jwt.accessExpiryMs;
 const REFRESH_TOKEN_LIFETIME_MS = serverConfig.auth.jwt.refreshExpiryMs;
@@ -143,7 +144,23 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials, req) {
+        const userAgent = (req?.headers as any)?.["user-agent"] || null;
+        const ipAddress =
+          ((req?.headers as any)?.["x-forwarded-for"] as string)
+            ?.split(",")[0]
+            ?.trim() ||
+          (req?.headers as any)?.["x-real-ip"] ||
+          null;
+
         if (!credentials?.email || !credentials?.password) {
+          await recordAuditLog({
+            eventType: "AUTH.LOGIN_FAILED",
+            category: "SECURITY",
+            action: "Failed login attempt: missing email or password",
+            status: "FAILED",
+            ipAddress,
+            userAgent,
+          });
           throw new Error("Invalid credentials");
         }
 
@@ -152,12 +169,31 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (!user || !user.password) {
+          await recordAuditLog({
+            eventType: "AUTH.LOGIN_FAILED",
+            category: "SECURITY",
+            action: `Failed login attempt for ${credentials.email} (unknown account)`,
+            status: "FAILED",
+            ipAddress,
+            userAgent,
+            metadata: { email: credentials.email },
+          });
           throw new Error("Incorrect email or password");
         }
 
         const isValid = await bcrypt.compare(credentials.password, user.password);
 
         if (!isValid) {
+          await recordAuditLog({
+            eventType: "AUTH.LOGIN_FAILED",
+            category: "SECURITY",
+            action: `Failed login attempt for ${credentials.email} (incorrect password)`,
+            status: "FAILED",
+            userId: user.id,
+            ipAddress,
+            userAgent,
+            metadata: { email: credentials.email },
+          });
           throw new Error("Incorrect email or password");
         }
 
@@ -167,13 +203,16 @@ export const authOptions: NextAuthOptions = {
           data: { lastLogin: new Date() },
         });
 
-        const userAgent = (req?.headers as any)?.["user-agent"] || null;
-        const ipAddress =
-          ((req?.headers as any)?.["x-forwarded-for"] as string)
-            ?.split(",")[0]
-            ?.trim() ||
-          (req?.headers as any)?.["x-real-ip"] ||
-          null;
+        await recordAuditLog({
+          eventType: "AUTH.LOGIN_SUCCESS",
+          category: "AUTH",
+          action: `User signed in: ${user.name || user.email}`,
+          status: "SUCCESS",
+          userId: user.id,
+          ipAddress,
+          userAgent,
+          metadata: { email: user.email, role: user.role },
+        });
 
         return {
           id: user.id,
@@ -289,6 +328,15 @@ export const authOptions: NextAuthOptions = {
           const hash = hashToken(token.refreshToken as string);
           await prisma.refreshToken.deleteMany({
             where: { tokenHash: hash },
+          });
+        }
+        if (token?.id) {
+          await recordAuditLog({
+            eventType: "AUTH.LOGOUT",
+            category: "AUTH",
+            action: `User signed out`,
+            status: "SUCCESS",
+            userId: token.id as string,
           });
         }
       } catch (err) {

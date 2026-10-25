@@ -149,7 +149,17 @@ function valuesDiffer(a: any, b: any): boolean {
 function getFieldValue(obj: any, key: string): any {
   if (!obj) return undefined;
   if (key === "author") {
-    return obj.author?.name || obj.author?.email || obj.authorName || obj.authorId || obj.author;
+    // Identify author consistently via authorId or author object
+    return obj.authorId || obj.author?.id || obj.author?.name || obj.author?.email || obj.author;
+  }
+  if (key === "authorName") {
+    return obj.seo?.authorName !== undefined ? obj.seo.authorName : obj.authorName;
+  }
+  if (key === "authorRole") {
+    return obj.seo?.authorRole !== undefined ? obj.seo.authorRole : obj.authorRole;
+  }
+  if (key === "authorDescription") {
+    return obj.seo?.authorDescription !== undefined ? obj.seo.authorDescription : obj.authorDescription;
   }
   if (key === "description") {
     return obj.description !== undefined ? obj.description : obj.bio;
@@ -164,6 +174,8 @@ function getFieldValue(obj: any, key: string): any {
 
 function contentDiffers(contentA: any, contentB: any): boolean {
   if (contentA === undefined && contentB === undefined) return false;
+  // If either content snapshot is missing, don't report false-positive content change
+  if (contentA === undefined || contentB === undefined) return false;
   const strA = typeof contentA === "string" ? contentA : JSON.stringify(contentA ?? "");
   const strB = typeof contentB === "string" ? contentB : JSON.stringify(contentB ?? "");
   return strA !== strB;
@@ -311,6 +323,8 @@ export function analyzeEntityDiff(
     eventType = "USER.ROLE_UPDATED";
   } else if (category === "USERS" && diff["password"]) {
     eventType = "USER.PASSWORD_CHANGED";
+  } else if (contentChanged) {
+    eventType = `${categoryPrefix}.CONTENT_UPDATED`;
   } else if (isOnlySeo) {
     eventType = `${categoryPrefix}.SEO_UPDATED`;
   }
@@ -328,21 +342,21 @@ export function analyzeEntityDiff(
     } else if (fromStatus === "trash") {
       actionSummary = `Restored ${entityLabel.toLowerCase()} from trash`;
     }
-    if (changedFieldKeys.length > 0) {
-      actionSummary += ` (and updated ${changedFieldKeys.length} field${
-        changedFieldKeys.length > 1 ? "s" : ""
-      })`;
+    if (contentChanged) {
+      actionSummary += " & updated content";
+    }
+  } else if (contentChanged) {
+    // Content changed: Prioritize saying "Updated article content" or "Updated page content"
+    if (diff["title"]) {
+      const toTitle = String(diff["title"].to || "");
+      actionSummary = `Updated ${entityLabel.toLowerCase()} content & renamed to "${toTitle}"`;
+    } else {
+      actionSummary = `Updated ${entityLabel.toLowerCase()} content`;
     }
   } else if (diff["title"]) {
     const fromTitle = String(diff["title"].from || "");
     const toTitle = String(diff["title"].to || "");
-    if (changedFieldKeys.length === 1 && !contentChanged) {
-      actionSummary = `Renamed ${entityLabel.toLowerCase()} from "${fromTitle}" to "${toTitle}"`;
-    } else {
-      actionSummary =
-        `Renamed ${entityLabel.toLowerCase()} to "${toTitle}"` +
-        (contentChanged ? " & updated content" : "");
-    }
+    actionSummary = `Renamed ${entityLabel.toLowerCase()} from "${fromTitle}" to "${toTitle}"`;
   } else if (diff["name"] && category === "USERS") {
     actionSummary = `Renamed user to "${diff["name"].to}"`;
   } else if (diff["role"] && category === "USERS") {
@@ -355,17 +369,14 @@ export function analyzeEntityDiff(
       .slice(0, 3)
       .join(", ");
     actionSummary = `Updated SEO metadata (${seoLabels})`;
-  } else if (contentChanged && changedFieldKeys.length === 0) {
-    actionSummary = `Updated ${entityLabel.toLowerCase()} content`;
   } else if (changedFieldKeys.length > 0) {
     const labels = changedFieldKeys.map((k) => diff[k]?.label || k);
     const displayLabels =
       labels.slice(0, 3).join(", ") +
       (labels.length > 3 ? ` +${labels.length - 3} more` : "");
-    actionSummary =
-      `Updated ${changedFieldKeys.length} field${
-        changedFieldKeys.length > 1 ? "s" : ""
-      }: ${displayLabels}` + (contentChanged ? " & content" : "");
+    actionSummary = `Updated ${changedFieldKeys.length} field${
+      changedFieldKeys.length > 1 ? "s" : ""
+    }: ${displayLabels}`;
   } else {
     actionSummary = `Saved ${entityLabel.toLowerCase()} modifications`;
   }
@@ -404,16 +415,29 @@ export async function logEntityMutation(options: {
   userId: string;
   request?: Request;
   customAction?: string;
+  customEventType?: string;
+  extraMeta?: Record<string, any>;
 }): Promise<void> {
-  const { category, target, before, after, userId, request, customAction } =
-    options;
+  const {
+    category,
+    target,
+    before,
+    after,
+    userId,
+    request,
+    customAction,
+    customEventType,
+    extraMeta,
+  } = options;
   const analysis = analyzeEntityDiff(category, before, after);
 
   // If literally nothing changed, skip writing a redundant audit log entry
   if (
     analysis.changedFieldKeys.length === 0 &&
     !analysis.contentChanged &&
-    !analysis.statusChanged
+    !analysis.statusChanged &&
+    !customAction &&
+    !customEventType
   ) {
     return;
   }
@@ -449,7 +473,7 @@ export async function logEntityMutation(options: {
   }
 
   await recordAuditLog({
-    eventType: analysis.eventType,
+    eventType: customEventType || analysis.eventType,
     category,
     action: customAction || analysis.actionSummary,
     target: targetLabel,
@@ -465,6 +489,7 @@ export async function logEntityMutation(options: {
       contentChanged: analysis.contentChanged,
       ...(actorSnapshot ? { _actorSnapshot: actorSnapshot } : {}),
       ...analysis.extraMeta,
+      ...(extraMeta || {}),
     },
   });
 }
