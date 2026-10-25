@@ -112,6 +112,16 @@ export default function CampaignHistoryPage() {
     setIsManualRefreshing(true);
     try {
       await Promise.all([mutateCampaigns(), mutateMetrics()]);
+      toast.add({
+        title: "Campaigns updated",
+        description: "Fetched fresh campaign data",
+        type: "success",
+      });
+    } catch {
+      toast.add({
+        title: "Failed to refresh campaigns",
+        type: "error",
+      });
     } finally {
       setTimeout(() => setIsManualRefreshing(false), 500);
     }
@@ -537,35 +547,20 @@ export default function CampaignHistoryPage() {
             searchQuery={search}
             onSearchChange={setSearch}
             searchPlaceholder="Search campaigns by subject or linked post..."
+            onRefresh={handleRefresh}
+            isRefreshing={isSpinning}
             extraRightContent={
-              <div className="flex items-center gap-1.5 shrink-0">
-                {filterType !== "all" && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setFilterType("all")}
-                    className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
-                  >
-                    <FilterX className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Clear filter</span>
-                  </Button>
-                )}
+              filterType !== "all" ? (
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
-                  onClick={handleRefresh}
-                  disabled={isSpinning}
-                  className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground cursor-pointer rounded-sm"
-                  title="Refresh campaign list"
+                  onClick={() => setFilterType("all")}
+                  className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
                 >
-                  <RefreshCw
-                    className={cn(
-                      "w-3.5 h-3.5",
-                      isSpinning && "animate-spin text-amber-500",
-                    )}
-                  />
+                  <FilterX className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Clear filter</span>
                 </Button>
-              </div>
+              ) : undefined
             }
           />
 

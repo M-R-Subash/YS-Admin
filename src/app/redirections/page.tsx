@@ -91,6 +91,26 @@ export default function RedirectionsPage() {
     mutate,
   });
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await mutate();
+      toast.add({
+        title: "Redirects updated",
+        description: "Fetched fresh redirection rules",
+        type: "success",
+      });
+    } catch {
+      toast.add({
+        title: "Failed to refresh redirects",
+        type: "error",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   // Modal State for Create/Edit
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -309,6 +329,8 @@ export default function RedirectionsPage() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           searchPlaceholder="Search source or destination..."
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
         />
 
         {/* Redirections Data Table / Responsive Cards */}

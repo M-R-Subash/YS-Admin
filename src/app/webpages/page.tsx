@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Menu, FileText, Globe, Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import { Page } from "@/types";
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { DataTable } from "@/components/table/DataTable";
@@ -61,6 +62,27 @@ export default function WebpagesPage() {
     manualFiltering: true,
     mutate,
   });
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await mutate();
+      await globalMutate("/api/dashboard/stats");
+      toast.add({
+        title: "Webpages updated",
+        description: "Fetched fresh webpage data",
+        type: "success",
+      });
+    } catch {
+      toast.add({
+        title: "Failed to refresh webpages",
+        type: "error",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const handleDataChange = useMemo(() => {
     return () => {
@@ -127,11 +149,15 @@ export default function WebpagesPage() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           searchPlaceholder="Search by title or slug..."
-          extraRightContent={
-            <Button className="h-9 rounded-sm px-3 flex items-center gap-2 text-xs cursor-pointer shrink-0">
-              <Plus className="w-3.5 h-3.5" /> Create Page
+          actionButton={
+            <Button className="h-9 rounded-sm px-2.5 sm:px-3 flex items-center gap-1.5 text-xs font-semibold cursor-pointer shrink-0">
+              <Plus className="w-3.5 h-3.5" />
+              <span className="hidden xs:inline">Create Page</span>
+              <span className="xs:hidden">Page</span>
             </Button>
           }
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
         />
 
         {/* Webpages Table / Cards */}

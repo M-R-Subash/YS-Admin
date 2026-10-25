@@ -59,6 +59,7 @@ export default function ScheduledActionsPage() {
   const [activeTab, setActiveTab] = useState<TabType>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilterType>("all");
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Reschedule Modal state
   const [selectedPost, setSelectedPost] = useState<ScheduledItem | null>(null);
@@ -110,8 +111,8 @@ export default function ScheduledActionsPage() {
     });
   }, [items, deferredSearch, activeTab, typeFilter]);
 
-  // Trigger manual publish sync
-  const handleTriggerSync = useCallback(async () => {
+  // 1. Trigger manual scheduler execution (runs overdue publisher)
+  const handleRunScheduler = useCallback(async () => {
     try {
       setIsSyncing(true);
       const res = await fetch("/api/scheduled-actions", {
@@ -125,25 +126,46 @@ export default function ScheduledActionsPage() {
       if (result.publishedCount > 0) {
         toast.add({
           title: "Scheduler Executed",
-          description: result.message,
+          description: result.message || `Published ${result.publishedCount} overdue items.`,
           type: "success",
         });
       } else {
         toast.add({
-          title: "Scheduler Synced",
-          description: "Checked for scheduled actions: none were overdue.",
-          type: "info",
+          title: "Scheduler Executed",
+          description: "All scheduled actions are up to date (none were overdue).",
+          type: "success",
         });
       }
       await mutate();
     } catch (err: any) {
       toast.add({
-        title: "Sync Error",
+        title: "Scheduler Error",
         description: err.message,
         type: "error",
       });
     } finally {
       setIsSyncing(false);
+    }
+  }, [mutate]);
+
+  // 2. Refresh data only (fetches latest state from server without executing scheduler)
+  const handleRefreshData = useCallback(async () => {
+    try {
+      setIsRefreshing(true);
+      await mutate();
+      toast.add({
+        title: "Data Refreshed",
+        description: "Fetched fresh scheduled actions data",
+        type: "success",
+      });
+    } catch (err: any) {
+      toast.add({
+        title: "Refresh Error",
+        description: err.message || "Failed to fetch latest data",
+        type: "error",
+      });
+    } finally {
+      setIsRefreshing(false);
     }
   }, [mutate]);
 
@@ -436,17 +458,18 @@ export default function ScheduledActionsPage() {
             </button>
           </div>
 
-          {/* Right: Actions (Desktop-only Run Scheduler + Schedule Action Dropdown) */}
+          {/* Right: Actions (Run Scheduler + Schedule Action Dropdown) */}
           <div className="flex items-center gap-2 shrink-0">
             <Button
               variant="outline"
               size="sm"
-              onClick={handleTriggerSync}
+              onClick={handleRunScheduler}
               disabled={isSyncing}
               className="hidden sm:inline-flex h-9 gap-2 text-xs font-semibold cursor-pointer border-border hover:bg-muted"
+              title="Execute scheduled publisher for overdue items"
             >
               <RotateCw className={`w-3.5 h-3.5 text-purple-600 ${isSyncing ? "animate-spin" : ""}`} />
-              <span className="hidden md:inline">{isSyncing ? "Checking..." : "Run Scheduler"}</span>
+              <span className="hidden md:inline">{isSyncing ? "Running..." : "Run Scheduler"}</span>
             </Button>
 
             <DropdownMenu>
@@ -461,6 +484,12 @@ export default function ScheduledActionsPage() {
                 }
               />
               <DropdownMenuContent align="end" className="w-48 text-xs">
+                <DropdownMenuItem onClick={handleRunScheduler} disabled={isSyncing} className="cursor-pointer p-0 sm:hidden">
+                  <div className="flex items-center w-full px-2.5 py-2">
+                    <RotateCw className={`w-3.5 h-3.5 mr-2 text-purple-600 ${isSyncing ? "animate-spin" : ""}`} />
+                    <span>Run Scheduler</span>
+                  </div>
+                </DropdownMenuItem>
                 <DropdownMenuItem className="cursor-pointer p-0">
                   <Link href="/blogs/create" className="flex items-center w-full px-2.5 py-2">
                     <FileText className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
@@ -489,19 +518,8 @@ export default function ScheduledActionsPage() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           searchPlaceholder="Search scheduled actions..."
-          mobileRightContent={
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={handleTriggerSync}
-              disabled={isSyncing}
-              className="h-9 w-9 shrink-0 border-border hover:bg-muted cursor-pointer"
-              title={isSyncing ? "Checking..." : "Run Scheduler"}
-            >
-              <RotateCw className={`w-3.5 h-3.5 text-purple-600 ${isSyncing ? "animate-spin" : ""}`} />
-            </Button>
-          }
+          onRefresh={handleRefreshData}
+          isRefreshing={isRefreshing}
         />
 
         {/* Data Table */}

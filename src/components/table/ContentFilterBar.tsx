@@ -138,59 +138,40 @@ export function ContentFilterBar({
     </DropdownMenu>
   );
 
-  if (filterMode === "tabs") {
-    return (
-      <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 ${className}`}>
-        {/* Filter Tabs on Left */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none no-scrollbar -mx-3.75 px-3.75 md:mx-0 md:px-0">
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.id;
-            const activeClass = tab.color ? colorMap[tab.color] : colorMap.primary;
+  const renderStatusTabs = () => (
+    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none no-scrollbar">
+      {tabs.map((tab) => {
+        const isActive = activeTab === tab.id;
+        const activeClass = tab.color ? colorMap[tab.color] : colorMap.primary;
 
-            return (
-              <button
-                key={tab.id}
-                onClick={() => onTabChange(tab.id)}
-                className={`px-3 py-1.5 rounded-sm text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap shrink-0 ${
-                  isActive
-                    ? activeClass
-                    : "bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                {tab.label}
-                {showCount && typeof tab.count === "number" && ` (${tab.count})`}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Right Side: Search Input + Optional Actions */}
-        <div className="flex items-center gap-2.5 sm:gap-3 w-full md:w-auto">
-          <div className="relative flex-1 md:w-72">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder={searchPlaceholder}
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="pl-9 h-9 text-xs w-full"
-            />
-          </div>
-          {extraRightContent}
-        </div>
-      </div>
-    );
-  }
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => onTabChange(tab.id)}
+            className={`px-3 py-1.5 rounded-sm text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap shrink-0 ${
+              isActive
+                ? activeClass
+                : "bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            {tab.label}
+            {showCount && typeof tab.count === "number" && ` (${tab.count})`}
+          </button>
+        );
+      })}
+    </div>
+  );
 
   // If a secondary filter (e.g. Category dropdown) is provided:
-  // Mobile: Row 1 = 2 filters + Action Button; Row 2 = Search + Refresh
-  // Desktop: Left = 2 filters; Right = Search + Refresh + Action Button
+  // Mobile (< md): Row 1 = Status Dropdown + Secondary Filter + Action Button; Row 2 = Search + Refresh
+  // Desktop (md:flex): Left = Status Tabs + Secondary Filter; Right = Search + Refresh + Action Button
   if (secondaryFilter) {
     return (
       <div className={`flex flex-col gap-2.5 ${className}`}>
         {/* Mobile View (< md) */}
         <div className="flex md:hidden flex-col gap-2.5 w-full">
-          {/* Row 1: Filter 1 (Status) + Filter 2 (Secondary) + Action Button */}
+          {/* Row 1: Filter 1 (Status Dropdown) + Filter 2 (Secondary) + Action Button */}
           <div className="flex items-center gap-2 w-full">
             <div className="shrink-0">
               {renderStatusDropdown("w-[95px] sm:w-[105px]")}
@@ -233,12 +214,12 @@ export function ContentFilterBar({
           </div>
         </div>
 
-        {/* Desktop View (md:flex) */}
+        {/* Desktop View (md:flex): Status Tabs + Secondary Filter on Left, Search + Refresh + Action on Right */}
         <div className="hidden md:flex items-center justify-between gap-3 w-full">
-          {/* Left: The 2 filters */}
-          <div className="flex items-center gap-2">
-            {renderStatusDropdown("w-[118px]")}
-            <div className="w-44">
+          {/* Left: Status Tabs + Secondary Filter */}
+          <div className="flex items-center gap-3">
+            {renderStatusTabs()}
+            <div className="w-40 lg:w-44">
               {secondaryFilter}
             </div>
           </div>
@@ -278,14 +259,103 @@ export function ContentFilterBar({
     );
   }
 
-  return (
-    <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 ${className}`}>
-      {/* Search & Filter Group: Filter Dropdown Button + Search Input side-by-side */}
-      <div className="flex items-center gap-2 flex-1 min-w-0">
-        {renderStatusDropdown("w-[105px] sm:w-[118px]")}
+  // Case B: If actionButton is provided without a secondary filter (e.g. Webpages)
+  if (actionButton) {
+    return (
+      <div className={`flex flex-col gap-2.5 ${className}`}>
+        {/* Mobile View (< md): Row 1 = Status Dropdown + Action Button; Row 2 = Search + Refresh */}
+        <div className="flex md:hidden flex-col gap-2.5 w-full">
+          <div className="flex items-center justify-between gap-2 w-full">
+            <div className="shrink-0">
+              {renderStatusDropdown("w-[105px] sm:w-[118px]")}
+            </div>
+            <div className="shrink-0">
+              {actionButton}
+            </div>
+          </div>
 
-        {/* Search Input beside Filter */}
-        <div className="relative flex-1 sm:max-w-xs md:max-w-sm min-w-0">
+          <div className="flex items-center gap-2 w-full">
+            <div className="relative flex-1 min-w-0">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder={searchPlaceholder}
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="pl-9 h-9 text-xs w-full bg-card"
+              />
+            </div>
+            {onRefresh && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={onRefresh}
+                disabled={isRefreshing}
+                className="h-9 w-9 shrink-0 border-border hover:bg-muted cursor-pointer"
+                title="Refresh data"
+              >
+                <RotateCw className={`w-3.5 h-3.5 text-purple-600 ${isRefreshing ? "animate-spin" : ""}`} />
+              </Button>
+            )}
+            {mobileRightContent}
+          </div>
+        </div>
+
+        {/* Extra Right Content on Mobile if present */}
+        {extraRightContent && (
+          <div className="flex md:hidden items-center gap-2 shrink-0 justify-end">
+            {extraRightContent}
+          </div>
+        )}
+
+        {/* Desktop View (md:flex): Status Tabs on Left, Search + Actions on Right */}
+        <div className="hidden md:flex items-center justify-between gap-4 w-full">
+          <div>
+            {renderStatusTabs()}
+          </div>
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="relative w-64 lg:w-72">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder={searchPlaceholder}
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="pl-9 h-9 text-xs w-full bg-card"
+              />
+            </div>
+            {onRefresh && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={onRefresh}
+                disabled={isRefreshing}
+                className="h-9 w-9 shrink-0 border-border hover:bg-muted cursor-pointer"
+                title="Refresh data"
+              >
+                <RotateCw className={`w-3.5 h-3.5 text-purple-600 ${isRefreshing ? "animate-spin" : ""}`} />
+              </Button>
+            )}
+            {actionButton}
+            {extraRightContent}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Case C: Standard Filter Bar (no secondary filter, no action button)
+  return (
+    <div className={`flex flex-col gap-2.5 ${className}`}>
+      {/* Mobile View (< md): Status Dropdown Button + Search Input + Refresh side-by-side */}
+      <div className="flex md:hidden items-center gap-2 w-full">
+        <div className="shrink-0">
+          {renderStatusDropdown("w-[95px] sm:w-[105px]")}
+        </div>
+
+        <div className="relative flex-1 min-w-0">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="text"
@@ -296,20 +366,69 @@ export function ContentFilterBar({
           />
         </div>
 
-        {/* Mobile Right Content (e.g. mobile refresh button beside search) */}
+        {onRefresh && (
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={onRefresh}
+            disabled={isRefreshing}
+            className="h-9 w-9 shrink-0 border-border hover:bg-muted cursor-pointer"
+            title="Refresh data"
+          >
+            <RotateCw className={`w-3.5 h-3.5 text-purple-600 ${isRefreshing ? "animate-spin" : ""}`} />
+          </Button>
+        )}
+
         {mobileRightContent && (
-          <div className="shrink-0 sm:hidden">
+          <div className="shrink-0">
             {mobileRightContent}
           </div>
         )}
       </div>
 
-      {/* Extra Right Content (e.g. Action buttons on desktop or wrapped on mobile) */}
+      {/* Extra Right Content on Mobile if present */}
       {extraRightContent && (
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex md:hidden items-center gap-2 shrink-0 justify-end">
           {extraRightContent}
         </div>
       )}
+
+      {/* Desktop View (md:flex): Status Tabs on Left, Search + Actions on Right */}
+      <div className="hidden md:flex items-center justify-between gap-4 w-full">
+        {/* Left: Status Tabs */}
+        <div>
+          {renderStatusTabs()}
+        </div>
+
+        {/* Right: Search Input + Actions */}
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="relative w-64 lg:w-72">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder={searchPlaceholder}
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="pl-9 h-9 text-xs w-full bg-card"
+            />
+          </div>
+          {onRefresh && (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              className="h-9 w-9 shrink-0 border-border hover:bg-muted cursor-pointer"
+              title="Refresh data"
+            >
+              <RotateCw className={`w-3.5 h-3.5 text-purple-600 ${isRefreshing ? "animate-spin" : ""}`} />
+            </Button>
+          )}
+          {extraRightContent}
+        </div>
+      </div>
     </div>
   );
 }

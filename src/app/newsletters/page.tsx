@@ -16,7 +16,16 @@ import {
   RotateCcw,
   FilterX,
   Send,
+  ChevronDown,
+  FileSpreadsheet,
 } from "lucide-react";
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { Button } from "@/components/ui/button";
@@ -95,6 +104,16 @@ export default function SubscribersPage() {
     setIsManualRefreshing(true);
     try {
       await Promise.all([mutateSubscribers(), mutateMetrics()]);
+      toast.add({
+        title: "Subscribers updated",
+        description: "Fetched fresh subscriber data",
+        type: "success",
+      });
+    } catch {
+      toast.add({
+        title: "Failed to refresh subscribers",
+        type: "error",
+      });
     } finally {
       setTimeout(() => setIsManualRefreshing(false), 500);
     }
@@ -337,9 +356,75 @@ export default function SubscribersPage() {
         />
 
         <main className="flex-1 w-full px-3.75 md:px-5 lg:px-7.5 py-4 space-y-5">
-          {/* Clean Action Bar with Actions on Left and Send Button on Right */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
-            <div className="flex items-center gap-2 flex-wrap">
+          {/* Clean Action Bar: Mobile has 1-row layout with CSV dropdown; Desktop has all 4 buttons */}
+          {/* Mobile View (< sm) */}
+          <div className="flex sm:hidden items-center justify-between gap-2 pb-2 border-b border-border w-full">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setAddModalTab("manual");
+                  setIsAddModalOpen(true);
+                }}
+                className="text-xs h-8.5 px-2.5 gap-1.5 cursor-pointer rounded-sm shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Reader</span>
+              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-8.5 px-2 gap-1 cursor-pointer rounded-sm shrink-0 text-muted-foreground hover:text-foreground border-border bg-card"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5 text-amber-500" />
+                      <span>CSV</span>
+                      <ChevronDown className="w-3 h-3 opacity-70" />
+                    </Button>
+                  }
+                />
+                <DropdownMenuContent align="start" className="w-40 text-xs p-1">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setAddModalTab("csv");
+                      setIsAddModalOpen(true);
+                    }}
+                    className="flex items-center gap-2 px-2.5 py-1.5 cursor-pointer rounded-xs hover:bg-muted"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Import CSV</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleExportCsv}
+                    className="flex items-center gap-2 px-2.5 py-1.5 cursor-pointer rounded-xs hover:bg-muted"
+                  >
+                    <Download className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>Export CSV</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            <Link href="/newsletters/compose" className="shrink-0">
+              <Button
+                size="sm"
+                className="text-xs h-8.5 px-2.5 sm:px-3 gap-1.5 bg-primary text-primary-foreground font-semibold cursor-pointer shadow-xs rounded-sm hover:opacity-90"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span className="hidden xs:inline">Send Newsletter</span>
+                <span className="xs:hidden">Send</span>
+              </Button>
+            </Link>
+          </div>
+
+          {/* Desktop View (sm:flex) */}
+          <div className="hidden sm:flex items-center justify-between gap-3 pb-2 border-b border-border">
+            <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -375,7 +460,7 @@ export default function SubscribersPage() {
               </Button>
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2">
               <Link href="/newsletters/compose">
                 <Button
                   size="sm"
@@ -399,35 +484,20 @@ export default function SubscribersPage() {
             searchQuery={search}
             onSearchChange={setSearch}
             searchPlaceholder="Search subscribers by email address..."
+            onRefresh={handleRefresh}
+            isRefreshing={isSpinning}
             extraRightContent={
-              <div className="flex items-center gap-1.5 shrink-0">
-                {statusFilter !== "all" && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setStatusFilter("all")}
-                    className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
-                  >
-                    <FilterX className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Clear filter</span>
-                  </Button>
-                )}
+              statusFilter !== "all" ? (
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
-                  onClick={handleRefresh}
-                  disabled={isSpinning}
-                  className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground cursor-pointer rounded-sm"
-                  title="Refresh subscriber list"
+                  onClick={() => setStatusFilter("all")}
+                  className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
                 >
-                  <RefreshCw
-                    className={cn(
-                      "w-3.5 h-3.5",
-                      isSpinning && "animate-spin text-amber-500",
-                    )}
-                  />
+                  <FilterX className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Clear filter</span>
                 </Button>
-              </div>
+              ) : undefined
             }
           />
 
