@@ -29,6 +29,7 @@ import { TableFloatingDock } from "@/components/table/TableFloatingDock";
 import { useContentTable, StandardContentStatus } from "@/components/table/useContentTable";
 import { useSession } from "next-auth/react";
 import { useDebounce } from "@/hooks/useDebounce";
+import { toast } from "@/components/ui/toast";
 import { getBlogsColumns } from "./blogs-columns";
 
 function BlogsContent() {
@@ -36,6 +37,7 @@ function BlogsContent() {
   const urlCategory = searchParams.get("category");
   const [categoryFilter, setCategoryFilter] = useState<string>(urlCategory || "all");
   const [page, setPage] = useState<number>(1);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const { data: session } = useSession();
   const currentUserId = session?.user?.id;
@@ -76,6 +78,18 @@ function BlogsContent() {
     if (Array.isArray(responseData)) return responseData;
     return responseData?.blogs || [];
   }, [responseData]);
+
+  const handleRefresh = async () => {
+    try {
+      setIsRefreshing(true);
+      await mutate();
+      toast.add({ title: "Blogs updated", description: "Fetched fresh blog posts", type: "success" });
+    } catch {
+      toast.add({ title: "Failed to refresh blogs", type: "error" });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Poll active Redis resource locks: 15s interval + revalidateOnFocus (saves 80%+ commands while keeping instant accuracy)
   const { data: locksData } = useSWR<{ locks: Record<string, { userId: string; userName: string }> }>(
@@ -132,45 +146,44 @@ function BlogsContent() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           searchPlaceholder="Search by title or slug..."
-          extraRightContent={
-            <div className="flex items-center gap-2 shrink-0">
-              {/* Category Filter Dropdown */}
-              <div className="w-44">
-                <Select
-                  value={categoryFilter}
-                  onValueChange={(val) => setCategoryFilter(val ?? "all")}
-                >
-                  <SelectTrigger className="h-9 px-3 text-xs w-full bg-card border-border cursor-pointer">
-                    <div className="flex items-center gap-1.5 truncate">
-                      <FolderTree className="size-3.5 text-muted-foreground shrink-0" />
-                      <SelectValue placeholder="All Categories" />
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent className="max-h-56">
-                    <SelectItem value="all" className="text-xs cursor-pointer font-semibold">
-                      All Categories
-                    </SelectItem>
-                    {categoriesList.map((cat: any) => (
-                      <SelectItem
-                        key={cat.id}
-                        value={cat.name}
-                        className="text-xs cursor-pointer"
-                      >
-                        {cat.name} ({cat.postCount || 0})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Create Post Button */}
-              <Link href="/blogs/create" className="shrink-0">
-                <Button className="h-9 rounded-sm px-3 flex items-center gap-2 text-xs cursor-pointer">
-                  <Plus className="w-3.5 h-3.5" /> Create Post
-                </Button>
-              </Link>
-            </div>
+          secondaryFilter={
+            <Select
+              value={categoryFilter}
+              onValueChange={(val) => setCategoryFilter(val ?? "all")}
+            >
+              <SelectTrigger className="h-9 px-2.5 sm:px-3 text-xs w-full bg-card border-border cursor-pointer">
+                <div className="flex items-center gap-1.5 truncate">
+                  <FolderTree className="size-3.5 text-muted-foreground shrink-0" />
+                  <SelectValue placeholder="All Categories" />
+                </div>
+              </SelectTrigger>
+              <SelectContent className="max-h-56">
+                <SelectItem value="all" className="text-xs cursor-pointer font-semibold">
+                  All Categories
+                </SelectItem>
+                {categoriesList.map((cat: any) => (
+                  <SelectItem
+                    key={cat.id}
+                    value={cat.name}
+                    className="text-xs cursor-pointer"
+                  >
+                    {cat.name} ({cat.postCount || 0})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           }
+          actionButton={
+            <Link href="/blogs/create" className="shrink-0">
+              <Button className="h-9 rounded-sm px-2.5 sm:px-3 flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
+                <Plus className="w-3.5 h-3.5" />
+                <span className="hidden xs:inline">Create Post</span>
+                <span className="xs:hidden">Post</span>
+              </Button>
+            </Link>
+          }
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
         />
 
         {/* Category Active Filter Banner */}
