@@ -395,66 +395,67 @@ export default function ScheduledActionsPage() {
       <AdminTopBar breadcrumbs="Scheduled Actions" />
 
       <div className="flex flex-1 flex-col gap-6 py-6 px-3.75 md:px-5 lg:px-7.5">
-        {/* Top Control Bar: Tab Switcher (Left) & Action Buttons (Right) with Space-Between */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* Top Control Bar: Tab Switcher (Left) & Action Buttons (Right) in One Row */}
+        <div className="flex items-center justify-between gap-2 overflow-x-auto scrollbar-none pb-0.5">
           {/* Left: Tab Switcher (All Types / Blogs / Newsletters) */}
-          <div className="flex items-center p-0.5 rounded-sm bg-muted border border-border self-start sm:self-auto">
+          <div className="flex items-center p-0.5 rounded-sm bg-muted border border-border shrink-0">
             <button
               type="button"
               onClick={() => setTypeFilter("all")}
-              className={`px-3 py-1.5 text-xs font-medium rounded-xs transition-colors cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1.5 text-xs font-medium rounded-xs transition-colors cursor-pointer ${
                 typeFilter === "all"
                   ? "bg-card text-foreground shadow-2xs font-semibold"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              All Types ({counts.all})
+              All Types
             </button>
             <button
               type="button"
               onClick={() => setTypeFilter("blog")}
-              className={`px-3 py-1.5 text-xs font-medium rounded-xs transition-colors cursor-pointer flex items-center gap-1.5 ${
+              className={`px-2.5 sm:px-3 py-1.5 text-xs font-medium rounded-xs transition-colors cursor-pointer flex items-center gap-1.5 ${
                 typeFilter === "blog"
                   ? "bg-card text-foreground shadow-2xs font-semibold"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <FileText className="w-3.5 h-3.5 text-muted-foreground" />
-              <span>Blogs ({counts.blogs || 0})</span>
+              <span>Blogs</span>
             </button>
             <button
               type="button"
               onClick={() => setTypeFilter("newsletter")}
-              className={`px-3 py-1.5 text-xs font-medium rounded-xs transition-colors cursor-pointer flex items-center gap-1.5 ${
+              className={`px-2.5 sm:px-3 py-1.5 text-xs font-medium rounded-xs transition-colors cursor-pointer flex items-center gap-1.5 ${
                 typeFilter === "newsletter"
                   ? "bg-card text-foreground shadow-2xs font-semibold"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <Mail className="w-3.5 h-3.5 text-violet-500" />
-              <span>Newsletters ({counts.newsletters || 0})</span>
+              <span>Newsletters</span>
             </button>
           </div>
 
-          {/* Right: The Two Buttons (Run Scheduler & Schedule Action) */}
-          <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+          {/* Right: Actions (Desktop-only Run Scheduler + Schedule Action Dropdown) */}
+          <div className="flex items-center gap-2 shrink-0">
             <Button
               variant="outline"
               size="sm"
               onClick={handleTriggerSync}
               disabled={isSyncing}
-              className="h-9 gap-2 text-xs font-semibold cursor-pointer border-border hover:bg-muted"
+              className="hidden sm:inline-flex h-9 gap-2 text-xs font-semibold cursor-pointer border-border hover:bg-muted"
             >
               <RotateCw className={`w-3.5 h-3.5 text-purple-600 ${isSyncing ? "animate-spin" : ""}`} />
-              <span className="hidden sm:inline">{isSyncing ? "Checking..." : "Run Scheduler"}</span>
+              <span className="hidden md:inline">{isSyncing ? "Checking..." : "Run Scheduler"}</span>
             </Button>
 
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <Button size="sm" className="h-9 gap-1.5 text-xs font-semibold cursor-pointer">
+                  <Button size="sm" className="h-9 gap-1.5 px-2.5 sm:px-3 text-xs font-semibold cursor-pointer shrink-0">
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Schedule Action</span>
+                    <span className="hidden xs:inline">Schedule Action</span>
+                    <span className="xs:hidden">Schedule</span>
                     <ChevronDown className="w-3 h-3 ml-0.5 opacity-70" />
                   </Button>
                 }
@@ -480,7 +481,7 @@ export default function ScheduledActionsPage() {
         {/* 4 Metric Cards */}
         <ContentMetricCards cards={metricCards} loading={isLoading && !data} />
 
-        {/* Search & Tabs Filter Row */}
+        {/* Search & Filter Row */}
         <ContentFilterBar
           tabs={filterTabs}
           activeTab={activeTab}
@@ -488,6 +489,19 @@ export default function ScheduledActionsPage() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           searchPlaceholder="Search scheduled actions..."
+          mobileRightContent={
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={handleTriggerSync}
+              disabled={isSyncing}
+              className="h-9 w-9 shrink-0 border-border hover:bg-muted cursor-pointer"
+              title={isSyncing ? "Checking..." : "Run Scheduler"}
+            >
+              <RotateCw className={`w-3.5 h-3.5 text-purple-600 ${isSyncing ? "animate-spin" : ""}`} />
+            </Button>
+          }
         />
 
         {/* Data Table */}

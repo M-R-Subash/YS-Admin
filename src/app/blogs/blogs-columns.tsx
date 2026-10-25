@@ -169,15 +169,15 @@ export const getBlogsColumns = (
       const isLockedByOther = Boolean(lock && lock.userId !== currentUserId);
 
       return (
-        <div className="flex items-center gap-3 w-full max-w-60 md:max-w-65 min-w-0">
+        <div className="flex items-center gap-2 sm:gap-3 w-full sm:max-w-60 md:max-w-65 min-w-0">
           {blog.featuredImage ? (
             <img
               src={blog.featuredImage}
               alt={blog.title}
-              className="w-10 h-10 rounded-sm object-cover shrink-0 bg-muted border border-border"
+              className="hidden sm:block w-10 h-10 rounded-sm object-cover shrink-0 bg-muted border border-border"
             />
           ) : (
-            <div className="w-10 h-10 rounded-sm bg-muted flex items-center justify-center shrink-0 border border-border text-[10px] text-muted-foreground uppercase font-bold">
+            <div className="hidden sm:flex w-10 h-10 rounded-sm bg-muted items-center justify-center shrink-0 border border-border text-[10px] text-muted-foreground uppercase font-bold">
               Img
             </div>
           )}

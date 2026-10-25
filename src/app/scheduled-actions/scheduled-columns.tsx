@@ -93,19 +93,19 @@ export const getScheduledColumns = ({
       const isNewsletter = item.itemType === "newsletter";
 
       return (
-        <div className="flex items-center gap-3 w-full max-w-60 md:max-w-65 min-w-0">
+        <div className="flex items-center gap-2 sm:gap-3 w-full sm:max-w-60 md:max-w-65 min-w-0">
           {isNewsletter ? (
-            <div className="w-10 h-10 rounded-sm bg-violet-500/10 text-violet-600 dark:text-violet-400 flex items-center justify-center shrink-0 border border-violet-500/25">
+            <div className="hidden sm:flex w-10 h-10 rounded-sm bg-violet-500/10 text-violet-600 dark:text-violet-400 items-center justify-center shrink-0 border border-violet-500/25">
               <Mail className="w-5 h-5" />
             </div>
           ) : item.featuredImage ? (
             <img
               src={item.featuredImage}
               alt={item.title}
-              className="w-10 h-10 rounded-sm object-cover shrink-0 bg-muted border border-border"
+              className="hidden sm:block w-10 h-10 rounded-sm object-cover shrink-0 bg-muted border border-border"
             />
           ) : (
-            <div className="w-10 h-10 rounded-sm bg-muted flex items-center justify-center shrink-0 border border-border text-[10px] text-muted-foreground uppercase font-bold">
+            <div className="hidden sm:flex w-10 h-10 rounded-sm bg-muted items-center justify-center shrink-0 border border-border text-[10px] text-muted-foreground uppercase font-bold">
               Img
             </div>
           )}
