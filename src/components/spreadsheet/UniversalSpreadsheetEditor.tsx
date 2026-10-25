@@ -1259,9 +1259,16 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
                               )}
                             </div>
 
-                            {/* Status Column: Segmented Control */}
+                            {/* Status Column: Segmented Control (Draft, Published, Scheduled in one row) */}
                             {col.type === "status" && (
-                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 p-1 bg-muted/40 rounded-lg border border-border/80">
+                              <div
+                                className={cn(
+                                  "grid gap-1.5 p-1 bg-muted/40 rounded-lg border border-border/80",
+                                  statusOptions.length === 3
+                                    ? "grid-cols-3"
+                                    : "grid-cols-2"
+                                )}
+                              >
                                 {statusOptions.map((opt) => (
                                   <button
                                     type="button"
@@ -1277,7 +1284,7 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
                                       }
                                     }}
                                     className={cn(
-                                      "py-1.5 px-2 rounded-md text-xs font-semibold text-center transition-all cursor-pointer select-none",
+                                      "py-1.5 px-1 sm:px-2 rounded-md text-xs font-semibold text-center transition-all cursor-pointer select-none truncate",
                                       cellVal === opt.value
                                         ? cn(
                                             opt.activeClass,
