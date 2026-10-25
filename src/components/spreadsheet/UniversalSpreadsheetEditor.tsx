@@ -19,6 +19,10 @@ import {
   Redo2,
   ArrowDownToLine,
   X,
+  ChevronDown,
+  ChevronUp,
+  ChevronsUpDown,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -102,6 +106,38 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
   // In-Grid Search Filter State
   const [gridSearch, setGridSearch] = useState("");
   const deferredGridSearch = useDeferredValue(gridSearch);
+
+  // Mobile Accordion Cards Expansion State (default expand first 3 on mobile)
+  const [expandedCardIds, setExpandedCardIds] = useState<Set<string>>(() =>
+    new Set(initialItems.slice(0, 3).map((i) => i.id))
+  );
+  const [expandedSeoCardIds, setExpandedSeoCardIds] = useState<Set<string>>(() => new Set());
+
+  const toggleCardExpanded = useCallback((id: string) => {
+    setExpandedCardIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const expandAllCards = useCallback(() => {
+    setExpandedCardIds(new Set(items.map((i) => i.id)));
+  }, [items]);
+
+  const collapseAllCards = useCallback(() => {
+    setExpandedCardIds(new Set());
+  }, []);
+
+  const toggleCardSeo = useCallback((id: string) => {
+    setExpandedSeoCardIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   // Column visibility
   const [visibleColumnKeys, setVisibleColumnKeys] = useState<Set<string>>(() => {
@@ -603,37 +639,213 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
     <TooltipProvider delay={100}>
       <div className="w-full flex flex-col gap-3.5 animate-in fade-in duration-200">
         {/* Top Header Bar */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 p-3.5 bg-card border border-border rounded-xl shadow-xs shrink-0">
-          <div className="flex items-center gap-3">
-            {/* Back Icon-Only Button */}
-            <Link href={backHref}>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 cursor-pointer rounded-lg border-border hover:bg-muted"
-                title={`Return to ${entityLabel}s`}
-              >
-                <ArrowLeft className="w-4 h-4 text-foreground" />
-              </Button>
-            </Link>
-            <div className="h-4 w-px bg-border hidden sm:block" />
-            <div className="flex items-center gap-2.5">
-              <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2.5 sm:gap-3 p-3 sm:p-3.5 bg-card border border-border rounded-xl shadow-xs shrink-0">
+          <div className="flex items-center justify-between w-full md:w-auto gap-2">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+              {/* Back Icon-Only Button */}
+              <Link href={backHref} className="shrink-0">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 cursor-pointer rounded-lg border-border hover:bg-muted"
+                  title={`Return to ${entityLabel}s`}
+                >
+                  <ArrowLeft className="w-4 h-4 text-foreground" />
+                </Button>
+              </Link>
+              <div className="h-4 w-px bg-border hidden sm:block shrink-0" />
+              <div className="hidden sm:flex p-1.5 rounded-lg bg-primary/10 text-primary shrink-0">
                 <FileSpreadsheet className="w-4 h-4" />
               </div>
-              <div>
-                <h1 className="text-sm font-bold text-foreground">
-                  {entityLabel} Spreadsheet Bulk Editor
-                </h1>
-                <p className="text-[11px] text-muted-foreground">
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <h1 className="text-sm font-bold text-foreground truncate">
+                    <span className="sm:hidden">Bulk Edit {entityLabel}s</span>
+                    <span className="hidden sm:inline">
+                      {entityLabel} Spreadsheet Bulk Editor
+                    </span>
+                  </h1>
+                  <Badge
+                    variant="secondary"
+                    className="text-[10px] px-1.5 py-0 h-4 font-mono font-semibold shrink-0"
+                  >
+                    {items.length}
+                  </Badge>
+                </div>
+                <p className="text-[11px] text-muted-foreground truncate hidden sm:block">
                   Editing {items.length} selected {entityLabel.toLowerCase()}s in real-time
                 </p>
               </div>
             </div>
+
+            {/* Mobile Top Actions: Undo, Redo, Export */}
+            <div className="flex md:hidden items-center gap-1 shrink-0">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleUndo}
+                disabled={past.length === 0}
+                className="h-8 w-8 text-xs cursor-pointer rounded-lg border-border hover:bg-muted disabled:opacity-40"
+                title="Undo (Ctrl+Z)"
+              >
+                <Undo2 className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleRedo}
+                disabled={future.length === 0}
+                className="h-8 w-8 text-xs cursor-pointer rounded-lg border-border hover:bg-muted disabled:opacity-40"
+                title="Redo (Ctrl+Y)"
+              >
+                <Redo2 className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setIsExportModalOpen(true)}
+                className="h-8 w-8 cursor-pointer rounded-lg border-border hover:bg-muted"
+                title="Export data"
+              >
+                <Download className="w-3.5 h-3.5 text-muted-foreground" />
+              </Button>
+            </div>
           </div>
 
-          {/* Toolbar & Actions */}
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+          {/* Mobile Row 2: Search + Column Filter + Expand/Collapse All Toggle */}
+          <div className="flex md:hidden items-center gap-1.5 w-full">
+            <div className="relative flex-1 min-w-0">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <Input
+                value={gridSearch}
+                onChange={(e) => setGridSearch(e.target.value)}
+                placeholder={`Filter ${entityLabel.toLowerCase()}s...`}
+                className="h-8 pl-8 pr-7 text-xs bg-muted/40 border-border rounded-lg w-full"
+              />
+              {gridSearch && (
+                <button
+                  type="button"
+                  onClick={() => setGridSearch("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Mobile Column Filter Popover */}
+            <Popover>
+              <PopoverTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs cursor-pointer border-border shrink-0 px-2 flex items-center gap-1.5"
+                    title="Toggle visible columns"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>Cols</span>
+                    <span className="text-[10px] font-mono font-bold bg-primary/10 text-primary px-1.5 py-0.2 rounded-full">
+                      {visibleColumnKeys.size}
+                    </span>
+                  </Button>
+                }
+              />
+              <PopoverContent align="end" className="w-72 p-3 space-y-2.5">
+                <div className="flex items-center justify-between pb-2 border-b border-border">
+                  <span className="text-[11px] font-bold text-foreground uppercase tracking-wider">
+                    Toggle Columns
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setVisibleColumnKeys(new Set(columns.map((c) => c.key)))
+                      }
+                      className="text-[10px] text-primary hover:underline font-semibold cursor-pointer"
+                    >
+                      Select All
+                    </button>
+                    <span className="text-muted-foreground text-[10px]">|</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setVisibleColumnKeys(new Set(columns.slice(0, 4).map((c) => c.key)))
+                      }
+                      className="text-[10px] text-muted-foreground hover:text-foreground font-semibold cursor-pointer"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-1 max-h-80 overflow-y-auto pr-1">
+                  {columns.map((col) => {
+                    const isChecked = visibleColumnKeys.has(col.key);
+                    return (
+                      <div
+                        key={col.key}
+                        onClick={() => {
+                          const next = new Set(visibleColumnKeys);
+                          if (isChecked) next.delete(col.key);
+                          else next.add(col.key);
+                          setVisibleColumnKeys(next);
+                        }}
+                        className="flex items-center justify-between p-1.5 rounded-md hover:bg-muted/60 cursor-pointer transition-colors select-none"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Checkbox
+                            checked={isChecked}
+                            onCheckedChange={(checked) => {
+                              const next = new Set(visibleColumnKeys);
+                              if (checked) next.add(col.key);
+                              else next.delete(col.key);
+                              setVisibleColumnKeys(next);
+                            }}
+                          />
+                          <span className="text-xs font-medium text-foreground truncate">
+                            {col.label}
+                          </span>
+                        </div>
+                        {col.category && (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] px-1.5 py-0 h-4 font-normal text-muted-foreground border-border/80"
+                          >
+                            {col.category}
+                          </Badge>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Expand / Collapse All */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (expandedCardIds.size === filteredItems.length && filteredItems.length > 0) {
+                  collapseAllCards();
+                } else {
+                  expandAllCards();
+                }
+              }}
+              className="h-8 text-xs cursor-pointer border-border shrink-0 px-2 flex items-center gap-1"
+              title="Expand or collapse all cards"
+            >
+              <ChevronsUpDown className="w-3.5 h-3.5 text-muted-foreground" />
+              <span>
+                {expandedCardIds.size === filteredItems.length && filteredItems.length > 0
+                  ? "Collapse"
+                  : "Expand"}
+              </span>
+            </Button>
+          </div>
+
+          {/* Desktop Toolbar & Actions */}
+          <div className="hidden md:flex flex-wrap items-center gap-2 w-auto justify-end">
             {/* Local Undo & Redo Buttons */}
             <div className="flex items-center gap-1 border-r border-border pr-2">
               <Tooltip>
@@ -707,124 +919,124 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
               <span>Export</span>
             </Button>
 
-          {/* Columns Selector Popover */}
-          <Popover>
-            <PopoverTrigger
-              render={
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs cursor-pointer border-border"
-                >
-                  <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5" />
-                  <span>Columns ({visibleColumnKeys.size})</span>
-                </Button>
-              }
-            />
-            <PopoverContent align="end" className="w-72 p-3 space-y-2.5">
-              <div className="flex items-center justify-between pb-2 border-b border-border">
-                <span className="text-[11px] font-bold text-foreground uppercase tracking-wider">
-                  Toggle Columns
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setVisibleColumnKeys(new Set(columns.map((c) => c.key)))
-                    }
-                    className="text-[10px] text-primary hover:underline font-semibold cursor-pointer"
+            {/* Columns Selector Popover */}
+            <Popover>
+              <PopoverTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs cursor-pointer border-border"
                   >
-                    Select All
-                  </button>
-                  <span className="text-muted-foreground text-[10px]">|</span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setVisibleColumnKeys(new Set(columns.slice(0, 4).map((c) => c.key)))
-                    }
-                    className="text-[10px] text-muted-foreground hover:text-foreground font-semibold cursor-pointer"
-                  >
-                    Reset
-                  </button>
-                </div>
-              </div>
-              <div className="space-y-1 max-h-80 overflow-y-auto pr-1">
-                {columns.map((col) => {
-                  const isChecked = visibleColumnKeys.has(col.key);
-                  return (
-                    <div
-                      key={col.key}
-                      onClick={() => {
-                        const next = new Set(visibleColumnKeys);
-                        if (isChecked) next.delete(col.key);
-                        else next.add(col.key);
-                        setVisibleColumnKeys(next);
-                      }}
-                      className="flex items-center justify-between p-1.5 rounded-md hover:bg-muted/60 cursor-pointer transition-colors select-none"
+                    <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5" />
+                    <span>Columns ({visibleColumnKeys.size})</span>
+                  </Button>
+                }
+              />
+              <PopoverContent align="end" className="w-72 p-3 space-y-2.5">
+                <div className="flex items-center justify-between pb-2 border-b border-border">
+                  <span className="text-[11px] font-bold text-foreground uppercase tracking-wider">
+                    Toggle Columns
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setVisibleColumnKeys(new Set(columns.map((c) => c.key)))
+                      }
+                      className="text-[10px] text-primary hover:underline font-semibold cursor-pointer"
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <Checkbox
-                          checked={isChecked}
-                          onCheckedChange={(checked) => {
-                            const next = new Set(visibleColumnKeys);
-                            if (checked) next.add(col.key);
-                            else next.delete(col.key);
-                            setVisibleColumnKeys(next);
-                          }}
-                        />
-                        <span className="text-xs font-medium text-foreground truncate">
-                          {col.label}
-                        </span>
+                      Select All
+                    </button>
+                    <span className="text-muted-foreground text-[10px]">|</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setVisibleColumnKeys(new Set(columns.slice(0, 4).map((c) => c.key)))
+                      }
+                      className="text-[10px] text-muted-foreground hover:text-foreground font-semibold cursor-pointer"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-1 max-h-80 overflow-y-auto pr-1">
+                  {columns.map((col) => {
+                    const isChecked = visibleColumnKeys.has(col.key);
+                    return (
+                      <div
+                        key={col.key}
+                        onClick={() => {
+                          const next = new Set(visibleColumnKeys);
+                          if (isChecked) next.delete(col.key);
+                          else next.add(col.key);
+                          setVisibleColumnKeys(next);
+                        }}
+                        className="flex items-center justify-between p-1.5 rounded-md hover:bg-muted/60 cursor-pointer transition-colors select-none"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Checkbox
+                            checked={isChecked}
+                            onCheckedChange={(checked) => {
+                              const next = new Set(visibleColumnKeys);
+                              if (checked) next.add(col.key);
+                              else next.delete(col.key);
+                              setVisibleColumnKeys(next);
+                            }}
+                          />
+                          <span className="text-xs font-medium text-foreground truncate">
+                            {col.label}
+                          </span>
+                        </div>
+                        {col.category && (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] px-1.5 py-0 h-4 font-normal text-muted-foreground border-border/80"
+                          >
+                            {col.category}
+                          </Badge>
+                        )}
                       </div>
-                      {col.category && (
-                        <Badge
-                          variant="outline"
-                          className="text-[9px] px-1.5 py-0 h-4 font-normal text-muted-foreground border-border/80"
-                        >
-                          {col.category}
-                        </Badge>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </PopoverContent>
-          </Popover>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
 
-          {/* Discard Button */}
-          {totalDirtyCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDiscard}
-              disabled={isSaving}
-              className="h-8 text-xs cursor-pointer text-muted-foreground hover:text-foreground"
-            >
-              <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
-              <span>Discard</span>
-            </Button>
-          )}
-
-          {/* Save Button */}
-          <Button
-            size="sm"
-            onClick={handleSaveClick}
-            disabled={totalDirtyCount === 0 || isSaving || duplicateSlugs.size > 0}
-            className="h-8 px-4 text-xs font-semibold rounded-md shadow-xs cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            {isSaving ? (
-              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-            ) : (
-              <Save className="w-3.5 h-3.5 mr-1.5" />
+            {/* Discard Button */}
+            {totalDirtyCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDiscard}
+                disabled={isSaving}
+                className="h-8 text-xs cursor-pointer text-muted-foreground hover:text-foreground"
+              >
+                <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                <span>Discard</span>
+              </Button>
             )}
-            <span>
-              {totalDirtyCount > 0
-                ? `Save ${totalDirtyCount} Changes`
-                : "Saved"}
-            </span>
-          </Button>
+
+            {/* Save Button */}
+            <Button
+              size="sm"
+              onClick={handleSaveClick}
+              disabled={totalDirtyCount === 0 || isSaving || duplicateSlugs.size > 0}
+              className="h-8 px-4 text-xs font-semibold rounded-md shadow-xs cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              {isSaving ? (
+                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Save className="w-3.5 h-3.5 mr-1.5" />
+              )}
+              <span>
+                {totalDirtyCount > 0
+                  ? `Save ${totalDirtyCount} Changes`
+                  : "Saved"}
+              </span>
+            </Button>
+          </div>
         </div>
-      </div>
 
       {/* Duplicate Slugs Warning Banner */}
       {duplicateSlugs.size > 0 && (
@@ -838,8 +1050,644 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
         </div>
       )}
 
-      {/* Auto-Height Spreadsheet Table Grid */}
-      <div className="relative border border-border rounded-xl bg-card shadow-xs overflow-hidden flex flex-col">
+      {/* Mobile Accordion Cards View (Rendered on mobile screens < md) */}
+      <div className="md:hidden flex flex-col gap-3 pb-24">
+        {filteredItems.length === 0 ? (
+          <div className="p-8 text-center text-muted-foreground text-xs bg-card border border-border rounded-xl">
+            No {entityLabel.toLowerCase()}s found matching &quot;{gridSearch}&quot;.
+          </div>
+        ) : (
+          filteredItems.map((item, index) => {
+            const isExpanded = expandedCardIds.has(item.id);
+            const isSeoExpanded = expandedSeoCardIds.has(item.id);
+            const isItemDirty = Boolean(
+              dirtyMap[item.id] && Object.keys(dirtyMap[item.id]).length > 0
+            );
+            const dirtyFieldCount = dirtyMap[item.id]
+              ? Object.keys(dirtyMap[item.id]).length
+              : 0;
+            const isSlugDupe = duplicateSlugs.has(
+              ((item.slug as string) || "").trim().toLowerCase()
+            );
+
+            const nonSeoCols = columns.filter(
+              (c) =>
+                visibleColumnKeys.has(c.key) &&
+                c.key !== "title" &&
+                c.category !== "SEO" &&
+                !c.fieldPath?.startsWith("seo.")
+            );
+            const seoCols = columns.filter(
+              (c) =>
+                visibleColumnKeys.has(c.key) &&
+                (c.category === "SEO" || c.fieldPath?.startsWith("seo."))
+            );
+
+            // Adapt status options based on entity / available values
+            const currentStatus = ((item as any).status || "").toLowerCase();
+            const isSubscriber =
+              (item as any).email !== undefined ||
+              currentStatus === "active" ||
+              currentStatus === "unsubscribed";
+
+            const statusOptions = isSubscriber
+              ? [
+                  {
+                    value: "active",
+                    label: "Active",
+                    activeClass:
+                      "bg-emerald-500/15 text-emerald-600 border-emerald-500/40",
+                  },
+                  {
+                    value: "unsubscribed",
+                    label: "Unsubscribed",
+                    activeClass:
+                      "bg-amber-500/15 text-amber-600 border-amber-500/40",
+                  },
+                ]
+              : [
+                  {
+                    value: "draft",
+                    label: "Draft",
+                    activeClass:
+                      "bg-amber-500/15 text-amber-600 border-amber-500/40",
+                  },
+                  {
+                    value: "published",
+                    label: "Published",
+                    activeClass:
+                      "bg-emerald-500/15 text-emerald-600 border-emerald-500/40",
+                  },
+                  {
+                    value: "scheduled",
+                    label: "Scheduled",
+                    activeClass:
+                      "bg-blue-500/15 text-blue-600 border-blue-500/40",
+                  },
+                ];
+
+            return (
+              <div
+                key={item.id}
+                className={cn(
+                  "bg-card border rounded-xl overflow-hidden shadow-xs transition-all",
+                  isItemDirty
+                    ? "border-amber-500/50 dark:border-amber-500/40"
+                    : "border-border",
+                  isExpanded && "ring-1 ring-primary/20"
+                )}
+              >
+                {/* Card Header (Tap anywhere on header to toggle) */}
+                <div
+                  onClick={() => toggleCardExpanded(item.id)}
+                  className="p-3.5 flex items-start justify-between gap-3 cursor-pointer select-none bg-muted/20 hover:bg-muted/40 transition-colors"
+                >
+                  <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                    {/* Index # & Dirty Indicator */}
+                    <div className="flex flex-col items-center gap-1 pt-0.5 shrink-0">
+                      <span className="text-[11px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground border border-border/60">
+                        #{index + 1}
+                      </span>
+                      {isItemDirty && (
+                        <span
+                          className="h-2 w-2 rounded-full bg-amber-500 ring-2 ring-amber-500/20"
+                          title={`${dirtyFieldCount} edits`}
+                        />
+                      )}
+                    </div>
+
+                    {/* Title & Status */}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-xs font-bold text-foreground truncate max-w-full">
+                          {item.title || (
+                            <span className="italic text-muted-foreground font-normal">
+                              [ Untitled {entityLabel} ]
+                            </span>
+                          )}
+                        </h3>
+                        {item.status && (
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[10px] px-1.5 py-0 h-4 font-bold uppercase shrink-0",
+                              item.status === "published" || item.status === "active"
+                                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                                : item.status === "scheduled"
+                                ? "bg-blue-500/10 text-blue-600 border-blue-500/30"
+                                : "bg-amber-500/10 text-amber-600 border-amber-500/30"
+                            )}
+                          >
+                            {item.status}
+                          </Badge>
+                        )}
+                      </div>
+                      {item.slug && (
+                        <p
+                          className={cn(
+                            "text-[11px] font-mono truncate mt-0.5",
+                            isSlugDupe
+                              ? "text-destructive font-semibold"
+                              : "text-muted-foreground"
+                          )}
+                        >
+                          /{item.slug}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Expand / Collapse Chevron */}
+                  <div className="p-1 rounded-md text-muted-foreground hover:text-foreground shrink-0 mt-0.5">
+                    {isExpanded ? (
+                      <ChevronUp className="w-4 h-4 text-primary" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                  </div>
+                </div>
+
+                {/* Card Body (When Expanded) */}
+                {isExpanded && (
+                  <div className="p-3.5 pt-3 border-t border-border/60 space-y-3.5 bg-background/50">
+                    {/* Primary Field: Title */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                          {primaryColumnLabel || `${entityLabel} Title`}
+                        </label>
+                        {isCellDirty(item.id, "title") && (
+                          <span className="text-[10px] font-semibold text-amber-500 flex items-center gap-1">
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />{" "}
+                            Modified
+                          </span>
+                        )}
+                      </div>
+                      <Input
+                        value={item.title}
+                        onFocus={pushHistorySnapshot}
+                        onChange={(e) =>
+                          updateItemField(item.id, "title", e.target.value)
+                        }
+                        placeholder={`Enter ${entityLabel.toLowerCase()} title...`}
+                        className={cn(
+                          "h-9 text-xs font-medium rounded-lg bg-background border-border",
+                          isCellDirty(item.id, "title") &&
+                            "border-amber-500/50 bg-amber-500/5"
+                        )}
+                      />
+                    </div>
+
+                    {/* Standard Non-SEO Columns */}
+                    <div className="space-y-3">
+                      {nonSeoCols.map((col) => {
+                        const fieldPath = col.fieldPath || col.key;
+                        const cellVal = (item as any)[col.key];
+                        const dirty = isCellDirty(item.id, col.key);
+
+                        return (
+                          <div key={col.key} className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[11px] font-semibold text-muted-foreground">
+                                {col.label}
+                              </label>
+                              {dirty && (
+                                <span className="text-[10px] font-semibold text-amber-500 flex items-center gap-1">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />{" "}
+                                  Modified
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Status Column: Segmented Control */}
+                            {col.type === "status" && (
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 p-1 bg-muted/40 rounded-lg border border-border/80">
+                                {statusOptions.map((opt) => (
+                                  <button
+                                    type="button"
+                                    key={opt.value}
+                                    onClick={() => {
+                                      if (cellVal !== opt.value) {
+                                        pushHistorySnapshot();
+                                        updateItemField(
+                                          item.id,
+                                          "status",
+                                          opt.value
+                                        );
+                                      }
+                                    }}
+                                    className={cn(
+                                      "py-1.5 px-2 rounded-md text-xs font-semibold text-center transition-all cursor-pointer select-none",
+                                      cellVal === opt.value
+                                        ? cn(
+                                            opt.activeClass,
+                                            "shadow-xs border font-bold"
+                                          )
+                                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                                    )}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Switch Column */}
+                            {col.type === "switch" && (
+                              <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/30 border border-border/80">
+                                <span className="text-xs font-medium text-foreground">
+                                  {col.label}
+                                </span>
+                                <Switch
+                                  checked={Boolean(cellVal)}
+                                  onCheckedChange={(val) => {
+                                    pushHistorySnapshot();
+                                    updateItemField(item.id, fieldPath, val);
+                                  }}
+                                />
+                              </div>
+                            )}
+
+                            {/* Number Column */}
+                            {col.type === "number" && (
+                              <Input
+                                type="number"
+                                min={1}
+                                value={cellVal ?? ""}
+                                onFocus={pushHistorySnapshot}
+                                onChange={(e) =>
+                                  updateItemField(
+                                    item.id,
+                                    fieldPath,
+                                    parseInt(e.target.value, 10) || 1
+                                  )
+                                }
+                                className={cn(
+                                  "h-9 text-xs font-mono rounded-lg bg-background border-border",
+                                  dirty && "border-amber-500/50 bg-amber-500/5"
+                                )}
+                              />
+                            )}
+
+                            {/* Categories Column */}
+                            {col.type === "categories" && (
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {Array.isArray(cellVal) && cellVal.length > 0 ? (
+                                  cellVal.map((catName: string) => (
+                                    <span
+                                      key={catName}
+                                      className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-muted text-foreground border border-border"
+                                    >
+                                      {catName}
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          toggleCategory(item.id, catName)
+                                        }
+                                        className="text-muted-foreground hover:text-destructive cursor-pointer ml-0.5"
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span className="text-xs text-muted-foreground italic py-1">
+                                    No categories
+                                  </span>
+                                )}
+
+                                <Popover>
+                                  <PopoverTrigger
+                                    render={
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 px-2 text-xs rounded-md border-dashed border-border hover:border-primary text-muted-foreground hover:text-foreground"
+                                      >
+                                        <Plus className="w-3 h-3 mr-1" />
+                                        Category
+                                      </Button>
+                                    }
+                                  />
+                                  <PopoverContent
+                                    align="start"
+                                    className="w-60 p-2 space-y-2"
+                                  >
+                                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/60 border border-border/60">
+                                      <Search className="w-3 h-3 text-muted-foreground" />
+                                      <input
+                                        type="text"
+                                        value={
+                                          categorySearch[item.id] || ""
+                                        }
+                                        onChange={(e) =>
+                                          setCategorySearch((prev) => ({
+                                            ...prev,
+                                            [item.id]: e.target.value,
+                                          }))
+                                        }
+                                        placeholder="Search categories..."
+                                        className="text-xs bg-transparent border-none outline-hidden w-full text-foreground"
+                                      />
+                                    </div>
+                                    <div className="max-h-48 overflow-y-auto space-y-1">
+                                      {availableCategories
+                                        .filter((c) =>
+                                          c.name
+                                            .toLowerCase()
+                                            .includes(
+                                              (
+                                                categorySearch[item.id] || ""
+                                              ).toLowerCase()
+                                            )
+                                        )
+                                        .map((cat) => {
+                                          const isSelected = (
+                                            cellVal || []
+                                          ).includes(cat.name);
+                                          return (
+                                            <div
+                                              key={cat.id}
+                                              onClick={() =>
+                                                toggleCategory(item.id, cat.name)
+                                              }
+                                              className="flex items-center gap-2 p-1.5 rounded-md hover:bg-muted/60 cursor-pointer text-xs"
+                                            >
+                                              <Checkbox
+                                                checked={isSelected}
+                                                onCheckedChange={() =>
+                                                  toggleCategory(
+                                                    item.id,
+                                                    cat.name
+                                                  )
+                                                }
+                                              />
+                                              <span className="truncate">
+                                                {cat.name}
+                                              </span>
+                                            </div>
+                                          );
+                                        })}
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                              </div>
+                            )}
+
+                            {/* Tags Column */}
+                            {col.type === "tags" && (
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {Array.isArray(cellVal) && cellVal.length > 0 ? (
+                                  cellVal.map((tagName: string) => (
+                                    <span
+                                      key={tagName}
+                                      className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-primary/10 text-primary border border-primary/20"
+                                    >
+                                      #{tagName}
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          toggleTag(item.id, tagName)
+                                        }
+                                        className="text-primary/70 hover:text-destructive cursor-pointer ml-0.5"
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span className="text-xs text-muted-foreground italic py-1">
+                                    No tags
+                                  </span>
+                                )}
+
+                                <Popover>
+                                  <PopoverTrigger
+                                    render={
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 px-2 text-xs rounded-md border-dashed border-border hover:border-primary text-muted-foreground hover:text-foreground"
+                                      >
+                                        <Plus className="w-3 h-3 mr-1" />
+                                        Tag
+                                      </Button>
+                                    }
+                                  />
+                                  <PopoverContent
+                                    align="start"
+                                    className="w-60 p-2 space-y-2"
+                                  >
+                                    <div className="flex items-center gap-1.5 pb-2 border-b border-border/80">
+                                      <input
+                                        type="text"
+                                        value={newTagInput[item.id] || ""}
+                                        onChange={(e) =>
+                                          setNewTagInput((prev) => ({
+                                            ...prev,
+                                            [item.id]: e.target.value,
+                                          }))
+                                        }
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") {
+                                            e.preventDefault();
+                                            addCustomTag(item.id);
+                                          }
+                                        }}
+                                        placeholder="Create tag & Enter..."
+                                        className="text-xs bg-muted/60 px-2 py-1 rounded-md border border-border/60 outline-hidden w-full text-foreground"
+                                      />
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        onClick={() => addCustomTag(item.id)}
+                                        className="h-7 w-7 shrink-0 cursor-pointer"
+                                      >
+                                        <Plus className="w-3.5 h-3.5" />
+                                      </Button>
+                                    </div>
+                                    <div className="max-h-40 overflow-y-auto space-y-1">
+                                      {availableTags.map((tag) => {
+                                        const isSelected = (
+                                          cellVal || []
+                                        ).includes(tag.name);
+                                        return (
+                                          <div
+                                            key={tag.id}
+                                            onClick={() =>
+                                              toggleTag(item.id, tag.name)
+                                            }
+                                            className="flex items-center gap-2 p-1.5 rounded-md hover:bg-muted/60 cursor-pointer text-xs"
+                                          >
+                                            <Checkbox
+                                              checked={isSelected}
+                                              onCheckedChange={() =>
+                                                toggleTag(item.id, tag.name)
+                                              }
+                                            />
+                                            <span className="truncate">
+                                              #{tag.name}
+                                            </span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                              </div>
+                            )}
+
+                            {/* Text Column */}
+                            {col.type === "text" && (
+                              <div>
+                                <Input
+                                  value={cellVal ?? ""}
+                                  onFocus={pushHistorySnapshot}
+                                  onChange={(e) =>
+                                    updateItemField(
+                                      item.id,
+                                      fieldPath,
+                                      e.target.value
+                                    )
+                                  }
+                                  placeholder={
+                                    col.placeholder ||
+                                    `Enter ${col.label.toLowerCase()}...`
+                                  }
+                                  className={cn(
+                                    "h-9 text-xs rounded-lg bg-background border-border",
+                                    dirty &&
+                                      "border-amber-500/50 bg-amber-500/5",
+                                    col.key === "slug" &&
+                                      isSlugDupe &&
+                                      "border-destructive text-destructive font-medium"
+                                  )}
+                                />
+                                {col.key === "slug" && isSlugDupe && (
+                                  <p className="text-[10px] text-destructive font-medium mt-1">
+                                    Slug must be unique across all items.
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* SEO Sub-Accordion Disclosure */}
+                    {seoCols.length > 0 && (
+                      <div className="border border-border/80 rounded-lg overflow-hidden bg-muted/20">
+                        <button
+                          type="button"
+                          onClick={() => toggleCardSeo(item.id)}
+                          className="w-full px-3 py-2.5 flex items-center justify-between text-left hover:bg-muted/40 transition-colors cursor-pointer select-none"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="w-3.5 h-3.5 text-primary" />
+                            <span className="text-xs font-semibold text-foreground">
+                              SEO Metadata
+                            </span>
+                            {seoCols.some((c) =>
+                              isCellDirty(item.id, c.key)
+                            ) && (
+                              <Badge
+                                variant="outline"
+                                className="text-[9px] px-1 py-0 h-4 bg-amber-500/10 text-amber-600 border-amber-500/30"
+                              >
+                                Modified
+                              </Badge>
+                            )}
+                          </div>
+                          <ChevronDown
+                            className={cn(
+                              "w-4 h-4 text-muted-foreground transition-transform duration-200",
+                              isSeoExpanded && "rotate-180"
+                            )}
+                          />
+                        </button>
+
+                        {isSeoExpanded && (
+                          <div className="p-3 pt-2 border-t border-border/60 space-y-3 bg-background/60">
+                            {seoCols.map((col) => {
+                              const fieldPath = col.fieldPath || col.key;
+                              const subKey = fieldPath.startsWith("seo.")
+                                ? fieldPath.replace("seo.", "")
+                                : col.key;
+                              const cellVal = fieldPath.startsWith("seo.")
+                                ? (item as any).seo?.[subKey] ?? ""
+                                : (item as any)[col.key] ?? "";
+                              const dirty = isCellDirty(item.id, col.key);
+
+                              return (
+                                <div key={col.key} className="space-y-1.5">
+                                  <div className="flex items-center justify-between">
+                                    <label className="text-[11px] font-medium text-muted-foreground">
+                                      {col.label}
+                                    </label>
+                                    {dirty && (
+                                      <span className="text-[10px] font-semibold text-amber-500">
+                                        Modified
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {col.type === "switch" ? (
+                                    <div className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border">
+                                      <span className="text-xs text-foreground font-medium">
+                                        {col.label}
+                                      </span>
+                                      <Switch
+                                        checked={Boolean(cellVal)}
+                                        onCheckedChange={(val) => {
+                                          pushHistorySnapshot();
+                                          updateItemField(
+                                            item.id,
+                                            fieldPath,
+                                            val
+                                          );
+                                        }}
+                                      />
+                                    </div>
+                                  ) : (
+                                    <Input
+                                      value={cellVal ?? ""}
+                                      onFocus={pushHistorySnapshot}
+                                      onChange={(e) =>
+                                        updateItemField(
+                                          item.id,
+                                          fieldPath,
+                                          e.target.value
+                                        )
+                                      }
+                                      placeholder={
+                                        col.placeholder ||
+                                        `Enter ${col.label.toLowerCase()}...`
+                                      }
+                                      className={cn(
+                                        "h-8 text-xs rounded-md bg-background border-border",
+                                        dirty &&
+                                          "border-amber-500/50 bg-amber-500/5"
+                                      )}
+                                    />
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Auto-Height Spreadsheet Table Grid (Desktop Only) */}
+      <div className="relative border border-border rounded-xl bg-card shadow-xs overflow-hidden hidden md:flex flex-col">
         <div className="overflow-x-auto max-h-[calc(100vh-170px)]">
           <table
             style={{ tableLayout: "fixed", width: "max-content", minWidth: "100%" }}
@@ -1286,6 +2134,46 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
         onConfirm={executeSave}
         loading={isSaving}
       />
+
+      {/* Mobile Sticky Floating Action Dock (Visible only when changes are pending) */}
+      {totalDirtyCount > 0 && (
+        <div className="md:hidden fixed bottom-3 left-3 right-3 z-50 p-3 bg-card/95 backdrop-blur-md border border-border/80 rounded-2xl shadow-2xl flex items-center justify-between gap-2 animate-in slide-in-from-bottom-5 duration-200">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+            </span>
+            <span className="text-xs font-semibold text-foreground truncate">
+              {totalDirtyCount} unsaved {totalDirtyCount === 1 ? "change" : "changes"}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDiscard}
+              disabled={isSaving}
+              className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5 mr-1" />
+              Discard
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSaveClick}
+              disabled={isSaving || duplicateSlugs.size > 0}
+              className="h-8 px-3.5 text-xs font-semibold rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm cursor-pointer"
+            >
+              {isSaving ? (
+                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Save className="w-3.5 h-3.5 mr-1.5" />
+              )}
+              Save
+            </Button>
+          </div>
+        </div>
+      )}
       </div>
     </TooltipProvider>
   );
