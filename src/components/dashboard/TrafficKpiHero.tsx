@@ -424,7 +424,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
       tooltip: "Percentage of visitors who stayed more than 10 seconds or read multiple articles.",
       icon: Sparkles,
       value: summary?.engagementRate ?? 0,
-      formatter: (v: number) => `${v}%`,
+      formatter: (v: number) => `${Number(v).toFixed(2)}%`,
       trend: summary?.engagementRateTrend,
       subtitle: `${summary?.engagedVisitsCount?.toLocaleString() ?? 0} high-intent sessions`,
       sparklineData: sparklines?.engagement,

@@ -38,7 +38,7 @@ export async function GET(request: Request) {
     const daysCount = rangeParam === "24h" ? 1 : rangeParam === "30d" ? 30 : rangeParam === "90d" ? 90 : 7;
 
     const isUserAdmin = session.user.role === "ADMIN";
-    const cacheKey = `dashboard-stats-v6:${rangeParam}:${isUserAdmin ? "admin" : "editor"}`;
+    const cacheKey = `dashboard-stats-v7:${rangeParam}:${isUserAdmin ? "admin" : "editor"}`;
 
     const stats = await fetchWithMemoryCache(
       cacheKey,
@@ -374,13 +374,13 @@ export async function GET(request: Request) {
           prevEngagedVisits += rec.engagedVisits;
         }
 
-        // Consistent units: engaged sessions divided by total unique sessions
-        const engagementRate = dailyUniquesSum > 0 ? Math.min(100, Math.round((engagedVisits / dailyUniquesSum) * 100)) : 0;
-        const prevEngagementRate = prevDailyUniquesSum > 0 ? Math.min(100, Math.round((prevEngagedVisits / prevDailyUniquesSum) * 100)) : 0;
+        // Consistent units: engaged sessions divided by total unique sessions (rounded to 2 decimal places)
+        const engagementRate = dailyUniquesSum > 0 ? Math.min(100, Number(((engagedVisits / dailyUniquesSum) * 100).toFixed(2))) : 0;
+        const prevEngagementRate = prevDailyUniquesSum > 0 ? Math.min(100, Number(((prevEngagedVisits / prevDailyUniquesSum) * 100).toFixed(2))) : 0;
 
-        // Bounce rate is the genuine complement of session engagement
-        const bounceRate = Math.max(0, 100 - engagementRate);
-        const prevBounceRate = Math.max(0, 100 - prevEngagementRate);
+        // Bounce rate is the genuine complement of session engagement (rounded to 2 decimal places)
+        const bounceRate = Math.max(0, Number((100 - engagementRate).toFixed(2)));
+        const prevBounceRate = Math.max(0, Number((100 - prevEngagementRate).toFixed(2)));
 
         const viewsTrend = calculateTrend(totalViews, prevTotalViews);
         const visitorsTrend = calculateTrend(dailyUniquesSum, prevDailyUniquesSum);
@@ -413,9 +413,9 @@ export async function GET(request: Request) {
         // 7. Audience Conversion Funnel (Consistent Session Population)
         // =========================================================================
         const totalConversions = currentPeriodSubsCount + currentPeriodSubmissionsCount;
-        const funnelRetentionRate = dailyUniquesSum > 0 ? Math.min(100, Math.round((engagedVisits / dailyUniquesSum) * 100)) : 0;
+        const funnelRetentionRate = dailyUniquesSum > 0 ? Math.min(100, Number(((engagedVisits / dailyUniquesSum) * 100).toFixed(2))) : 0;
         const funnelConversionRate = dailyUniquesSum > 0 ? Number(((totalConversions / dailyUniquesSum) * 100).toFixed(2)) : 0;
-        const dropOffVisitorsToEngaged = Math.max(0, 100 - funnelRetentionRate);
+        const dropOffVisitorsToEngaged = Math.max(0, Number((100 - funnelRetentionRate).toFixed(2)));
 
         // =========================================================================
         // 8. Device Split

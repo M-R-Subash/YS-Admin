@@ -86,8 +86,8 @@ export const ConversionFunnelCard = memo(function ConversionFunnelCard({
                 <span className="truncate">Readers who stayed to read</span>
               </span>
               <Badge variant="secondary" className="font-mono text-[10px] px-1.5 py-0 shrink-0">
-                <span>{funnel?.retentionRate ?? 0}% Retained</span>
-                <span className="hidden sm:inline ml-1">({funnel?.dropOffVisitorsToEngaged ?? 0}% Left early)</span>
+                <span>{Number(funnel?.retentionRate ?? 0).toFixed(2)}% Retained</span>
+                <span className="hidden sm:inline ml-1">({Number(funnel?.dropOffVisitorsToEngaged ?? 0).toFixed(2)}% Left early)</span>
               </Badge>
             </div>
 
@@ -108,14 +108,14 @@ export const ConversionFunnelCard = memo(function ConversionFunnelCard({
                     />
                   </span>
                   <span className="text-muted-foreground text-[11px]">
-                    {funnel?.retentionRate ?? 0}%
+                    {Number(funnel?.retentionRate ?? 0).toFixed(2)}%
                   </span>
                 </div>
               </div>
               <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
                 <div
                   className="h-full rounded-full bg-purple-500 transition-all duration-700"
-                  style={{ width: `${Math.max(4, funnel?.retentionRate ?? 0)}%` }}
+                  style={{ width: `${Math.max(4, Number(funnel?.retentionRate ?? 0))}%` }}
                 />
               </div>
             </div>
@@ -127,7 +127,7 @@ export const ConversionFunnelCard = memo(function ConversionFunnelCard({
                 <span className="truncate">Readers who took action</span>
               </span>
               <Badge variant="secondary" className="font-mono text-[10px] px-1.5 py-0 text-emerald-600 dark:text-emerald-400 shrink-0">
-                {funnel?.conversionRate ?? 0}% Converted
+                {Number(funnel?.conversionRate ?? 0).toFixed(2)}% Converted
               </Badge>
             </div>
 

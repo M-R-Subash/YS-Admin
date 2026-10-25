@@ -77,7 +77,7 @@ export const ReaderQualityCard = memo(function ReaderQualityCard({
             >
               <AnimatedCounter
                 value={summary?.engagementRate ?? 0}
-                formatter={(v) => `${Math.round(v)}%`}
+                formatter={(v) => `${Number(v).toFixed(2)}%`}
               />{" "}
               Rate
             </Badge>
@@ -97,7 +97,7 @@ export const ReaderQualityCard = memo(function ReaderQualityCard({
             <span className="text-2xl font-bold font-mono text-foreground">
               <AnimatedCounter
                 value={summary?.bounceRate ?? 0}
-                formatter={(v) => `${Math.round(v)}%`}
+                formatter={(v) => `${Number(v).toFixed(2)}%`}
               />
             </span>
             <Badge
