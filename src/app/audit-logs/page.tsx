@@ -34,6 +34,7 @@ import {
   XCircle,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -708,6 +709,134 @@ const AuditLogRow = React.memo(function AuditLogRow({ item, onSelect }: AuditLog
   );
 });
 
+const AuditLogMobileCard = React.memo(function AuditLogMobileCard({ item, onSelect }: AuditLogRowProps) {
+  const date = useMemo(() => new Date(item.timestamp), [item.timestamp]);
+  const trans = useMemo(() => getTransitionInfo(item), [item]);
+  const explanation = useMemo(() => getSimpleExplanation(item), [item]);
+  const itemInfo = useMemo(() => getItemCleanName(item), [item]);
+  const relativeTime = useMemo(() => formatDistanceToNow(date, { addSuffix: true }), [date]);
+  const exactTime = useMemo(() => format(date, "HH:mm:ss"), [date]);
+
+  return (
+    <div
+      onClick={() => onSelect(item)}
+      className="p-3 bg-card hover:bg-muted/40 border border-border/70 rounded-xl flex flex-col gap-2 transition-all cursor-pointer shadow-2xs active:scale-[0.99]"
+    >
+      {/* 1. Header Row: Category Icon + Item Title & Badge on Left, Time on Right */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <div className="size-7 rounded-lg bg-muted flex items-center justify-center shrink-0 text-muted-foreground border border-border">
+            <CategoryIcon category={item.category} className="size-3.5" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="font-bold text-foreground text-xs leading-tight truncate" title={itemInfo.name}>
+              {itemInfo.name}
+            </span>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <Badge
+                variant="outline"
+                className="text-[9px] uppercase tracking-wider py-0 px-1 font-bold rounded-xs bg-muted/80 text-muted-foreground border-border shrink-0"
+              >
+                {itemInfo.type}
+              </Badge>
+              {itemInfo.slug && (
+                <span className="font-mono text-[10px] text-muted-foreground truncate">
+                  /{itemInfo.slug.replace(/^\//, "")}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Time Stamp */}
+        <div className="flex flex-col items-end shrink-0 text-right">
+          <span className="font-semibold text-foreground text-[11px] whitespace-nowrap">
+            {relativeTime}
+          </span>
+          <span className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5 whitespace-nowrap">
+            <Clock className="size-2.5" />
+            {exactTime}
+          </span>
+        </div>
+      </div>
+
+      {/* 2. Transition / Change Chip */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {trans.pillText ? (
+          <Badge
+            variant="outline"
+            className="text-[11px] font-bold py-0.5 px-2.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+          >
+            {trans.pillText}
+          </Badge>
+        ) : (
+          <div className="inline-flex items-center gap-1.5 p-1 px-2.5 rounded-lg bg-muted/60 border border-border">
+            <span
+              className={`text-[11px] font-semibold ${
+                trans.from.toLowerCase() === "published" || trans.from.toLowerCase() === "active"
+                  ? "text-emerald-600 dark:text-emerald-400 font-bold"
+                  : trans.from.toLowerCase() === "trash" || trans.from.toLowerCase() === "trashed"
+                  ? "text-amber-600 dark:text-amber-400"
+                  : "text-muted-foreground"
+              }`}
+            >
+              {trans.from}
+            </span>
+            <ArrowRight className="size-3 text-muted-foreground shrink-0" />
+            <span
+              className={`text-[11px] font-bold ${
+                trans.to.toLowerCase() === "published" || trans.to.toLowerCase() === "active"
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : trans.to.toLowerCase() === "trash" || trans.to.toLowerCase() === "trashed"
+                  ? "text-amber-600 dark:text-amber-400"
+                  : "text-rose-600 dark:text-rose-400"
+              }`}
+            >
+              {trans.to}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* 3. Simple Activity Explanation */}
+      {explanation && (
+        <p className="font-medium text-foreground text-xs leading-relaxed line-clamp-2">
+          {explanation}
+        </p>
+      )}
+
+      {/* 4. Bottom Footer: Actor Profile & Tap Hint */}
+      <div className="flex items-center justify-between pt-2 border-t border-border/50 text-xs mt-0.5">
+        <div className="flex items-center gap-2 min-w-0">
+          <Avatar className="size-5.5 border border-border shrink-0">
+            {item.actor.avatar && (
+              <AvatarImage src={item.actor.avatar} alt={item.actor.name} />
+            )}
+            <AvatarFallback className="text-[9px] font-bold">
+              {item.actor.name.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="font-medium text-foreground text-xs truncate">
+              {item.actor.name}
+            </span>
+            {item.actor.role && (
+              <span className="text-[10px] text-muted-foreground uppercase font-medium">
+                • {item.actor.role}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 text-[11px] font-medium text-primary shrink-0">
+          <span>Details</span>
+          <ChevronRight className="size-3" />
+        </div>
+      </div>
+    </div>
+  );
+});
+
 function formatDiffValue(val: any): string {
   if (val === null || val === undefined || val === "") return "(empty)";
   if (typeof val === "boolean") return val ? "Yes" : "No";
@@ -1320,35 +1449,36 @@ export default function AuditLogsPage() {
   return (
     <div className="w-full min-h-screen bg-background p-3 sm:p-5 flex flex-col gap-3.5 animate-in fade-in duration-200">
       {/* Top Header Bar */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 p-3.5 bg-card border border-border rounded-xl shadow-xs shrink-0">
-        <div className="flex items-center gap-3">
-          {/* Back Button to Dashboard */}
-          <Link href="/">
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 cursor-pointer rounded-lg border-border hover:bg-muted"
-              title="Return to Dashboard"
-            >
-              <ArrowLeft className="w-4 h-4 text-foreground" />
-            </Button>
-          </Link>
-          <div className="h-4 w-px bg-border hidden sm:block" />
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 p-3 sm:p-3.5 bg-card border border-border rounded-xl shadow-xs shrink-0">
+        <div className="flex items-center gap-2.5 sm:gap-3 w-full md:w-auto justify-between md:justify-start">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            {/* Back Button to Dashboard */}
+            <Link href="/" className="shrink-0">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 cursor-pointer rounded-lg border-border hover:bg-muted shrink-0"
+                title="Return to Dashboard"
+              >
+                <ArrowLeft className="w-4 h-4 text-foreground" />
+              </Button>
+            </Link>
+            <div className="h-4 w-px bg-border hidden sm:block" />
+            <div className="p-1.5 rounded-lg bg-primary/10 text-primary shrink-0 hidden xs:flex">
               <Layers className="w-4 h-4" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="text-sm font-bold text-foreground">
+                <h1 className="text-sm font-bold text-foreground truncate">
                   Activity & Change Log
                 </h1>
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
                   <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Live PostgreSQL Stream
+                  <span className="hidden sm:inline">Live PostgreSQL Stream</span>
+                  <span className="sm:hidden">Live</span>
                 </span>
               </div>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-[11px] text-muted-foreground hidden sm:block truncate">
                 Authoritative audit record of all site modifications: status transitions, draft vs published, trash, and content edits
               </p>
             </div>
@@ -1356,16 +1486,16 @@ export default function AuditLogsPage() {
         </div>
 
         {/* Toolbar & Export Modal Trigger */}
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+        <div className="flex items-center gap-2 w-full md:w-auto justify-end">
           <Button
             variant="outline"
             size="sm"
             onClick={handleRefresh}
             disabled={isValidating}
-            className="h-8 px-3 text-xs font-semibold gap-1.5 cursor-pointer border-border"
+            className="h-8 px-2.5 sm:px-3 text-xs font-semibold gap-1.5 cursor-pointer border-border flex-1 sm:flex-initial justify-center"
           >
             <RefreshCw
-              className={`size-3.5 ${
+              className={`size-3.5 text-purple-600 ${
                 isValidating ? "animate-spin" : ""
               }`}
             />
@@ -1377,7 +1507,7 @@ export default function AuditLogsPage() {
             size="sm"
             onClick={() => setIsExportModalOpen(true)}
             disabled={filteredLogs.length === 0}
-            className="h-8 px-3 text-xs font-semibold gap-1.5 cursor-pointer border-border"
+            className="h-8 px-2.5 sm:px-3 text-xs font-semibold gap-1.5 cursor-pointer border-border flex-1 sm:flex-initial justify-center"
           >
             <Download className="size-3.5 text-muted-foreground" />
             <span>Export Data</span>
@@ -1402,9 +1532,9 @@ export default function AuditLogsPage() {
         <>
 
           {/* Unified Filter Toolbar (Search on Left, Category Checkbox Dropdown + State Select + Member Select on Right) */}
-          <div className="p-3 bg-card border border-border rounded-xl shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shrink-0">
+          <div className="p-3 bg-card border border-border rounded-xl shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 shrink-0">
             {/* Quick Search */}
-            <div className="relative flex-1 max-w-md">
+            <div className="relative flex-1 md:max-w-md">
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               <Input
                 value={searchQuery}
@@ -1413,7 +1543,7 @@ export default function AuditLogsPage() {
                   setPage(1);
                 }}
                 placeholder="Search by page, article title, slug, or team member..."
-                className="h-8 pl-8 pr-7 text-xs bg-muted/40 border-border rounded-lg"
+                className="h-8 pl-8 pr-7 text-xs bg-muted/40 border-border rounded-lg w-full"
               />
               {searchQuery && (
                 <button
@@ -1429,8 +1559,8 @@ export default function AuditLogsPage() {
               )}
             </div>
 
-            {/* Filter Dropdowns Placed Beside State Option */}
-            <div className="flex items-center gap-2 flex-wrap justify-end">
+            {/* Filter Dropdowns */}
+            <div className={`grid ${uniqueActors.length > 1 ? "grid-cols-3" : "grid-cols-2"} md:flex md:items-center gap-1.5 sm:gap-2 w-full md:w-auto`}>
               {/* Category Filter Checkbox Dropdown (Like Bulk Edit page) */}
               <Popover>
                 <PopoverTrigger
@@ -1438,15 +1568,17 @@ export default function AuditLogsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 px-2.5 text-xs cursor-pointer border-border font-medium gap-1.5"
+                      className="h-8 px-2 sm:px-2.5 text-xs cursor-pointer border-border font-medium gap-1 sm:gap-1.5 w-full md:w-auto justify-between md:justify-start"
                     >
-                      <Filter className="size-3.5 text-muted-foreground" />
-                      <span>
-                        Categories{" "}
-                        {selectedCategories.size > 0 && selectedCategories.size < CATEGORY_OPTIONS.length
-                          ? `(${selectedCategories.size})`
-                          : "(All)"}
-                      </span>
+                      <div className="flex items-center gap-1 truncate">
+                        <Filter className="size-3.5 text-muted-foreground shrink-0" />
+                        <span className="truncate">
+                          {selectedCategories.size > 0 && selectedCategories.size < CATEGORY_OPTIONS.length
+                            ? `Cats (${selectedCategories.size})`
+                            : "Categories"}
+                        </span>
+                      </div>
+                      <ChevronDown className="size-3 text-muted-foreground opacity-70 shrink-0 ml-0.5" />
                     </Button>
                   }
                 />
@@ -1489,12 +1621,10 @@ export default function AuditLogsPage() {
                             if (isChecked && selectedCategories.size !== 0) {
                               next.delete(cat.key);
                             } else if (isChecked && selectedCategories.size === 0) {
-                              // If all were active, uncheck this one
                               next.delete(cat.key);
                             } else {
                               next.add(cat.key);
                             }
-                            // If all or none selected, reset to empty Set (meaning all)
                             if (next.size === CATEGORY_OPTIONS.length || next.size === 0) {
                               setSelectedCategories(new Set());
                             } else {
@@ -1514,12 +1644,12 @@ export default function AuditLogsPage() {
               </Popover>
 
               {/* State Transition Filter (Custom Select) */}
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 w-full md:w-auto">
                 <Select
                   value={selectedActionFilter}
                   onValueChange={(val) => setSelectedActionFilter(val || "ALL")}
                 >
-                  <SelectTrigger className="h-8 px-2.5 text-xs bg-muted/40 border-border cursor-pointer min-w-32.5">
+                  <SelectTrigger className="h-8 px-2 sm:px-2.5 text-xs bg-muted/40 border-border cursor-pointer w-full md:min-w-32.5">
                     <SelectValue placeholder="All States" />
                   </SelectTrigger>
                   <SelectContent alignItemWithTrigger={false} sideOffset={4} className="min-w-40">
@@ -1547,13 +1677,13 @@ export default function AuditLogsPage() {
 
               {/* Team Member Filter (Custom Select) */}
               {uniqueActors.length > 1 && (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 w-full md:w-auto">
                   <Select
                     value={selectedActor}
                     onValueChange={(val) => setSelectedActor(val || "ALL")}
                   >
-                    <SelectTrigger className="h-8 px-2.5 text-xs bg-muted/40 border-border cursor-pointer min-w-35">
-                      <SelectValue placeholder="All Team Members" />
+                    <SelectTrigger className="h-8 px-2 sm:px-2.5 text-xs bg-muted/40 border-border cursor-pointer w-full md:min-w-35">
+                      <SelectValue placeholder="All Members" />
                     </SelectTrigger>
                     <SelectContent alignItemWithTrigger={false} sideOffset={4} className="min-w-42.5">
                       <SelectItem value="ALL" label="All Team Members" className="text-xs font-semibold cursor-pointer">
@@ -1571,75 +1701,108 @@ export default function AuditLogsPage() {
             </div>
           </div>
 
-          {/* Clean, Strictly Aligned Table */}
+          {/* Audit Logs Content: Mobile Card Feed (< md) & Desktop Table (md:block) */}
           <div className="flex-1 rounded-xl border border-border bg-card shadow-xs overflow-hidden flex flex-col">
-            <div className="overflow-x-auto flex-1">
-              {isLoading && rawLogs.length === 0 ? (
-                <div className="py-24 text-center text-muted-foreground space-y-2">
-                  <Loader2 className="size-6 mx-auto animate-spin text-primary" />
-                  <p className="text-xs font-medium">Fetching verified audit log stream from PostgreSQL...</p>
-                </div>
-              ) : groupedLogs.length === 0 ? (
-                <div className="py-24 text-center text-muted-foreground space-y-2">
-                  <Layers className="size-8 mx-auto opacity-40 text-muted-foreground" />
-                  <p className="text-sm font-semibold text-foreground">No matching audit events recorded</p>
-                  <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                    Publishing, modifying, or deleting pages, blogs, redirects, or settings will automatically stream here.
-                  </p>
-                </div>
-              ) : (
-                <table className="w-full text-left border-collapse table-fixed">
-                  <colgroup>
-                    <col className="w-[30%]" />
-                    <col className="w-[18%]" />
-                    <col className="w-[26%]" />
-                    <col className="w-[16%]" />
-                    <col className="w-[10%]" />
-                  </colgroup>
-                  <thead>
-                    <tr className="border-b border-border bg-muted/40 text-[11px] uppercase tracking-wider font-bold text-muted-foreground sticky top-0 z-10 backdrop-blur-sm">
-                      <th className="py-3 px-4">Affected Item</th>
-                      <th className="py-3 px-4">What Changed</th>
-                      <th className="py-3 px-4">Activity Summary</th>
-                      <th className="py-3 px-4">Changed By</th>
-                      <th className="py-3 px-4 text-right">When</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/40">
-                    {groupedLogs.map((group) => (
-                      <React.Fragment key={group.label}>
-                        {/* Date Group Header Row */}
-                        <tr className="bg-muted/30 border-y border-border/60">
-                          <td colSpan={5} className="py-2 px-4">
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-foreground text-[11px] tracking-wide flex items-center gap-1.5">
-                                <Clock className="size-3 text-primary" />
-                                {group.label}
-                              </span>
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-background border-border text-muted-foreground"
-                              >
-                                {group.items.length} event{group.items.length > 1 ? "s" : ""}
-                              </Badge>
-                            </div>
-                          </td>
-                        </tr>
+            {isLoading && rawLogs.length === 0 ? (
+              <div className="py-24 text-center text-muted-foreground space-y-2">
+                <Loader2 className="size-6 mx-auto animate-spin text-primary" />
+                <p className="text-xs font-medium">Fetching verified audit log stream from PostgreSQL...</p>
+              </div>
+            ) : groupedLogs.length === 0 ? (
+              <div className="py-24 text-center text-muted-foreground space-y-2">
+                <Layers className="size-8 mx-auto opacity-40 text-muted-foreground" />
+                <p className="text-sm font-semibold text-foreground">No matching audit events recorded</p>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                  Publishing, modifying, or deleting pages, blogs, redirects, or settings will automatically stream here.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Mobile View (< md): Clean Touch-friendly Activity Cards grouped by Date */}
+                <div className="flex md:hidden flex-col gap-3 p-3 flex-1 overflow-y-auto">
+                  {groupedLogs.map((group) => (
+                    <div key={group.label} className="flex flex-col gap-2">
+                      {/* Date Group Header */}
+                      <div className="flex items-center justify-between px-1 py-1 text-muted-foreground">
+                        <span className="font-bold text-foreground text-xs tracking-wide flex items-center gap-1.5">
+                          <Clock className="size-3 text-primary" />
+                          {group.label}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-background border-border text-muted-foreground"
+                        >
+                          {group.items.length} event{group.items.length > 1 ? "s" : ""}
+                        </Badge>
+                      </div>
 
-                        {/* Event Rows */}
-                        {group.items.map((item) => (
-                          <AuditLogRow
-                            key={item.id}
-                            item={item}
-                            onSelect={handleSelectLog}
-                          />
-                        ))}
-                      </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
+                      {/* Event Cards */}
+                      {group.items.map((item) => (
+                        <AuditLogMobileCard
+                          key={item.id}
+                          item={item}
+                          onSelect={handleSelectLog}
+                        />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop View (md:block): Standard 5-column Table */}
+                <div className="hidden md:block overflow-x-auto flex-1">
+                  <table className="w-full text-left border-collapse table-fixed">
+                    <colgroup>
+                      <col className="w-[30%]" />
+                      <col className="w-[18%]" />
+                      <col className="w-[26%]" />
+                      <col className="w-[16%]" />
+                      <col className="w-[10%]" />
+                    </colgroup>
+                    <thead>
+                      <tr className="border-b border-border bg-muted/40 text-[11px] uppercase tracking-wider font-bold text-muted-foreground sticky top-0 z-10 backdrop-blur-sm">
+                        <th className="py-3 px-4">Affected Item</th>
+                        <th className="py-3 px-4">What Changed</th>
+                        <th className="py-3 px-4">Activity Summary</th>
+                        <th className="py-3 px-4">Changed By</th>
+                        <th className="py-3 px-4 text-right">When</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/40">
+                      {groupedLogs.map((group) => (
+                        <React.Fragment key={group.label}>
+                          {/* Date Group Header Row */}
+                          <tr className="bg-muted/30 border-y border-border/60">
+                            <td colSpan={5} className="py-2 px-4">
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-foreground text-[11px] tracking-wide flex items-center gap-1.5">
+                                  <Clock className="size-3 text-primary" />
+                                  {group.label}
+                                </span>
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-background border-border text-muted-foreground"
+                                >
+                                  {group.items.length} event{group.items.length > 1 ? "s" : ""}
+                                </Badge>
+                              </div>
+                            </td>
+                          </tr>
+
+                          {/* Event Rows */}
+                          {group.items.map((item) => (
+                            <AuditLogRow
+                              key={item.id}
+                              item={item}
+                              onSelect={handleSelectLog}
+                            />
+                          ))}
+                        </React.Fragment>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
 
             {/* Table Footer with Pagination Controls */}
             <div className="py-2.5 px-4 border-t border-border bg-muted/20 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground shrink-0">
@@ -1685,7 +1848,10 @@ export default function AuditLogsPage() {
 
       {/* Slide-Out Inspector Drawer (Sheet) — Non-Coder Friendly Detail View */}
       <Sheet open={Boolean(selectedLog)} onOpenChange={(open) => !open && setSelectedLog(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-md md:max-w-lg p-0 flex flex-col bg-background border-l border-border">
+        <SheetContent
+          side="right"
+          className="w-full data-[side=right]:w-full sm:data-[side=right]:max-w-md md:data-[side=right]:max-w-lg p-0 flex flex-col bg-background border-l border-border"
+        >
           <AuditLogInspector log={selectedLog} onClose={() => setSelectedLog(null)} />
         </SheetContent>
       </Sheet>

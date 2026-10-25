@@ -124,7 +124,7 @@ export function RevisionHistoryDrawer({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="right"
-          className="w-full sm:max-w-md md:max-w-lg p-0 flex flex-col bg-background border-l border-border"
+          className="w-full data-[side=right]:w-full sm:data-[side=right]:max-w-md md:data-[side=right]:max-w-lg p-0 flex flex-col bg-background border-l border-border"
         >
           {/* Header */}
           <SheetHeader className="p-5 border-b border-border/60 bg-muted/20">

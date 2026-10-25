@@ -25,7 +25,7 @@ export function BlogMobileTocDrawer({ open, onOpenChange }: BlogMobileTocDrawerP
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-md p-0 flex flex-col bg-background border-l border-border"
+        className="w-full data-[side=right]:w-full sm:data-[side=right]:max-w-md p-0 flex flex-col bg-background border-l border-border"
       >
         <SheetHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
           <div className="flex items-center gap-2.5">
