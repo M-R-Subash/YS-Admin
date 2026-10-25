@@ -8,6 +8,8 @@ import {
   Loader2,
   Sparkles,
   Globe,
+  Plus,
+  RefreshCw,
 } from "lucide-react";
 import { CategoryCreateForm } from "./CategoryCreateForm";
 import { DataTable } from "@/components/table/DataTable";
@@ -21,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +36,8 @@ import { slugify } from "@/lib/slugify";
 
 export default function CategoriesPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Edit Category Modal State
   const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null);
@@ -57,6 +62,26 @@ export default function CategoriesPage() {
     isLoading: loadingCategories,
     mutate: mutateCategories,
   } = useSWR<CategoryItem[]>("/api/categories");
+
+  const handleRefreshCategories = async () => {
+    setIsRefreshing(true);
+    try {
+      await mutateCategories();
+      toast.add({
+        title: "Categories refreshed",
+        description: "Latest category list is up to date.",
+        type: "success",
+      });
+    } catch {
+      toast.add({
+        title: "Refresh failed",
+        description: "Failed to reload categories.",
+        type: "error",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Open Edit Category Modal
   const openEditModal = (cat: CategoryItem) => {
@@ -196,25 +221,25 @@ export default function CategoriesPage() {
       />
 
       <div className="flex-1 w-full p-4 sm:p-6 lg:p-8 space-y-6">
-        {/* 2-Column Responsive Layout */}
-        <div className="flex flex-col lg:flex-row items-start gap-6">
-          {/* Left Column: Create Category Card (State isolated to prevent table re-renders) */}
-          <CategoryCreateForm
-            totalCatCount={totalCatCount}
-            onSuccess={mutateCategories}
-          />
-
-          {/* Right Column: Category Table & Search */}
-          <div className="flex-1 min-w-0 w-full space-y-4">
-            {/* Search Toolbar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card border rounded-xl p-3 shadow-xs">
-              <div className="flex items-center gap-2">
-                <div className="h-8.5 text-xs font-semibold px-3 bg-background border border-border rounded-md flex items-center gap-1.5 shadow-2xs">
-                  <FolderTree className="size-3.5 text-primary" />
-                  <span>{totalCatCount} Categories</span>
-                </div>
+        {/* Full-width Category Table & Search Toolbar */}
+        <div className="w-full space-y-4">
+          {/* Search Toolbar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card border rounded-xl p-3 shadow-xs">
+            <div className="flex items-center justify-between sm:justify-start gap-2">
+              <div className="h-8.5 text-xs font-semibold px-3 bg-background border border-border rounded-md flex items-center gap-1.5 shadow-2xs">
+                <FolderTree className="size-3.5 text-primary" />
+                <span>{totalCatCount} Categories</span>
               </div>
+              <Button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="sm:hidden h-8.5 px-3 text-xs font-semibold gap-1.5 cursor-pointer shrink-0 text-white"
+              >
+                <Plus className="size-3.5" />
+                <span>Add Category</span>
+              </Button>
+            </div>
 
+            <div className="flex items-center gap-2">
               <div className="relative flex-1 sm:w-72">
                 <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
                 <Input
@@ -225,34 +250,70 @@ export default function CategoriesPage() {
                   className="pl-8.5 h-8.5 text-xs w-full"
                 />
               </div>
-            </div>
 
-            {/* Categories Table */}
-            {loadingCategories ? (
-              <div className="bg-card border rounded-xl p-6 space-y-3 shadow-xs">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-14 w-full" />
-                <Skeleton className="h-14 w-full" />
-                <Skeleton className="h-14 w-full" />
-              </div>
-            ) : filteredCategories.length === 0 ? (
-              <div className="bg-card border rounded-xl text-center py-12 px-4 shadow-xs">
-                <div className="size-12 rounded-2xl bg-muted/60 text-muted-foreground flex items-center justify-center mx-auto mb-3">
-                  <FolderTree className="size-6 text-muted-foreground" />
-                </div>
-                <h3 className="text-sm font-bold text-foreground">No categories found</h3>
-                <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                  {searchQuery
-                    ? `No category matches "${searchQuery}".`
-                    : "Create your first category using the form on the left."}
-                </p>
-              </div>
-            ) : (
-              <DataTable columns={columns} data={filteredCategories} />
-            )}
+              <Button
+                onClick={handleRefreshCategories}
+                variant="outline"
+                size="sm"
+                className="h-8.5 px-2.5 text-xs font-semibold gap-1.5 cursor-pointer shrink-0"
+                disabled={isRefreshing}
+                title="Refresh Categories"
+              >
+                <RefreshCw className={cn("size-3.5", isRefreshing && "animate-spin")} />
+                <span className="hidden md:inline">Refresh</span>
+              </Button>
+
+              <Button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="hidden sm:inline-flex h-8.5 px-3.5 text-xs font-semibold gap-1.5 cursor-pointer shrink-0 text-white"
+              >
+                <Plus className="size-3.5" />
+                <span>Add Category</span>
+              </Button>
+            </div>
           </div>
+
+          {/* Categories Table */}
+          {loadingCategories ? (
+            <div className="bg-card border rounded-xl p-6 space-y-3 shadow-xs">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+            </div>
+          ) : filteredCategories.length === 0 ? (
+            <div className="bg-card border rounded-xl text-center py-12 px-4 shadow-xs">
+              <div className="size-12 rounded-2xl bg-muted/60 text-muted-foreground flex items-center justify-center mx-auto mb-3">
+                <FolderTree className="size-6 text-muted-foreground" />
+              </div>
+              <h3 className="text-sm font-bold text-foreground">No categories found</h3>
+              <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto mb-4">
+                {searchQuery
+                  ? `No category matches "${searchQuery}".`
+                  : "Organize your articles by adding your first category."}
+              </p>
+              {!searchQuery && (
+                <Button
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="h-8.5 px-3.5 text-xs font-semibold gap-1.5 cursor-pointer text-white"
+                >
+                  <Plus className="size-3.5" />
+                  <span>Add Category</span>
+                </Button>
+              )}
+            </div>
+          ) : (
+            <DataTable columns={columns} data={filteredCategories} />
+          )}
         </div>
       </div>
+
+      {/* Add Category Modal (Popup) */}
+      <CategoryCreateForm
+        open={isCreateModalOpen}
+        onOpenChange={setIsCreateModalOpen}
+        onSuccess={mutateCategories}
+      />
 
       {/* Edit Category & SEO Modal */}
       <Dialog open={!!editingCategory} onOpenChange={(open) => !open && setEditingCategory(null)}>
