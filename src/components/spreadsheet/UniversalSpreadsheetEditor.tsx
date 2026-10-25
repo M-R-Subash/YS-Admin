@@ -1923,7 +1923,7 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
                                           <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
                                             <Badge
                                               variant="secondary"
-                                              className="text-[10px] px-1.5 py-0 h-4.5 bg-muted font-medium text-foreground truncate max-w-[105px] shrink-0"
+                                              className="text-[10px] px-1.5 py-0 h-4.5 bg-muted font-medium text-foreground truncate max-w-26.25 shrink-0"
                                             >
                                               {cellVal[0]}
                                             </Badge>
@@ -2005,7 +2005,7 @@ export function UniversalSpreadsheetEditor<T extends { id: string; title: string
                                           <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
                                             <Badge
                                               variant="outline"
-                                              className="text-[10px] px-1.5 py-0 h-4.5 font-normal text-foreground bg-muted/40 truncate max-w-[105px] shrink-0"
+                                              className="text-[10px] px-1.5 py-0 h-4.5 font-normal text-foreground bg-muted/40 truncate max-w-26.25 shrink-0"
                                             >
                                               #{cellVal[0]}
                                             </Badge>

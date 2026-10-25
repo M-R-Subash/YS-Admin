@@ -11,7 +11,6 @@ import {
   Mail,
   Download,
   Plus,
-  RefreshCw,
   Upload,
   RotateCcw,
   FilterX,
@@ -45,7 +44,6 @@ import {
 import { TableFloatingDock } from "@/components/table/TableFloatingDock";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getSubscribersColumns, Subscriber } from "./subscribers-columns";
-import { cn } from "@/lib/utils";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 

@@ -253,7 +253,7 @@ export function RevisionHistoryDrawer({
                               {authorInitials}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="truncate max-w-[140px] text-foreground font-medium text-[11px]">
+                          <span className="truncate max-w-35 text-foreground font-medium text-[11px]">
                             {author?.name || author?.email || "Unknown Author"}
                           </span>
                         </div>

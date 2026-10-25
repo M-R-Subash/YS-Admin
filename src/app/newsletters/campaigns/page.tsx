@@ -45,7 +45,6 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getCampaignsColumns, Campaign } from "./campaigns-columns";
 import { BRAND_LOGO_URL, formatEmailBody } from "@/lib/newsletter/templates";
-import { cn } from "@/lib/utils";
 import { SchedulePostModal } from "@/components/blog/dialogs/SchedulePostModal";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());

@@ -73,7 +73,6 @@ export function ContentFilterBar({
   mobileRightContent,
   className = "",
   showCount = false,
-  filterMode = "dropdown",
 }: ContentFilterBarProps) {
   const activeTabObj = tabs.find((t) => t.id === activeTab) || tabs[0];
 
