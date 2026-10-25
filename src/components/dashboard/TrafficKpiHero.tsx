@@ -580,7 +580,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
       </div>
 
       {/* DUAL-PERIOD COMPARISON AREA CHART */}
-      <CardContent className="px-2 sm:px-6 py-0 focus:outline-none focus:ring-0">
+      <CardContent className="px-2 sm:px-6 pb-2 pt-0 focus:outline-none focus:ring-0">
         {!mounted || isLoading ? (
           <div className="h-60 sm:h-80 lg:h-87.5 w-full flex items-center justify-center">
             <Skeleton className="h-full w-full rounded-md" />
@@ -598,7 +598,7 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
             <ResponsiveContainer width="100%" height="100%" className="outline-none focus:outline-none">
               <AreaChart
                 data={timeSeries}
-                margin={{ top: 12, right: 10, left: -22, bottom: 0 }}
+                margin={{ top: 12, right: 20, left: 16, bottom: 6 }}
                 style={{ outline: "none" }}
                 className="outline-none focus:outline-none"
               >
@@ -614,18 +614,19 @@ export const TrafficKpiHero = memo(function TrafficKpiHero({
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
+                  padding={{ left: 14, right: 14 }}
                   interval={range === "7d" ? 0 : "preserveStartEnd"}
                   minTickGap={range === "7d" ? 4 : 12}
                   className="text-[10px] sm:text-[11px] fill-muted-foreground font-mono"
                 />
                 <YAxis
-                  width={30}
+                  width={38}
                   allowDecimals={false}
                   domain={yDomain}
                   ticks={yTicks}
                   tickLine={false}
                   axisLine={false}
-                  tickMargin={4}
+                  tickMargin={6}
                   className="text-[11px] fill-muted-foreground font-mono"
                   tickFormatter={(val) => {
                     if (val >= 1000) {
