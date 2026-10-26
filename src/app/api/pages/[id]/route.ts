@@ -6,6 +6,8 @@ import { revalidateFrontendPath } from "@/lib/revalidate";
 import { handleApiError } from "@/lib/server/prisma-errors";
 import { invalidateAggregateCaches } from "@/lib/server/memory-cache";
 import { recordAuditLog, getClientAuditMeta, logEntityMutation } from "@/lib/server/audit";
+import { serverConfig } from "@/lib/config/server";
+import crypto from "crypto";
 
 // GET /api/pages/[id] — get a single page
 export async function GET(
@@ -32,8 +34,21 @@ export async function GET(
     return NextResponse.json({ error: "Page not found" }, { status: 404 });
   }
 
+  // Pre-generate short-lived HMAC preview token (15-min validity) to eliminate client preview token waterfalls
+  let previewToken: string | undefined = undefined;
+  const secretKey = serverConfig.security.previewSecret;
+  if (secretKey && page.slug) {
+    const expiresAt = Date.now() + 15 * 60 * 1000;
+    const signature = crypto
+      .createHmac("sha256", secretKey)
+      .update(`${page.slug}:${expiresAt}`)
+      .digest("hex");
+    previewToken = `${expiresAt}.${signature}`;
+  }
+
   return NextResponse.json({
     ...mapDbToPageData(page),
+    previewToken,
   });
 }
 

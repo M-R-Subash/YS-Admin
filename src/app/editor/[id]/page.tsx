@@ -49,8 +49,9 @@ const SCHEMA_REGISTRY: Record<string, any> = {
   },
 };
 
-function getSchemaConfig(slug: string | undefined) {
-  if (!slug) return null;
+function getSchemaConfig(rawSlug: string | undefined) {
+  if (!rawSlug) return null;
+  const slug = rawSlug === "/" ? "/" : rawSlug.startsWith("/") ? rawSlug : `/${rawSlug}`;
   if (SCHEMA_REGISTRY[slug]) return SCHEMA_REGISTRY[slug];
   if (
     slug.startsWith("/services/") ||
@@ -137,7 +138,9 @@ export default function EditorPage({
       })
       .then((data: PageData) => {
         setPage(data);
-        if (data.slug) {
+        if (data.previewToken) {
+          setPreviewToken(data.previewToken);
+        } else if (data.slug) {
           fetch(`/api/preview-token?slug=${encodeURIComponent(data.slug)}`)
             .then((r) => r.json())
             .then((t) => {
@@ -340,7 +343,7 @@ export default function EditorPage({
   }
 
   // Action 2: Publish Changes Live (Opens Confirmation Modal)
-  async function handlePublish() {
+  const handlePublish = useCallback(async () => {
     if (!page) return;
 
     // Validate form schema before publishing
@@ -357,7 +360,7 @@ export default function EditorPage({
     }
 
     setShowPublishConfirm(true);
-  }
+  }, [page]);
 
   // Executed once user confirms in the Publish confirmation modal
   async function executePublish() {
@@ -418,7 +421,7 @@ export default function EditorPage({
     isUnsavedChangesRef.current = isUnsavedChanges;
     handleSaveDraftRef.current = handleSaveDraft;
     handlePublishRef.current = handlePublish;
-  });
+  }, [isUnsavedChanges, handleSaveDraft, handlePublish]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

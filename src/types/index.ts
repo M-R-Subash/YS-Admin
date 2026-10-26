@@ -20,6 +20,7 @@ export interface Page {
     profilePicture?: string | null;
   } | null;
   previewSecret?: string;
+  previewToken?: string;
   createdAt: string;
   updatedAt: string;
 }
