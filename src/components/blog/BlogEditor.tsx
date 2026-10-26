@@ -77,7 +77,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { clientConfig } from "@/lib/config/client";
+import { uploadMediaFile } from "@/lib/client/media-upload";
 import { cn } from "@/lib/utils";
 
 interface BlogEditorProps {
@@ -93,27 +93,7 @@ interface BlogEditorProps {
 }
 
 const uploadToCloudinary = async (file: File): Promise<string> => {
-  const cloudName = clientConfig.cloudinary.cloudName;
-  const uploadPreset = clientConfig.cloudinary.uploadPreset;
-
-  if (!cloudName || !uploadPreset) {
-    throw new Error("Cloudinary configuration is missing in environment");
-  }
-
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", uploadPreset);
-
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-    method: "POST",
-    body: formData,
-  });
-
-  const data = await res.json();
-  if (!res.ok || !data.secure_url) {
-    throw new Error(data.error?.message || "Failed to upload image to Cloudinary");
-  }
-
+  const data = await uploadMediaFile(file);
   return data.secure_url;
 };
 

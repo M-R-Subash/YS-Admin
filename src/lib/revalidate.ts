@@ -64,3 +64,60 @@ export async function revalidateFrontendPath(
     return false;
   }
 }
+
+/**
+ * Triggers on-demand cache tag revalidation on the main.ys frontend application.
+ * Used for purging unstable_cache tags (e.g. "global-header", "global-footer").
+ */
+export async function revalidateFrontendTag(tag: string): Promise<boolean> {
+  const frontendUrl = serverConfig.app.frontendUrl;
+  const secret = serverConfig.security.revalidationSecret;
+
+  if (!secret) {
+    console.warn(
+      "[revalidate] REVALIDATION_SECRET is not set. Skipping tag revalidation."
+    );
+    return false;
+  }
+
+  const normalizedTag = tag.trim();
+  if (!normalizedTag) return false;
+
+  try {
+    const endpoint = `${frontendUrl.replace(/\/$/, "")}/api/revalidate`;
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        secret,
+        tag: normalizedTag,
+      }),
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      console.warn(
+        `[revalidate] Failed to revalidate tag "${normalizedTag}":`,
+        err
+      );
+      return false;
+    }
+
+    const data = await response.json();
+    console.log(
+      `[revalidate] Successfully revalidated tag "${normalizedTag}" at ${new Date(
+        data.timestamp
+      ).toISOString()}`
+    );
+    return true;
+  } catch (error: any) {
+    console.warn(
+      `[revalidate] Could not reach frontend for tag ${normalizedTag}:`,
+      error?.message || error
+    );
+    return false;
+  }
+}

@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 import { authOptions, requireLiveAdmin } from "@/lib/auth";
-import { revalidateFrontendPath } from "@/lib/revalidate";
+import { revalidateFrontendPath, revalidateFrontendTag } from "@/lib/revalidate";
 import { headerZodSchema } from "@/lib/schemas/header/header-validation";
 import { recordAuditLog, getClientAuditMeta } from "@/lib/server/audit";
 
@@ -35,7 +35,10 @@ export async function saveHeaderData(data: any) {
     });
 
     revalidatePath("/header");
-    revalidateFrontendPath("/", "layout");
+    await Promise.all([
+      revalidateFrontendPath("/", "layout"),
+      revalidateFrontendTag("global-header"),
+    ]);
 
     const clientMeta = await getClientAuditMeta();
     await recordAuditLog({

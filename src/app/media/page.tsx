@@ -6,7 +6,6 @@ import Image from "next/image";
 import { toast } from "@/components/ui/toast";
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
 import { CopyButton } from "@/components/ui/copy-button";
-import { clientConfig } from "@/lib/config/client";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ConfirmModal } from "@/components/modals/ConfirmModal";
+import { uploadMediaFile } from "@/lib/client/media-upload";
 
 interface CloudinaryImage {
   public_id: string;
@@ -123,46 +123,16 @@ export default function MediaPage() {
   const handleUpload = async (file: File) => {
     if (!file) return;
     setIsUploading(true);
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", clientConfig.cloudinary.uploadPreset);
 
     try {
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${clientConfig.cloudinary.cloudName}/image/upload`, {
-          method: "POST",
-          body: formData,
-      });
-      const data = await res.json();
-      if (data.secure_url) {
-        setImages((prev) => [data, ...prev]);
-        setIsUploadModalOpen(false);
-        setSelectedMedia(data);
-        toast.add({ title: "Success", description: "Image uploaded successfully.", type: "success" });
-
-        // Record media upload in audit trail
-        fetch("/api/audit-logs", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            eventType: "MEDIA.UPLOADED",
-            category: "MEDIA",
-            action: `Uploaded media image "${data.original_filename || file.name}"`,
-            target: `Media: ${data.public_id || file.name}`,
-            metadata: {
-              public_id: data.public_id,
-              format: data.format,
-              bytes: data.bytes,
-              url: data.secure_url,
-            },
-          }),
-        }).catch((auditErr) => console.warn("Failed to audit log media upload:", auditErr));
-      } else {
-        console.error("Cloudinary upload failed", data);
-        toast.add({ title: "Error", description: "Failed to upload image.", type: "error" });
-      }
-    } catch (err) {
+      const data = await uploadMediaFile(file);
+      setImages((prev) => [data as CloudinaryImage, ...prev]);
+      setIsUploadModalOpen(false);
+      setSelectedMedia(data as CloudinaryImage);
+      toast.add({ title: "Success", description: "Image uploaded successfully.", type: "success" });
+    } catch (err: any) {
       console.error("Error uploading image:", err);
-      toast.add({ title: "Error", description: "Failed to upload image.", type: "error" });
+      toast.add({ title: "Error", description: err?.message || "Failed to upload image.", type: "error" });
     } finally {
       setIsUploading(false);
     }
@@ -286,7 +256,7 @@ export default function MediaPage() {
                   {/* Infinite Scroll Trigger & Bottom Spinner */}
                   <div
                     ref={loadMoreRef}
-                    className="flex flex-col items-center justify-center py-8 min-h-[64px]"
+                    className="flex flex-col items-center justify-center py-8 min-h-16"
                   >
                     {isLoadingMore && (
                       <div className="flex items-center gap-2.5 text-xs font-semibold text-muted-foreground animate-pulse py-2">

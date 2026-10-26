@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { clientConfig } from "@/lib/config/client";
+import { uploadMediaFile } from "@/lib/client/media-upload";
 
 interface ImageUploadBlockProps {
   value: { url?: string; alt?: string; title?: string } | string | undefined;
@@ -68,28 +68,13 @@ export function ImageUploadBlock({ value, onChange, customTrigger }: ImageUpload
   const handleUpload = async (file: File) => {
     if (!file) return;
     setIsUploading(true);
-    
-    const cloudName = clientConfig.cloudinary.cloudName;
-    const uploadPreset = clientConfig.cloudinary.uploadPreset;
-
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", uploadPreset);
 
     try {
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (data.secure_url) {
-        // Switch to media tab and put the new image at the top
-        setMediaItems([data, ...mediaItems]);
-        setActiveTab("media");
-        setSelectedMedia(data);
-      } else {
-        throw new Error(data.error?.message || "Cloudinary upload failed");
-      }
+      const data = await uploadMediaFile(file);
+      // Switch to media tab and put the new image at the top
+      setMediaItems([data, ...mediaItems]);
+      setActiveTab("media");
+      setSelectedMedia(data);
     } catch (err: any) {
       console.error("Error uploading image:", err.message || err);
     } finally {

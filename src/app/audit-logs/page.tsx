@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback, useDeferredValue, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useDeferredValue } from "react";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import Link from "next/link";
@@ -96,10 +96,6 @@ export default function AuditLogsPage() {
     }
   );
 
-  // Force instant revalidation whenever user navigates to this page
-  useEffect(() => {
-    mutate();
-  }, [mutate]);
 
   const rawLogs = useMemo(() => data?.logs || [], [data?.logs]);
   const totalItems = data?.pagination?.total ?? data?.total ?? rawLogs.length;

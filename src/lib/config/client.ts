@@ -32,7 +32,7 @@ const clientEnvSchema = z.object({
     .min(1, "NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME is required"),
   NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET: z
     .string()
-    .min(1, "NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET is required"),
+    .optional(),
   NEXT_PUBLIC_CLOUDINARY_API_KEY: z
     .string()
     .min(1, "NEXT_PUBLIC_CLOUDINARY_API_KEY is required"),

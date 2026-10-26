@@ -29,7 +29,7 @@ import { useDirtyManager } from "@/hooks/useDirtyManager";
 import Image from "next/image";
 import { format } from "date-fns";
 import { AdminTopBar } from "@/components/layout/AdminTopBar";
-import { clientConfig } from "@/lib/config/client";
+import { uploadMediaFile } from "@/lib/client/media-upload";
 
 export default function AccountPage() {
   const { data: session, update } = useSession();
@@ -101,42 +101,14 @@ export default function AccountPage() {
     if (!file) return;
     setIsUploading(true);
 
-    const cloudName = clientConfig.cloudinary.cloudName;
-    const uploadPreset = clientConfig.cloudinary.uploadPreset;
-
-    if (!cloudName || !uploadPreset) {
-      toast.add({
-        title: "Configuration Error",
-        description: "Cloudinary credentials missing in environment.",
-        type: "error",
-      });
-      setIsUploading(false);
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", uploadPreset);
-
     try {
-      const res = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-        {
-          method: "POST",
-          body: formData,
-        },
-      );
-      const data = await res.json();
-      if (data.secure_url) {
-        setProfilePicture(data.secure_url);
-        toast.add({
-          title: "Image Uploaded",
-          description: "Click 'Save Changes' to update your account.",
-          type: "success",
-        });
-      } else {
-        throw new Error(data.error?.message || "Cloudinary upload failed");
-      }
+      const data = await uploadMediaFile(file);
+      setProfilePicture(data.secure_url);
+      toast.add({
+        title: "Image Uploaded",
+        description: "Click 'Save Changes' to update your account.",
+        type: "success",
+      });
     } catch (err) {
       toast.add({
         title: "Upload Error",

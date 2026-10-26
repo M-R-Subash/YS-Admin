@@ -34,7 +34,7 @@ import { CopyButton } from "@/components/ui/copy-button";
 import { cn } from "@/lib/utils";
 import type { User } from "@/app/users/users-columns";
 import { useSession } from "next-auth/react";
-import { clientConfig } from "@/lib/config/client";
+import { uploadMediaFile } from "@/lib/client/media-upload";
 
 export interface UserModalProps {
   user?: User | null;
@@ -134,47 +134,19 @@ function UserForm({ user, onClose, onSuccess }: UserFormProps) {
   };
 
 
-  // Cloudinary Direct Unsigned Upload
+  // Authenticated Server-Side Media Upload
   const handleImageUpload = async (file: File) => {
     if (!file) return;
     setIsUploading(true);
 
-    const cloudName = clientConfig.cloudinary.cloudName;
-    const uploadPreset = clientConfig.cloudinary.uploadPreset;
-
-    if (!cloudName || !uploadPreset) {
-      toast.add({
-        title: "Configuration Error",
-        description: "Cloudinary credentials missing in environment.",
-        type: "error",
-      });
-      setIsUploading(false);
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", uploadPreset);
-
     try {
-      const res = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
-      const data = await res.json();
-      if (data.secure_url) {
-        setProfilePicture(data.secure_url);
-        toast.add({
-          title: "Image Uploaded",
-          description: "Photo ready. Click Save Changes to apply.",
-          type: "success",
-        });
-      } else {
-        throw new Error(data.error?.message || "Cloudinary upload failed");
-      }
+      const data = await uploadMediaFile(file);
+      setProfilePicture(data.secure_url);
+      toast.add({
+        title: "Image Uploaded",
+        description: "Photo ready. Click Save Changes to apply.",
+        type: "success",
+      });
     } catch (err) {
       toast.add({
         title: "Upload Error",
