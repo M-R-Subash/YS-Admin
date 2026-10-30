@@ -50,7 +50,7 @@ export const imageSchema = z.preprocess(
     return val;
   },
   z.object({
-    url: z.string().url().or(z.literal("")),
+    url: z.string().url().or(z.string().startsWith("/")).or(z.literal("")),
     alt: z.string().optional(),
     title: z.string().optional()
   }).optional()

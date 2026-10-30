@@ -8,6 +8,8 @@ import { invalidateAggregateCaches } from "@/lib/server/memory-cache";
 import { recordAuditLog, getClientAuditMeta, logEntityMutation } from "@/lib/server/audit";
 import { serverConfig } from "@/lib/config/server";
 import crypto from "crypto";
+import { getPageZodSchema } from "@/lib/schemas/page-schema-resolver";
+import { seoMetadataSchema } from "@/lib/schemas/seo-validation";
 
 // GET /api/pages/[id] — get a single page
 export async function GET(
@@ -88,6 +90,88 @@ export async function PUT(
     status = "draft";
   }
 
+  const targetSlug = slug !== undefined ? slug : existingPage.slug;
+
+  // 1. Strict Server-Side Validation for SEO Metadata (if provided)
+  if (seo !== undefined && seo !== null) {
+    const seoValidation = seoMetadataSchema.safeParse(seo);
+    if (!seoValidation.success) {
+      const errorMsg = seoValidation.error.issues
+        .map((i) => `${i.path.join(".") || "seo"}: ${i.message}`)
+        .join("; ");
+      return NextResponse.json(
+        {
+          error: `SEO metadata validation failed: ${errorMsg}`,
+          details: seoValidation.error.issues,
+        },
+        { status: 400 }
+      );
+    }
+  }
+
+  // 2. Strict Server-Side Validation for Page Content
+  const isPublishing =
+    action === "publish" ||
+    status === "published" ||
+    (status === undefined &&
+      existingPage.status === "published" &&
+      content !== undefined &&
+      action !== "save-draft" &&
+      action !== "discard-draft");
+
+  if (isPublishing) {
+    const publishContent =
+      content !== undefined
+        ? content
+        : body.draftContent !== undefined
+        ? body.draftContent
+        : (existingPage.draftContent ?? existingPage.content);
+
+    if (!publishContent || typeof publishContent !== "object") {
+      return NextResponse.json(
+        { error: "Cannot publish page: Content is missing or invalid." },
+        { status: 400 }
+      );
+    }
+
+    const pageSchema = getPageZodSchema(targetSlug);
+    const contentValidation = pageSchema.safeParse(publishContent);
+    if (!contentValidation.success) {
+      const errorMsg = contentValidation.error.issues
+        .map((i) => `${i.path.join(".") || "content"}: ${i.message}`)
+        .join("; ");
+      return NextResponse.json(
+        {
+          error: `Page validation failed: ${errorMsg}`,
+          details: contentValidation.error.issues,
+        },
+        { status: 400 }
+      );
+    }
+  } else if (action === "save-draft" || body.draftContent !== undefined) {
+    const draftPayload = content !== undefined ? content : body.draftContent;
+    if (draftPayload !== undefined && draftPayload !== null) {
+      if (typeof draftPayload !== "object") {
+        return NextResponse.json(
+          { error: "Draft content must be a valid JSON object." },
+          { status: 400 }
+        );
+      }
+
+      // Check max payload size (max 2MB) to prevent Postgres JSON bloat or memory exhaustion
+      const payloadSize = Buffer.byteLength(
+        JSON.stringify(draftPayload),
+        "utf8"
+      );
+      if (payloadSize > 2 * 1024 * 1024) {
+        return NextResponse.json(
+          { error: "Draft payload exceeds the maximum 2MB size limit." },
+          { status: 400 }
+        );
+      }
+    }
+  }
+
   let updateData: any = {
     authorId: session.user.id,
     ...(title !== undefined && { title }),
@@ -153,7 +237,12 @@ export async function PUT(
     // Commit to live content, reset draftContent, set status to published, and trigger ISR
     updateData = {
       ...updateData,
-      content: content !== undefined ? content : body.draftContent,
+      content:
+        content !== undefined
+          ? content
+          : body.draftContent !== undefined
+          ? body.draftContent
+          : (existingPage.draftContent ?? existingPage.content),
       draftContent: null,
       status: "published",
     };
@@ -189,8 +278,13 @@ export async function PUT(
   });
 
   // Revalidate frontend path asynchronously if live content was updated
-  if (shouldRevalidate && page.slug) {
-    revalidateFrontendPath(page.slug);
+  if (shouldRevalidate) {
+    if (page.slug) {
+      revalidateFrontendPath(page.slug);
+    }
+    if (existingPage.slug && existingPage.slug !== page.slug) {
+      revalidateFrontendPath(existingPage.slug);
+    }
   }
 
   invalidateAggregateCaches();

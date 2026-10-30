@@ -303,7 +303,7 @@ export default function EditorPage({
       console.error("Save draft error:", error);
       toast.add({
         title: "Couldn't save draft",
-        description: "Please check your connection and try again.",
+        description: error?.message || "Please check your connection and try again.",
         type: "error",
       });
       return false;
@@ -404,7 +404,7 @@ export default function EditorPage({
       console.error("Publish error:", error);
       toast.add({
         title: "Couldn't publish",
-        description: "Something went wrong. Please try again in a moment.",
+        description: error?.message || "Something went wrong. Please try again in a moment.",
         type: "error",
       });
     } finally {
