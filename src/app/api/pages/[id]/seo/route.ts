@@ -47,6 +47,10 @@ export async function PUT(
       authorRole,
       authorDescription,
     } = validatedData;
+
+    if (existingPage.slug === "/" && slug !== "/") {
+      return new NextResponse("The Homepage slug is protected and cannot be changed.", { status: 400 });
+    }
     
     // Convert structuredData string to JSON if present
     let parsedStructuredData = null;

@@ -86,6 +86,7 @@ export function ContentActionCell<T extends ContentActionItem = ContentActionIte
     });
 
   const capitalizedItemType = itemType.charAt(0).toUpperCase() + itemType.slice(1);
+  const isProtectedHomepage = itemType === "webpage" && (item.slug === "/" || item.slug === "");
 
   const onModalConfirm = () => {
     handleConfirm(async (type, _, id) => {
@@ -223,7 +224,7 @@ export function ContentActionCell<T extends ContentActionItem = ContentActionIte
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
-                  {item.status === "published" ? (
+                  {!isProtectedHomepage && item.status === "published" && (
                     <DropdownMenuItem
                       onClick={() => openTrashModal("unapprove", item, item.id, item.title)}
                       className="cursor-pointer"
@@ -231,7 +232,8 @@ export function ContentActionCell<T extends ContentActionItem = ContentActionIte
                       <Undo2 className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
                       <span>Move to Draft</span>
                     </DropdownMenuItem>
-                  ) : item.status === "scheduled" ? (
+                  )}
+                  {item.status === "scheduled" && (
                     <>
                       <DropdownMenuItem
                         onClick={() => openTrashModal("approve", item, item.id, item.title)}
@@ -248,7 +250,8 @@ export function ContentActionCell<T extends ContentActionItem = ContentActionIte
                         <span>Cancel Schedule (Draft)</span>
                       </DropdownMenuItem>
                     </>
-                  ) : (
+                  )}
+                  {item.status !== "published" && item.status !== "scheduled" && (
                     <DropdownMenuItem
                       onClick={() => openTrashModal("approve", item, item.id, item.title)}
                       className="cursor-pointer"
@@ -258,13 +261,15 @@ export function ContentActionCell<T extends ContentActionItem = ContentActionIte
                     </DropdownMenuItem>
                   )}
                   {extraMenuItems}
-                  <DropdownMenuItem
-                    onClick={() => openTrashModal("trash", item, item.id, item.title)}
-                    className="text-red-500 focus:text-red-500 focus:bg-red-50 cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 mr-2 text-red-500" />
-                    <span>Move to Trash</span>
-                  </DropdownMenuItem>
+                  {!isProtectedHomepage && (
+                    <DropdownMenuItem
+                      onClick={() => openTrashModal("trash", item, item.id, item.title)}
+                      className="text-red-500 focus:text-red-500 focus:bg-red-50 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 mr-2 text-red-500" />
+                      <span>Move to Trash</span>
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuGroup>
               </>
             ) : (
@@ -279,7 +284,7 @@ export function ContentActionCell<T extends ContentActionItem = ContentActionIte
                     <span>Restore</span>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
-                {showDelete && (
+                {showDelete && !isProtectedHomepage && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>

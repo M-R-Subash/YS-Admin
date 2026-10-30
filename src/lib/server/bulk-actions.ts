@@ -182,9 +182,15 @@ export async function executeBulkAction(
         select: { id: true, slug: true, status: true, isTrashed: true },
       });
 
+      // Protect Root Homepage from destructive bulk actions (trash, delete, unpublish)
+      const homepage = existingPages.find((p) => p.slug === "/");
+      const safeTargetIds = homepage
+        ? targetIds.filter((id: string) => id !== homepage.id)
+        : targetIds;
+
       if (action === "trash") {
         await prisma.page.updateMany({
-          where: { id: { in: targetIds } },
+          where: { id: { in: safeTargetIds } },
           data: { isTrashed: true },
         });
       } else if (action === "restore") {
@@ -199,7 +205,7 @@ export async function executeBulkAction(
         });
       } else if (action === "draft" || (action === "setStatus" && status === "draft")) {
         await prisma.page.updateMany({
-          where: { id: { in: targetIds }, isTrashed: false },
+          where: { id: { in: safeTargetIds }, isTrashed: false },
           data: { status: "draft" },
         });
       } else if (action === "deletePermanent") {
@@ -212,7 +218,7 @@ export async function executeBulkAction(
         }
 
         await prisma.page.deleteMany({
-          where: { id: { in: targetIds }, isTrashed: true },
+          where: { id: { in: safeTargetIds }, isTrashed: true },
         });
       } else {
         return NextResponse.json(

@@ -92,6 +92,28 @@ export async function PUT(
 
   const targetSlug = slug !== undefined ? slug : existingPage.slug;
 
+  // Protect Root Homepage from renaming, trashing, or unpublishing
+  if (existingPage.slug === "/") {
+    if (slug !== undefined && slug !== "/") {
+      return NextResponse.json(
+        { error: "The Homepage slug is protected and cannot be changed." },
+        { status: 400 }
+      );
+    }
+    if (isTrashed === true) {
+      return NextResponse.json(
+        { error: "The Homepage is a protected core system page and cannot be moved to trash." },
+        { status: 400 }
+      );
+    }
+    if (status === "draft" && action !== "save-draft") {
+      return NextResponse.json(
+        { error: "The Homepage must remain published to keep the website online." },
+        { status: 400 }
+      );
+    }
+  }
+
   // 1. Strict Server-Side Validation for SEO Metadata (if provided)
   if (seo !== undefined && seo !== null) {
     const seoValidation = seoMetadataSchema.safeParse(seo);
@@ -326,7 +348,18 @@ export async function DELETE(
   }
 
   const page = await prisma.page.findUnique({ where: { id } });
-  if (!page || !page.isTrashed) {
+  if (!page) {
+    return NextResponse.json({ error: "Page not found" }, { status: 404 });
+  }
+
+  if (page.slug === "/") {
+    return NextResponse.json(
+      { error: "The Homepage is a protected core system page and cannot be permanently deleted." },
+      { status: 403 }
+    );
+  }
+
+  if (!page.isTrashed) {
     return NextResponse.json(
       { error: "Page must be moved to trash before permanent deletion" },
       { status: 400 }

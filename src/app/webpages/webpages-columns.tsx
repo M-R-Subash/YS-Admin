@@ -46,7 +46,12 @@ export const ActionCell = ({ page, onDataChange }: { page: Page; onDataChange: (
 };
 
 export const getWebpagesColumns = (onDataChange: () => void): ColumnDef<Page>[] => [
-  createSelectColumn<Page>(),
+  createSelectColumn<Page>({
+    isRowDisabled: (page) => ({
+      disabled: page.slug === "/",
+      reason: "The Homepage is a protected core system page and cannot be bulk modified.",
+    }),
+  }),
   {
     accessorKey: "title",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Page & Title" />,
@@ -83,6 +88,11 @@ export const getWebpagesColumns = (onDataChange: () => void): ColumnDef<Page>[] 
               <span className="text-[11px] text-muted-foreground truncate font-mono min-w-0 flex-1">
                 {pageSlug}
               </span>
+              {page.slug === "/" && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 shrink-0">
+                  Protected
+                </span>
+              )}
             </div>
           </div>
         </div>

@@ -226,6 +226,7 @@ export function UniversalSeoModal({
   };
 
   const pathPrefix = entityType === "blog" ? "/blogs/" : "";
+  const isHomepage = entityType === "page" && (initialData?.slug === "/" || initialData?.slug === "");
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -456,16 +457,23 @@ export function UniversalSeoModal({
                                 id="quick-slug"
                                 value={field.value}
                                 onChange={field.onChange}
-                                className="border-0 rounded-none text-xs h-9 font-mono focus-visible:ring-0"
+                                disabled={isHomepage}
+                                className={`border-0 rounded-none text-xs h-9 font-mono focus-visible:ring-0 ${
+                                  isHomepage ? "opacity-60 cursor-not-allowed bg-muted/40" : ""
+                                }`}
                               />
                             )}
                           />
                         </div>
-                        {errors.slug && (
+                        {isHomepage ? (
+                          <span className="text-[11px] text-muted-foreground font-medium">
+                            The Root Homepage slug is locked and cannot be changed.
+                          </span>
+                        ) : errors.slug ? (
                           <span className="text-[11px] text-destructive font-semibold">
                             {errors.slug.message}
                           </span>
-                        )}
+                        ) : null}
                       </div>
                     </div>
 
