@@ -500,6 +500,34 @@ export function EditorRenderer({
   );
 }
 
+function getDefaultFieldValue(f: FieldSchema): any {
+  switch (f.type) {
+    case "url":
+      return { text: "", url: "", newTab: false, noFollow: false };
+    case "image":
+      return { url: "", alt: "", title: "" };
+    case "array":
+    case "tags":
+    case "category-select":
+    case "tag-autocomplete":
+      return [];
+    case "boolean":
+    case "checkbox":
+      return false;
+    case "object":
+      if (f.fields && f.fields.length > 0) {
+        const nested: Record<string, any> = {};
+        f.fields.forEach((sub) => {
+          nested[sub.name] = getDefaultFieldValue(sub);
+        });
+        return nested;
+      }
+      return {};
+    default:
+      return "";
+  }
+}
+
 function ArrayRenderer({
   field,
   fieldName,
@@ -554,13 +582,7 @@ function ArrayRenderer({
           const defaultItem: Record<string, any> = {};
           if (field.fields) {
             field.fields.forEach((f) => {
-              defaultItem[f.name] =
-                f.type === "array" ||
-                f.type === "tags" ||
-                f.type === "category-select" ||
-                f.type === "tag-autocomplete"
-                  ? []
-                  : "";
+              defaultItem[f.name] = getDefaultFieldValue(f);
             });
           }
           append(defaultItem);
